@@ -1,0 +1,33 @@
+# Model / large binaries
+*.zip
+*.tar.gz
+*.h5
+*.pb
+*.onnx
+*.tflite
+
+# Python virtual environments
+env_*/
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Node / Flutter / Android build
+node_modules/
+.dart_tool/
+build/
+.gradle/
+.idea/
+*.iml
+local.properties
+captures/
+*.apk
+*.aab
+
+# OS / temp files
+*.tmp
+.DS_Store
+Thumbs.db
+*.log
