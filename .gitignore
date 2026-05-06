@@ -1,5 +1,4 @@
-# Model / large binaries
-*.zip
+# Model / large binaries (ZIP tracked via Git LFS)
 *.tar.gz
 *.h5
 *.pb
