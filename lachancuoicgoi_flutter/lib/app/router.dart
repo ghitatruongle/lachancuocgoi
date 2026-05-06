@@ -13,21 +13,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     routes: [
       GoRoute(path: '/', builder: (context, state) => const HomePage()),
-      GoRoute(path: '/simulation', builder: (context, state) => const SimulationPage()),
+      GoRoute(
+          path: '/simulation',
+          builder: (context, state) => const SimulationPage()),
       GoRoute(
         path: '/monitoring',
-        builder: (context, state) => MonitoringPage(
-          simulatedScenarioTitle: state.uri.queryParameters['simulatedScenarioTitle'],
-        ),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return MonitoringPage(
+            simulatedScenarioTitle: extra?['scenarioTitle'] as String?,
+          );
+        },
       ),
       GoRoute(
         path: '/result/:historyId',
         builder: (context, state) => ResultPage(
-          historyId: int.tryParse(state.pathParameters['historyId'] ?? ''),
+          historyId:
+              int.tryParse(state.pathParameters['historyId'] ?? '') ?? 0,
         ),
       ),
-      GoRoute(path: '/history', builder: (context, state) => const HistoryPage()),
-      GoRoute(path: '/tips_lesson', builder: (context, state) => const TipsLessonPage()),
+      GoRoute(
+          path: '/history',
+          builder: (context, state) => const HistoryPage()),
+      GoRoute(
+          path: '/tips_lesson',
+          builder: (context, state) => const TipsLessonPage()),
     ],
   );
 });

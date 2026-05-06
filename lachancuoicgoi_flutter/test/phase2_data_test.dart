@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/data/alert_history_entry.dart';
@@ -10,7 +9,6 @@ import 'package:lachancuocgoi_flutter/data/app_database.dart';
 import 'package:lachancuocgoi_flutter/data/call_history.dart';
 import 'package:lachancuocgoi_flutter/data/transcript_saver.dart';
 import 'package:lachancuocgoi_flutter/data/vocabulary_repository.dart';
-import 'package:lachancuocgoi_flutter/ui/result_page/result_page.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -160,11 +158,7 @@ void main() {
         ),
       );
 
-      final container = ProviderContainer(
-        overrides: [appDatabaseProvider.overrideWithValue(appDatabase)],
-      );
-      addTearDown(container.dispose);
-      final history = await container.read(resultHistoryProvider(id).future);
+      final history = await appDatabase.getById(id);
 
       expect(history, isNotNull);
       expect(history?.riskLevel, 'RED');

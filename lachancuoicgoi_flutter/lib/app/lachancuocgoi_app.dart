@@ -13,7 +13,7 @@ class LachancuocgoiApp extends ConsumerWidget {
     final settings = ref.watch(settingsControllerProvider);
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      title: 'La chan cuoc goi',
+      title: 'Lá chắn cuộc gọi',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: settings.isDarkTheme ? ThemeMode.dark : ThemeMode.light,

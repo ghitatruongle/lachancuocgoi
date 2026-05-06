@@ -716,6 +716,23 @@ Kết quả cần có:
 - UI tĩnh chưa cần service thật nhưng hình dáng khớp gốc.
 - Tất cả screen route không crash.
 
+Cập nhật 2026-05-06:
+
+- [x] Port theme system hoàn chỉnh: 52 color tokens (Light/Dark), typography (10 text styles), shapes (5 cấp 10-28dp), spacing (AppSpacing 4-32dp).
+- [x] Port HomePage: hero card, start monitoring button, quick action cards (Giả lập, Lịch sử), tips button.
+- [x] Port 3 dialogs: InstructDialog (3 bước), RightsDialog (6 quyền), SettingsDialog (theme toggle, analysis mode radio, audio boost).
+- [x] Port MonitoringPage: AudioWaveform (flashing dot + canvas bars), RiskLevelIndicator (animated progress + color), LiveConversation, mode/network chips, end call button.
+- [x] Port Warning overlays: RedWarning + OrangeWarning fullscreen dialogs.
+- [x] Port AlertHistorySection: reusable cho cả Monitoring và Result pages.
+- [x] Port HistoryPage: search bar, swipe-to-delete (Dismissible), delete all dialog, empty/no-results states, privacy footer, Riverpod controller.
+- [x] Port HistoryItemCard: risk color bar 4dp, date/risk badge, summary, duration, analysis type chip.
+- [x] Port ResultPage: analysis summary card, recording card, transcript card (monospace), alert history, bottom nav buttons.
+- [x] Port SimulationPage: scenario cards (expand/collapse + script preview), search/category filter chips, skeleton loading, SimulationController (Riverpod), SimulationScenarioData models, load situation_test.json.
+- [x] Port TipsLessonPage: 8 tip cards với severity-based coloring (HIGH → errorContainer, MEDIUM → tertiaryContainer), numbered circles + emoji.
+- [x] Cập nhật Router: GoRouter hỗ trợ extra map cho monitoring scenario title, historyId parse an toàn.
+- [x] Cập nhật App Shell: title tiếng Việt "Lá chắn cuộc gọi".
+- Xác minh: `flutter analyze` — 0 issues. `flutter test` — 15/15 pass. Mọi route (`/`, `/simulation`, `/monitoring`, `/result/:id`, `/history`, `/tips_lesson`) render không crash.
+
 ### Giai đoạn 4 - Port analysis common và L1
 
 Công việc:
