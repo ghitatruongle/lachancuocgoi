@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sơ đồ nguyên lý hoạt động 3 bộ máy phân tích</title>
+    <!-- Trỏ tới thư viện Mermaid dạng CDN -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 1200px;
+            width: 100%;
+            overflow-x: auto;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sơ đồ Nguyên lý Hoạt động L1, L2, L3</h1>
+    <div class="container">
+        <pre class="mermaid">
+        graph TD
+            InputAudio["Âm thanh cuộc gọi / STT input"] -->|"Chuyển đổi Text"| Coordinator
+
+            subgraph CoordinatorLayer [Analysis Coordinator]
+                direction TB
+                Coordinator{"Điều phối phân tích<br/>(Lựa chọn dựa trên AnalysisMode)"}
+            end
+
+            Coordinator -->|"Mode: NORMAL"| L1_Engine
+            Coordinator -->|"Mode: GDetection"| L2_Engine
+            Coordinator -->|"Mode: GEMINI_API"| L3_Engine
+
+            %% --- CHI TIẾT LAYER 1 (L1) ---
+            subgraph L1_Engine [L1: Keyword / Trie]
+                direction TB
+                L1_Norm["Text Normalization<br/>Tokenization"] --> L1_Bigram["Bi-gram Correction<br/>(Sửa lỗi nhận diện STT)"]
+                L1_Bigram --> L1_Trie{"FlatTrie / Aho-Corasick<br/>Match Keywords"}
+                L1_Trie -->|"Khớp chính xác"| L1_MatchExact["Trích xuất Mức độ rủi ro & Keyword"]
+                L1_Trie -->|"Từ không khớp"| L1_Fuzzy["Fuzzy Matching<br/>Khoảng cách 1 ký tự"]
+                L1_Fuzzy --> L1_ResultParser["L1 Result Parser<br/>(Tính tổng Risk Level)"]
+                L1_MatchExact --> L1_ResultParser
+            end
+
+            %% --- CHI TIẾT LAYER 2 (L2) ---
+            subgraph L2_Engine [L2: AI Local / WFSA Context]
+                direction TB
+                L2_Split["Phân luồng L2 song song"]
+                L2_Split -->|"Luồng 1"| L2_AI["TFLite Intent Classifier<br/>(MobileBERT - Phân tích ý định)"]
+                L2_Split -->|"Luồng 2"| L2_Rules["GDetection Engine<br/>(Từ khoá & Quy luật Local)"]
+                
+                L2_AI --> L2_ConfCheck{"Kiểm tra Confidence"}
+                L2_Rules --> L2_WFSA["WFSA Engine<br/>Tính toán ngữ cảnh các bước lừa đảo"]
+                L2_WFSA --> L2_Safety["Safety Filter<br/>(Tính điểm an toàn)"]
+                
+                L2_ConfCheck -->|"High >= 80%"| L2_Fusion["Ưu tiên AI"]
+                L2_ConfCheck -->|"Thấp hoặc Lỗi"| L2_Fallback["Fallback sang Luồng 2"]
+                L2_ConfCheck -->|"Trung bình"| L2_Fusion["Dung hợp (Fusion) AI + WFSA"]
+                L2_Safety --> L2_Fusion
+                
+                L2_Fusion --> L2_CrossCheck{"Cross-Validation<br/>(AI nói An Toàn<br/>NHƯNG GDetection báo Đỏ?)"}
+                L2_CrossCheck -->|"Override"| L2_RiskCalc["Dùng mức rủi ro GDetection"]
+                L2_CrossCheck -->|"Bình thường"| L2_RiskCalc["Trích xuất L2 Risk"]
+                
+                L2_Fallback --> L2_RiskCalc
+            end
+
+            %% --- CHI TIẾT LAYER 3 (L3) ---
+            subgraph L3_Engine [L3: AI Cloud / Gemini]
+                direction TB
+                L3_Buffer{"Smart Buffering<br/>(Kiểm tra độ dài nội dung,<br/>rủi ro cũ, câu hoàn chỉnh)"}
+                L3_Buffer -->|"Đủ điều kiện"| L3_PII["PII Redaction<br/>(Ẩn danh hoá dữ liệu cá nhân)"]
+                L3_PII --> L3_API["Gemini Cloud API<br/>Gửi Prompt"]
+                L3_API --> L3_Restore["Restore PII<br/>Phục hồi dữ liệu bị ẩn danh"]
+                L3_Restore --> L3_ParseLogic["Parse JSON & Risk Decay<br/>(Tính toán Confidence)"]
+            end
+
+            L1_ResultParser --> FinalResult
+            L2_RiskCalc --> FinalResult
+            L3_ParseLogic --> FinalResult
+
+            %% Khối kết quả cuối
+            FinalResult(["<b>Final Analysis Result</b><br/>RiskLevel (Xanh, Vàng, Cam, Đỏ)<br/>Danh sách Keyword Matches<br/>Lý do cảnh báo<br/>Cảnh báo giao diện/âm thanh"])
+            
+            %% Styles
+            classDef l1 fill:#d4e157,stroke:#9e9d24,stroke-width:2px,color:#000
+            classDef l2 fill:#fff59d,stroke:#fbc02d,stroke-width:2px,color:#000
+            classDef l3 fill:#81d4fa,stroke:#0288d1,stroke-width:2px,color:#000
+            classDef coord fill:#bcaaa4,stroke:#5d4037,stroke-width:2px,color:#000
+            classDef out fill:#ef9a9a,stroke:#c62828,stroke-width:3px,color:#000
+
+            class L1_Engine l1
+            class L2_Engine l2
+            class L3_Engine l3
+            class CoordinatorLayer coord
+            class FinalResult out
+        </pre>
+    </div>
+</body>
+</html>

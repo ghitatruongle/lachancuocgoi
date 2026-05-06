@@ -1,0 +1,4 @@
+<resources>
+    <attr name="infoBoxBackground" format="color" />
+    <attr name="infoBoxOnBackground" format="color" />
+</resources>

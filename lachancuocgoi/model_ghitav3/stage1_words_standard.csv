@@ -1,0 +1,1452 @@
+text,label
+công an,0
+cảnh sát,0
+hình sự,0
+tòa án,0
+viện kiểm sát,0
+lệnh bắt,0
+khởi tố,0
+tạm giam,0
+xét xử,0
+luật sư,0
+nghi can,0
+bị cáo,0
+tội phạm,0
+truy nã,0
+chuyên án,0
+ma túy,0
+buôn lậu,0
+rửa tiền,0
+điều tra,0
+lấy lời khai,0
+tống đạt,0
+án hình sự,0
+cáo trạng,0
+dân sự,0
+khám xét,0
+phong tỏa,0
+tài sản,0
+chứng cứ,0
+biên bản,0
+phạt tù,0
+tống giam,0
+thẩm phán,0
+kiểm sát viên,0
+cảnh vệ,0
+trinh sát,0
+trại giam,0
+dân phòng,0
+công lý,0
+quy án,0
+tội danh,0
+trộm cắp,0
+cướp giật,0
+án tử,0
+chung thân,0
+pháp y,0
+pháp luật,0
+hiến pháp,0
+bộ luật,0
+dân luật,0
+tố tụng,0
+kháng cáo,0
+phúc thẩm,0
+sơ thẩm,0
+kháng nghị,0
+bãi nại,0
+đình chỉ,0
+hoãn thi hành,0
+tha bổng,0
+án treo,0
+đặc xá,0
+cải tạo,0
+quản chế,0
+cách ly,0
+tước quyền,0
+tước bằng,0
+tống xuất,0
+thuế,1
+cục thuế,1
+chi cục thuế,1
+thuế thu nhập,1
+thuế môn bài,1
+mã số thuế,1
+đóng thuế,1
+dịch vụ công,1
+cổng dịch vụ,1
+định danh,1
+mức hai,1
+căn cước,1
+cccd,1
+gắn chip,1
+sinh trắc,1
+vân tay,1
+khuôn mặt,1
+ủy ban,1
+phường xã,1
+cán bộ,1
+bảo hiểm,1
+trợ cấp,1
+vneid,1
+sổ đỏ,1
+giấy phép,1
+phạt nguội,1
+nộp phạt,1
+biên lai,1
+quyết toán,1
+quỹ vắc xin,1
+biển số,1
+đăng kiểm,1
+đăng ký,1
+khai báo,1
+hộ khẩu,1
+thị thực,1
+công chứng,1
+sao y,1
+bản chính,1
+thủ tục,1
+hồ sơ,1
+hành chính,1
+quản lý,1
+nhà nước,1
+chính quyền,1
+địa phương,1
+khu phố,1
+tổ trưởng,1
+cấp phép,1
+bãi bỏ,1
+lệ phí,1
+trước bạ,1
+thuế đất,1
+thuế vat,1
+khấu trừ,1
+miễn thuế,1
+hoàn thuế,1
+trốn thuế,1
+nợ thuế,1
+truy thu,1
+hóa đơn,1
+chứng từ,1
+biên nhận,1
+giấy khai sinh,1
+giấy chứng nhận,1
+chứng thực,1
+niêm phong,1
+nhà mạng,2
+viễn thông,2
+tổng đài,2
+chăm sóc,2
+khách hàng,2
+số điện thoại,2
+thuê bao,2
+sim,2
+khóa sim,2
+thu hồi,2
+chặn số,2
+tin rác,2
+gọi rác,2
+chính chủ,2
+chuẩn hóa,2
+cước phí,2
+nợ cước,2
+cước quốc tế,2
+chuyển mạng,2
+giữ số,2
+sim rác,2
+khuyến mãi,2
+gói cước,2
+data,2
+băng thông,2
+hạ tầng,2
+trạm phát,2
+sóng yếu,2
+mất sóng,2
+trả trước,2
+trả sau,2
+hợp đồng,2
+khôi phục,2
+cú pháp,2
+mạng lưới,2
+đường truyền,2
+tốc độ,2
+viettel,2
+vinaphone,2
+mobifone,2
+thẻ cào,2
+mã pin,2
+mã puk,2
+roaming,2
+chuyển vùng,2
+tin nhắn,2
+sms,2
+mms,2
+cuộc gọi,2
+cước gọi,2
+báo hỏng,2
+sự cố,2
+cáp quang,2
+internet,2
+bộ định tuyến,2
+modem,2
+wifi,2
+wlan,2
+dcom,2
+cước tháng,2
+lưu lượng,2
+dung lượng,2
+nạp tiền,2
+nạp cọc,2
+nạp thẻ,2
+mạng xã hội,3
+facebook,3
+zalo,3
+mật khẩu,3
+bị hack,3
+khôi phục,3
+mã xác nhận,3
+otp,3
+xác thực,3
+đăng nhập,3
+đăng xuất,3
+đường link lạ,3
+bảo mật,3
+gián điệp,3
+rò rỉ,3
+thiết bị lạ,3
+vô hiệu hóa,3
+tiêu chuẩn,3
+cấm ngôn,3
+vi phạm,3
+mạo danh,3
+nick ảo,3
+clone,3
+hỗ trợ,3
+hotline,3
+tin nhắn,3
+teamviewer,3
+anydesk,3
+truy cập,3
+đồng bộ,3
+sao lưu,3
+icloud,3
+mã độc,3
+virus,3
+cảnh báo,3
+khóa mõm,3
+chặn nhắn tin,3
+fanpage,3
+báo cáo,3
+report,3
+bản quyền,3
+kháng nghị,3
+dính gậy,3
+tài khoản,3
+cấp quyền,3
+ủy quyền,3
+email,3
+gmail,3
+hộp thư,3
+tệp đính kèm,3
+tải về,3
+cài đặt,3
+nâng cấp,3
+phần mềm,3
+ứng dụng,3
+app lạ,3
+apk,3
+trojan,3
+worm,3
+đánh cắp,3
+tống tiền mạng,3
+chuộc nick,3
+mở khóa,3
+bẻ khóa,3
+hack nick,3
+bệnh viện,4
+phòng khám,4
+bác sĩ,4
+y tá,4
+cấp cứu,4
+giáo viên,4
+tai nạn,4
+chấn thương,4
+viện phí,4
+chuyển khoản,4
+tạm ứng,4
+tiền cọc,4
+thuốc,4
+đặc trị,4
+nhóm máu,4
+bệnh nhân,4
+người nhà,4
+viện trưởng,4
+hồi sức,4
+xe cứu thương,4
+sơ cứu,4
+mất máu,4
+hôn mê,4
+khẩn cấp,4
+chữ ký,4
+bảo hiểm y,4
+phòng mổ,4
+can thiệp,4
+phẫu thuật,4
+đa khoa,4
+nội khoa,4
+ngoại khoa,4
+chuyên khoa,4
+xét nghiệm,4
+siêu âm,4
+xquang,4
+nhập viện,4
+xuất viện,4
+chuyển viện,4
+truyền máu,4
+nguy kịch,4
+tim mạch,4
+huyết áp,4
+tai biến,4
+đột quỵ,4
+chấn thương sọ,4
+gãy xương,4
+băng bó,4
+chỉ định,4
+đơn thuốc,4
+toa thuốc,4
+y lệnh,4
+chẩn đoán,4
+hội chẩn,4
+di chứng,4
+tàn phế,4
+tử vong,4
+giấy báo tử,4
+nhà xác,4
+nhà đại thể,4
+tẩm liệm,4
+xe rồng,4
+cáng cứu thương,4
+ống thở,4
+máy chạy tim,4
+bắt cóc,5
+tống tiền,5
+tính mạng,5
+tiền chuộc,5
+giết,5
+chặt tay,5
+tiếng khóc,5
+giam giữ,5
+giang hồ,5
+xã hội đen,5
+theo dõi,5
+mạng sống,5
+con tin,5
+cảnh cáo,5
+mất tích,5
+dọa nạt,5
+đe dọa,5
+sát thủ,5
+đâm chém,5
+uy hiếp,5
+khống chế,5
+bạo lực,5
+vũ lực,5
+đánh đập,5
+tra tấn,5
+hành hạ,5
+tàn sát,5
+trả thù,5
+nợ máu,5
+kẹo đồng,5
+xử bắn,5
+hăm dọa,5
+cưỡng đoạt,5
+tước đoạt,5
+chiếm đoạt,5
+cướp bóc,5
+bạo hành,5
+ép buộc,5
+bắt ép,5
+thủ tiêu,5
+giấu xác,5
+chôn sống,5
+ném sông,5
+đòi tiền,5
+đòi mạng,5
+không tha,5
+đền mạng,5
+trả giá,5
+hối hận,5
+van xin,5
+quỳ lạy,5
+tha mạng,5
+cút đi,5
+tránh xa,5
+đụng chạm,5
+hậu quả,5
+thảm khốc,5
+đẫm máu,5
+truy sát,5
+săn lùng,5
+lệnh truy,5
+chém mướn,5
+đánh thuê,5
+cạy cửa,5
+đột nhập,5
+giám đốc,6
+sếp,6
+kế toán,6
+thanh toán,6
+đối tác,6
+quỹ công ty,6
+nội bộ,6
+tiếp khách,6
+ngoại giao,6
+cọc,6
+ký duyệt,6
+báo cáo,6
+tiền lương,6
+xuất kho,6
+nợ,6
+hóa đơn,6
+chứng từ,6
+lệnh chi,6
+ủy nhiệm,6
+ngân sách,6
+tài vụ,6
+thủ quỹ,6
+thu ngân,6
+cổ đông,6
+vốn,6
+cổ phần,6
+lợi tức,6
+doang thu,6
+chi phí,6
+phát sinh,6
+tạm chi,6
+hoàn ứng,6
+lót tay,6
+hoa hồng,6
+chiết khấu,6
+dự án,6
+thầu,6
+thầu phụ,6
+đấu thầu,6
+trúng thầu,6
+giao dịch,6
+khẩn cấp,6
+tiếp thị,6
+pr,6
+marketing,6
+giải ngân,6
+rút vốn,6
+cấp vốn,6
+vay vốn,6
+tín dụng,6
+thư tín,6
+bảo lãnh,6
+chi nhánh,6
+hội sở,6
+công văn,6
+quyết định,6
+nghị quyết,6
+biên bản họp,6
+chỉ đạo,6
+phân công,6
+điều động,6
+bổ nhiệm,6
+bãi nhiệm,6
+sa thải,6
+người quen,7
+bạn cũ,7
+hàng xóm,7
+bạn học,7
+đồng nghiệp,7
+mượn tiền,7
+vay tiền,7
+kẹt tiền,7
+thiếu tiền,7
+trả sau,7
+đổ xăng,7
+hư xe,7
+sửa xe,7
+việc nhà,7
+việc gấp,7
+mất ví,7
+quên ví,7
+deepfake,7
+ghép mặt,7
+giọng lạ,7
+họ hàng,7
+chiến hữu,7
+mượn tạm,7
+đám cưới,7
+đám tang,7
+mượn lúa,7
+bạn thân,7
+anh họ,7
+chị họ,7
+rủi ro,7
+khẩn,7
+cấp bách,7
+tức thời,7
+chốc lát,7
+vài đồng,7
+trăm ngàn,7
+vài củ,7
+thẻ cào,7
+momo,7
+zalopay,7
+chuyển khoản,7
+quét mã,7
+qr code,7
+mã vạch,7
+quẹt thẻ,7
+pos,7
+tiền mặt,7
+tiền lẻ,7
+tiền thối,7
+trả nợ,7
+gạt nợ,7
+cấn nợ,7
+khất nợ,7
+khất lần,7
+hứa hẹn,7
+thất hứa,7
+nuốt lời,7
+bùng nợ,7
+xù nợ,7
+quỵt nợ,7
+lẩn tránh,7
+trốn tránh,7
+gặp mặt,7
+liên lạc,7
+nhắn tin,7
+tình yêu,8
+người yêu,8
+chồng tây,8
+lính mỹ,8
+kỹ sư,8
+phi công,8
+quà tặng,8
+bưu kiện,8
+hàng hóa,8
+mỹ phẩm,8
+trang sức,8
+kim cương,8
+đô la,8
+ngoại tệ,8
+hải quan,8
+sân bay,8
+đóng phí,8
+lưu kho,8
+tiền phạt,8
+bưu chính,8
+đắt tiền,8
+kẹt hàng,8
+hàng xách tay,8
+thông quan,8
+giữ hàng,8
+chuyển hoàn,8
+bưu cục,8
+thuế nhập,8
+thuế xuất,8
+tỷ giá,8
+hối đoái,8
+kiều hối,8
+ngoại kim,8
+phương tây,8
+âu mỹ,8
+lừa tình,8
+lãng mạn,8
+hẹn hò,8
+kết hôn,8
+đính hôn,8
+ly hôn,8
+góa vợ,8
+độc thân,8
+tâm sự,8
+tâm giao,8
+tri kỷ,8
+người thương,8
+mật ngọt,8
+lời hứa,8
+tương lai,8
+chung sống,8
+đoàn tụ,8
+visa,8
+định cư,8
+bảo lãnh,8
+đài thọ,8
+tài trợ,8
+chi trả,8
+chia sẻ,8
+gánh vác,8
+san sẻ,8
+nương tựa,8
+dựa dẫm,8
+gửi gắm,8
+clip nóng,9
+ảnh nhạy,9
+đoạn phim,9
+video,9
+web đen,9
+danh bạ,9
+chuộc lại,9
+bưng bít,9
+hacker,9
+ghép ảnh,9
+đồi trụy,9
+ngoại tình,9
+quay lén,9
+theo dõi,9
+khỏa thân,9
+chứng cứ,9
+tung clip,9
+làm nhục,9
+danh dự,9
+bóc phốt,9
+group kín,9
+zalo kín,9
+phát tán,9
+che giấu,9
+đánh ghen,9
+bí mật,9
+thanh danh,9
+tình một đêm,9
+tống tiền,9
+bôi nhọ,9
+sỉ nhục,9
+hạ nhục,9
+vu khống,9
+bịa đặt,9
+bôi tro,9
+trát trấu,9
+vu cáo,9
+cáo buộc,9
+uy hiếp,9
+ép buộc,9
+tàng trữ,9
+truyền bá,9
+văn hóa phẩm,9
+đồi phong,9
+bại tục,9
+thuần phong,9
+mỹ tục,9
+đạo đức,9
+suy đồi,9
+tha hóa,9
+biến chất,9
+đê tiện,9
+hèn hạ,9
+dơ bẩn,9
+nhơ nhuốc,9
+bẩn thỉu,9
+che đậy,9
+giấu giếm,9
+lấp liếm,9
+lừa dối,9
+dối trá,9
+giả tạo,9
+đạo mạo,9
+quyên góp,10
+ủng hộ,10
+từ thiện,10
+báo mạng,10
+khó khăn,10
+lũ lụt,10
+bão táp,10
+sạt lở,10
+mồ côi,10
+trẻ nghèo,10
+tàn tật,10
+ung thư,10
+tình thương,10
+mạnh thường,10
+nhà hảo,10
+bảo trợ,10
+tấm lòng,10
+tài khoản,10
+mặt trận,10
+chia sẻ,10
+lan tỏa,10
+cứu trợ,10
+lương thực,10
+xây cầu,10
+xây trường,10
+mái ấm,10
+chữ thập,10
+bị bỏ,10
+đóng góp,10
+sao kê,10
+công khai,10
+sổ xố,10
+sống mòn,10
+cứu đói,10
+san sẻ,10
+đùm bọc,10
+lá rách,10
+xót xa,10
+thương tâm,10
+khốn cùng,10
+bần cùng,10
+cùng cực,10
+đói khát,10
+rét mướt,10
+lạnh lẽo,10
+cô đơn,10
+trơ trọi,10
+bơ vơ,10
+hiu quạnh,10
+lạc lõng,10
+bệnh tật,10
+ốm đau,10
+lay lắt,10
+thoi thóp,10
+hấp hối,10
+tang thương,10
+đau xót,10
+ngậm ngùi,10
+xót ruột,10
+bùi ngùi,10
+thương cảm,10
+đồng cảm,10
+hảo tâm,10
+từ bi,10
+đầu tư,11
+tài chính,11
+chứng khoán,11
+cổ phiếu,11
+tiền ảo,11
+bitcoin,11
+usdt,11
+sàn giao,11
+ngoại hối,11
+forex,11
+đọc lệnh,11
+chuyên gia,11
+bao lỗ,11
+lợi nhuận,11
+hoàn vốn,11
+vốn ít,11
+tỷ suất,11
+sinh lời,11
+chốt lời,11
+nạp tiền,11
+rút tiền,11
+nhóm vip,11
+cổ tức,11
+mạo hiểm,11
+quỹ đầu,11
+robot,11
+bot ai,11
+mua đáy,11
+bán đỉnh,11
+tín hiệu,11
+phái sinh,11
+đòn bẩy,11
+cháy tk,11
+bảo hiểm,11
+chốt đơn,11
+margin,11
+short,11
+long,11
+buy,11
+sell,11
+token,11
+coin,11
+blockchain,11
+crypto,11
+tài sản,11
+danh mục,11
+lợi tức,11
+lãi gộp,11
+lãi đơn,11
+thanh khoản,11
+trượt giá,11
+lạm phát,11
+suy thoái,11
+bong bóng,11
+khủng hoảng,11
+kinh tế,11
+thị trường,11
+xu hướng,11
+xu thế,11
+biến động,11
+chu kỳ,11
+dao động,11
+biên độ,11
+đồ thị,11
+nến nhật,11
+cộng tác,12
+tuyển dụng,12
+tại nhà,12
+làm việc,12
+online,12
+việc nhẹ,12
+lương cao,12
+chốt đơn,12
+đánh giá,12
+shopee,12
+lazada,12
+tiki,12
+thả tim,12
+tiktok,12
+youtube,12
+lượt xem,12
+tương tác,12
+hoa hồng,12
+thu nhập,12
+nhiệm vụ,12
+nhận gốc,12
+ứng tiền,12
+trả lương,12
+kinh nghiệm,12
+làm rảnh,12
+phiếu nhiệm,12
+tk ảo,12
+giỏ hàng,12
+đơn khống,12
+5 sao,12
+telegram,12
+trưởng nhóm,12
+hướng dẫn,12
+thử việc,12
+tiền thưởng,12
+thưởng nóng,12
+thăng cấp,12
+nhập liệu,12
+đánh máy,12
+nhận việc,12
+seo,12
+parttime,12
+fulltime,12
+bán thời,12
+toàn thời,12
+linh hoạt,12
+chủ động,12
+rảnh rỗi,12
+click,12
+quảng cáo,12
+ctv,12
+review,12
+seeding,12
+buff,12
+auto,12
+auto click,12
+tool,12
+tool click,12
+hack view,12
+hack sub,12
+sub chéo,12
+view chéo,12
+follow,12
+trúng thưởng,13
+quay số,13
+quà tặng,13
+tri ân,13
+iphone,13
+giải đặc,13
+giải nhất,13
+tiền mặt,13
+voucher,13
+phiếu mua,13
+sự kiện,13
+bốc thăm,13
+may mắn,13
+xe máy,13
+sh,13
+tivi,13
+vàng,13
+du lịch,13
+thẻ cào,13
+mã thẻ,13
+lệ phí,13
+nhận giải,13
+đóng thuế,13
+xác thực,13
+hồ sơ,13
+biên lai,13
+bưu điện,13
+mã dự,13
+nhân viên,13
+khuyến mãi,13
+ngẫu nhiên,13
+hệ thống,13
+giá trị,13
+thiết thực,13
+kỉ niệm,13
+trao giải,13
+vinh danh,13
+kỷ niệm,13
+thành lập,13
+tri ân khách,13
+khách vàng,13
+khách kim,13
+kim cương,13
+giải thưởng,13
+hiện vật,13
+hiện kim,13
+bằng khen,13
+giấy khen,13
+cúp,13
+huy chương,13
+kỷ niệm chương,13
+chứng nhận,13
+xác nhận,13
+cam kết,13
+đảm bảo,13
+uy tín,13
+chất lượng,13
+tuyệt đối,13
+quà khủng,13
+quà to,13
+trúng lớn,13
+siêu to,13
+soi cầu,14
+lô đề,14
+xổ số,14
+đánh đề,14
+ba càng,14
+bạch thủ,14
+song thủ,14
+lô xiên,14
+số chuẩn,14
+số vip,14
+nhóm kín,14
+hội đồng,14
+chuyên gia,14
+phần mềm,14
+quay số,14
+thuật toán,14
+xác suất,14
+bao trúng,14
+hoàn tiền,14
+trúng lớn,14
+về bờ,14
+chốt số,14
+dàn đề,14
+đề chạm,14
+lô gan,14
+số nội,14
+số nóng,14
+bán số,14
+mua số,14
+phí nhóm,14
+miền bắc,14
+miền nam,14
+lô tô,14
+tỷ lệ,14
+đánh lớn,14
+giải mã,14
+giấc mơ,14
+thần tài,14
+phong thủy,14
+đón lộc,14
+số đẹp,14
+giờ vàng,14
+lô kẹp,14
+lô rơi,14
+bóng âm,14
+bóng dương,14
+đầu đít,14
+đuôi câm,14
+đầu câm,14
+kép bằng,14
+kép lệch,14
+lô kép,14
+lộn,14
+đánh lộn,14
+bạch kim,14
+rồng bạch,14
+dự đoán,14
+chốt kq,14
+kqxsmb,14
+xsmn,14
+xsmt,14
+xuất khẩu,15
+lao động,15
+visa,15
+hộ chiếu,15
+định cư,15
+bảo lãnh,15
+du học,15
+nước ngoài,15
+nhật bản,15
+hàn quốc,15
+đài loan,15
+úc,15
+canada,15
+mỹ,15
+thủ tục,15
+nhanh chóng,15
+tài chính,15
+phỏng vấn,15
+bao đậu,15
+trọn gói,15
+kỹ sư,15
+nông nghiệp,15
+máy bay,15
+đặt cọc,15
+chống trốn,15
+trung tâm,15
+tư vấn,15
+di trú,15
+chứng chỉ,15
+bằng cấp,15
+làm chui,15
+học bổng,15
+tị nạn,15
+di cư,15
+khám sức,15
+nộp hồ,15
+giấy giả,15
+xuất nhập,15
+đại sứ,15
+trượt visa,15
+vượt biên,15
+đường dây,15
+mộc đỏ,15
+thẻ xanh,15
+green card,15
+thường trú,15
+tạm trú,15
+quốc tịch,15
+nhập tịch,15
+cư trú,15
+lao động chân,15
+tay nghề,15
+bằng a,15
+bằng b,15
+tiếng anh,15
+tiếng nhật,15
+tiếng hàn,15
+topik,15
+jlpt,15
+tiếng đài,15
+n4,15
+n3,15
+n2,15
+n1,15
+ngân hàng,16
+tài khoản,16
+thẻ tín,16
+thẻ atm,16
+khóa thẻ,16
+hạn mức,16
+vay vốn,16
+tín chấp,16
+lãi suất,16
+giải ngân,16
+đăng nhập,16
+mã otp,16
+khuôn mặt,16
+ebanking,16
+mbanking,16
+phí dịch,16
+bất thường,16
+chi nhánh,16
+chăm sóc,16
+lệnh chuyển,16
+trừ tiền,16
+nợ tín,16
+quá hạn,16
+nâng cấp,16
+hủy dịch,16
+bảo vệ,16
+báo lỗi,16
+cảnh báo,16
+số dư,16
+sao kê,16
+thẻ đen,16
+đặc quyền,16
+ví điện,16
+liên kết,16
+phần mềm,16
+tiết kiệm,16
+thấu chi,16
+thu nhập,16
+dư nợ,16
+phong tỏa,16
+kích hoạt,16
+mở thẻ,16
+tất toán,16
+đáo hạn,16
+đáo hạn thẻ,16
+đáo hạn nợ,16
+nợ rủi,16
+nợ xấu,16
+nợ chú,16
+chú ý,16
+cic,16
+tra cic,16
+điểm tín,16
+tín nhiệm,16
+xếp hạng,16
+hạng thẻ,16
+chuẩn,16
+vàng,16
+platinum,16
+signature,16
+infinite,16
+phi vật,16
+vật lý,16
+shipper,17
+giao hàng,17
+bưu điện,17
+bưu phẩm,17
+đơn hàng,17
+nhận hàng,17
+thanh toán,17
+tiền ship,17
+thu hộ,17
+cod,17
+hoàn hàng,17
+bom hàng,17
+vận chuyển,17
+đền tiền,17
+bồi thường,17
+đóng gói,17
+trung chuyển,17
+kho hàng,17
+thất lạc,17
+quốc tế,17
+lưu kho,17
+bổ sung,17
+kiện hàng,17
+người nhận,17
+giao nhanh,17
+tiết kiệm,17
+phát nhanh,17
+mã vận,17
+kiểm tra,17
+đồng kiểm,17
+ứng trước,17
+trả tiền,17
+cọc tiền,17
+hỏng hóc,17
+gửi nhầm,17
+liên hệ,17
+đứng cổng,17
+xuống nhận,17
+thùng gãy,17
+trả hoàn,17
+kiểm đếm,17
+biên lai,17
+viettelpost,17
+ghtk,17
+ghn,17
+ninjavan,17
+jtexpress,17
+shoppefood,17
+grab,17
+gojek,17
+be,17
+ahamove,17
+lalamove,17
+loship,17
+xe ôm,17
+công nghệ,17
+hỏa tốc,17
+trong ngày,17
+qua ngày,17
+trừ tự động,18
+gia hạn,18
+gói cước,18
+dịch vụ,18
+phần mềm,18
+ứng dụng,18
+google play,18
+app store,18
+gói data,18
+nhạc chờ,18
+netflix,18
+truyền hình,18
+bảo hiểm,18
+phí duy,18
+hóa đơn,18
+hủy gói,18
+cú pháp,18
+nhấn link,18
+tải app,18
+vô lý,18
+bị trừ,18
+hàng tháng,18
+hàng tuần,18
+nhà mạng,18
+tổng đài,18
+mã độc,18
+nợ cước,18
+giải trí,18
+hỏng hóc,18
+tin nhắn,18
+tốn phí,18
+tiền cước,18
+phát sinh,18
+chấm dứt,18
+xóa app,18
+mua app,18
+lừa tải,18
+ios,18
+android,18
+gia hạn nhầm,18
+tự đăng,18
+tự hủy,18
+tự đăng ký,18
+mặc định,18
+mặc nhiên,18
+bị cài,18
+cài cắm,18
+ẩn nấp,18
+ngầm,18
+chạy ngầm,18
+nền,18
+chạy nền,18
+quảng cáo,18
+pop up,18
+banner,18
+adware,18
+spyware,18
+malware,18
+trojan,18
+rác,18
+đòi nợ,19
+nợ thuê,19
+tín dụng,19
+đen,19
+nặng lãi,19
+app vay,19
+fe credit,19
+nợ xấu,19
+khủng bố,19
+bôi nhọ,19
+bóc phốt,19
+cđm,19
+bàn thờ,19
+người thân,19
+danh bạ,19
+đồng nghiệp,19
+công ty,19
+siết nợ,19
+tờ rơi,19
+dân xã,19
+giang hồ,19
+tạt sơn,19
+mắm tôm,19
+khất nợ,19
+thanh toán,19
+trốn nợ,19
+hợp đồng,19
+chữ ký,19
+bốc họ,19
+lãi mẹ,19
+lãi con,19
+cầm đồ,19
+minh thư,19
+chém,19
+tận nhà,19
+chửi bới,19
+làm nhục,19
+đòi tiền,19
+hợp pháp,19
+đâm thuê,19
+chém mướn,19
+dằn mặt,19
+uy dũng,19
+dọa nạt,19
+ép nợ,19
+siết cổ,19
+bóp cổ,19
+thắt cổ,19
+nhồi máu,19
+hộc máu,19
+cắn răng,19
+nuốt nghẹn,19
+gán nợ,19
+thế chấp,19
+cầm cố,19
+bán thân,19
+đợ nợ,19
+đày đọa,19
+hành xác,19
+lấy lại,20
+thu hồi,20
+lừa đảo,20
+hacker,20
+mũ trắng,20
+pháp lý,20
+luật sư,20
+truy vết,20
+dòng tiền,20
+đặc nhiệm,20
+hiệp sĩ,20
+an ninh,20
+phí hồ,20
+đóng cọc,20
+xử lý,20
+cam kết,20
+không thu,20
+vốn,20
+bồi thường,20
+đơn kiện,20
+báo công,20
+báo ảo,20
+khôi phục,20
+truy quét,20
+địa chỉ,20
+ip,20
+xóa nick,20
+sập web,20
+công bằng,20
+kỹ sư,20
+nạn nhân,20
+khiếu nại,20
+tư vấn,20
+khởi kiện,20
+tranh tụng,20
+dữ liệu,20
+gián điệp,20
+tổ chức,20
+tài sản,20
+truy xét,20
+ủy quyền,20
+tội phạm,20
+thành lập,20
+thám tử,20
+thám báo,20
+mật thám,20
+điều tra,20
+theo vết,20
+lục lọi,20
+moi móc,20
+dán điệp,20
+cài cắm,20
+nằm vùng,20
+xâm nhập,20
+bẻ khóa,20
+bẻ mật,20
+phá web,20
+đánh sập,20
+khóa học,21
+hội thảo,21
+kinh doanh,21
+làm giàu,21
+triệu phú,21
+ceo,21
+đào tạo,21
+đa cấp,21
+tài năng,21
+đầu tư,21
+chiến lược,21
+bí quyết,21
+phát triển,21
+bản thân,21
+tư duy,21
+hệ thống,21
+thụ động,21
+diễn giả,21
+phòng zoom,21
+tài liệu,21
+tấm vé,21
+chốt sale,21
+bùng nổ,21
+doanh số,21
+cuộc đời,21
+độc quyền,21
+khởi nghiệp,21
+lãnh đạo,21
+tuyến dưới,21
+tuyến trên,21
+câu lạc,21
+chứng chỉ,21
+tỷ phú,21
+cơ hội,21
+vàng,21
+miễn phí,21
+nâng cấp,21
+quản trị,21
+startup,21
+ponzi,21
+truyền lửa,21
+bán khóa,21
+thu hút,21
+lôi kéo,21
+dụ dỗ,21
+tẩy não,21
+nhồi sọ,21
+định hướng,21
+khai sáng,21
+khai mở,21
+giác ngộ,21
+đánh thức,21
+tiềm năng,21
+khát vọng,21
+hoài bão,21
+ước mơ,21
+đỉnh cao,21
+vinh quang,21
+thành đạt,21
+thành tựu,21
+alo,22
+nghe đây,22
+khỏe không,22
+làm gì,22
+cà phê,22
+đi nhậu,22
+ăn sáng,22
+làm chưa,22
+cuối tuần,22
+bữa tiệc,22
+hẹn gặp,22
+nhớ mặt,22
+có hẹn,22
+xem phim,22
+gọi điện,22
+nghe máy,22
+trời mưa,22
+trời nắng,22
+mua đồ,22
+siêu thị,22
+báo cáo,22
+nghỉ phép,22
+duyệt hồ,22
+đi học,22
+thầy cô,22
+bạn bè,22
+sinh nhật,22
+kết hôn,22
+học giỏi,22
+dọn dẹp,22
+xe buýt,22
+đặt vé,22
+đặt bàn,22
+du lịch,22
+chuẩn bị,22
+gửi email,22
+gọi lại,22
+đang bận,22
+nghe rõ,22
+cảm ơn,22
+xin lỗi,22
+tạm biệt,22
+xin chào,22
+khỏe re,22
+đói bụng,22
+no rồi,22
+ngủ ngon,22
+ngon giấc,22
+đi chơi,22
+đi dạo,22
+hóng gió,22
+mua sắm,22
+shopping,22
+đi dạo,22
+nấu ăn,22
+rửa chén,22
+lau nhà,22
+quét nhà,22
+phơi đồ,22
+giặt đồ,22
+tắm rửa,22
+đánh răng,22
+rảnh rỗi,22
+nghỉ ngơi,22

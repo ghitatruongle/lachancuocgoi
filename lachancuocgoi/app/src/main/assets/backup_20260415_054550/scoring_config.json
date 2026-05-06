@@ -1,0 +1,102 @@
+{
+  "version": "2.1",
+  "description": "Cấu hình scoring cho L2 GDetection Engine với scenario-based alert",
+  "topicConfirmationThreshold": 3,
+  "scenarioSimilarityThreshold": 0.3,
+  "scenario_alert_threshold": 0.2,
+  "high_keyword_threshold": 0.5,
+  "riskLevelThresholds": {
+    "red": 0.5,
+    "orange": 0.35,
+    "yellow": 0.2
+  },
+  "weights": {
+    "keyword": 0.2,
+    "topic": 0.15,
+    "pattern": 0.25,
+    "scenario": 0.25,
+    "context": 0.1,
+    "sentiment": 0.05
+  },
+  "l2_config": {
+    "enabled": true,
+    "multi_layer_enabled": true,
+    "min_layers_required": 2,
+    "context_window_size": 5,
+    "min_confidence": 0.6,
+    "red_flag_multipliers_enabled": true,
+    "red_flag_scoring": {
+      "single_flag": 0.1,
+      "critical_combination": 2.0,
+      "warning_combination": 1.3
+    },
+    "context_analysis": {
+      "enabled": true,
+      "sentiment_weight": 0.3,
+      "topic_coherence_weight": 0.3,
+      "dialogue_flow_weight": 0.2,
+      "psychological_tactics_weight": 0.2
+    },
+    "dialogue_analysis": {
+      "enabled": true,
+      "min_turns": 2,
+      "max_turns": 20,
+      "speaker_ratio_threshold": 0.8,
+      "consecutive_questions_threshold": 3
+    },
+    "pattern_matching": {
+      "use_risk_bonus": true,
+      "max_gap_words": 10,
+      "min_pattern_matches": 1
+    },
+    "scenario_matching": {
+      "use_l2_hints": true,
+      "similarity_threshold": 0.3,
+      "match_dialogue": true,
+      "match_triggers": true,
+      "match_context": true
+    }
+  },
+  "scoring_formula": {
+    "base": "weighted_sum_of_all_layers",
+    "modifier": "red_flag_multiplier * context_bonus",
+    "final": "min(base_score * modifier, 1.0)"
+  },
+  "decision_thresholds": {
+    "safe": {
+      "min": 0.0,
+      "max": 0.3,
+      "action": "allow",
+      "color": "green"
+    },
+    "warning": {
+      "min": 0.3,
+      "max": 0.5,
+      "action": "warn",
+      "color": "yellow"
+    },
+    "danger": {
+      "min": 0.5,
+      "max": 0.7,
+      "action": "alert",
+      "color": "orange"
+    },
+    "critical": {
+      "min": 0.7,
+      "max": 1.0,
+      "action": "block",
+      "color": "red"
+    }
+  },
+  "performance": {
+    "max_processing_time_ms": 500,
+    "cache_enabled": true,
+    "lazy_load_scenarios": false
+  },
+  "debug": {
+    "log_level": "info",
+    "show_layer_scores": false,
+    "show_red_flags": false,
+    "show_context_analysis": false
+  }
+}

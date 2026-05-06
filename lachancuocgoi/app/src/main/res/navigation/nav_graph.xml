@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/navigation_monitoring">
+
+    <fragment
+        android:id="@+id/navigation_monitoring"
+        android:name="com.lachancuocgoi.ui.MonitoringFragment"
+        android:label="fragment_monitoring"
+        tools:layout="@layout/fragment_monitoring" >
+        <action
+            android:id="@+id/action_navigation_monitoring_to_monitoringActiveFragment"
+            app:destination="@id/monitoringActiveFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_history"
+        android:name="com.lachancuocgoi.ui.HistoryFragment"
+        android:label="fragment_history"
+        tools:layout="@layout/fragment_history" />
+
+    <fragment
+        android:id="@+id/monitoringActiveFragment"
+        android:name="com.lachancuocgoi.ui.MonitoringActiveFragment"
+        android:label="fragment_monitoring_active"
+        tools:layout="@layout/fragment_monitoring_active" >
+        <action
+            android:id="@+id/action_monitoringActiveFragment_to_analysisResultFragment"
+            app:destination="@id/analysisResultFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/analysisResultFragment"
+        android:name="com.lachancuocgoi.ui.AnalysisResultFragment"
+        android:label="fragment_analysis_result"
+        tools:layout="@layout/fragment_analysis_result" >
+        <action
+            android:id="@+id/action_analysisResultFragment_to_navigation_monitoring"
+            app:destination="@id/navigation_monitoring" />
+        <action
+            android:id="@+id/action_analysisResultFragment_to_navigation_history"
+            app:destination="@id/navigation_history" />
+    </fragment>
+
+</navigation>

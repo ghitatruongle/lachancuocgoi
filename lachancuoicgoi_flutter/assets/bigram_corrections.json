@@ -1,0 +1,289 @@
+{
+  "corrections": [
+    {
+      "from": ["nhan", "hang"],
+      "to": ["ngan", "hang"],
+      "note": "nhân hàng → ngân hàng (STT lỗi phổ biến nhất)"
+    },
+    {
+      "from": ["tai", "khoan"],
+      "to": ["tai", "khoan"],
+      "note": "tại khoản → tài khoản (normalize giữ nguyên)"
+    },
+    {
+      "from": ["can", "bo"],
+      "to": ["cong", "an"],
+      "note": "cán bộ → công an (chỉ khi đi cặp)"
+    },
+    {
+      "from": ["chuyen", "khoan"],
+      "to": ["chuyen", "khoan"],
+      "note": "chuyện khoản → chuyển khoản (normalize giữ nguyên)"
+    },
+    {
+      "from": ["cong", "ang"],
+      "to": ["cong", "an"],
+      "note": "công àng → công an (STT nuốt phụ âm cuối)"
+    },
+    {
+      "from": ["ma", "ot"],
+      "to": ["ma", "otp"],
+      "note": "mã ót → mã otp (STT không nhận ký tự viết tắt)"
+    },
+    {
+      "from": ["ma", "op"],
+      "to": ["ma", "otp"],
+      "note": "mã ốp → mã otp"
+    },
+    {
+      "from": ["nha", "mam"],
+      "to": ["nha", "mang"],
+      "note": "nhà mạm → nhà mạng (STT lỗi phụ âm cuối)"
+    },
+    {
+      "from": ["can", "cuop"],
+      "to": ["can", "cuoc"],
+      "note": "căn cướp → căn cước (STT nhầm thanh điệu)"
+    },
+    {
+      "from": ["thu", "bao"],
+      "to": ["thue", "bao"],
+      "note": "thư bao → thuê bao (STT nhầm nguyên âm)"
+    },
+    {
+      "from": ["toong", "tien"],
+      "to": ["tong", "tien"],
+      "note": "toong tiền → tống tiền (STT thêm nguyên âm)"
+    },
+    {
+      "from": ["xa", "minh"],
+      "to": ["xac", "minh"],
+      "note": "xà minh → xác minh (STT nuốt phụ âm cuối)"
+    },
+    {
+      "from": ["dinh", "dan"],
+      "to": ["dinh", "danh"],
+      "note": "định dàn → định danh (STT nuốt h cuối)"
+    },
+    {
+      "from": ["vien", "phi"],
+      "to": ["vien", "phi"],
+      "note": "viện phì → viện phí (normalize giữ nguyên)"
+    },
+    {
+      "from": ["sinh", "trac"],
+      "to": ["sinh", "trac"],
+      "note": "sinh trạc → sinh trắc (normalize giữ nguyên)"
+    },
+    {
+      "from": ["phong", "toa"],
+      "to": ["phong", "toa"],
+      "note": "phong tọa → phong tỏa (normalize giữ nguyên)"
+    },
+    {
+      "from": ["bat", "cop"],
+      "to": ["bat", "coc"],
+      "note": "bắt cóp → bắt cóc (STT nhầm phụ âm cuối)"
+    },
+    {
+      "from": ["lua", "dao"],
+      "to": ["lua", "dao"],
+      "note": "lừa đạo → lừa đảo (normalize giữ nguyên)"
+    },
+    {
+      "from": ["dau", "tu"],
+      "to": ["dau", "tu"],
+      "note": "dầu tư → đầu tư (normalize giữ nguyên)"
+    },
+    {
+      "from": ["vay", "tien"],
+      "to": ["vay", "tien"],
+      "note": "vay tiền (normalize giữ nguyên)"
+    },
+    {
+      "from": ["mat", "khau"],
+      "to": ["mat", "khau"],
+      "note": "mật khấu → mật khẩu (normalize giữ nguyên)"
+    },
+    {
+      "from": ["chuyen", "tien"],
+      "to": ["chuyen", "tien"],
+      "note": "chuyện tiền → chuyển tiền (normalize giữ nguyên)"
+    },
+    {
+      "from": ["khoa", "sim"],
+      "to": ["khoa", "sim"],
+      "note": "khóa SIM (normalize giữ nguyên)"
+    },
+    {
+      "from": ["doi", "no"],
+      "to": ["doi", "no"],
+      "note": "đồi nợ → đòi nợ (normalize giữ nguyên)"
+    },
+    {
+      "from": ["trung", "thuong"],
+      "to": ["trung", "thuong"],
+      "note": "trúng thưởng → trúng thưởng (normalize giữ nguyên)"
+    },
+    {
+      "from": ["so", "tai", "khoan"],
+      "to": ["so", "tai", "khoan"],
+      "note": "số tài khoản (3 tokens normalize)"
+    },
+    {
+      "from": ["ma", "xac", "thuc"],
+      "to": ["ma", "xac", "thuc"],
+      "note": "mã xác thực (3 tokens)"
+    },
+    {
+      "from": ["xa", "hoat"],
+      "to": ["xa", "hoat"],
+      "note": "xà hoạt → xả hoạt (STT)"
+    },
+    {
+      "from": ["tong", "duong"],
+      "to": ["tong", "duong"],
+      "note": "tổng dương → tổng dương (normalize)"
+    },
+    {
+      "from": ["ngo", "ai"],
+      "to": ["ngu", "oi"],
+      "note": "ngờ ai → người (STT nhầm)"
+    },
+    {
+      "from": ["co", "chu"],
+      "to": ["co", "chu"],
+      "note": "cờ chủ → có chủ (normalize)"
+    },
+    {
+      "from": ["di", "en"],
+      "to": ["di", "en"],
+      "note": "đi ên → điên (STT)"
+    },
+    {
+      "from": ["ban", "than"],
+      "to": ["ban", "than"],
+      "note": "bằng thân → bản thân (STT)"
+    },
+    {
+      "from": ["biet", "doi"],
+      "to": ["biet", "doi"],
+      "note": "biết đời → biết đối (normalize)"
+    },
+    {
+      "from": ["cam", "on"],
+      "to": ["cam", "on"],
+      "note": "cảm ơn (normalize giữ nguyên)"
+    },
+    {
+      "from": ["duoc", "khoan"],
+      "to": ["duoc", "khoan"],
+      "note": "được khoản → được khoản (normalize)"
+    },
+    {
+      "from": ["gap", "mat"],
+      "to": ["gap", "mat"],
+      "note": "gặp mặt (normalize giữ nguyên)"
+    },
+    {
+      "from": ["ho", "tro"],
+      "to": ["ho", "tro"],
+      "note": "hỗ trợ (normalize giữ nguyên)"
+    },
+    {
+      "from": ["kinh", "doanh"],
+      "to": ["kinh", "doanh"],
+      "note": "kinh doanh (normalize giữ nguyên)"
+    },
+    {
+      "from": ["lo", "i"],
+      "to": ["lo", "i"],
+      "note": "lỗ lì → lỗi (STT)"
+    },
+    {
+      "from": ["phat", "bieu"],
+      "to": ["phat", "bieu"],
+      "note": "phát biểu (normalize giữ nguyên)"
+    },
+    {
+      "from": ["tin", "dung"],
+      "to": ["tin", "dung"],
+      "note": "tín dụng (normalize giữ nguyên)"
+    },
+    {
+      "from": ["truy", "van"],
+      "to": ["truy", "van"],
+      "note": "truy vấn (normalize giữ nguyên)"
+    },
+    {
+      "from": ["xem", "xong"],
+      "to": ["xem", "xong"],
+      "note": "xem xong (normalize giữ nguyên)"
+    },
+    {
+      "from": ["thay", "doi"],
+      "to": ["thay", "doi"],
+      "note": "thay đổi (normalize giữ nguyên)"
+    },
+    {
+      "from": ["bao", "hiem"],
+      "to": ["bao", "hiem"],
+      "note": "bảo hiểm (normalize giữ nguyên)"
+    },
+    {
+      "from": ["cong", "no"],
+      "to": ["cong", "no"],
+      "note": "công nợ → công nợ (normalize)"
+    },
+    {
+      "from": ["dan", "so"],
+      "to": ["dan", "so"],
+      "note": "dân sự (normalize giữ nguyên)"
+    },
+    {
+      "from": ["gia", "han"],
+      "to": ["gia", "han"],
+      "note": "gia hạn (normalize giữ nguyên)"
+    },
+    {
+      "from": ["han", "muc"],
+      "to": ["han", "muc"],
+      "note": "hạn mức (normalize giữ nguyên)"
+    },
+    {
+      "from": ["khieu", "nai"],
+      "to": ["khieu", "nai"],
+      "note": "khiếu nại (normalize giữ nguyên)"
+    },
+    {
+      "from": ["thu", "chi"],
+      "to": ["thu", "chi"],
+      "note": "thu chi (normalize giữ nguyên)"
+    },
+    {
+      "from": ["xac", "nhan"],
+      "to": ["xac", "nhan"],
+      "note": "xác nhận (normalize giữ nguyên)"
+    },
+    {
+      "from": ["cuoc", "goi"],
+      "to": ["cuoc", "goi"],
+      "note": "cuộc gọi (normalize giữ nguyên)"
+    },
+    {
+      "from": ["tin", "nhan"],
+      "to": ["tin", "nhan"],
+      "note": "tin nhắn (normalize giữ nguyên)"
+    },
+    {
+      "from": ["dien", "thoai"],
+      "to": ["dien", "thoai"],
+      "note": "điện thoại (normalize giữ nguyên)"
+    },
+    {
+      "from": ["ung", "dung"],
+      "to": ["ung", "dung"],
+      "note": "ứng dụng (normalize giữ nguyên)"
+    }
+  ]
+}

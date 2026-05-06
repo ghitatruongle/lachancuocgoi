@@ -1,0 +1,688 @@
+{
+  "title": "risk_model_situation_22_groups",
+  "version": "2.2",
+  "riskLevels": [
+    {
+      "level": 0,
+      "labelId": "LV0",
+      "vietnameseName": "An Toàn (Giao tiếp Chuẩn mực)",
+      "scenarios": [
+        {
+          "id": 1,
+          "group": "SAFE",
+          "situation": "Nhân viên chăm sóc khách hàng gọi xác nhận lịch hẹn.",
+          "dialogue": "Dạ, em chào anh A, em là B gọi từ [Tên công ty]. Em gọi để xác nhận lịch hẹn của mình vào lúc 3 giờ chiều mai có đúng không ạ?"
+        },
+        {
+          "id": 2,
+          "group": "SAFE",
+          "situation": "Nhân viên ngân hàng gọi thông báo về chương trình ưu đãi mới.",
+          "dialogue": "Chào chị B, em là nhân viên ngân hàng ABC. Bên em đang có chương trình ưu đãi lãi suất cho khách hàng thân thiết, chị có muốn nghe thêm thông tin chi tiết không ạ?"
+        },
+        {
+          "id": 3,
+          "group": "SAFE",
+          "situation": "Nhân viên giao hàng gọi xác nhận địa chỉ.",
+          "dialogue": "Alo, em là shipper của [Đơn vị vận chuyển]. Em đang có đơn hàng giao đến địa chỉ XYZ cho anh C. Anh có ở nhà không ạ?"
+        },
+        {
+          "id": 4,
+          "group": "SAFE",
+          "situation": "Tổng đài tự động của nhà mạng thông báo cước.",
+          "dialogue": "(Giọng máy) Thông báo từ Viettel. Cước tháng 10 của quý khách là 150.000 đồng. Vui lòng thanh toán trước ngày 20/11. Xin cảm ơn."
+        },
+        {
+          "id": 5,
+          "group": "SAFE",
+          "situation": "Bạn bè hoặc người thân gọi điện hỏi thăm.",
+          "dialogue": "Alo, D đây. Dạo này khỏe không mày? Cuối tuần rảnh không đi cà phê?"
+        }
+      ]
+    },
+    {
+      "level": 1,
+      "labelId": "LV1",
+      "vietnameseName": "Biểu Hiện Không Rõ Ràng",
+      "scenarios": [
+        {
+          "id": 6,
+          "group": "GENERIC_SCAM",
+          "situation": "Cuộc gọi từ số máy lạ, hỏi thăm thông tin cá nhân chung chung.",
+          "dialogue": "Alo, cho em hỏi anh/chị có phải là anh A, chủ của số điện thoại 09xx.xxx.xxx không ạ?"
+        },
+        {
+          "id": 7,
+          "group": "GIFT_LOTTERY",
+          "situation": "Robocall (cuộc gọi tự động) thông báo trúng thưởng nhưng không có thông tin chi tiết.",
+          "dialogue": "(Giọng máy) \"Chúc mừng bạn đã trở thành khách hàng may mắn của chúng tôi. Vui lòng nhấn phím 9 để nhận quà.\""
+        },
+        {
+          "id": 8,
+          "group": "TELECOM_LOCK",
+          "situation": "Người gọi xưng là nhân viên khảo sát, hỏi về thói quen sinh hoạt.",
+          "dialogue": "Chào anh/chị, em là nhân viên của trung tâm khảo sát ABC. Cho em hỏi gia đình mình có đang sử dụng dịch vụ internet nhà mạng nào không ạ?"
+        },
+        {
+          "id": 9,
+          "group": "GENERIC_SCAM",
+          "situation": "Cuộc gọi nhỡ từ số nước ngoài. Khi gọi lại, nó tự động ngắt hoặc có cước phí cao.",
+          "dialogue": "(Không có lời thoại, chỉ là cuộc gọi nhỡ từ số lạ +84xx hoặc quốc tế)."
+        },
+        {
+          "id": 10,
+          "group": "GENERIC_SCAM",
+          "situation": "Người gọi hỏi tên nhưng không nói rõ mình là ai.",
+          "dialogue": "Alo, em đang nói chuyện với ai vậy ạ?"
+        },
+        {
+          "id": 11,
+          "group": "GENERIC_SCAM",
+          "situation": "Nhân viên telesales chào hàng một cách chung chung, không nêu rõ công ty.",
+          "dialogue": "Chào anh, bên em có chương trình ưu đãi đặc biệt cho các khách hàng thân thiết, anh có muốn nghe giới thiệu không ạ?"
+        },
+        {
+          "id": 12,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Người gọi nói sai tên bạn nhưng vẫn tiếp tục cuộc trò chuyện.",
+          "dialogue": "Chào chị Lan ạ, em là nhân viên ngân hàng...\" (Bạn không tên Lan)."
+        },
+        {
+          "id": 13,
+          "group": "GENERIC_SCAM",
+          "situation": "Yêu cầu xác nhận địa chỉ email nhưng không nêu lý do.",
+          "dialogue": "Chào bạn, chúng tôi cần xác nhận địa chỉ email abc@email.com có phải của bạn không?"
+        },
+        {
+          "id": 14,
+          "group": "GENERIC_SCAM",
+          "situation": "Người gọi có tiếng ồn rất lớn ở phía sau, nghe không rõ.",
+          "dialogue": "Alo...alo... em nghe...alo... bên em là...alo... không rõ lắm..."
+        },
+        {
+          "id": 15,
+          "group": "GENERIC_SCAM",
+          "situation": "Tự xưng là bạn cũ nhưng không nhớ tên bạn.",
+          "dialogue": "Ê, mày không nhớ tao à? Lúc trước mình học chung mà!"
+        },
+        {
+          "id": 16,
+          "group": "GIFT_LOTTERY",
+          "situation": "Hỏi về tình trạng hôn nhân của bạn một cách đột ngột.",
+          "dialogue": "Chào chị, em gọi từ công ty quà tặng. Cho em hỏi chị đã kết hôn chưa ạ?"
+        },
+        {
+          "id": 17,
+          "group": "DELIVERY_COD",
+          "situation": "Người gọi thông báo bạn có một bưu kiện nhưng không nói rõ người gửi.",
+          "dialogue": "Chào anh, bên em có bưu kiện chuyển phát đến cho mình. Anh có ở nhà không để em giao hàng ạ?"
+        },
+        {
+          "id": 18,
+          "group": "GENERIC_SCAM",
+          "situation": "Yêu cầu bạn tham gia một cuộc thi qua điện thoại.",
+          "dialogue": "Chào bạn, mời bạn tham gia cuộc thi trí tuệ nhanh của chúng tôi để có cơ hội nhận thưởng."
+        },
+        {
+          "id": 19,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Giới thiệu gói cước viễn thông mới nhưng không thể xác minh danh tính nhân viên.",
+          "dialogue": "Chào anh, em là nhân viên nhà mạng Viettel, bên em có gói cước 4G siêu rẻ chỉ 70k/tháng, anh có muốn đăng ký không ạ?"
+        },
+        {
+          "id": 20,
+          "group": "GENERIC_SCAM",
+          "situation": "Người gọi im lặng khi bạn bắt máy.",
+          "dialogue": "(Bạn bắt máy, đầu dây bên kia im lặng)."
+        },
+        {
+          "id": 21,
+          "group": "GENERIC_SCAM",
+          "situation": "Hỏi về loại xe bạn đang sử dụng.",
+          "dialogue": "Chào anh, em gọi từ trung tâm bảo hiểm. Cho em hỏi anh đang đi loại xe máy gì ạ?"
+        },
+        {
+          "id": 22,
+          "group": "GENERIC_SCAM",
+          "situation": "Xưng là từ phòng khám răng, nhắc lịch hẹn nhưng bạn chưa bao giờ đến đó.",
+          "dialogue": "Chào chị Thu, phòng khám Nha khoa ABC nhắc nhở chị lịch hẹn tái khám vào 3 giờ chiều mai nhé."
+        },
+        {
+          "id": 23,
+          "group": "GENERIC_SCAM",
+          "situation": "Người gọi nói rất nhanh, không cho bạn thời gian suy nghĩ.",
+          "dialogue": "Chàoanhchúngtôicóchươngtrìnhkhuyếnmãiđặcbiệtchỉtronghômnay..."
+        },
+        {
+          "id": 24,
+          "group": "INVESTMENT_SCAM",
+          "situation": "Yêu cầu bạn lưu số của họ vào danh bạ \"để tiện trao đổi sau\".",
+          "dialogue": "Chào anh, em là nhân viên tư vấn đầu tư. Anh có thể lưu số em lại để sau này có nhu cầu em hỗ trợ được không ạ?"
+        },
+        {
+          "id": 25,
+          "group": "GENERIC_SCAM",
+          "situation": "Hỏi xem bạn có nhận được một tin nhắn SMS nào chưa.",
+          "dialogue": "Chào bạn, trung tâm chúng tôi vừa gửi một tin nhắn mã xác nhận, bạn có nhận được chưa?"
+        }
+      ]
+    },
+    {
+      "level": 2,
+      "labelId": "LV2",
+      "vietnameseName": "Có Nguy Cơ",
+      "scenarios": [
+        {
+          "id": 26,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Xưng là nhân viên ngân hàng, thông báo có giao dịch đáng ngờ và yêu cầu cung cấp số CCCD để xác minh.",
+          "dialogue": "Chào chị A, em là nhân viên ngân hàng XYZ. Hệ thống của chúng tôi phát hiện một giao dịch 15 triệu từ tài khoản của chị. Để khóa giao dịch, chị vui lòng đọc giúp em số CCCD trên mặt sau ạ."
+        },
+        {
+          "id": 27,
+          "group": "TAX_GOV_APP",
+          "situation": "Thông báo bạn trúng thưởng một món đồ giá trị (xe máy, điện thoại), nhưng phải đóng một khoản phí nhỏ \"vận chuyển\" hoặc \"thuế\".",
+          "dialogue": "Chúc mừng anh B đã trúng giải nhất chương trình của chúng tôi là 1 chiếc xe máy Honda Vision. Để nhận prize, anh chỉ cần chuyển khoản 500.000đ tiền phí trước bạ cho bên em."
+        },
+        {
+          "id": 28,
+          "group": "DELIVERY_COD",
+          "situation": "Xưng là nhân viên hải quan, nói bưu kiện của bạn bị giữ lại vì chứa hàng cấm và yêu cầu cung cấp thông tin để \"xử lý\".",
+          "dialogue": "Bên hải quan sân bay Nội Bài đây. Chúng tôi giữ một kiện hàng quốc tế gửi cho chị C, bên trong có chất cấm. Chị cần cung cấp họ tên, địa chỉ và số CCCD để chúng tôi xác minh."
+        },
+        {
+          "id": 29,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Người gọi xưng là từ công ty viễn thông, nói sim của bạn đang bị sử dụng để phát tán tin nhắn spam và yêu cầu làm lại sim.",
+          "dialogue": "Anh D ạ, em là tổng đài VinaPhone. Sim của anh vừa bị báo cáo phát tán tin nhắn lừa đảo. Để khóa tài khoản gốc, anh cần ra cửa hàng gần nhất làm lại sim với CCCD ạ."
+        },
+        {
+          "id": 30,
+          "group": "GENERIC_SCAM",
+          "situation": "Giả mạo nhân viên hỗ trợ kỹ thuật, nói máy tính của bạn bị virus và yêu cầu truy cập vào một đường link.",
+          "dialogue": "Chào anh, em là kỹ thuật viên Microsoft. Hệ thống của chúng tôi phát hiện máy tính của anh bị nhiễm virus. Anh vui lòng truy cập vào trang web www.support123.com để em hỗ trợ nhé."
+        },
+        {
+          "id": 31,
+          "group": "SEXTORTION_BLACKMAIL",
+          "situation": "Tạo một câu chuyện tình cảm, nói đã nhầm số nhưng muốn làm quen.",
+          "dialogue": "Alo, em nhầm số ạ... Nhưng giọng anh hay quá. Cho em làm quen được không?"
+        },
+        {
+          "id": 32,
+          "group": "HOSPITAL_EMERGENCY",
+          "situation": "Xưng là bạn của người thân, nói người thân đó đang gặp nạn và cần tiền gấp, nhưng chưa nói rõ ai.",
+          "dialogue": "Mày là bạn của Tài phải không? Tài nó bị tai nạn đang ở bệnh viện, cần tiền gấp, mày chuyển khoản giúp tao cái."
+        },
+        {
+          "id": 33,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Thông báo tài khoản ngân hàng của bạn sắp bị đóng băng vì \"liên quan đến một vụ án\".",
+          "dialogue": "Chị E ạ, em gọi từ cơ quan điều tra. Tài khoản của chị có dấu hiệu liên quan đến một đường dây rửa tiền. Để tránh bị đóng băng, chị cần hợp tác với chúng tôi."
+        },
+        {
+          "id": 34,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Người gọi nói nợ của bạn đã được \"mua lại\" bởi một công ty khác và yêu cầu xác nhận thông tin nợ.",
+          "dialogue": "Chào anh, công ty chúng tôi đã mua lại khoản nợ của anh tại công ty F. Anh vui lòng xác nhận số dư nợ là 10 triệu và cung cấp tài khoản ngân hàng để chúng tôi gửi thông tin thanh toán mới."
+        },
+        {
+          "id": 35,
+          "group": "GENERIC_SCAM",
+          "situation": "Giả mạo công ty tuyển dụng, mời bạn phỏng vấn qua điện thoại và yêu cầu cung cấp thông tin chi tiết.",
+          "dialogue": "Chào chị, em là phòng nhân sự công ty G. CV của chị đã được duyệt. Bây giờ em xin hỏi một vài câu hỏi phỏng vấn nhanh. Chị vui lòng cho em biết số CCCD và địa chỉ thường trú của chị."
+        },
+        {
+          "id": 36,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Người gọi nói bạn đã đăng ký một dịch vụ (ví dụ: học tiếng Anh) và yêu cầu hủy phải trả phí.",
+          "dialogue": "Chào chị, bên em là trung tâm Anh ngữ ABC. Chị đã đăng ký khóa học online của bên em. Bây giờ chị muốn hủy thì phải đóng phạt 2 triệu đồng."
+        },
+        {
+          "id": 37,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Xưng là từ quỹ từ thiện, kể một câu chuyện bi thảm và yêu cầu ủng hộ qua tài khoản cá nhân.",
+          "dialogue": "Chào anh, em là tình nguyện viên của quỹ bảo trợ trẻ em H. Chúng tôi đang kêu gọi ủng hộ cho cháu bé bị ung thư. Anh có thể chuyển một chút tấm lòng vào tài khoản 123456789 của chị P ạ."
+        },
+        {
+          "id": 38,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Thông báo bạn có một đơn hàng online lớn, yêu cầu xác nhận bằng cách đọc mã OTP.",
+          "dialogue": "Chào chị, chị vừa đặt một đơn hàng iPhone 15 Pro Max trị giá 30 triệu trên sàn Tiki. Để xác nhận, chị vui lòng đọc giúp em mã OTP vừa được gửi về điện thoại."
+        },
+        {
+          "id": 39,
+          "group": "HOSPITAL_EMERGENCY",
+          "situation": "Người gọi nói con bạn đang ở trường và bị thương, yêu cầu bạn chuyển tiền cho giáo viên.",
+          "dialogue": "Mẹ là mẹ của bé An lớp 3A phải không? Bé bị ngã ở trường, cần tiền đưa đi bệnh viện. Mẹ chuyển ngay cho cô giáo 2 triệu nhé."
+        },
+        {
+          "id": 40,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Giả mạo sàn giao dịch chứng khoán/crypto, mời chào đầu tư với lợi nhuận khổng lồ.",
+          "dialogue": "Chào anh, em là chuyên gia phân tích của sàn I. Dự án X của chúng tôi sắp tăng giá gấp 10 lần. Anh nạp tiền vào tài khoản ngay hôm nay để không bỏ lỡ cơ hội."
+        },
+        {
+          "id": 41,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Xưng là luật sư, nói người thân của bạn đang bị bắt và cần tiền để bào chữa.",
+          "dialogue": "Chào chị, em là luật sư Q. Chồng của chị vừa bị công an bắt vì liên quan đến vụ án kinh doanh trái phép. Gia đình cần chuẩn bị 50 triệu để chi phí luật sư và lo lót."
+        },
+        {
+          "id": 42,
+          "group": "GENERIC_SCAM",
+          "situation": "Yêu cầu bạn cài đặt một ứng dụng lạ trên điện thoại \"để nhận thưởng\" hoặc \"để được hỗ trợ\".",
+          "dialogue": "Anh vui lòng vào CH Play, tìm và cài đặt ứng dụng tên là 'Support Team' để em có thể truy cập và hướng dẫn anh nhận quà nhé."
+        },
+        {
+          "id": 43,
+          "group": "GENERIC_SCAM",
+          "situation": "Người gọi nói họ đang ở gần nhà bạn và muốn giao một món quà bất ngờ, nhưng bạn phải trả tiền \"phí giữ xe\".",
+          "dialogue": "Chị ơi, em là bạn của anh K gửi quà cho chị. Em đang ở dưới chung cư, chị chuyển giúp em 200k tiền phí gửi xe để em lên giao quà ạ."
+        },
+        {
+          "id": 44,
+          "group": "GENERIC_SCAM",
+          "situation": "Thông báo số điện thoại của bạn sẽ bị ngắt kết nối mạng trong 24h nếu không cập nhật thông tin.",
+          "dialogue": "Yêu cầu tất cả khách hàng có đầu số 09x phải cập nhật lại thông tin thuê bao theo quy định mới. Vui lòng nhấn phím 1 để được nhân viên hỗ trợ."
+        },
+        {
+          "id": 45,
+          "group": "GENERIC_SCAM",
+          "situation": "Xưng là từ Bảo hiểm xã hội, thông báo sổ bảo hiểm của bạn có vấn đề và cần cung cấp thông tin để điều chỉnh.",
+          "dialogue": "Chào anh, em là nhân viên BHXH. Hệ thống của chúng tôi thấy sổ BHXH của anh bị sai thông tin năm sinh. Anh vui lòng cung cấp lại số sổ và CCCD để em kiểm tra lại."
+        },
+        {
+          "id": 106,
+          "group": "JOB_TASK_SCAM",
+          "situation": "Tuyển cộng tác viên like video TikTok/YouTube để nhận tiền, sau đó dụ dỗ nạp tiền làm nhiệm vụ.",
+          "dialogue": "Chào bạn, bên mình đang tuyển CTV like video TikTok. Mỗi like bạn nhận 10k. Bạn chỉ cần làm nhiệm vụ đơn giản là có tiền ngay."
+        }
+      ]
+    },
+    {
+      "level": 3,
+      "labelId": "LV3",
+      "vietnameseName": "Rủi Ro Cao (Bạo lực, Lừa đảo)",
+      "scenarios": [
+        {
+          "id": 46,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "\"Công an\" gọi thông báo bạn có liên quan đến đường dây ma túy lớn, yêu cầu chuyển tiền vào tài khoản \"công an\" để \"giám định\".",
+          "dialogue": "Tôi là Thiếu tá M, Phòng Cảnh sát hình sự. Chúng tôi bắt được một nghi phạm mang ma túy, và trong điện thoại của nó có số của anh. Anh phải chuyển 100 triệu vào tài khoản 987654321 của chúng tôi để chúng tôi kiểm tra xem anh có dính líu không. Nếu không, chúng tôi sẽ đến bắt anh ngay."
+        },
+        {
+          "id": 47,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "\"Viện kiểm sát\" thông báo có lệnh bắt bạn vì tội \"rửa tiền\", yêu cầu cung cấp toàn bộ thông tin tài sản, tài khoản ngân hàng.",
+          "dialogue": "Đây là Viện kiểm sát nhân dân tỉnh X. Chúng tôi đang ra lệnh bắt giam chị T về tội rửa tiền quốc tế. Chị phải khai báo toàn bộ số tiền trong tất cả các tài khoản ngân hàng và chuyển hết vào tài khoản của cơ quan điều tra để phong tỏa chứng cứ."
+        },
+        {
+          "id": 48,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Giả mạo \"cảnh sát giao thông\", nói bạn đã vi phạm nghiêm trọng và nợ tiền phạt rất lớn, yêu cầu chuyển tiền ngay để tránh bị xử lý hình sự.",
+          "dialogue": "Anh vừa vượt đèn đỏ và gây tai nạn trên cao tốc, camera đã ghi lại. Tổng tiền phạt và bồi thường là 50 triệu. Anh phải chuyển tiền vào tài khoản này trong 1 giờ, nếu không chúng tôi sẽ ra lệnh truy nã."
+        },
+        {
+          "id": 49,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Kết hợp nhiều cơ quan, tạo kịch bản phức tạp: \"Công an\" chuyển máy cho \"Viện kiểm sát\", rồi \"Viện kiểm sát\" chuyển cho \"Tòa án\".",
+          "dialogue": "(Công an) \"Chúng tôi chuyển máy cho Viện kiểm sát để họ giải quyết.\" -> (Viện kiểm sát) \"Vụ án của chị đã được chuyển lên Tòa án. Đây là số của Thẩm phán U.\" -> (Thẩm phán) \"Để được tại ngoại, chị phải đặt cọc 200 triệu vào tài khoản của tòa.\""
+        },
+        {
+          "id": 50,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Đe dọa sẽ bắt giữ người thân nếu không hợp tác.",
+          "dialogue": "Chồng của chị đang bị chúng tôi tạm giữ vì liên quan đến vụ án buôn lậu. Nếu trong 30 phút chị không chuyển 500 triệu vào tài khoản này để xử lý, chúng tôi sẽ tiến hành các thủ tục khởi tố và bắt giam luôn."
+        },
+        {
+          "id": 51,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Yêu cầu bạn ở một mình, không nói cho ai biết và thực hiện theo lời chỉ đạo.",
+          "dialogue": "Đây là vụ án mật cấp quốc gia. Chị phải tự mình ra ngân hàng, không được nói cho chồng con, không được nói cho nhân viên ngân hàng lý do. Chỉ cần nói là chuyển tiền cho người thân. Chúng tôi đang theo dõi chị."
+        },
+        {
+          "id": 52,
+          "group": "GENERIC_SCAM",
+          "situation": "Sử dụng các từ ngữ chuyên ngành, giấy tờ giả để gây hoang mang.",
+          "dialogue": "Chúng tôi có lệnh 'bắt khẩn cấp' và 'lệnh phong tỏa tài sản' số 123/2023 của Cơ quan điều tra. Anh phải tuân thủ tuyệt đối."
+        },
+        {
+          "id": 53,
+          "group": "GENERIC_SCAM",
+          "situation": "Gửi hình ảnh \"lệnh bắt\", \"giấy tờ tố giác\" qua Zalo/Facebook để tăng tính xác thực.",
+          "dialogue": "Chị vào Zalo của tôi, tôi đã gửi ảnh lệnh bắt của chị. Chị nhìn đi, giờ chị còn hoài nghi gì nữa?"
+        },
+        {
+          "id": 54,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Yêu cầu bạn mua thẻ cào điện thoại và đọc mã thẻ.",
+          "dialogue": "Để xác minh danh tính, anh phải ra cửa hàng tiện lợi mua 5 thẻ Viettel 1 triệu. Sau đó đọc mã số dưới lớp tráng bạc cho tôi để hệ thống đối chiếu."
+        },
+        {
+          "id": 55,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Nói tài khoản của bạn là \"tài khoản nhận tiền từ đường dây buôn người\" và yêu cầu chuyển hết tiền ra để \"rửa sạch\".",
+          "dialogue": "Tài khoản của anh đã nhận 2 tỷ tiền từ một đường dây buôn người. Để chứng minh sự trong sạch, anh phải chuyển toàn bộ số tiền trong tài khoản ra một tài khoản an toàn của chúng tôi."
+        },
+        {
+          "id": 56,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Giả mạo nhân viên ngân hàng, nói tài khoản của bạn bị \"dính\" vụ án và yêu cầu đọc mã OTP để \"bảo vệ\".",
+          "dialogue": "Chị ơi, tài khoản của chị đang bị hacker tấn công. Ngay bây giờ sẽ có một mã OTP gửi về điện thoại chị, chị đọc ngay cho em để em chặn giao dịch trái phép lại."
+        },
+        {
+          "id": 57,
+          "group": "GENERIC_SCAM",
+          "situation": "Yêu cầu bạn cài đặt app \"TeamViewer\" hoặc \"AnyDesk\" để \"kiểm tra từ xa\".",
+          "dialogue": "Anh tải ngay ứng dụng AnyDesk về và cấp quyền truy cập cho tôi. Tôi sẽ vào kiểm tra trực tiếp trên máy tính của anh xem virus ở đâu và chặn nó lại."
+        },
+        {
+          "id": 58,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Thông báo bạn trúng thưởng từ ngân hàng, nhưng phải \"nộp tiền giữ tài khoản\".",
+          "dialogue": "Chúc mừng chị là khách hàng may mắn của ngân hàng ABC, chị đã trúng 50 triệu. Để nhận thưởng, chị cần nộp 5 triệu vào tài khoản của ngân hàng để chúng tôi giữ trong 24h, sau đó tiền sẽ được trả lại kèm tiền thưởng."
+        },
+        {
+          "id": 59,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Giả mạo công ty chứng khoán, nói lệnh mua/bán của bạn bị lỗi và cần bù tiền.",
+          "dialogue": "Anh đã đặt lệnh mua cổ phiếu X với giá 50k nhưng hệ thống lỗi thực hiện ở giá 100k. Bây giờ anh phải bù ngay 50 triệu cho công ty, nếu không chúng tôi sẽ khởi kiện."
+        },
+        {
+          "id": 60,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Lừa đảo cho vay nặng lãi, đe dọa \"đòi nợ thuê\" khi bạn chậm trả.",
+          "dialogue": "Mày nợ công ty chúng mày 10 triệu. Hôm nay không trả thì tụi tao sẽ ra tận nhà, cho công an xã biết, dán ảnh mày lên cột điện. Gia đình mày đỡ được yên đâu."
+        },
+        {
+          "id": 61,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Giả mạo công ty thu hồi nợ của một bên thứ ba.",
+          "dialogue": "Công ty chúng tôi được ủy quyền thu hồi nợ cho công ty Y. Anh đã quá hạn 3 tháng. Nếu hôm nay không thanh toán, chúng tôi sẽ làm thủ tục pháp lý để tịch thu tài sản."
+        },
+        {
+          "id": 62,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Lừa đảo qua link giả mạo internet banking.",
+          "dialogue": "Chị vào ngay trang web [link giả mạo]. Đó là trang internet banking mới của ngân hàng. Chị đăng nhập vào và đổi mật khẩu ngay để tài khoản được bảo mật."
+        },
+        {
+          "id": 63,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Nói thẻ tín dụng của bạn bị khóa và yêu cầu cung cấp số thẻ, ngày hết hạn, CVV để \"mở lại\".",
+          "dialogue": "Thẻ Visa của chị đã bị khóa do giao dịch bất thường. Chị đọc giúp em số thẻ, ngày tháng hết hạn và 3 số ở mặt sau để em mở khóa ngay."
+        },
+        {
+          "id": 64,
+          "group": "GENERIC_SCAM",
+          "situation": "Thông báo bạn được duyệt một khoản vay lớn, yêu cầu trả phí \"tư vấn\" trước.",
+          "dialogue": "Chúc mừng anh đã được duyệt khoản vay 200 triệu không cần chứng minh thu nhập. Anh chỉ cần chuyển 3 triệu tiền phí tư vấn để chúng tôi giải ngân."
+        },
+        {
+          "id": 65,
+          "group": "JOB_TASK_SCAM",
+          "situation": "Đa cấp biến tướng qua điện thoại, hứa hẹn \"làm giàu nhanh\".",
+          "dialogue": "Chỉ cần nạp 10 triệu vào sàn của chúng tôi, mỗi ngày anh sẽ được hưởng 2% lãi. Mời thêm người được hưởng hoa hồng. Làm giàu không khó!"
+        },
+        {
+          "id": 66,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Lừa đảo bắt cóc ảo, có tiếng trẻ con khóc lóc, đe dọa sẽ làm hại con bạn.",
+          "dialogue": "(Tiếng trẻ con khóc) \"Mẹ ơi... cứu con...\" -> (Giọng nam trầm, đe dọa) \"Con gái bà đây! Nó đang khóc đấy! Chuyển ngay 1 tỷ vào tài khoản này nếu không muốn thấy xác nó!\""
+        },
+        {
+          "id": 67,
+          "group": "HOSPITAL_EMERGENCY",
+          "situation": "Nói con bạn gây tai nạn, cần tiền ngay để bồi thường cho gia đình nạn nhân, nếu không sẽ bị \"xử lý\".",
+          "dialogue": "Con trai ông vừa đâm xe ngã người ta, người ta đang giữ nó đòi 200 triệu tiền bồi thường. Ông chuyển tiền đi rồi chúng tôi sẽ thả nó về."
+        },
+        {
+          "id": 68,
+          "group": "HOSPITAL_EMERGENCY",
+          "situation": "Giả mạo bác sĩ, nói người thân đang cấp cứu và cần tiền để phẫu thuật.",
+          "dialogue": "Bệnh viện Bạch Mai đây. Mẹ của anh đang được cấp cứu vì nhồi máu cơ tim. Anh phải nộp ngay 30 triệu tiền viện phí để chúng tôi mổ."
+        },
+        {
+          "id": 69,
+          "group": "GENERIC_SCAM",
+          "situation": "Giả mảngiêu điều tra viên, nói người thân của bạn bị bắt trong một vụ cờ bạc và cần tiền để \"lo lót\".",
+          "dialogue": "Em trai anh bị bắt trong sòng bài. Anh đưa 100 triệu cho chúng tôi, chúng tôi sẽ giúp anh ấy ra khỏi đây."
+        },
+        {
+          "id": 70,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Nói người thân của bạn bị \"khóa\" ở một nơi nào đó (quán bar, khách sạn) và cần tiền trả nợ.",
+          "dialogue": "Chị gái chị đang bị chủ quán bar giữ lại vì nợ thua bài. Chị chuyển 20 triệu trả nợ cho nó đi, không thì nó bị làm bậy."
+        },
+        {
+          "id": 71,
+          "group": "GENERIC_SCAM",
+          "situation": "\"Người yêu ngoại quốc\" bất ngờ gặp nạn và cần tiền.",
+          "dialogue": "My love, I'm at the airport in Vietnam, but my wallet and passport were stolen. I need money to pay the hotel and get a new passport. Please send me $2000 now."
+        },
+        {
+          "id": 72,
+          "group": "INVESTMENT_SCAM",
+          "situation": "Sau một thời gian làm quen, \"người yêu\" giới thiệu một kênh đầu tư và yêu cầu bạn nạp tiền.",
+          "dialogue": "Em à, anh đang đầu tư trên sàn vàng này, lãi rất ổn. Em cũng nên đầu tư đi để chúng ta có tương lai. Anh sẽ hướng dẫn em nạp tiền."
+        },
+        {
+          "id": 73,
+          "group": "SEXTORTION_BLACKMAIL",
+          "situation": "Lừa đảo \"sex-tortion\" (tống tiền tình dục), đe dọa tung lên mạng hình ảnh, video nhạy cảm.",
+          "dialogue": "Tôi có những hình ảnh và video nhạy cảm của chị khi chúng ta video call. Chị chuyển 50 triệu cho tôi, nếu không tôi sẽ gửi tất cả cho bạn bè và gia đình chị."
+        },
+        {
+          "id": 74,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Giả mạo người nổi tiếng, doanh nhân lớn, hứa hẹn giúp đỡ, quyên góp nhưng yêu cầu \"phí giữ chân\".",
+          "dialogue": "Tôi là doanh nhân V. Tôi thấy hoàn cảnh của bạn đáng thương nên muốn giúp. Nhưng để tôi chuyển tiền từ tài khoản công ty, bạn phải nộp trước 10% tiền thuế."
+        },
+        {
+          "id": 75,
+          "group": "GENERIC_SCAM",
+          "situation": "Kẻ lừa đảo giả vờ bị bệnh hiểm nghèo để lừa tiền.",
+          "dialogue": "Em ơi, anh vừa đi khám bệnh và phát hiện mình bị ung thư giai đoạn cuối. Anh không có tiền để chữa trị. Em giúp anh được không?"
+        },
+        {
+          "id": 76,
+          "group": "DELIVERY_COD",
+          "situation": "Đặt hàng online, sau đó có người gọi xưng là shipper, yêu cầu chuyển tiền cước trước mới giao hàng.",
+          "dialogue": "Anh có đặt hàng trên Shopee phải không? Bọn em là đơn vị vận chuyển. Anh phải chuyển cước trước 50k thì bọn em mới giao hàng được ạ."
+        },
+        {
+          "id": 77,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Lừa đảo bán hàng giá rẻ trên mạng, sau khi chuyển khoản thì bị chặn liên lạc.",
+          "dialogue": "(Trước khi chuyển) \"Chị chuyển tiền đi em gửi hàng liền.\" -> (Sau khi chuyển) (Bị chặn số điện thoại, Zalo)."
+        },
+        {
+          "id": 78,
+          "group": "GENERIC_SCAM",
+          "situation": "Đe dọa tung tin đồn thất thiệt, bôi nhọ danh dự trên mạng xã hội nếu không đưa tiền.",
+          "dialogue": "Tôi có bằng chứng chị ngoại tình. Nếu chị không chuyển 100 triệu cho tôi, tôi sẽ đăng tất cả lên Facebook."
+        },
+        {
+          "id": 79,
+          "group": "GENERIC_SCAM",
+          "situation": "Lừa đảo tuyển dụng việc làm nhẹ lương cao, yêu cầu đặt cọc đồng phục hoặc phí đào tạo.",
+          "dialogue": "Chúc mừng chị đã trúng tuyển vị trí nhân viên văn phòng. Để nhận việc, chị cần đặt cọc 2 triệu tiền đồng phục và phí đào tạo."
+        },
+        {
+          "id": 80,
+          "group": "TAX_GOV_APP",
+          "situation": "Giả mạo nhân viên cửa hàng điện thoại, nói điện thoại của bạn trúng thưởng nhưng phải nộp thuế.",
+          "dialogue": "Chúc mừng anh, số điện thoại của anh đã trúng một chiếc iPhone 14. Anh vui lòng ra cửa hàng của chúng tôi và nộp 2 triệu tiền thuế trước bạ để nhận máy."
+        },
+        {
+          "id": 81,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Lừa đảo \"sim ghép\", nói sim của bạn bị sao chép và đang bị lợi dụng.",
+          "dialogue": "Sim của anh đã bị kẻ xấu sim ghép để thực hiện các hành vi phạm pháp. Anh phải chuyển tiền vào tài khoản của chúng tôi để theo dõi và bắt bọn chúng."
+        },
+        {
+          "id": 82,
+          "group": "GENERIC_SCAM",
+          "situation": "Bạo lực học đường qua điện thoại, học sinh đe dọa, chửi bới nhau.",
+          "dialogue": "Mày không đi học hôm nay à? Tao cho người ra nhà dạy dỗ mày bây giờ!"
+        },
+        {
+          "id": 83,
+          "group": "GENERIC_SCAM",
+          "situation": "Lừa đảo xin việc, yêu cầu \"lót tay\" để được nhận vào cơ quan nhà nước.",
+          "dialogue": "Cháu muốn vào làm việc tại Sở X thì phải có 'chi phí' chạy chọt. Chú có quen người bên đó, cháu đưa 150 triệu thì chú lo."
+        },
+        {
+          "id": 84,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Lừa đảo bằng cách hack tài khoản Zalo/Facebook và nhắn tin cho bạn bè, người thân xin tiền.",
+          "dialogue": "(Nhắn tin từ tài khoản bị hack) \"Mày ơi, tao đang cần gấp 5 triệu. Chuyển giúp tao vào tài khoản này nhé, mai tao trả lại.\""
+        },
+        {
+          "id": 85,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Lừa đảo \"thần bài\", bán bài bịp, công nghệ đánh bạc.",
+          "dialogue": "Tôi có công nghệ nghe vị, bài bịp chắc thắng 100%. Anh chuyển tiền cọc, tôi sẽ gửi hàng và hướng dẫn sử dụng."
+        },
+        {
+          "id": 86,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Lừa đảo đổi ngoại tệ, hứa hẹn tỷ giá tốt nhưng sau đó nhận tiền giả hoặc gây rối.",
+          "dialogue": "Tôi có nhu cầu đổi 1 tỷ tiền Việt ra đô. Tôi sẽ cho tỷ giá cao hơn ngân hàng 500đ. Giao dịch mặt đối mặt."
+        },
+        {
+          "id": 87,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Lừa đảo đất đai, rao bán đất \"sổ đỏ chính chủ\" nhưng đất không có thật hoặc đang tranh chấp.",
+          "dialogue": "Tôi cần tiền gấp nên bán gấp lô đất 100m2 ở khu X giá rẻ. Anh đặt cọc 50 triệu ngay hôm nay tôi giữ đất cho anh."
+        },
+        {
+          "id": 88,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Lừa đảo xe máy, ô tô cũ, nói xe là của người thân cần bán gấp, yêu cầu đặt cọc.",
+          "dialogue": "Cháu bán xe ô tô của chú cháu, chú mới đi nước ngoài. Xe zin 100%. Anh thích xe thì đặt cọc 20 triệu cháu giữ lại."
+        },
+        {
+          "id": 89,
+          "group": "HOSPITAL_EMERGENCY",
+          "situation": "Lừa đảo \"giải đen\", thầy cúng, thầy phong thủy gọi điện nói gia đình bạn có hạn, cần làm lễ để giải quyết.",
+          "dialogue": "Gia đình anh năm nay có sao hạn nặng, dễ gặp tai nạn. Anh cần chuyển 10 triệu tiền lễ vật để tôi làm lễ giải hạn cho anh."
+        },
+        {
+          "id": 90,
+          "group": "GENERIC_SCAM",
+          "situation": "Lừa đảo du học, hứa hẹn giấy tờ đảm bảo, visa 100% nhưng thu tiền rất cao rồi biến mất.",
+          "dialogue": "Chúng tôi là trung tâm du học uy tín nhất. Chỉ cần đóng 200 triệu, chúng tôi cam kết visa 100% cho con chị đi du học Mỹ."
+        },
+        {
+          "id": 91,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Lừa đảo \"ăn theo\" sự kiện nóng, gọi điện quyên góp cho nạn nhân thiên tai, dịch bệnh.",
+          "dialogue": "Bên em là Mặt trận Tổ quốc tỉnh A, đang kêu gọi ủng hộ đồng bào bị lũ lụt. Anh có thể ủng hộ qua tài khoản của chúng tôi được không ạ?"
+        },
+        {
+          "id": 92,
+          "group": "GENERIC_SCAM",
+          "situation": "Lừa đảo bằng cách gửi file chứa mã độc qua Zalo/Messenger, sau đó gọi điện yêu cầu mở file.",
+          "dialogue": "Anh ơi, em gửi anh file báo cáo qua Zalo rồi. Anh mở ra xem giúp em đi ạ.\" (File thực chất là virus)."
+        },
+        {
+          "id": 93,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Giả mạo tổng đài hỗ trợ của các ứng dụng (Grab, Gojek...), nói tài khoản bạn bị khóa và yêu cầu cung cấp mật khẩu.",
+          "dialogue": "Tài khoản Grab của bạn đã bị khóa do vi phạm chính sách. Để mở khóa, vui lòng cung cấp mật khẩu và mã OTP để chúng tôi xác minh."
+        },
+        {
+          "id": 94,
+          "group": "GENERIC_SCAM",
+          "situation": "Lừa đảo bằng cách yêu cầu bạn tham gia các cuộc thi có thưởng qua điện thoại và phải trả phí mỗi vòng thi.",
+          "dialogue": "Chúc mừng bạn đã vào vòng 2. Để tiếp tục, bạn cần nộp phí thi 500.000đ."
+        },
+        {
+          "id": 95,
+          "group": "GENERIC_SCAM",
+          "situation": "Lừa đảo \"chữa bệnh bằng năng lượng\", gọi điện nói có thể chữa bệnh từ xa.",
+          "dialogue": "Tôi có năng lượng chữa bệnh. Chị chỉ cần chuyển tiền 'bảo chứng' và cung cấp ảnh, tôi sẽ điều trị căn bệnh ung thư của chị từ xa."
+        },
+        {
+          "id": 96,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Lừa đảo bán thú rừng, gọi điện rao bán hổ, tê t... (hành vi vi phạm pháp luật).",
+          "dialogue": "Tôi có nguồn hổ thịt, tê tê nguyên chất. Ai có nhu cầu liên hệ, giá cả thương lượng."
+        },
+        {
+          "id": 97,
+          "group": "GENERIC_SCAM",
+          "situation": "Lừa đảo \"xin lỗi nhầm số\", sau đó tạo mối quan hệ và lừa tiền.",
+          "dialogue": "Alo, anh ơi, em xin lỗi em nhầm số. Nhưng mà giọng nói anh hay quá... em làm quen được không?\" (Sau một thời gian sẽ bắt đầu câu chuyện lừa đảo)."
+        },
+        {
+          "id": 98,
+          "group": "TAX_GOV_APP",
+          "situation": "Lừa đảo bằng cách gọi điện thông báo bạn trúng thưởng một chuyến du lịch, nhưng phải đóng \"phí visa và thuế\".",
+          "dialogue": "Chúc mừng bạn đã trúng tour du lịch Singapore 4 ngày 3 đêm. Bạn chỉ cần đóng 5 triệu tiền visa và thuế là có thể đi ngay."
+        },
+        {
+          "id": 99,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Lừa đảo bằng cách nói bạn có người thân ở nước ngoài gặp nạn và cần tiền.",
+          "dialogue": "Con trai chị đang du học ở Úc, nó bị tai nạn và cần tiền phẫu thuật. Chị chuyển tiền sang tài khoản USD này ngay nhé."
+        },
+        {
+          "id": 100,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Lừa đảo \"đa cấp hóa\", bán các sản phẩm chức năng với giá cao và hứa hẹn hoa hồng khổng lồ.",
+          "dialogue": "Chị chỉ cần mua bộ sản phẩm 50 triệu và giới thiệu thêm 2 người, mỗi tháng chị sẽ có thu nhập hàng chục triệu."
+        },
+        {
+          "id": 101,
+          "group": "HOSPITAL_EMERGENCY",
+          "situation": "Lừa đảo bằng cách giả mạo công ty luật, đòi bồi thường cho các vụ việc không có thật.",
+          "dialogue": "Chúng tôi là công ty luật, đại diện cho một số nạn nhân trong vụ tai nạn giao thông mà chị gây ra. Chị cần bồi thường 100 triệu, nếu không chúng tôi sẽ khởi kiện."
+        },
+        {
+          "id": 102,
+          "group": "GENERIC_SCAM",
+          "situation": "Lừa đảo bằng cách gọi điện thông báo bạn thắng kiện và có tiền bồi thường, nhưng phải đóng \"phí luật sư\".",
+          "dialogue": "Chúng tôi đã thắng kiện công ty X cho chị. Công ty phải bồi thường cho chị 200 triệu. Chị chỉ cần đóng 10% phí luật sư là chúng tôi sẽ chuyển tiền cho chị."
+        },
+        {
+          "id": 103,
+          "group": "GENERIC_SCAM",
+          "situation": "Lừa đảo bằng cách nói điện thoại của bạn có chứa thông tin nhà nước và yêu cầu tiêu hủy.",
+          "dialogue": "Điện thoại của anh đang chứa 10 tài liệu mật cấp quốc gia. Anh phải làm theo hướng dẫn của tôi để tiêu hủy chúng, nếu không anh sẽ bị xử lý tội tiết lộ bí mật nhà nước."
+        },
+        {
+          "id": 104,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Lừa đảo \"đặt bom\", gọi điện đe dọa có bom ở nơi công cộng và yêu cầu tiền chuộc.",
+          "dialogue": "Tôi đã đặt một quả bom ở trung tâm thương mại X. Chuyển 1 tỷ vào tài khoản này trong 1 giờ, nếu không tôi sẽ kích hoạt nó."
+        },
+        {
+          "id": 105,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Lừa đảo bằng cách tổng hợp tất cả các chiêu trò trên, tạo kịch bản phức tạp nhất.",
+          "dialogue": "Tôi là công an quốc tế. Tài khoản của bạn vừa nhận tiền từ một đường dây bắt cóc ở nước ngoài. Đồng thời, chúng tôi phát hiện bạn có liên quan đến một vụ rửa tiền. Ngay bây giờ, bạn phải ra ngân hàng, chuyển toàn bộ tiền vào tài khoản an toàn của chúng tôi, mua thẻ cào đọc mã, và không được nói cho ai biết. Chúng tôi đang theo dõi bạn 24/7."
+        },
+        {
+          "id": 107,
+          "group": "BANK_CARD_FRAUD",
+          "situation": "Sử dụng công nghệ Deepfake giả mạo khuôn mặt và giọng nói của người thân để gọi video call lừa chuyển tiền.",
+          "dialogue": "(Video call hình ảnh mờ, giọng chập chờn) Mẹ ơi, mạng con lag quá. Con đang cần tiền gấp để lo việc này, mẹ chuyển luôn 20 triệu vào số tài khoản lạ này giúp con nhé."
+        },
+        {
+          "id": 108,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Giả danh công an phường yêu cầu cập nhật thông tin định danh điện tử (VNeID) mức 2 online do bị lỗi hệ thống.",
+          "dialogue": "Tôi là công an phường X. Tài khoản định danh mức 2 của anh bị lỗi hệ thống. Anh không cần ra phường đâu, tôi hướng dẫn anh tải app này về cập nhật lại thông tin ngay nhé."
+        },
+        {
+          "id": 109,
+          "group": "AUTH_POLICE_LAWSUIT",
+          "situation": "Giả danh cán bộ thuế hướng dẫn cài đặt ứng dụng thuế giả mạo (eTax) để nhận tiền hoàn thuế.",
+          "dialogue": "Chào anh, anh thuộc diện được hoàn thuế thu nhập cá nhân năm nay. Anh truy cập vào link này tải ứng dụng Tổng cục thuế về, đăng nhập để nhận tiền hoàn thuế nhé."
+        }
+      ]
+    }
+  ]
+}

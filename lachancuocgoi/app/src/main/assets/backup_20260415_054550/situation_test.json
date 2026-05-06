@@ -1,0 +1,96 @@
+[
+  {
+    "title": "Bạn bè hỏi thăm",
+    "description": "Tình huống bình thường (An toàn).",
+    "icon": "👋",
+    "riskLevel": "Green",
+    "script": [
+      {
+        "speaker": "A",
+        "line": "Alo, nghe nè.",
+        "timestamp": 1000
+      },
+      {
+        "speaker": "B",
+        "line": "Mạnh à, cuối tuần đi đá banh không?",
+        "timestamp": 3000
+      },
+      {
+        "speaker": "A",
+        "line": "Ok, mấy giờ?",
+        "timestamp": 5000
+      },
+      {
+        "speaker": "B",
+        "line": "Chiều thứ 7 tầm 3h nhé.",
+        "timestamp": 7000
+      }
+    ]
+  },
+  {
+    "title": "Lừa đảo ngân hàng - Yêu cầu OTP",
+    "description": "Giả mạo nhân viên ngân hàng, yêu cầu mã OTP (Lừa đảo).",
+    "icon": "🏦",
+    "riskLevel": "Red",
+    "script": [
+      {
+        "speaker": "A",
+        "line": "Alo, xin nghe.",
+        "timestamp": 1000
+      },
+      {
+        "speaker": "B",
+        "line": "Chào chị, em là nhân viên ngân hàng Vietcombank. Tài khoản của chị đang có giao dịch bất thường 50 triệu đồng.",
+        "timestamp": 4000
+      },
+      {
+        "speaker": "A",
+        "line": "Giao dịch gì vậy? Tôi không thực hiện giao dịch nào cả.",
+        "timestamp": 8000
+      },
+      {
+        "speaker": "B",
+        "line": "Để khóa giao dịch này, chị vui lòng cung cấp số CCCD và đọc mã OTP vừa được gửi về điện thoại cho em ạ.",
+        "timestamp": 12000
+      },
+      {
+        "speaker": "A",
+        "line": "Nhưng tại sao phải đọc mã OTP? Tôi nghe có vẻ không an toàn.",
+        "timestamp": 16000
+      },
+      {
+        "speaker": "B",
+        "line": "Chị yên tâm, đây là quy trình của ngân hàng. Nếu không cung cấp ngay thì tiền sẽ bị chuyển đi mất ạ.",
+        "timestamp": 20000
+      }
+    ]
+  },
+  {
+    "title": "Giả danh Công an",
+    "description": "Yêu cầu cung cấp thông tin điều tra (Lừa đảo).",
+    "icon": "👮",
+    "riskLevel": "Red",
+    "script": [
+      {
+        "speaker": "A",
+        "line": "Alo, ai đấy ạ?",
+        "timestamp": 1000
+      },
+      {
+        "speaker": "B",
+        "line": "Chào anh, tôi là đại úy Trần Hoàng từ cơ quan cảnh sát điều tra. Chúng tôi nghi ngờ anh có liên quan đến một đường dây buôn bán ma túy.",
+        "timestamp": 5000
+      },
+      {
+        "speaker": "A",
+        "line": "Cái gì? Nhầm máy rồi, tôi không liên quan.",
+        "timestamp": 8000
+      },
+      {
+        "speaker": "B",
+        "line": "Chúng tôi có lệnh bắt tạm giam anh đây. Để giải quyết nhanh, anh cần chuyển 50 triệu đồng vào tài khoản của cơ quan để xác minh.",
+        "timestamp": 12000
+      }
+    ]
+  }
+]
