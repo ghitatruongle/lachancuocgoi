@@ -737,34 +737,38 @@ Cập nhật 2026-05-06:
 
 Công việc:
 
-- Port TextNormalizer đầy đủ.
-- Port FuzzyMatcher đầy đủ.
-- Port FlatTrie/Aho-Corasick L1.
-- Port BigramCorrections.
-- Port L1ResultParser.
-- Viết tests với transcript mẫu và JSON gốc.
+- [x] Port TextNormalizer đầy đủ: phonetic map, bỏ dấu tiếng Việt, noise mode REMOVE/SPACE, slang replacement theo thứ tự cụm dài.
+- [x] Port FuzzyMatcher đầy đủ: Levenshtein, Damerau-Levenshtein, cutoff maxDistance, closest match.
+- [x] Port FlatTrie/Aho-Corasick L1: node arrays/maps, failure links, dictionary links, metadata bitmask, original keyword storage, category id mapping.
+- [x] Port BigramCorrections: load `bigram_corrections.json`, ưu tiên correction dài trước, áp dụng trước matching.
+- [x] Port L1ResultParser: critical OTP keywords, category grouping, weighted score, confidence, alertEnabled.
+- [x] Viết tests với transcript mẫu và JSON gốc.
 
 Kết quả cần có:
 
-- L1 Flutter ra cùng risk/matches với Kotlin trên bộ test.
-- Monitoring mock gọi L1 được.
+- [x] L1 Flutter ra cùng risk/matches với Kotlin trên bộ test.
+- [x] Monitoring mock gọi L1 được qua transcript mô phỏng.
+- Xác minh: `flutter analyze` — 0 issues. `flutter test` — 25/25 pass. `flutter build apk --debug --no-pub` — built `build/app/outputs/flutter-apk/app-debug.apk`.
+- Cập nhật 2026-05-09: Sửa lỗi build APK do `jni 1.0.0` / `jni_flutter 1.0.1` không tương thích Dart 3.11.5. Nâng `tflite_flutter` lên `0.12.1`, nâng `path_provider` lên `^2.1.5`, pin `path_provider_android` về `2.2.22` (pre-JNI) qua `dependency_overrides`, nâng SDK constraint lên `>=3.9.0 <4.0.0`. Xác minh lại: `flutter analyze` — 0 issues, `flutter test` — 25/25 pass, `flutter build apk --debug` — thành công trên Flutter 3.41.9 / Dart 3.11.5.
 
 ### Giai đoạn 5 - Port L2 GDetection
 
 Công việc:
 
-- Port model DTO.
-- Port GFlash tokenizer.
-- Port GDetectionEngine load config/keyword trie/topic map.
-- Port PatternMatcher, SentenceMatcher, ScenarioMatcher.
-- Port GThinking full tier/scoring/alert logic.
-- Port L2ResultParser.
-- Viết tests đối chiếu L2 GDetection không TFLite.
+- [x] Port model DTO.
+- [x] Port GFlash tokenizer.
+- [x] Port GDetectionEngine load config/keyword trie/topic map.
+- [x] Port PatternMatcher, SentenceMatcher, ScenarioMatcher.
+- [x] Port GThinking full tier/scoring/alert logic.
+- [x] Port L2ResultParser.
+- [x] Viết tests đối chiếu L2 GDetection không TFLite.
 
 Kết quả cần có:
 
-- GDetection Flutter đọc đủ assets và phân tích transcript mẫu.
-- Risk/reason/alertEnabled khớp Kotlin.
+- [x] GDetection Flutter đọc đủ assets và phân tích transcript mẫu.
+- [x] Risk/reason/alertEnabled khớp Kotlin.
+- Xác minh: `flutter analyze` — 0 issues. `flutter test test\phase5_g_detection_test.dart` — 4/4 pass. `flutter test` — 29/29 pass. `flutter build apk --debug --no-pub` — thành công.
+- Cập nhật 2026-05-09: Đã thêm `lib/analysis/l2/g_detection/*` và `lib/analysis/l2/l2_result.dart`; engine đọc `slang_config`, `scoring_config`, `tier_config`, `risk_model_vocabulary`, `phrase_patterns`, `risk_scenarios_master`, `risk_model_sentences`; tier matching chuẩn hóa dấu tiếng Việt để không bỏ lọt keyword có dấu từ assets.
 
 ### Giai đoạn 6 - Port TFLite intent và WFSA
 
@@ -898,10 +902,10 @@ Trạng thái:
 | 11 | Port database sqflite | [x] | CRUD history | Room -> sqflite, unit test pass |
 | 12 | Port TranscriptSaver/VocabularyRepository | [x] | Lưu/đọc file/assets | Unit test pass, cần test Android storage ở giai đoạn thiết bị |
 | 13 | Port common analysis | [x] | RiskLevel/TextNormalizer/FuzzyMatcher | Unit test pass |
-| 14 | Port L1 đầy đủ | [ ] | L1 parity | FlatTrie/Aho-Corasick |
-| 15 | Port GDetection DTO/tokenizer | [ ] | GModels/GFlash | L2 base |
-| 16 | Port GDetectionEngine | [ ] | Keyword/scenario/sentence/pattern | L2 core |
-| 17 | Port GThinking/scoring | [ ] | Risk/alert logic khớp | Tier rules |
+| 14 | Port L1 đầy đủ | [x] | L1 parity | FlatTrie/Aho-Corasick + bigram + result parser, test pass |
+| 15 | Port GDetection DTO/tokenizer | [x] | GModels/GFlash | Đã port và test |
+| 16 | Port GDetectionEngine | [x] | Keyword/scenario/sentence/pattern | Đã đọc assets thật và test transcript mẫu |
+| 17 | Port GThinking/scoring | [x] | Risk/alert logic khớp | Tier rules + accent-safe matching |
 | 18 | Port TFLite intent classifier | [ ] | GhitaV3 inference | Có thể cần native bridge |
 | 19 | Port WFSA/SafetyFilter | [ ] | Context scoring | L2 fusion |
 | 20 | Port L2Analyzer full fusion | [ ] | L2 parity | High confidence/cross-validation |
@@ -918,7 +922,7 @@ Trạng thái:
 | 31 | Port Simulation | [ ] | Scenario playback | JSON/timestamp |
 | 32 | Port TipsLesson | [ ] | Tips UI/share | UI parity |
 | 33 | Server compatibility | [ ] | Node/Twilio/Whisper vẫn chạy | Nếu cần mobile client thì thêm |
-| 34 | Unit tests analysis | [ ] | L1/L2/L3 tests | Expected từ Kotlin |
+| 34 | Unit tests analysis | [~] | L1/L2/L3 tests | L1/common + L2 GDetection đã có test; TFLite/WFSA/L3 chờ giai đoạn sau |
 | 35 | Widget/golden tests UI | [ ] | Pixel parity report | Desktop/mobile sizes |
 | 36 | Integration tests Android | [ ] | Permission/service/call flow | Cần emulator/device |
 | 37 | Fix bug parity pass 1 | [ ] | Danh sách bug đã fix | Theo Phần 4 |

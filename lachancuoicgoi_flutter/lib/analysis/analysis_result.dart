@@ -8,6 +8,7 @@ class KeywordMatch {
     required this.category,
     this.startIndex = -1,
     this.endIndex = -1,
+    this.isFuzzy = false,
   });
 
   final String keyword;
@@ -15,6 +16,7 @@ class KeywordMatch {
   final String category;
   final int startIndex;
   final int endIndex;
+  final bool isFuzzy;
 
   KeywordMatch copyWith({
     String? keyword,
@@ -22,6 +24,7 @@ class KeywordMatch {
     String? category,
     int? startIndex,
     int? endIndex,
+    bool? isFuzzy,
   }) {
     return KeywordMatch(
       keyword: keyword ?? this.keyword,
@@ -29,6 +32,7 @@ class KeywordMatch {
       category: category ?? this.category,
       startIndex: startIndex ?? this.startIndex,
       endIndex: endIndex ?? this.endIndex,
+      isFuzzy: isFuzzy ?? this.isFuzzy,
     );
   }
 
@@ -39,6 +43,7 @@ class KeywordMatch {
       'category': category,
       'startIndex': startIndex,
       'endIndex': endIndex,
+      'isFuzzy': isFuzzy,
     };
   }
 
@@ -49,6 +54,7 @@ class KeywordMatch {
       category: json['category'] as String? ?? 'Unknown',
       startIndex: (json['startIndex'] as num?)?.toInt() ?? -1,
       endIndex: (json['endIndex'] as num?)?.toInt() ?? -1,
+      isFuzzy: json['isFuzzy'] as bool? ?? false,
     );
   }
 
@@ -59,7 +65,8 @@ class KeywordMatch {
         other.level == level &&
         other.category == category &&
         other.startIndex == startIndex &&
-        other.endIndex == endIndex;
+        other.endIndex == endIndex &&
+        other.isFuzzy == isFuzzy;
   }
 
   @override
@@ -69,6 +76,7 @@ class KeywordMatch {
         category,
         startIndex,
         endIndex,
+        isFuzzy,
       );
 }
 

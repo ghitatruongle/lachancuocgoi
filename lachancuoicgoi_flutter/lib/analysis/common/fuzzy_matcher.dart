@@ -40,6 +40,9 @@ class FuzzyMatcher {
     String b, {
     int maxDistance = 2,
   }) {
+    if (a == b) return 0;
+    if (a.isEmpty) return b.length.clamp(0, maxDistance + 1).toInt();
+    if (b.isEmpty) return a.length.clamp(0, maxDistance + 1).toInt();
     if ((a.length - b.length).abs() > maxDistance) {
       return maxDistance + 1;
     }
@@ -57,7 +60,6 @@ class FuzzyMatcher {
     }
 
     for (var i = 1; i <= a.length; i++) {
-      var rowMin = maxDistance + 1;
       for (var j = 1; j <= b.length; j++) {
         final cost = a.codeUnitAt(i - 1) == b.codeUnitAt(j - 1) ? 0 : 1;
         var value = _min3(
@@ -70,13 +72,12 @@ class FuzzyMatcher {
             j > 1 &&
             a.codeUnitAt(i - 1) == b.codeUnitAt(j - 2) &&
             a.codeUnitAt(i - 2) == b.codeUnitAt(j - 1)) {
-          value = value < dp[i - 2][j - 2] + 1 ? value : dp[i - 2][j - 2] + 1;
+          final transposition = dp[i - 2][j - 2] + cost;
+          value = value < transposition ? value : transposition;
         }
 
         dp[i][j] = value;
-        if (value < rowMin) rowMin = value;
       }
-      if (rowMin > maxDistance) return maxDistance + 1;
     }
 
     return dp[a.length][b.length];
@@ -91,6 +92,7 @@ class FuzzyMatcher {
     var bestDistance = maxDistance + 1;
 
     for (final candidate in candidates) {
+      if ((token.length - candidate.length).abs() > maxDistance) continue;
       final distance = damerauLevenshtein(
         token,
         candidate,
