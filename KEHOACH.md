@@ -665,18 +665,18 @@ Kết quả cần có:
 
 Công việc:
 
-- Tạo project Flutter trong `E:\lachancuocgoi\lachancuoicgoi_flutter`.
-- Đồng bộ `pubspec.yaml` từ `lccg_fl.md`.
-- Tạo tree `lib/app`, `lib/core`, `lib/analysis`, `lib/data`, `lib/services`, `lib/ui`, `android/app/src/main/kotlin`.
-- Copy Android manifest và native XML config.
-- Copy assets runtime.
-- Thêm lint, format, test config.
+- [x] Tạo project Flutter trong `E:\lachancuocgoi\lachancuoicgoi_flutter`.
+- [x] Đồng bộ `pubspec.yaml` từ `lccg_fl.md`.
+- [x] Tạo tree `lib/app`, `lib/core`, `lib/analysis`, `lib/data`, `lib/services`, `lib/ui`, `android/app/src/main/kotlin`.
+- [x] Copy Android manifest và native XML config.
+- [x] Copy assets runtime.
+- [x] Thêm lint, format, test config.
 
 Kết quả cần có:
 
-- `flutter pub get` chạy được.
-- App hiện HomePage trên Android.
-- Router mở được các route rỗng/cơ bản.
+- [x] `flutter pub get` chạy được.
+- [x] App hiện HomePage trên Android.
+- [x] Router mở được các route rỗng/cơ bản.
 
 ### Giai đoạn 2 - Port domain model và data
 
@@ -774,37 +774,41 @@ Kết quả cần có:
 
 Công việc:
 
-- Load `ghitav3.tflite` bằng `tflite_flutter` hoặc native TFLite bridge nếu plugin không hỗ trợ shape/quantization.
-- Port WordPiece tokenizer.
-- Port output tensor quantization guard.
-- Port intent labels/extensions.
-- Port inference cache.
-- Port ScamGraphBuilder/WfsaEngine.
-- Hợp nhất vào L2Analyzer.
+- [x] Load `ghitav3.tflite` bằng `tflite_flutter`, validate output shape 23 class và đóng gói native TFLite libs trong APK.
+- [x] Port WordPiece tokenizer.
+- [x] Port output tensor quantization guard.
+- [x] Port intent labels/extensions.
+- [x] Port inference cache.
+- [x] Port ScamGraphBuilder/WfsaEngine.
+- [x] Port SafetyFilter và hợp nhất vào L2Analyzer.
 
 Kết quả cần có:
 
-- TFLite inference chạy trên Android.
-- L2 full fusion khớp Kotlin với transcript benchmark.
-- Nếu model lỗi, fallback GDetection/WFSA không crash.
+- [x] TFLite classifier Dart load đúng model/vocab và APK debug chứa `assets/flutter_assets/assets/ghitav3.tflite` cùng `libtensorflowlite_jni.so` cho Android ABI.
+- [x] L2 full fusion có nhánh AI high-confidence, direct/fused, cross-validation override và fallback GDetection/WFSA.
+- [x] Nếu model lỗi hoặc IntentClassifier chưa sẵn sàng, fallback GDetection/WFSA không crash.
+- Xác minh: `flutter analyze` — 0 issues. `flutter test test\phase6_l2_tflite_wfsa_test.dart` — 7/7 pass. `flutter test` — 36/36 pass. `flutter build apk --debug` — built `build/app/outputs/flutter-apk/app-debug.apk`.
+- Ghi chú runtime: chưa có Android device/emulator kết nối trong phiên này, nên inference thật trên thiết bị cần smoke-test ở giai đoạn QA Android.
 
 ### Giai đoạn 7 - Port L3 Gemini
 
 Công việc:
 
-- Port ApiKeyProvider/Obfuscator.
-- Port GeminiConfig/Client/ChatSession.
-- Port KeyHealthTracker, Metrics, ResponseCache.
-- Port PIIStripper đầy đủ.
-- Port PromptBuilder/GeminiSummarizer.
-- Port L3Analyzer one-shot/incremental.
-- Port L3 fallback về L2 trong AnalysisCoordinator/MonitoringController.
+- [x] Port ApiKeyProvider/Obfuscator.
+- [x] Port GeminiConfig/Client/ChatSession.
+- [x] Port KeyHealthTracker, Metrics, ResponseCache.
+- [x] Port PIIStripper đầy đủ.
+- [x] Port PromptBuilder/GeminiSummarizer.
+- [x] Port L3Analyzer one-shot/incremental.
+- [x] Port L3 fallback về L2 trong AnalysisCoordinator.
 
 Kết quả cần có:
 
-- L3 chạy được khi có key.
-- Mất mạng/API error fallback về L2.
-- PII redaction test pass.
+- [x] L3 chạy được khi có key.
+- [x] Mất mạng/API error fallback về L2.
+- [x] PII redaction test pass.
+- Xác minh: `flutter analyze` — 0 issues. `flutter test test\phase7_l3_analysis_test.dart` — 4/4 pass. `flutter test` — 40/40 pass.
+- Cập nhật 2026-05-13: Đã thêm `lib/analysis/l3/core/*`, `lib/analysis/l3/l3_analysis.dart`, `lib/analysis/l3/gemini_summarizer.dart`, `lib/analysis/l3/prompt_builder.dart`, `lib/analysis/analysis_coordinator.dart`. L3 hiện có API key provider/obfuscator, key health tracker, metrics, response cache, PII redaction/restore, prompt templates, Gemini client one-shot + chat session incremental, parser JSON chịu được text bọc ngoài, risk decay và fallback L3 -> L2 khi lỗi mạng/API.
 
 ### Giai đoạn 8 - Port native Android services
 
@@ -906,11 +910,11 @@ Trạng thái:
 | 15 | Port GDetection DTO/tokenizer | [x] | GModels/GFlash | Đã port và test |
 | 16 | Port GDetectionEngine | [x] | Keyword/scenario/sentence/pattern | Đã đọc assets thật và test transcript mẫu |
 | 17 | Port GThinking/scoring | [x] | Risk/alert logic khớp | Tier rules + accent-safe matching |
-| 18 | Port TFLite intent classifier | [ ] | GhitaV3 inference | Có thể cần native bridge |
-| 19 | Port WFSA/SafetyFilter | [ ] | Context scoring | L2 fusion |
-| 20 | Port L2Analyzer full fusion | [ ] | L2 parity | High confidence/cross-validation |
-| 21 | Port L3 Gemini client | [ ] | API rotation/fallback | Key health/cache |
-| 22 | Port PIIStripper/PromptBuilder | [ ] | Privacy parity | Regex cần khớp Kotlin |
+| 18 | Port TFLite intent classifier | [x] | GhitaV3 inference | Đã port tokenizer/cache/output guard/labels; APK chứa model + native TFLite, chờ smoke-test thiết bị |
+| 19 | Port WFSA/SafetyFilter | [x] | Context scoring | Đã port 22 scenario graph, adaptive decay, active scenario, safety discount |
+| 20 | Port L2Analyzer full fusion | [x] | L2 parity | Đã có high confidence/cross-validation/fallback tests |
+| 21 | Port L3 Gemini client | [x] | API rotation/fallback | Đã port key rotation, key health, cache, chat session, risk decay, fallback sang L2 |
+| 22 | Port PIIStripper/PromptBuilder | [x] | Privacy parity | Đã port regex PII, restore token và prompt L3/summarization/incremental |
 | 23 | Port MonitoringController | [ ] | Live analysis state | Từ MonitoringViewModel |
 | 24 | Port STT/native transcript | [ ] | Transcript real-time | Google/Vosk/Live Caption |
 | 25 | Port native BackgroundMonitoringService | [ ] | Foreground monitoring | Android only |
@@ -922,7 +926,7 @@ Trạng thái:
 | 31 | Port Simulation | [ ] | Scenario playback | JSON/timestamp |
 | 32 | Port TipsLesson | [ ] | Tips UI/share | UI parity |
 | 33 | Server compatibility | [ ] | Node/Twilio/Whisper vẫn chạy | Nếu cần mobile client thì thêm |
-| 34 | Unit tests analysis | [~] | L1/L2/L3 tests | L1/common + L2 GDetection đã có test; TFLite/WFSA/L3 chờ giai đoạn sau |
+| 34 | Unit tests analysis | [~] | L1/L2/L3 tests | L1/common + L2 GDetection + TFLite tokenizer/output + WFSA/Safety/L2 fusion + L3 PII/JSON parse/risk decay/fallback đã có test; còn thiếu integration L3 với key thật |
 | 35 | Widget/golden tests UI | [ ] | Pixel parity report | Desktop/mobile sizes |
 | 36 | Integration tests Android | [ ] | Permission/service/call flow | Cần emulator/device |
 | 37 | Fix bug parity pass 1 | [ ] | Danh sách bug đã fix | Theo Phần 4 |
