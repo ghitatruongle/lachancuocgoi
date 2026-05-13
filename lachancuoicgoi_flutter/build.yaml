@@ -1,0 +1,88 @@
+# Build Configuration for La Chan Cuoi Goi Flutter App
+# Generated for Phase 12 - Production Ready
+
+name: lachancuoicgoi
+description: Ứng dụng chống lừa đảo cuộc gọi thông minh
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Core dependencies
+  provider: ^6.0.5
+  http: ^1.1.0
+  
+  # UI
+  cupertino_icons: ^1.0.6
+  
+  # Testing
+  flutter_test:
+    sdk: flutter
+  mockito: ^5.4.2
+
+dev_dependencies:
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.6
+  mockito: ^5.4.2
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/icons/
+  
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: fonts/Roboto-Regular.ttf
+        - asset: fonts/Roboto-Bold.ttf
+          weight: 700
+
+# Build flavors cho các môi trường khác nhau
+flavors:
+  dev:
+    build_config:
+      android:
+        application_id: com.example.lachancuoicgoi.dev
+      ios:
+        bundle_identifier: com.example.lachancuoicgoi.dev
+  staging:
+    build_config:
+      android:
+        application_id: com.example.lachancuoicgoi.staging
+      ios:
+        bundle_identifier: com.example.lachancuoicgoi.staging
+  prod:
+    build_config:
+      android:
+        application_id: com.example.lachancuoicgoi
+      ios:
+        bundle_identifier: com.example.lachancuoicgoi
+
+# Code generation settings
+build_targets:
+  - lib/core/permission/permission_manager.dart
+  - lib/phase11_api/fraud_detection_api_client.dart
+  - lib/ui/rights_dialog/rights_dialog.dart
+
+# Test configuration
+test_platforms:
+  - unit
+  - widget
+  - integration
+
+# Performance benchmarks
+benchmarks:
+  enabled: true
+  threshold_ms: 100
+  
+# Golden tests
+golden_tests:
+  enabled: true
+  update_on_failure: false

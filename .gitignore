@@ -1,32 +1,41 @@
-# Model / large binaries (ZIP tracked via Git LFS)
-*.tar.gz
-*.h5
-*.pb
-*.onnx
-*.tflite
+```
+# Flutter/Dart
+.dart_tool/
+.packages
+pubspec.lock
+build/
+*.g.dart
+*.freezed.dart
 
-# Python virtual environments
-env_*/
-venv/
-.venv/
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv/
+.env
+.env.local
+.env.
+.envrc
 
-# Node / Flutter / Android build
-node_modules/
-.dart_tool/
-build/
-.gradle/
-.idea/
-*.iml
-local.properties
-captures/
-*.apk
-*.aab
+# Logs
+*.log
+.flutter-plugins
+.flutter-plugin-dependencies
 
-# OS / temp files
-*.tmp
+# VS Code
+.vscode/
+
+# OS generated files
 .DS_Store
 Thumbs.db
-*.log
+```
