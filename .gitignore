@@ -1,33 +1,11 @@
 ```
-# Flutter/Dart specific
-.dart_tool/
-.build/
-.flutter-plugins
-.flutter-plugin-dependencies
-.packages
-**/ios/.generated/
-**/android/.generated/
+# Model files
+*.tflite
 
 # Dependencies
-pubspec.lock
-
-# Logs and temp files
-*.log
+node_modules/
+# Build outputs
+build/
+# Temporary files
 *.tmp
-*.swp
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS generated files
-.DS_Store
-Thumbs.db
 ```
