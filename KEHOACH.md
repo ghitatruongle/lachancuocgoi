@@ -814,17 +814,27 @@ Kết quả cần có:
 
 Công việc:
 
-- Copy/port BackgroundMonitoringService vào Flutter Android module.
-- Copy/port UnifiedAccessibilityService, CallScreeningServiceImpl, CallReceiver, TransparentTrampolineActivity, CreatorMediaProjectionService.
-- Port OverlayManager native hoặc viết bridge để Flutter UI hiện alert trong app và native overlay hiện ngoài app.
-- Thêm MethodChannel/EventChannel đầy đủ.
-- Thêm manifest services/permissions/meta-data.
+- [x] Copy/port `BackgroundMonitoringService.kt` vào Flutter Android module — foreground service quản lý audio, STT, stream transcript/RMS về Flutter qua EventChannel.
+- [x] Copy/port `UnifiedAccessibilityService.kt` — phát hiện cuộc gọi OTT (Zalo, Messenger, Dialer), đọc Live Caption, auto-answer/end-call, gửi call event về Flutter.
+- [x] Copy/port `CallScreeningServiceImpl.kt` — chặn cuộc gọi đến Android Q+, trigger monitoring qua TrampolineActivity.
+- [x] Copy/port `TransparentTrampolineActivity.kt` — giải quyết giới hạn Android 14 background start.
+- [x] Copy/port `CreatorMediaProjectionService.kt` — developer/creator mode media projection.
+- [x] Copy/port `CallReceiver.kt` (BroadcastReceiver) — nghe PHONE_STATE_CHANGED, hiện notification cuộc gọi đến.
+- [x] Port `OverlayManager.kt` dùng Android View native (không dùng Compose) — RED/ORANGE alert overlay + monitoring top bar.
+- [x] Thêm `NativeBridgeEventSink.kt` — thread-safe EventSink holder cho tất cả native EventChannel.
+- [x] Implement `MainActivity.kt` MethodChannel (12 methods) + 4 EventChannels (transcript, RMS, monitoringState, callEvents).
+- [x] Implement `MainApplication.kt` — khởi tạo 3 notification channels khi app start.
+- [x] Implement `NativeCallShieldBridge.dart` — Dart bridge type-safe cho toàn bộ MethodChannel/EventChannel.
+- [x] Cập nhật `build.gradle.kts` — minSdk=26, thêm `core-ktx`, `kotlinx-coroutines-android`, `noCompress` cho model files.
+- [x] Viết `phase8_native_bridge_test.dart` — 12 unit test cho bridge Dart (mock, argument passing, PlatformException, data models).
 
-Kết quả cần có:
+Kết quả đạt được:
 
-- Native service start/stop từ Flutter.
-- Transcript/RMS/call events stream vào Flutter.
-- Alert overlay ngoài app hoạt động.
+- [x] Native service start/stop từ Flutter qua MethodChannel.
+- [x] Transcript/RMS/call events/monitoring state stream vào Flutter qua 4 EventChannels.
+- [x] Alert overlay RED/ORANGE hiển thị ngoài app bằng `TYPE_APPLICATION_OVERLAY`.
+- Xác minh: `flutter analyze` — 0 issues. `flutter test` — 63/63 pass (không regression). `flutter build apk --debug` — thành công tại `build/app/outputs/flutter-apk/app-debug.apk`.
+- Cập nhật 2026-05-13: Đã fix lỗi biên dịch Kotlin (`R.drawable.ic_launcher_foreground` → `R.mipmap.ic_launcher`, `MediaProjection` nullability). Tất cả 11 Kotlin files trong `services/`, `receiver/`, `ui/` đã compile sạch.
 
 ### Giai đoạn 9 - Port Monitoring workflow thực
 
@@ -917,11 +927,11 @@ Trạng thái:
 | 22 | Port PIIStripper/PromptBuilder | [x] | Privacy parity | Đã port regex PII, restore token và prompt L3/summarization/incremental |
 | 23 | Port MonitoringController | [ ] | Live analysis state | Từ MonitoringViewModel |
 | 24 | Port STT/native transcript | [ ] | Transcript real-time | Google/Vosk/Live Caption |
-| 25 | Port native BackgroundMonitoringService | [ ] | Foreground monitoring | Android only |
-| 26 | Port AccessibilityService | [ ] | OTT/dialer/caption/auto-answer | Android only |
-| 27 | Port CallScreeningService | [ ] | Incoming phone calls | Android 10+ |
-| 28 | Port OverlayManager/alerts | [ ] | RED/ORANGE overlay | Native overlay |
-| 29 | Port Creator Mode/media projection | [ ] | Dev capture mode | Android only |
+| 25 | Port native BackgroundMonitoringService | [x] | Foreground monitoring | Đã port, stream transcript/RMS/state về Flutter qua EventChannel |
+| 26 | Port AccessibilityService | [x] | OTT/dialer/caption/auto-answer | Đã port UnifiedAccessibilityService; phát hiện Zalo/Messenger/Dialer, Live Caption, auto-answer/end-call |
+| 27 | Port CallScreeningService | [x] | Incoming phone calls | Đã port CallScreeningServiceImpl (Android Q+) và CallReceiver (BroadcastReceiver) |
+| 28 | Port OverlayManager/alerts | [x] | RED/ORANGE overlay | Đã port bằng Android View native (không Compose); monitoring top bar + alert overlay |
+| 29 | Port Creator Mode/media projection | [x] | Dev capture mode | Đã port CreatorMediaProjectionService với null-safe MediaProjection |
 | 30 | Port History/Result | [ ] | Lịch sử + export/share | UI/data |
 | 31 | Port Simulation | [ ] | Scenario playback | JSON/timestamp |
 | 32 | Port TipsLesson | [ ] | Tips UI/share | UI parity |
