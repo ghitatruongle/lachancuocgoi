@@ -143,8 +143,14 @@ while True:
       throw new Error('Whisper service is not ready');
     }
 
+    let timeoutId = null;
+    
     return new Promise((resolve, reject) => {
       this.pendingCallback = (result) => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         if (result.success) {
           resolve(result);
         } else {
@@ -159,7 +165,7 @@ while True:
 
       this.pythonProcess.stdin.write(JSON.stringify(data) + '\n');
 
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         if (this.pendingCallback) {
           this.pendingCallback = null;
           reject(new Error('Transcription timeout'));

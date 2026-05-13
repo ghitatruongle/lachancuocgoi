@@ -102,6 +102,13 @@ class AudioStreamHandler {
       if (!session || !session.isActive) return;
 
       try {
+        // Giới hạn kích thước queue để tránh memory leak
+        const MAX_AUDIO_CHUNKS = 10;
+        if (session.audioChunks.length >= MAX_AUDIO_CHUNKS) {
+          // Xóa chunk cũ nhất nếu queue đầy
+          session.audioChunks.shift();
+        }
+        
         session.audioChunks.push(data.audio);
 
         if (session.audioChunks.length >= 5) {
@@ -128,6 +135,8 @@ class AudioStreamHandler {
         }
       } catch (error) {
         console.error('Transcription error:', error);
+        // Xóa audio chunks khi có lỗi để tránh tích lũy
+        session.audioChunks = [];
       }
     });
 
