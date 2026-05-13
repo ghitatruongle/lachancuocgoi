@@ -151,7 +151,8 @@ class WfsaEngine {
     for (final score in _graphScores.values) {
       if (score > maxScore) maxScore = score;
     }
-    return maxScore;
+    // Normalize score to 0-100 range for consistent risk level calculation
+    return (maxScore / 100.0).clamp(0.0, 1.0) * 100.0;
   }
 
   double _decayForGraph(String graphId) {

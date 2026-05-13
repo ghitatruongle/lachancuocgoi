@@ -138,7 +138,8 @@ class L2Analyzer implements Analyzer {
 
     final wfsaRiskLevel = switch (wfsaScore) {
       >= 50.0 => RiskLevel.red,
-      >= 20.0 => RiskLevel.yellow,
+      >= 20.0 => RiskLevel.orange,  // Changed from yellow to orange for consistency with L3
+      >= 10.0 => RiskLevel.yellow,   // Added intermediate threshold
       _ => RiskLevel.green,
     };
     final gDetectionRiskLevel = _discountGDetectionRisk(

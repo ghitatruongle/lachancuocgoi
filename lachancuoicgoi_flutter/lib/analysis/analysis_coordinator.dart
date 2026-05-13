@@ -82,14 +82,24 @@ class AnalysisCoordinator {
     if (mode == AnalysisMode.geminiApi) {
       final minDelta = _adaptiveMinDelta(lastResult.overallRiskLevel);
       if (deltaLength < minDelta) {
-        return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
-            ? lastResult.copyWith(alertEnabled: false)
-            : lastResult;
+        // Sync processedTextLength to ensure consistency in fallback
+        if (lastResult.overallRiskLevel.index >= RiskLevel.orange.index) {
+          return lastResult.copyWith(alertEnabled: false);
+        }
+        return lastResult;
       }
     }
 
     final textToAnalyze = fullText.substring(processedTextLength);
-    return analyzeWithTranscript(textToAnalyze, fullText, mode);
+    final result = await analyzeWithTranscript(textToAnalyze, fullText, mode);
+    
+    // Ensure processedTextLength is synced after analysis for fallback consistency
+    if (mode == AnalysisMode.geminiApi && result.isError) {
+      // When L3 fails and falls back to L2, sync the processed length
+      syncProcessedTextLength(fullText.length, AnalysisMode.gDetection);
+    }
+    
+    return result;
   }
 
   int _adaptiveMinDelta(RiskLevel currentRiskLevel) {

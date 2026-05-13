@@ -11,9 +11,17 @@ import '../ui/simulation_page/simulation_page.dart';
 import '../ui/tips_lesson_page/tips_lesson_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  bool isRedirecting = false;
+  
   return GoRouter(
     initialLocation: '/onboarding',
     redirect: (context, state) {
+      // Prevent infinite redirect loop
+      if (isRedirecting) {
+        isRedirecting = false;
+        return null;
+      }
+      
       // Skip redirect for onboarding page itself
       if (state.matchedLocation == '/onboarding') {
         return null;
@@ -22,6 +30,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Check if all permissions are granted
       final allGranted = ref.read(allPermissionsGrantedProvider);
       if (!allGranted) {
+        isRedirecting = true;
         return '/onboarding';
       }
       return null;

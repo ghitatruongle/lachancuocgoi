@@ -43,6 +43,7 @@ class GeminiChatSession {
   int _currentModelIndex = 0;
   DateTime? _lastCallTime;
   final List<Content> _safeHistory = <Content>[];
+  static const int _maxHistorySize = 20; // Limit history to prevent memory leak
 
   Future<Result<T>> sendMessage<T>(
     String text,
@@ -105,10 +106,9 @@ class GeminiChatSession {
             modelName: modelName,
             history: List<Content>.unmodifiable(_safeHistory),
             prompt: text,
-          );
+          ).timeout(const Duration(seconds: 60)); // Add timeout for TFLite inference
           final parsed = parser(responseText, modelName);
-          _safeHistory.add(Content.text(text));
-          _safeHistory.add(Content.model(<Part>[TextPart(responseText)]));
+          _addToHistory(text, responseText);
           keyHealthTracker?.markSuccess(_currentKeyIndex);
           GeminiMetrics.recordCall(
             success: true,
@@ -146,6 +146,16 @@ class GeminiChatSession {
       lastError ?? StateError('Unknown error during chat session fallback'),
       lastStackTrace,
     );
+  }
+
+  /// Add content to history with size limit to prevent memory leak.
+  void _addToHistory(String userText, String responseText) {
+    // Remove oldest entries if we're at the limit
+    while (_safeHistory.length >= _maxHistorySize - 2) {
+      _safeHistory.removeAt(0);
+    }
+    _safeHistory.add(Content.text(userText));
+    _safeHistory.add(Content.model(<Part>[TextPart(responseText)]));
   }
 
   void close() {

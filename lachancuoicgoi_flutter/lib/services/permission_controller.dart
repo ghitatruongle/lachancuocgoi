@@ -9,11 +9,13 @@ class PermissionState {
     this.snapshot = const PermissionSnapshot(),
     this.isLoading = false,
     this.lastUpdated,
+    this.error,
   });
 
   final PermissionSnapshot snapshot;
   final bool isLoading;
   final DateTime? lastUpdated;
+  final String? error;
 
   int get grantedCount => snapshot.grantedCount;
   int get totalPermissions => PermissionSnapshot.totalPermissions;
@@ -24,32 +26,58 @@ class PermissionState {
     PermissionSnapshot? snapshot,
     bool? isLoading,
     DateTime? lastUpdated,
+    String? error,
   }) {
     return PermissionState(
       snapshot: snapshot ?? this.snapshot,
       isLoading: isLoading ?? this.isLoading,
       lastUpdated: lastUpdated ?? this.lastUpdated,
+      error: error,
     );
   }
 
   @override
   String toString() {
-    return 'PermissionState(granted: $grantedCount/$totalPermissions, allGranted: $allGranted)';
+    return 'PermissionState(granted: $grantedCount/$totalPermissions, allGranted: $allGranted, error: $error)';
   }
 }
 
 /// Controller for managing Android permissions via native bridge.
 class PermissionController extends StateNotifier<PermissionState> {
   PermissionController(this._bridge) : super(const PermissionState()) {
+    _initMonitoringStateStream();
     _refresh();
   }
 
   final NativeCallShieldBridge _bridge;
   StreamSubscription<(MonitoringState, int?, String?)>? _monitoringStateSub;
 
+  /// Initialize monitoring state stream subscription with proper error handling.
+  void _initMonitoringStateStream() {
+    try {
+      _monitoringStateSub = _bridge.monitoringStateStream.listen(
+        (state) {
+          debugPrint('Monitoring state changed: $state');
+          // Handle state changes if needed
+        },
+        onError: (error) {
+          debugPrint('Error in monitoring state stream: $error');
+          state = state.copyWith(error: 'Lỗi stream trạng thái: ${error.toString()}');
+        },
+        onDone: () {
+          debugPrint('Monitoring state stream closed');
+        },
+        cancelOnError: true,
+      );
+    } catch (e) {
+      debugPrint('Failed to initialize monitoring state stream: $e');
+      state = state.copyWith(error: 'Không thể khởi tạo stream giám sát: ${e.toString()}');
+    }
+  }
+
   /// Refresh permission snapshot from native.
   Future<void> _refresh() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, error: null);
     try {
       final snapshot = await _bridge.getPermissionSnapshot();
       state = state.copyWith(
@@ -60,7 +88,10 @@ class PermissionController extends StateNotifier<PermissionState> {
       debugPrint('Permission refreshed: $snapshot');
     } catch (e) {
       debugPrint('Failed to refresh permissions: $e');
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Không thể tải quyền: ${e.toString()}',
+      );
     }
   }
 
@@ -78,6 +109,7 @@ class PermissionController extends StateNotifier<PermissionState> {
       return result;
     } catch (e) {
       debugPrint('Failed to request overlay permission: $e');
+      state = state.copyWith(error: 'Lỗi xin quyền overlay: ${e.toString()}');
       return false;
     }
   }
@@ -93,6 +125,7 @@ class PermissionController extends StateNotifier<PermissionState> {
       return result;
     } catch (e) {
       debugPrint('Failed to open accessibility settings: $e');
+      state = state.copyWith(error: 'Lỗi mở cài đặt trợ năng: ${e.toString()}');
       return false;
     }
   }
@@ -108,6 +141,7 @@ class PermissionController extends StateNotifier<PermissionState> {
       return result;
     } catch (e) {
       debugPrint('Failed to request call screening role: $e');
+      state = state.copyWith(error: 'Lỗi xin vai trò sàng lọc cuộc gọi: ${e.toString()}');
       return false;
     }
   }
@@ -118,6 +152,7 @@ class PermissionController extends StateNotifier<PermissionState> {
       return await _bridge.isMonitoringActive();
     } catch (e) {
       debugPrint('Failed to check monitoring status: $e');
+      state = state.copyWith(error: 'Lỗi kiểm tra trạng thái giám sát: ${e.toString()}');
       return false;
     }
   }
@@ -145,6 +180,7 @@ class PermissionController extends StateNotifier<PermissionState> {
   @override
   void dispose() {
     _monitoringStateSub?.cancel();
+    _monitoringStateSub = null;
     super.dispose();
   }
 }

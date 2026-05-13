@@ -14,13 +14,21 @@ enum MonitoringState {
 
   /// Duration and final transcript when state is [stopped].
   static (MonitoringState, int?, String?) parse(String raw) {
+    if (raw.isEmpty) {
+      return (MonitoringState.idle, null, null);
+    }
+    
     if (raw.startsWith('STOPPED:')) {
       final parts = raw.split(':');
-      final duration = parts.length > 1 ? int.tryParse(parts[1]) : null;
+      if (parts.length < 2) {
+        return (MonitoringState.stopped, null, null);
+      }
+      final duration = int.tryParse(parts[1]);
       final transcript = parts.length > 2 ? parts.sublist(2).join(':') : null;
       return (MonitoringState.stopped, duration, transcript);
     }
-    return switch (raw) {
+    
+    return switch (raw.trim()) {
       'STARTED' => (MonitoringState.started, null, null),
       'NETWORK_AVAILABLE' => (MonitoringState.networkAvailable, null, null),
       'NETWORK_LOST' => (MonitoringState.networkLost, null, null),
@@ -280,7 +288,9 @@ class NativeCallShieldBridge {
   Stream<String> get transcriptStream =>
       _transcriptChannel.receiveBroadcastStream().map((event) {
         return event?.toString() ?? '';
-      }).where((text) => text.isNotEmpty);
+      }).where((text) => text.isNotEmpty).handleError((error) {
+        debugPrint('Error in transcript stream: $error');
+      });
 
   /// Stream of RMS (volume) values from native STT for waveform display.
   Stream<double> get rmsStream =>
@@ -288,12 +298,16 @@ class NativeCallShieldBridge {
         if (event is double) return event;
         if (event is num) return event.toDouble();
         return 0.0;
+      }).handleError((error) {
+        debugPrint('Error in RMS stream: $error');
       });
 
   /// Stream of monitoring state changes.
   Stream<(MonitoringState, int?, String?)> get monitoringStateStream =>
       _monitoringStateChannel.receiveBroadcastStream().map((event) {
         return MonitoringState.parse(event?.toString() ?? '');
+      }).handleError((error) {
+        debugPrint('Error in monitoring state stream: $error');
       });
 
   /// Stream of call events (incoming, ended, screening, etc.)
@@ -303,6 +317,8 @@ class NativeCallShieldBridge {
           return CallEvent.fromMap(event);
         }
         return const CallEvent(type: 'UNKNOWN');
+      }).handleError((error) {
+        debugPrint('Error in call event stream: $error');
       });
 }
 
