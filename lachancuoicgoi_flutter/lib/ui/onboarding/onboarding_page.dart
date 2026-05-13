@@ -14,7 +14,6 @@ class OnboardingPage extends ConsumerStatefulWidget {
 
 class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   bool _isRequesting = false;
-  int _currentStep = 0;
 
   @override
   void initState() {
@@ -29,7 +28,6 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final state = ref.watch(permissionControllerProvider);
-    final controller = ref.read(permissionControllerProvider.notifier);
 
     if (state.allGranted) {
       // Auto-navigate to home when all permissions granted
@@ -180,7 +178,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   Future<void> _requestPermissions() async {
     setState(() => _isRequesting = true);
     try {
-      await controller.requestAllPermissions();
+      await ref.read(permissionControllerProvider.notifier).requestAllPermissions();
     } finally {
       if (mounted) {
         setState(() => _isRequesting = false);
