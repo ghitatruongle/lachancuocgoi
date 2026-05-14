@@ -57,7 +57,7 @@ class HistoryItemCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: riskColor.withValues(alpha: 0.1),
+                              color: riskColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(50),
                             ),
                             child: Text(
@@ -96,7 +96,7 @@ class HistoryItemCard extends StatelessWidget {
                         label: Text(item.analysisType ?? 'Không phân tích'),
                         onPressed: () {},
                         backgroundColor: item.analysisType == null
-                            ? cs.surfaceContainerHighest.withValues(alpha: 0.5)
+                            ? cs.surfaceContainerHighest.withOpacity(0.5)
                             : null,
                       ),
                     ],

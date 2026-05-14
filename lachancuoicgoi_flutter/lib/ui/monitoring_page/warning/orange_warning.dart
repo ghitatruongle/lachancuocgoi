@@ -16,7 +16,7 @@ class OrangeWarning extends StatelessWidget {
         children: [
           // ── Content ──
           Container(
-            color: _orangeColor.withValues(alpha: 0.95),
+            color: _orangeColor.withOpacity(0.95),
             width: double.infinity,
             height: double.infinity,
             child: SingleChildScrollView(
@@ -80,7 +80,7 @@ class OrangeWarning extends StatelessWidget {
                 height: 64,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: Colors.white.withOpacity(0.4),
                 ),
                 child: const Icon(Icons.close, color: Colors.white, size: 36),
               ),

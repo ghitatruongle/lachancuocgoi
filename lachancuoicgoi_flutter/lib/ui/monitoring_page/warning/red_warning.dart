@@ -14,7 +14,7 @@ class RedWarning extends StatelessWidget {
         children: [
           // ── Content ──
           Container(
-            color: Colors.red.withValues(alpha: 0.95),
+            color: Colors.red.withOpacity(0.95),
             width: double.infinity,
             height: double.infinity,
             child: SingleChildScrollView(
@@ -78,7 +78,7 @@ class RedWarning extends StatelessWidget {
                 height: 64,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: Colors.white.withOpacity(0.4),
                 ),
                 child: const Icon(Icons.close, color: Colors.white, size: 36),
               ),

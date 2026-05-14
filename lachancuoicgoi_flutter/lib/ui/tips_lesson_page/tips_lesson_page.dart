@@ -137,8 +137,8 @@ class _TipCard extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
 
     final cardColor = tip.severity == _TipSeverity.high
-        ? cs.errorContainer.withValues(alpha: 0.3)
-        : cs.tertiaryContainer.withValues(alpha: 0.3);
+        ? cs.errorContainer.withOpacity(0.3)
+        : cs.tertiaryContainer.withOpacity(0.3);
 
     final accentColor = tip.severity == _TipSeverity.high
         ? cs.error
@@ -159,7 +159,7 @@ class _TipCard extends StatelessWidget {
                 height: 36,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: accentColor.withValues(alpha: 0.15),
+                  color: accentColor.withOpacity(0.15),
                 ),
                 child: Center(
                   child: Text(

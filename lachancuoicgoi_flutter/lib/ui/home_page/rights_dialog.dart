@@ -217,7 +217,7 @@ class _PermissionItem extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.xxs),
-      color: cs.surfaceContainerHighest.withValues(alpha: isGranted ? 0.5 : 0.8),
+      color: cs.surfaceContainerHighest.withOpacity(isGranted ? 0.5 : 0.8),
       child: ListTile(
         leading: Icon(
           icon,

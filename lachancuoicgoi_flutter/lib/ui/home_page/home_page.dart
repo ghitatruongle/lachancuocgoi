@@ -47,7 +47,7 @@ class HomePage extends ConsumerWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+              color: cs.surfaceContainerHighest.withOpacity(0.3),
               elevation: 0,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -166,11 +166,11 @@ class HomePage extends ConsumerWidget {
 
             // ── Tips lesson button ──
             Material(
-              color: cs.tertiaryContainer.withValues(alpha: 0.5),
+              color: cs.tertiaryContainer.withOpacity(0.5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(
-                  color: cs.tertiary.withValues(alpha: 0.3),
+                  color: cs.tertiary.withOpacity(0.3),
                 ),
               ),
               child: InkWell(
@@ -242,7 +242,7 @@ class _QuickActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),

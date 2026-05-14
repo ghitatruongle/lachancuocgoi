@@ -49,7 +49,7 @@ class _AlertHistoryCard extends StatelessWidget {
     final riskColor = entry.getRiskLevelColor();
 
     return Card(
-      color: riskColor.withValues(alpha: 0.08),
+      color: riskColor.withOpacity(0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ),

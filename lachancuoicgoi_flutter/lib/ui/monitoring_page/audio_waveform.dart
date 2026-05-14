@@ -111,7 +111,7 @@ class _FlashingDotState extends State<_FlashingDot>
           height: 8,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.red.withValues(alpha: _animation.value),
+            color: Colors.red.withOpacity(_animation.value),
           ),
         );
       },

@@ -1,57 +1,46 @@
 ```
-# Dependencies
-node_modules/
-
-# Logs and temp files
-*.log
-*.tmp
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Editors
+# Flutter/Dart
+.dart_tool/
+.build/
+flutter/
+packages/
+*.iws
+*.sw
+*.swo
+*.swp
+*~
+.DS_Store
+Thumbs.db
 .vscode/
 .idea/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.py~
-*.py.class
-*.py.backup
-*.swp
-*.swo
-
-# Build outputs
-dist/
-build/
-*.out
-*.exe
-*.dll
-*.so
-*.a
+*.log
+*.tmp
 *.obj
-
-# Coverage
+*.o
+*.a
+*.lib
+*.so
+*.dll
+*.exe
+*.out
+*.pyc
+__pycache__/
+*.class
+target/
+.gradle/
+node_modules/
+venv/
+.venv/
+.mypy_cache/
+.pytest_cache/
 coverage/
 htmlcov/
 .coverage
-
-# Cache
-.mypy_cache/
-.pytest_cache/
-.cache/
-*.cache
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Compressed
+*.env
+*.env.local
+*.env.*
+dist/
+build/
 *.zip
 *.gz
 *.tar
