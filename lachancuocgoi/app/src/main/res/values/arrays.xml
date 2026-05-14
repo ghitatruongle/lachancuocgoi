@@ -1,9 +1,0 @@
-<resources>
-    <string-array name="sensitivity_levels">
-        <item>Thấp</item>
-        <item>Bình thường</item>
-        <item>Cao</item>
-        <item>Rất cao</item>
-        <item>Tối đa</item>
-    </string-array>
-</resources>

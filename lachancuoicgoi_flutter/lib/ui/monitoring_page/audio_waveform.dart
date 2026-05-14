@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 
-/// Animated audio waveform display with flashing recording dot and timer.
 class AudioWaveform extends StatelessWidget {
   const AudioWaveform({
     super.key,
     required this.amplitudes,
-    required this.elapsedSeconds,
+    required this.elapsedTime,
   });
 
   final List<double> amplitudes;
-  final int elapsedSeconds;
+  final String elapsedTime;
 
   @override
   Widget build(BuildContext context) {
@@ -40,10 +39,7 @@ class AudioWaveform extends StatelessWidget {
                   ),
                 ],
               ),
-              Text(
-                _formatElapsedTime(elapsedSeconds),
-                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-              ),
+              _ElapsedTimeDisplay(elapsedTime: elapsedTime),
             ],
           ),
           const SizedBox(height: 8),
@@ -58,11 +54,22 @@ class AudioWaveform extends StatelessWidget {
       ),
     );
   }
+}
 
-  static String _formatElapsedTime(int seconds) {
-    final m = seconds ~/ 60;
-    final s = seconds % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+class _ElapsedTimeDisplay extends StatelessWidget {
+  const _ElapsedTimeDisplay({required this.elapsedTime});
+
+  final String elapsedTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+
+    return Text(
+      elapsedTime,
+      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+    );
   }
 }
 
@@ -140,5 +147,7 @@ class _WaveformPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_WaveformPainter old) => true;
+  bool shouldRepaint(_WaveformPainter old) {
+    return old.amplitudes != amplitudes;
+  }
 }

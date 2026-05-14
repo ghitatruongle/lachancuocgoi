@@ -53,8 +53,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
               child: Chip(
                 label: const Text('DEV'),
                 backgroundColor: cs.errorContainer,
-                labelStyle:
-                    TextStyle(color: cs.onErrorContainer, fontSize: 11),
+                labelStyle: TextStyle(color: cs.onErrorContainer, fontSize: 11),
                 side: BorderSide.none,
               ),
             ),
@@ -102,8 +101,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
               height: 48,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
@@ -120,11 +118,8 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
                       child: FilterChip(
                         label: Text(cat),
                         selected: uiState.selectedCategory == cat,
-                        onSelected: (_) =>
-                            controller.updateSelectedCategory(
-                                uiState.selectedCategory == cat
-                                    ? null
-                                    : cat),
+                        onSelected: (_) => controller.updateSelectedCategory(
+                            uiState.selectedCategory == cat ? null : cat),
                       ),
                     ),
                 ],
@@ -142,8 +137,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
     );
   }
 
-  Widget _buildBody(
-      SimulationUiState uiState, ColorScheme cs, TextTheme tt) {
+  Widget _buildBody(SimulationUiState uiState, ColorScheme cs, TextTheme tt) {
     // Loading
     if (uiState.scenarios == null) {
       return ListView.builder(
@@ -159,8 +153,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.science_outlined,
-                size: 64, color: cs.onSurfaceVariant),
+            Icon(Icons.science_outlined, size: 64, color: cs.onSurfaceVariant),
             const SizedBox(height: 16),
             Text('Không có tình huống', style: tt.titleLarge),
           ],
@@ -191,8 +184,15 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
         return _ScenarioCard(
           scenario: scenario,
           onStart: () {
-            context.push('/monitoring',
-                extra: {'scenarioTitle': scenario.title});
+            context.push(
+              '/monitoring',
+              extra: {
+                'scenarioTitle': scenario.title,
+                'scenarioTranscript': scenario.script
+                    .map((line) => '${line.speaker}: ${line.line}')
+                    .join('\n'),
+              },
+            );
           },
         );
       },
@@ -249,23 +249,21 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 widget.scenario.title,
-                                style: tt.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold),
+                                style: tt.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 widget.scenario.description,
-                                style: tt.bodySmall?.copyWith(
-                                    color: cs.onSurfaceVariant),
+                                style: tt.bodySmall
+                                    ?.copyWith(color: cs.onSurfaceVariant),
                                 maxLines: _expanded ? null : 2,
-                                overflow: _expanded
-                                    ? null
-                                    : TextOverflow.ellipsis,
+                                overflow:
+                                    _expanded ? null : TextOverflow.ellipsis,
                               ),
                             ],
                           ),
@@ -274,8 +272,7 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                     ),
 
                     // Script preview (expanded)
-                    if (_expanded &&
-                        widget.scenario.script.isNotEmpty) ...[
+                    if (_expanded && widget.scenario.script.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Container(
                         width: double.infinity,
@@ -287,11 +284,9 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            for (final line in widget.scenario.script
-                                .take(4))
+                            for (final line in widget.scenario.script.take(4))
                               Padding(
-                                padding:
-                                    const EdgeInsets.only(bottom: 4),
+                                padding: const EdgeInsets.only(bottom: 4),
                                 child: Text(
                                   '${line.speaker}: ${line.line}',
                                   style: tt.bodySmall,
@@ -300,8 +295,8 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                             if (widget.scenario.script.length > 4)
                               Text(
                                 '... và ${widget.scenario.script.length - 4} dòng nữa',
-                                style: tt.labelSmall?.copyWith(
-                                    color: cs.onSurfaceVariant),
+                                style: tt.labelSmall
+                                    ?.copyWith(color: cs.onSurfaceVariant),
                               ),
                           ],
                         ),
@@ -316,9 +311,7 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                         TextButton(
                           onPressed: () =>
                               setState(() => _expanded = !_expanded),
-                          child: Text(_expanded
-                              ? 'Thu gọn'
-                              : 'Xem chi tiết'),
+                          child: Text(_expanded ? 'Thu gọn' : 'Xem chi tiết'),
                         ),
                         ElevatedButton(
                           onPressed: widget.onStart,

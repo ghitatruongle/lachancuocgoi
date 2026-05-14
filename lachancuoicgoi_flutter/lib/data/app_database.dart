@@ -73,6 +73,15 @@ CREATE TABLE IF NOT EXISTS call_history (
   alert_history TEXT
 )
 ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_call_history_dateTime ON call_history(dateTime)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_call_history_riskLevel ON call_history(riskLevel)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_call_history_dateTime_riskLevel ON call_history(dateTime, riskLevel)',
+    );
   }
 
   static Future<void> _upgradeSchema(
@@ -88,7 +97,43 @@ CREATE TABLE IF NOT EXISTS call_history (
     if (oldVersion < 5) {
       await _addColumnIfMissing(db, 'call_history', 'alert_history', 'TEXT');
     }
+
+    await _createIndexesIfNotExist(db);
   }
+
+  static Future<void> _createIndexesIfNotExist(Database db) async {
+    try {
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_call_history_dateTime ON call_history(dateTime)',
+      );
+    } catch (_) {}
+    try {
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_call_history_riskLevel ON call_history(riskLevel)',
+      );
+    } catch (_) {}
+    try {
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_call_history_dateTime_riskLevel ON call_history(dateTime, riskLevel)',
+      );
+    } catch (_) {}
+  }
+
+  static const _allowedTables = <String>['call_history'];
+  static const _allowedColumns = <String>[
+    'id',
+    'dateTime',
+    'riskLevel',
+    'summary',
+    'duration',
+    'flagCount',
+    'transcript',
+    'audioPath',
+    'analysisResult',
+    'analysisType',
+    'alert_history',
+  ];
+  static const _allowedTypes = <String>['TEXT', 'INTEGER', 'REAL', 'BLOB'];
 
   static Future<void> _addColumnIfMissing(
     Database db,
@@ -96,6 +141,13 @@ CREATE TABLE IF NOT EXISTS call_history (
     String column,
     String type,
   ) async {
+    // Whitelist validation to prevent SQL injection
+    if (!_allowedTables.contains(table) ||
+        !_allowedColumns.contains(column) ||
+        !_allowedTypes.contains(type)) {
+      throw ArgumentError('Invalid table, column, or type parameter');
+    }
+
     final columns = await db.rawQuery('PRAGMA table_info($table)');
     final exists = columns.any((row) => row['name'] == column);
     if (!exists) {
