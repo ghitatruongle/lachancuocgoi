@@ -25,8 +25,8 @@ class RiskLevelIndicator extends StatelessWidget {
               style:
                   tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
-            TweenAnimationBuilder<Color?>(
-              tween: ColorTween(end: riskLevel.color),
+            TweenAnimationBuilder<Color>(
+              tween: ColorTween(end: riskLevel.color, begin: riskLevel.color),
               duration: const Duration(milliseconds: 800),
               builder: (context, color, _) {
                 return Text(
@@ -42,19 +42,21 @@ class RiskLevelIndicator extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         TweenAnimationBuilder<double>(
-          tween: Tween<double>(end: targetProgress),
+          tween: Tween<double>(end: targetProgress, begin: targetProgress),
           duration: const Duration(milliseconds: 800),
           builder: (context, progress, _) {
-            return TweenAnimationBuilder<Color?>(
-              tween: ColorTween(end: riskLevel.color),
+            return TweenAnimationBuilder<Color>(
+              tween: ColorTween(end: riskLevel.color, begin: riskLevel.color),
               duration: const Duration(milliseconds: 800),
               builder: (context, color, _) {
-                return LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 8,
-                  color: color,
-                  backgroundColor: cs.surfaceContainerHighest,
+                return ClipRRect(
                   borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 8,
+                    color: color,
+                    backgroundColor: cs.surfaceContainerHighest,
+                  ),
                 );
               },
             );

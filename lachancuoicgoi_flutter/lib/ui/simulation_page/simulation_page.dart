@@ -90,6 +90,10 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide(color: cs.primary),
                 ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
               onChanged: controller.updateSearchQuery,
             ),
@@ -306,13 +310,14 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                     const SizedBox(height: 12),
 
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton(
                           onPressed: () =>
                               setState(() => _expanded = !_expanded),
                           child: Text(_expanded ? 'Thu gọn' : 'Xem chi tiết'),
                         ),
+                        const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: widget.onStart,
                           style: ElevatedButton.styleFrom(

@@ -45,8 +45,8 @@ class AudioWaveform extends StatelessWidget {
           const SizedBox(height: 8),
           SizedBox(
             height: 100,
+            width: double.infinity,
             child: CustomPaint(
-              size: const Size(double.infinity, 100),
               painter: _WaveformPainter(amplitudes: amplitudes),
             ),
           ),
@@ -136,7 +136,7 @@ class _WaveformPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     for (var i = 0; i < amplitudes.length; i++) {
-      final x = i * 2 * barWidth;
+      final x = i * 2 * barWidth + barWidth / 2;
       final amp = amplitudes[i].clamp(0.0, 1.0) * maxAmp;
       canvas.drawLine(
         Offset(x, size.height / 2 - amp),

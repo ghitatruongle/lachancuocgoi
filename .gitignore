@@ -1,66 +1,45 @@
 ```
-# Flutter/Dart
+# Flutter/Dart specific
 .dart_tool/
 .build/
-flutter/
-packages/
-*.iws
-*.sw
-*.swo
-*.swp
-*~
-.DS_Store
-Thumbs.db
-.vscode/
+.flutter-plugins
+.flutter-plugin-dependencies
+.packages
+**/ios/.generated/
+**/android/.generated/
+
+# Dependencies
+pubspec.lock
+
+# Build outputs
+**/build/
+**/ios/Flutter/App.framework
+**/ios/Flutter/flutter_assets
+**/android/app/build/
+
+# IDE
 .idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
 *.log
 *.tmp
-*.obj
-*.o
-*.a
-*.lib
-*.so
-*.dll
-*.exe
-*.out
-*.pyc
-__pycache__/
-*.class
-target/
-.gradle/
-node_modules/
-venv/
-.venv/
-.mypy_cache/
-.pytest_cache/
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Coverage
 coverage/
 htmlcov/
 .coverage
-*.env
-*.env.local
-*.env.*
-dist/
-build/
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
 ```

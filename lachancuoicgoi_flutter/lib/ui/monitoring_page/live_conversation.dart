@@ -14,6 +14,7 @@ class LiveConversation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     final cleanTranscript = transcript.replaceAll('+', ' ');
 
     return Container(
@@ -28,16 +29,16 @@ class LiveConversation extends StatelessWidget {
                 isSimulation
                     ? 'Đang chờ kịch bản...'
                     : 'Đang lắng nghe...',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                style: tt.bodyMedium?.copyWith(
                       color: cs.onSurfaceVariant,
                     ),
               ),
             )
-          : ListView(
-              reverse: true,
-              children: [
-                Text(cleanTranscript),
-              ],
+          : SingleChildScrollView(
+              child: Text(
+                cleanTranscript,
+                style: tt.bodyMedium,
+              ),
             ),
     );
   }

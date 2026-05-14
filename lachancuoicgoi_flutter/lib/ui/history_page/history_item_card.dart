@@ -92,13 +92,13 @@ class HistoryItemCard extends StatelessWidget {
                       const SizedBox(height: 4),
 
                       // Analysis type chip
-                      ActionChip(
-                        label: Text(item.analysisType ?? 'Không phân tích'),
-                        onPressed: () {},
-                        backgroundColor: item.analysisType == null
-                            ? cs.surfaceContainerHighest.withOpacity(0.5)
-                            : null,
-                      ),
+                      if (item.analysisType != null)
+                        ActionChip(
+                          label: Text(item.analysisType!),
+                          onPressed: () {},
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        ),
                     ],
                   ),
                 ),

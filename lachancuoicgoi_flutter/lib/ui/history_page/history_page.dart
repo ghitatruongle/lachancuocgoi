@@ -147,6 +147,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide(color: cs.outlineVariant),
                       ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                     textInputAction: TextInputAction.search,
                     onChanged: (v) =>
