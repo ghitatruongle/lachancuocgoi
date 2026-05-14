@@ -61,13 +61,29 @@ class GDetectionEngine {
 
   Future<void> _doInitialize() async {
     _isReady = false;
-    await _loadSlangMap();
-    await _loadScoringConfig();
-    await _loadTierConfig();
-    _riskKeywordTrie = await _buildTrie();
-    await _buildTopicMap();
-    await _loadPatterns();
-    await _loadMatchers();
+
+    final slangFuture = _loadSlangMap();
+    final scoringFuture = _loadScoringConfig();
+    final tierFuture = _loadTierConfig();
+
+    await Future.wait<void>([slangFuture, scoringFuture, tierFuture]);
+
+    final trieFuture = _buildTrie().then((trie) {
+      _riskKeywordTrie = trie;
+    });
+    final topicMapFuture = _buildTopicMap();
+    final patternsFuture = _loadPatterns();
+    final situationFuture = _loadSituationMatcher();
+    final sentencesFuture = _loadSentenceMatcher();
+
+    await Future.wait<void>([
+      trieFuture,
+      topicMapFuture,
+      patternsFuture,
+      situationFuture,
+      sentencesFuture,
+    ]);
+
     _isReady = true;
   }
 
@@ -246,7 +262,7 @@ class GDetectionEngine {
     }
   }
 
-  Future<void> _loadMatchers() async {
+  Future<void> _loadSituationMatcher() async {
     try {
       final masterModel = RiskScenariosMaster.fromJson(
         await _loadJsonMap(situationFile),
@@ -255,7 +271,9 @@ class GDetectionEngine {
     } catch (_) {
       _scenarioMatcher = null;
     }
+  }
 
+  Future<void> _loadSentenceMatcher() async {
     try {
       final sentencesModel = RiskModelSentences.fromJson(
         await _loadJsonMap(sentencesFile),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../services/permission_controller.dart';
 import '../theme/app_theme.dart';
@@ -30,15 +31,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     final state = ref.watch(permissionControllerProvider);
 
     if (state.allGranted) {
-      // Auto-navigate to home when all permissions granted
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacementNamed('/');
+        context.go('/');
       });
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final missingPermissions = ref.watch(missingPermissionsProvider);
@@ -53,7 +49,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         child: Column(
           children: [
             const SizedBox(height: AppSpacing.lg),
-            
+
             // Progress indicator
             LinearProgressIndicator(
               value: state.progress,
@@ -65,9 +61,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
               '${state.grantedCount}/${state.totalPermissions} quyền đã cấp',
               style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
             ),
-            
+
             const Spacer(flex: 1),
-            
+
             // Icon and title
             Icon(
               Icons.security_outlined,
@@ -86,9 +82,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
               style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
-            
+
             const Spacer(flex: 2),
-            
+
             // Permission checklist
             Card(
               elevation: 2,
@@ -99,35 +95,39 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                   children: [
                     Text(
                       'Danh sách quyền cần thiết:',
-                      style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                      style: tt.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    ...missingPermissions.map((perm) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.circle,
-                            size: 8,
-                            color: cs.error,
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Text(perm, style: tt.bodyMedium),
-                        ],
+                    ...missingPermissions.map(
+                      (perm) => Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xxs,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.circle, size: 8, color: cs.error),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(perm, style: tt.bodyMedium),
+                          ],
+                        ),
                       ),
-                    )),
+                    ),
                     if (missingPermissions.isEmpty)
                       Text(
                         'Tất cả quyền đã được cấp!',
-                        style: tt.bodyMedium?.copyWith(color: const Color(0xFF4CAF50)),
+                        style: tt.bodyMedium?.copyWith(
+                          color: const Color(0xFF4CAF50),
+                        ),
                       ),
                   ],
                 ),
               ),
             ),
-            
+
             const Spacer(flex: 1),
-            
+
             // Action buttons
             SizedBox(
               width: double.infinity,
@@ -154,20 +154,19 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: AppSpacing.sm),
-            
+
             TextButton(
               onPressed: () {
-                // Skip onboarding (not recommended but allowed)
-                Navigator.of(context).pushReplacementNamed('/');
+                context.go('/');
               },
               child: Text(
                 'Bỏ qua (không khuyến khích)',
                 style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
               ),
             ),
-            
+
             const SizedBox(height: AppSpacing.lg),
           ],
         ),
@@ -178,7 +177,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   Future<void> _requestPermissions() async {
     setState(() => _isRequesting = true);
     try {
-      await ref.read(permissionControllerProvider.notifier).requestAllPermissions();
+      await ref
+          .read(permissionControllerProvider.notifier)
+          .requestAllPermissions();
     } finally {
       if (mounted) {
         setState(() => _isRequesting = false);

@@ -14,15 +14,23 @@ import 'l1_result.dart';
 
 class FlatTrie {
   FlatTrie({int initialCapacity = 2000})
-      : childrenMaps = List<Map<String, int>?>.filled(initialCapacity, null,
-            growable: true),
-        nodeMetadata = List<int>.filled(initialCapacity, 0, growable: true),
-        nodeOriginalKeywords =
-            List<String?>.filled(initialCapacity, null, growable: true),
-        failureLinks =
-            List<int>.filled(initialCapacity, rootId, growable: true),
-        dictionaryLinks =
-            List<int>.filled(initialCapacity, rootId, growable: true) {
+    : childrenMaps = List<Map<String, int>?>.filled(
+        initialCapacity,
+        null,
+        growable: true,
+      ),
+      nodeMetadata = List<int>.filled(initialCapacity, 0, growable: true),
+      nodeOriginalKeywords = List<String?>.filled(
+        initialCapacity,
+        null,
+        growable: true,
+      ),
+      failureLinks = List<int>.filled(initialCapacity, rootId, growable: true),
+      dictionaryLinks = List<int>.filled(
+        initialCapacity,
+        rootId,
+        growable: true,
+      ) {
     childrenMaps[rootId] = <String, int>{};
   }
 
@@ -46,11 +54,13 @@ class FlatTrie {
     while (minCapacity > childrenMaps.length) {
       final oldSize = childrenMaps.length;
       final newSize = oldSize * 2;
-      childrenMaps
-          .addAll(List<Map<String, int>?>.filled(newSize - oldSize, null));
+      childrenMaps.addAll(
+        List<Map<String, int>?>.filled(newSize - oldSize, null),
+      );
       nodeMetadata.addAll(List<int>.filled(newSize - oldSize, 0));
-      nodeOriginalKeywords
-          .addAll(List<String?>.filled(newSize - oldSize, null));
+      nodeOriginalKeywords.addAll(
+        List<String?>.filled(newSize - oldSize, null),
+      );
       failureLinks.addAll(List<int>.filled(newSize - oldSize, rootId));
       dictionaryLinks.addAll(List<int>.filled(newSize - oldSize, rootId));
     }
@@ -114,9 +124,9 @@ class L1Analyzer implements Analyzer {
     AssetBundle? assetBundle,
     FutureOr<String> Function()? vocabularyProvider,
     FutureOr<String> Function()? bigramCorrectionsProvider,
-  })  : _assetBundle = assetBundle ?? rootBundle,
-        _vocabularyProvider = vocabularyProvider,
-        _bigramCorrectionsProvider = bigramCorrectionsProvider;
+  }) : _assetBundle = assetBundle ?? rootBundle,
+       _vocabularyProvider = vocabularyProvider,
+       _bigramCorrectionsProvider = bigramCorrectionsProvider;
 
   final AssetBundle _assetBundle;
   FutureOr<String> Function()? _vocabularyProvider;
@@ -402,9 +412,7 @@ class L1Analyzer implements Analyzer {
         if (from.isEmpty || to.isEmpty) continue;
         _corrections.add(_TokenCorrection(from, to));
       }
-      _corrections.sort(
-        (a, b) => b.from.length.compareTo(a.from.length),
-      );
+      _corrections.sort((a, b) => b.from.length.compareTo(a.from.length));
     } catch (_) {
       _corrections.clear();
     }
@@ -525,8 +533,8 @@ class L1Analyzer implements Analyzer {
     var tempStateId = stateId;
     final visitedDictNodes = <int>{};
 
-    while (
-        tempStateId != FlatTrie.rootId && visitedDictNodes.add(tempStateId)) {
+    while (tempStateId != FlatTrie.rootId &&
+        visitedDictNodes.add(tempStateId)) {
       if (_trie.isMatchNode(tempStateId)) {
         final keyword = _trie.nodeOriginalKeywords[tempStateId] ?? '';
         final keywordTokenCount = _tokenize(keyword).length;
@@ -581,11 +589,13 @@ class L1Analyzer implements Analyzer {
   List<String> _readTokenList(Object? rawValue) {
     if (rawValue is! List) return const [];
     return rawValue
-        .map((item) => TextNormalizer.normalize(
-              item.toString(),
-              applySlang: false,
-              noiseMode: NoiseMode.remove,
-            ))
+        .map(
+          (item) => TextNormalizer.normalize(
+            item.toString(),
+            applySlang: false,
+            noiseMode: NoiseMode.remove,
+          ),
+        )
         .where((token) => token.isNotEmpty)
         .toList();
   }
@@ -598,6 +608,10 @@ class L1Analyzer implements Analyzer {
       return Future<String>.value(provider());
     }
     return _assetBundle.loadString(assetKey);
+  }
+
+  void dispose() {
+    // Clean up resources if needed
   }
 }
 

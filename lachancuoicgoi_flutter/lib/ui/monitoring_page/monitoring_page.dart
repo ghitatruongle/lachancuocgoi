@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -30,24 +31,51 @@ class _MonitoringPageState extends State<MonitoringPage> {
   late final L1Analyzer _l1Analyzer;
   RiskLevel _riskLevel = RiskLevel.green;
   String _transcript = '';
-  final int _elapsedSeconds = 0;
-  final bool _networkAvailable = true;
-  final bool _isFallbackActive = false;
-  final AnalysisMode _selectedMode = AnalysisMode.normal;
-  final AnalysisMode _effectiveMode = AnalysisMode.normal;
+  int _elapsedSeconds = 0;
+  bool _networkAvailable = true;
+  bool _isFallbackActive = false;
+  AnalysisMode _selectedMode = AnalysisMode.normal;
+  AnalysisMode _effectiveMode = AnalysisMode.normal;
   AnalysisResult? _analysisResult;
   bool _isAnalyzing = false;
+  Timer? _timer;
+  String _displayedTime = '00:00';
 
   @override
   void initState() {
     super.initState();
     _l1Analyzer = L1Analyzer();
     _transcript = widget.simulatedTranscript?.trim() ?? '';
+    _startTimer();
     if (_transcript.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _runMockL1Analysis();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {
+          _elapsedSeconds++;
+          _displayedTime = _formatElapsedTime(_elapsedSeconds);
+        });
+      }
+    });
+  }
+
+  String _formatElapsedTime(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
   List<double> get _mockAmplitudes {
@@ -72,10 +100,7 @@ class _MonitoringPageState extends State<MonitoringPage> {
                   : 'Lá chắn cuộc gọi',
               style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
-            Text(
-              'Phát hiện Lừa đảo & Bạo lực',
-              style: tt.bodySmall,
-            ),
+            Text('Phát hiện Lừa đảo & Bạo lực', style: tt.bodySmall),
           ],
         ),
         actions: [
@@ -127,7 +152,7 @@ class _MonitoringPageState extends State<MonitoringPage> {
                 padding: const EdgeInsets.all(16),
                 child: AudioWaveform(
                   amplitudes: _mockAmplitudes,
-                  elapsedSeconds: _elapsedSeconds,
+                  elapsedTime: _displayedTime,
                 ),
               ),
             ),
@@ -166,8 +191,9 @@ class _MonitoringPageState extends State<MonitoringPage> {
                           spacing: 8,
                           runSpacing: 4,
                           children: [
-                            for (final match
-                                in _analysisResult!.matches.take(4))
+                            for (final match in _analysisResult!.matches.take(
+                              4,
+                            ))
                               Chip(
                                 label: Text(match.keyword),
                                 visualDensity: VisualDensity.compact,
@@ -201,7 +227,8 @@ class _MonitoringPageState extends State<MonitoringPage> {
                           const SizedBox(width: 8),
                           ActionChip(
                             label: Text(
-                                _networkAvailable ? 'Mạng: OK' : 'Mạng: Lỗi'),
+                              _networkAvailable ? 'Mạng: OK' : 'Mạng: Lỗi',
+                            ),
                             backgroundColor: _networkAvailable
                                 ? cs.surfaceContainerHighest
                                 : cs.errorContainer,
