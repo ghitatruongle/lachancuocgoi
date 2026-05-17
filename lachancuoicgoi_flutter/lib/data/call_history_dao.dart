@@ -31,6 +31,26 @@ class CallHistoryDao {
     return rows.map(CallHistory.fromMap).toList();
   }
 
+  /// Returns [limit] items starting at [offset], ordered by id DESC.
+  Future<List<CallHistory>> getAllPaginated({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final rows = await _db.query(
+      'call_history',
+      orderBy: 'id DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map(CallHistory.fromMap).toList();
+  }
+
+  /// Returns total number of records.
+  Future<int> count() async {
+    final result = await _db.rawQuery('SELECT COUNT(*) as cnt FROM call_history');
+    return (result.first['cnt'] as int?) ?? 0;
+  }
+
   Future<CallHistory?> getById(int id) async {
     final rows = await _db.query(
       'call_history',

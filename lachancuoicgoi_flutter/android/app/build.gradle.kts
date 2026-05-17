@@ -46,6 +46,7 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("com.alphacephei:vosk-android:0.3.47")
 }
 
 flutter {

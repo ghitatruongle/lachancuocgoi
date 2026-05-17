@@ -117,9 +117,23 @@ class GThinking {
       tieredReason =
           'CẢNH BÁO: Yêu cầu thông tin nhạy cảm / Lệnh chuyển tiền (Tầng 3)';
     } else if (hasTier1 && hasTier2 && tier1Count >= 2 && tier2Count >= 2) {
-      tieredLevel = RiskLevel.red;
-      tieredReason =
-          'CẢNH BÁO: Kịch bản lừa đảo điển hình ($tier1Count chủ đề + $tier2Count ép buộc)';
+      // Chỉ leo thang RED khi có thêm bằng chứng xác nhận
+      // (pattern match, scenario match, hoặc số lượng đủ lớn)
+      // để tránh false positive từ hội thoại thông thường
+      final hasCorroboratingEvidence = matchedPatterns.isNotEmpty ||
+          (scenarioMatch != null &&
+              scenarioMatch.similarityScore >= config.scenarioAlertThreshold * 0.8) ||
+          baseHighestKeywordRisk.index >= RiskLevel.orange.index ||
+          (tier1Count >= 3 && tier2Count >= 3);
+      if (hasCorroboratingEvidence) {
+        tieredLevel = RiskLevel.red;
+        tieredReason =
+            'CẢNH BÁO: Kịch bản lừa đảo điển hình ($tier1Count chủ đề + $tier2Count ép buộc)';
+      } else {
+        tieredLevel = RiskLevel.orange;
+        tieredReason =
+            'Cảnh báo: Dấu hiệu lừa đảo ban đầu, cần thêm bằng chứng (Tầng 1+2)';
+      }
     } else if (hasTier1 && hasTier2) {
       tieredLevel = RiskLevel.orange;
       tieredReason = 'Cảnh báo: Chủ đề nhạy cảm + Thúc ép (Tầng 2)';
@@ -181,9 +195,17 @@ class GThinking {
         tier1Count >= 2 &&
         tier2Count >= 2 &&
         finalLevel.index < RiskLevel.red.index) {
-      finalLevel = RiskLevel.red;
-      finalReason =
-          'CẢNH BÁO: Kịch bản lừa đảo điển hình xác nhận (${tier1Count}T1 + ${tier2Count}T2)';
+      // Safety net: chỉ forced RED nếu có corroborating evidence
+      final hasCorroboratingEvidence = matchedPatterns.isNotEmpty ||
+          (scenarioMatch != null &&
+              scenarioMatch.similarityScore >= config.scenarioAlertThreshold * 0.8) ||
+          baseHighestKeywordRisk.index >= RiskLevel.orange.index ||
+          (tier1Count >= 3 && tier2Count >= 3);
+      if (hasCorroboratingEvidence) {
+        finalLevel = RiskLevel.red;
+        finalReason =
+            'CẢNH BÁO: Kịch bản lừa đảo điển hình xác nhận (${tier1Count}T1 + ${tier2Count}T2)';
+      }
     }
     if (hasTier1 &&
         hasGoodScenarioMatch &&

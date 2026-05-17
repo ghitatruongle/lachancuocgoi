@@ -53,3 +53,8 @@ flutter:
     - assets/slang_config.json
     - assets/tier_config.json
     - assets/model-vn/
+    - assets/model-vn/am/
+    - assets/model-vn/conf/
+    - assets/model-vn/graph/
+    - assets/model-vn/graph/phones/
+    - assets/model-vn/ivector/

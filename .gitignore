@@ -74,4 +74,10 @@ Thumbs.db
 *.tar.bz2
 *.tar.xz
 *.tar.zst
+
+# Exclude the nested project folder lachancuocgoi
+/lachancuocgoi/
+
+# Exclude invalid Windows device name files
+nul
 ```

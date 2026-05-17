@@ -32,10 +32,6 @@ object TranscriptionHub {
             fullHistory
         }
 
-        if (historyToCompare.lowercase(Locale.ROOT).contains(cleanedNewText.lowercase(Locale.ROOT))) {
-            return
-        }
-
         val wordsHistory = historyToCompare.split(Regex("\\s+")).filter { it.isNotBlank() }.takeLast(10)
         val wordsNew = cleanedNewText.split(Regex("\\s+")).filter { it.isNotBlank() }
 

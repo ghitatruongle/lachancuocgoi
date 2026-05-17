@@ -43,10 +43,13 @@ void main() {
       final restored = CallHistory.fromMap(history.toMap());
       expect(restored.getAlertHistoryList(), hasLength(1));
       expect(
-          restored.getAlertHistoryList().single.getFormattedTime(), '11:22:33');
+        restored.getAlertHistoryList().single.getFormattedTime(),
+        '11:22:33',
+      );
       expect(
-          restored.getAlertHistoryList().single.getRiskLevelColor().toARGB32(),
-          0xFFD32F2F);
+        restored.getAlertHistoryList().single.getRiskLevelColor().toARGB32(),
+        0xFFD32F2F,
+      );
     });
 
     test('invalid alert history returns empty list', () {
@@ -113,8 +116,9 @@ void main() {
       final emissions = <List<CallHistory>>[];
       final firstEmission = Completer<void>();
       final secondEmission = Completer<void>();
-      final subscription =
-          appDatabase.callHistoryDao.watchAll().listen((items) {
+      final subscription = appDatabase.callHistoryDao.watchAll().listen((
+        items,
+      ) {
         emissions.add(items);
         if (emissions.length == 1 && !firstEmission.isCompleted) {
           firstEmission.complete();
@@ -177,8 +181,9 @@ void main() {
         }
       });
 
-      final prepared =
-          TranscriptSaver.prepareTranscriptForLocalStorage('  noi dung  ');
+      final prepared = TranscriptSaver.prepareTranscriptForLocalStorage(
+        '  noi dung  ',
+      );
       final savedPath = await TranscriptSaver.saveTranscript(
         prepared,
         baseDirectory: tempDir,
@@ -190,9 +195,40 @@ void main() {
       expect(savedPath, contains('transcript_20260505_010203.txt'));
       expect(await File(savedPath!).readAsString(), 'noi dung');
     });
+
+    test('returns null when transcript directory cannot be created', () async {
+      final tempDir = await Directory.systemTemp.createTemp('lccg_test_');
+      final occupiedPath = File('${tempDir.path}\\transcripts');
+      await occupiedPath.writeAsString('occupied');
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final savedPath = await TranscriptSaver.saveTranscript(
+        'noi dung',
+        baseDirectory: tempDir,
+      );
+
+      expect(savedPath, isNull);
+    });
   });
 
   group('VocabularyRepository', () {
+    test('loads direct situations list without riskLevels wrapper', () async {
+      final repository = VocabularyRepository(
+        assetBundle: _FakeAssetBundle({
+          'assets/risk_model_sentences.json': jsonEncode({
+            'situations': ['canh bao otp', 'gia danh cong an'],
+          }),
+        }),
+      );
+
+      final sentences = await repository.getSituationSentences();
+      expect(sentences, ['canh bao otp', 'gia danh cong an']);
+    });
+
     test('loads flexible sentence JSON structures', () async {
       final repository = VocabularyRepository(
         assetBundle: _FakeAssetBundle({
@@ -213,10 +249,20 @@ void main() {
       expect(sentences, containsAll(['an toan', 'doc ma otp']));
     });
 
+    test('returns empty list when sentence asset root is invalid', () async {
+      final repository = VocabularyRepository(
+        assetBundle: _FakeAssetBundle({
+          'assets/risk_model_sentences.json': '[]',
+        }),
+      );
+
+      expect(await repository.getSituationSentences(), isEmpty);
+    });
+
     test('loads vocab tokens', () async {
       final repository = VocabularyRepository(
         assetBundle: _FakeAssetBundle({
-          'assets/vocab.txt': '[PAD]\n[UNK]\notp\n',
+          'assets/vocab.txt': ' [PAD] \n\n[UNK]\n otp \n',
         }),
       );
 

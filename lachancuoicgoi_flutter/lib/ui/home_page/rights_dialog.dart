@@ -89,7 +89,9 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                       title: 'Ghi âm',
                       description: 'Thu âm thanh cuộc gọi qua microphone.',
                       isGranted: state.snapshot.recordAudio,
-                      onRequest: null, // Auto-granted at install
+                      onRequest: state.snapshot.recordAudio
+                          ? null
+                          : () => controller.requestMicrophonePermission(),
                     ),
                     _PermissionItem(
                       icon: Icons.phone,
@@ -97,13 +99,26 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                       description:
                           'Phát hiện cuộc gọi đến để tự động giám sát.',
                       isGranted: state.snapshot.phoneState,
-                      onRequest: null, // Auto-granted at install
+                      onRequest: state.snapshot.phoneState
+                          ? null
+                          : () =>
+                              controller.requestPhoneAndCallLogPermissions(),
+                    ),
+                    _PermissionItem(
+                      icon: Icons.history,
+                      title: 'Lịch sử cuộc gọi',
+                      description: 'Đọc lịch sử cuộc gọi liên quan tới giám sát.',
+                      isGranted: state.snapshot.callLog,
+                      onRequest: state.snapshot.callLog
+                          ? null
+                          : () =>
+                              controller.requestPhoneAndCallLogPermissions(),
                     ),
                     _PermissionItem(
                       icon: Icons.layers,
                       title: 'Hiển thị trên ứng dụng khác',
                       description:
-                          'Hiện cảnh báo ngoài ứng dụng khi phát hiện lừa đảo.',
+                          'Hiện cảnh báo ngoài ứng dụng khi phát hiện lừa đảo.\n👉 Cần bật thủ công trong Cài đặt > Ứng dụng > Lá chắn > Hiển thị trên ứng dụng khác.',
                       isGranted: state.snapshot.overlay,
                       onRequest: state.snapshot.overlay
                           ? null
@@ -113,15 +128,18 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                       icon: Icons.notifications,
                       title: 'Thông báo',
                       description:
-                          'Gửi thông báo khi đang giám sát hoặc phát hiện nguy cơ.',
+                          'Gửi thông báo khi đang giám sát hoặc phát hiện nguy cơ.\n👉 Android 13+ cần bật thủ công trong Cài đặt > Thông báo ứng dụng.',
                       isGranted: state.snapshot.notification,
-                      onRequest: null, // Auto-granted at install (API <33)
+                      onRequest: state.snapshot.notification
+                          ? null
+                          : () =>
+                              controller.requestNotificationPermission(),
                     ),
                     _PermissionItem(
                       icon: Icons.call,
                       title: 'Vai trò sàng lọc cuộc gọi',
                       description:
-                          'Tự động sàng lọc cuộc gọi đến trên thiết bị.',
+                          'Tự động sàng lọc cuộc gọi đến trên thiết bị.\n👉 Cần bật thủ công: Cài đặt > Ứng dụng mặc định > Sàng lọc cuộc gọi > Lá chắn.',
                       isGranted: state.snapshot.callScreening,
                       onRequest: state.snapshot.callScreening
                           ? null
@@ -131,7 +149,7 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                       icon: Icons.accessibility_new,
                       title: 'Trợ năng',
                       description:
-                          'Đọc phụ đề cuộc gọi để phân tích không cần loa.',
+                          'Đọc phụ đề cuộc gọi để phân tích không cần loa.\n👉 Cần bật thủ công: Cài đặt > Trợ năng > Lá chắn > Bật dịch vụ.',
                       isGranted: state.snapshot.accessibility,
                       onRequest: state.snapshot.accessibility
                           ? null

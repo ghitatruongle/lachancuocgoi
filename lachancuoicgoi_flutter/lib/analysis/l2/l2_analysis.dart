@@ -43,6 +43,7 @@ class L2Analyzer implements Analyzer {
 
   @override
   Future<void> initialize() async {
+    // Chạy song song 3 component — mỗi component đã có Future.delayed nội bộ
     await Future.wait(<Future<void>>[
       _gDetectionEngine.initialize(),
       _intentClassifier.initialize(),
