@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kế Hoạch Khắc Phục Bug & Hiệu Năng - Tháng 05/2026</title>
+<style>
+  :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #c9d1d9; --heading: #f0f6fc; --accent: #58a6ff; --red: #f85149; --orange: #d29922; --green: #3fb950; --purple: #bc8cff; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; padding: 24px; max-width: 1100px; margin: auto; }
+  h1 { color: var(--heading); font-size: 1.8rem; border-bottom: 2px solid var(--accent); padding-bottom: 12px; margin-bottom: 24px; }
+  h2 { color: var(--accent); font-size: 1.4rem; margin: 28px 0 14px; border-left: 4px solid var(--accent); padding-left: 12px; }
+  h3 { color: var(--purple); font-size: 1.1rem; margin: 18px 0 8px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 18px; margin: 12px 0; }
+  .severity-critical { border-left: 4px solid var(--red); }
+  .severity-high { border-left: 4px solid var(--orange); }
+  .severity-medium { border-left: 4px solid var(--green); }
+  .tag { display: inline-block; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: 600; margin-right: 6px; }
+  .tag-red { background: #f8514922; color: var(--red); }
+  .tag-orange { background: #d2992222; color: var(--orange); }
+  .tag-green { background: #3fb95022; color: var(--green); }
+  code { background: #1f2937; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.92rem; }
+  th { background: #1f2937; color: var(--accent); text-align: left; padding: 10px 12px; border: 1px solid var(--border); }
+  td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+  tr:hover { background: #1c2333; }
+  ul { margin: 6px 0 6px 20px; }
+  li { margin: 4px 0; }
+  .pros { color: var(--green); }
+  .cons { color: var(--red); }
+  input[type="checkbox"] { transform: scale(1.2); margin-right: 8px; accent-color: var(--green); }
+  .summary-box { background: linear-gradient(135deg, #1a1f2e, #161b22); border: 1px solid var(--accent); border-radius: 8px; padding: 16px; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<h1>🛡️ Kế Hoạch Khắc Phục Bug & Tối Ưu Hiệu Năng Ứng Dụng - Tháng 05/2026</h1>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MỤC 1: KHÁI QUÁT KẾ HOẠCH -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<h2>📋 Mục 1: Khái Quát Kế Hoạch</h2>
+
+<div class="summary-box">
+  <p><strong>Mục tiêu:</strong> Phân tích toàn diện dự án Flutter "Lá chắn cuộc gọi" để tìm ra và khắc phục các điểm nghẽn gây <strong>bug, lag/giật, nóng máy, tốn pin</strong>.</p>
+  <p><strong>Phạm vi:</strong> 30+ file Dart (lib/), 12+ file Kotlin (android/), cấu trúc analysis L1-L2-L3, MonitoringPage, EventChannel streams, TFLite model, Gemini API, SQLite database.</p>
+  <p><strong>Kết quả mong đợi:</strong></p>
+  <ul>
+    <li>Giảm ≥60% CPU usage trong quá trình monitoring</li>
+    <li>Loại bỏ memory leak từ EventChannel streams</li>
+    <li>Giảm latency phân tích real-time xuống dưới 200ms</li>
+    <li>Tăng tuổi thọ pin khi chạy background service</li>
+    <li>Ứng dụng hoạt động mượt 60fps không giật</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MỤC 2: PHÂN TÍCH CHI TIẾT -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<h2>🔬 Mục 2: Phân Tích Chi Tiết Các Điểm Nghẽn</h2>
+
+<!-- BUG 1 -->
+<div class="card severity-critical">
+  <h3><span class="tag tag-red">CRITICAL</span> #1 — EventChannel Stream tạo mới mỗi lần truy cập (Memory Leak)</h3>
+  <p><strong>File:</strong> <code>native_call_shield_bridge.dart</code> dòng 347-375</p>
+  <p><strong>Vấn đề:</strong> Các getter <code>transcriptStream</code>, <code>rmsStream</code>, <code>monitoringStateStream</code>, <code>callEventStream</code> gọi <code>receiveBroadcastStream()</code> mỗi lần truy cập → tạo stream mới, stream cũ không cancel → memory leak + trùng lặp events.</p>
+  <p><strong>Cách sửa:</strong> Cache stream bằng <code>late final</code> hoặc private field, chỉ tạo một lần.</p>
+  <ul>
+    <li class="pros">✅ Ưu: Loại bỏ hoàn toàn memory leak, giảm CPU từ duplicate processing</li>
+    <li class="cons">❌ Nhược: Cần test kỹ lifecycle khi app bị kill/restart</li>
+  </ul>
+</div>
+
+<!-- BUG 2 -->
+<div class="card severity-critical">
+  <h3><span class="tag tag-red">CRITICAL</span> #2 — MonitoringPage tạo L1+L2+L3 Analyzer mới mỗi lần navigate (Nóng máy)</h3>
+  <p><strong>File:</strong> <code>monitoring_page.dart</code> dòng 101-108</p>
+  <p><strong>Vấn đề:</strong> Mỗi lần vào MonitoringPage → <code>L1Analyzer()</code>, <code>L2Analyzer()</code>, <code>L3Analyzer()</code> được tạo mới → load lại toàn bộ JSON assets, build Trie, load TFLite model → tốn 500ms-2s CPU spike, nóng máy.</p>
+  <p><strong>Cách sửa:</strong> Chuyển sang Riverpod Provider (singleton), chỉ khởi tạo một lần khi app start.</p>
+  <ul>
+    <li class="pros">✅ Ưu: Tiết kiệm 500ms-2s mỗi lần navigate, giảm RAM ~20MB</li>
+    <li class="cons">❌ Nhược: Cần quản lý lifecycle session reset cẩn thận</li>
+  </ul>
+</div>
+
+<!-- BUG 3 -->
+<div class="card severity-critical">
+  <h3><span class="tag tag-red">CRITICAL</span> #3 — RMS Stream gây rebuild liên tục (Giật UI, Tốn pin)</h3>
+  <p><strong>File:</strong> <code>monitoring_page.dart</code> dòng 221-234</p>
+  <p><strong>Vấn đề:</strong> RMS stream phát events ~20 lần/giây (throttle 50ms). Mỗi event: <code>removeAt(0)</code> trên List (O(n)), tạo <code>List.from()</code> mới → GC pressure. Dù có RepaintBoundary, ValueNotifier vẫn trigger build của parent widget.</p>
+  <p><strong>Cách sửa:</strong> Dùng circular buffer thay List; tăng throttle lên 100ms; dùng <code>addPostFrameCallback</code> để batch updates theo frame.</p>
+  <ul>
+    <li class="pros">✅ Ưu: Giảm 50% rebuild, giảm GC pressure, UI mượt hơn</li>
+    <li class="cons">❌ Nhược: Waveform animation có thể kém smooth hơn nhẹ</li>
+  </ul>
+</div>
+
+<!-- BUG 4 -->
+<div class="card severity-high">
+  <h3><span class="tag tag-orange">HIGH</span> #4 — L2 chạy 3 engine song song không giới hạn (CPU spike)</h3>
+  <p><strong>File:</strong> <code>l2_analysis.dart</code> dòng 126-131</p>
+  <p><strong>Vấn đề:</strong> <code>_runIntentFlow()</code> (TFLite) + <code>performFullAnalysis()</code> (GDetection) chạy đồng thời. TFLite dùng tối đa 4 threads. GDetection tokenize + trie search + pattern match + scenario match cùng lúc. Kết hợp với L1 cũng có thể chạy đồng thời → CPU 100% → nóng máy, giật.</p>
+  <p><strong>Cách sửa:</strong> Thêm semaphore/mutex giới hạn concurrent analysis; chạy TFLite trên isolate riêng.</p>
+  <ul>
+    <li class="pros">✅ Ưu: Kiểm soát CPU usage, tránh thermal throttling</li>
+    <li class="cons">❌ Nhược: Tăng latency nhẹ do chờ đợi</li>
+  </ul>
+</div>
+
+<!-- BUG 5 -->
+<div class="card severity-high">
+  <h3><span class="tag tag-orange">HIGH</span> #5 — Analysis Debounce quá ngắn 600ms (Phân tích dư thừa)</h3>
+  <p><strong>File:</strong> <code>monitoring_page.dart</code> dòng 712</p>
+  <p><strong>Vấn đề:</strong> Debounce 600ms cho real-time analysis. Với transcript stream phát liên tục, analysis chạy ~1.5-2 lần/giây. Mỗi lần chạy: tokenize + trie + TFLite + WFSA → CPU spike lặp lại liên tục. MinDelta trong coordinator chỉ 20-50 chars, không đủ ngăn chặn.</p>
+  <p><strong>Cách sửa:</strong> Tăng debounce lên 1200-1500ms; thêm check "đang phân tích thì skip"; adaptive debounce dựa trên risk level.</p>
+  <ul>
+    <li class="pros">✅ Ưu: Giảm 50-60% số lần phân tích, tiết kiệm pin đáng kể</li>
+    <li class="cons">❌ Nhược: Cảnh báo có thể chậm hơn 0.5-1s</li>
+  </ul>
+</div>
+
+<!-- BUG 6 -->
+<div class="card severity-high">
+  <h3><span class="tag tag-orange">HIGH</span> #6 — L1 Fuzzy Matching O(n*m) trên mỗi unmatched token (Lag)</h3>
+  <p><strong>File:</strong> <code>l1_analysis.dart</code> dòng 279-303</p>
+  <p><strong>Vấn đề:</strong> Với mỗi token không match, <code>FuzzyMatcher.findClosest()</code> duyệt toàn bộ <code>_singleTokenKeywords</code> (hàng trăm keywords), tính Levenshtein distance O(m*n) cho mỗi cặp → O(tokens * keywords * avgLen²). Khi transcript dài → lag rõ rệt.</p>
+  <p><strong>Cách sửa:</strong> Pre-filter theo length ±1; cache kết quả fuzzy; giới hạn max unmatched tokens xử lý; dùng BK-tree.</p>
+  <ul>
+    <li class="pros">✅ Ưu: Giảm 80% thời gian fuzzy matching</li>
+    <li class="cons">❌ Nhược: Có thể miss một số fuzzy match edge case</li>
+  </ul>
+</div>
+
+<!-- BUG 7 -->
+<div class="card severity-high">
+  <h3><span class="tag tag-orange">HIGH</span> #7 — GDetection Engine re-initialize mỗi lần L2 được tạo mới</h3>
+  <p><strong>File:</strong> <code>g_detection_engine.dart</code> dòng 62-83</p>
+  <p><strong>Vấn đề:</strong> Liên quan đến Bug #2 — mỗi lần MonitoringPage mới tạo L2Analyzer mới → GDetectionEngine mới → load 8 file JSON, build Trie, parse patterns → 200-500ms blocking + RAM spike.</p>
+  <p><strong>Cách sửa:</strong> Singleton pattern cho GDetectionEngine hoặc Riverpod Provider.</p>
+  <ul>
+    <li class="pros">✅ Ưu: Loại bỏ hoàn toàn overhead re-initialization</li>
+    <li class="cons">❌ Nhược: Cần lazy init mechanism</li>
+  </ul>
+</div>
+
+<!-- BUG 8 -->
+<div class="card severity-high">
+  <h3><span class="tag tag-orange">HIGH</span> #8 — DeveloperMode Timer chạy mỗi giây khi active (Tốn pin)</h3>
+  <p><strong>File:</strong> <code>developer_mode_manager.dart</code> dòng 147-161</p>
+  <p><strong>Vấn đề:</strong> <code>Timer.periodic(1 second)</code> cập nhật state mỗi giây → Riverpod rebuild mỗi giây → UI rebuild không cần thiết. Kéo dài 10 phút = 600 lần rebuild vô ích.</p>
+  <p><strong>Cách sửa:</strong> Chỉ cập nhật khi UI thực sự hiển thị remaining time; dùng interval lớn hơn (10-30s); hoặc chỉ check on-demand.</p>
+  <ul>
+    <li class="pros">✅ Ưu: Loại bỏ 600 rebuild vô ích</li>
+    <li class="cons">❌ Nhược: Countdown hiển thị kém chính xác hơn (nhưng acceptable)</li>
+  </ul>
+</div>
+
+<!-- BUG 9 -->
+<div class="card severity-medium">
+  <h3><span class="tag tag-green">MEDIUM</span> #9 — SettingsController._load() race condition</h3>
+  <p><strong>File:</strong> <code>settings_controller.dart</code> dòng 43-51</p>
+  <p><strong>Vấn đề:</strong> <code>build()</code> trả về default state rồi gọi <code>_load()</code> async. Trong khoảng thời gian SharedPreferences chưa load xong, UI dùng default settings (gDetection mode) thay vì user setting → có thể trigger wrong analysis mode ban đầu.</p>
+  <p><strong>Cách sửa:</strong> Dùng <code>AsyncNotifier</code> hoặc load settings trước khi <code>runApp()</code>.</p>
+  <ul>
+    <li class="pros">✅ Ưu: Đảm bảo settings đúng ngay từ đầu</li>
+    <li class="cons">❌ Nhược: Có thể tăng thời gian khởi động ~50ms</li>
+  </ul>
+</div>
+
+<!-- BUG 10 -->
+<div class="card severity-medium">
+  <h3><span class="tag tag-green">MEDIUM</span> #10 — MonitoringPage có 758 dòng (God Widget)</h3>
+  <p><strong>File:</strong> <code>monitoring_page.dart</code></p>
+  <p><strong>Vấn đề:</strong> Một widget 758 dòng chứa: UI, business logic, stream management, analysis orchestration, session management, navigation → khó maintain, dễ bug, khó test.</p>
+  <p><strong>Cách sửa:</strong> Tách thành MonitoringController (Riverpod Notifier) + MonitoringPage (UI only).</p>
+  <ul>
+    <li class="pros">✅ Ưu: Dễ test, dễ maintain, giảm rebuild scope</li>
+    <li class="cons">❌ Nhược: Cần refactor lớn, nhiều file mới</li>
+  </ul>
+</div>
+
+<!-- BUG 11 -->
+<div class="card severity-medium">
+  <h3><span class="tag tag-green">MEDIUM</span> #11 — L3 Gemini API không có timeout/retry strategy</h3>
+  <p><strong>File:</strong> <code>l3_analysis.dart</code>, <code>gemini_client.dart</code></p>
+  <p><strong>Vấn đề:</strong> API call có thể hang vô thời hạn khi mạng chậm. consecutiveErrors chỉ track nhưng không có circuit breaker → tiếp tục gọi API thất bại → tốn pin cho network requests vô ích.</p>
+  <p><strong>Cách sửa:</strong> Thêm timeout 10s; circuit breaker (dừng sau 3 lỗi liên tiếp, chờ 60s); exponential backoff.</p>
+  <ul>
+    <li class="pros">✅ Ưu: Tiết kiệm pin, tránh hang, failover nhanh hơn</li>
+    <li class="cons">❌ Nhược: Cần tuning threshold phù hợp</li>
+  </ul>
+</div>
+
+<!-- BUG 12 -->
+<div class="card severity-medium">
+  <h3><span class="tag tag-green">MEDIUM</span> #12 — HomePage permission check popup mỗi lần quay lại</h3>
+  <p><strong>File:</strong> <code>home_page.dart</code> dòng 23-38</p>
+  <p><strong>Vấn đề:</strong> <code>_checkAndRequestPermissions()</code> gọi trong <code>initState</code> → mỗi lần navigate về Home → hiện dialog xin quyền lại nếu chưa đủ → UX khó chịu + có thể chồng dialog.</p>
+  <p><strong>Cách sửa:</strong> Chỉ hiện dialog lần đầu dùng SharedPreferences flag; hoặc chỉ hiện khi user tap "Bắt đầu giám sát".</p>
+  <ul>
+    <li class="pros">✅ Ưu: UX tốt hơn, không spam dialog</li>
+    <li class="cons">❌ Nhược: User có thể quên cấp quyền</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MỤC 3: BẢNG TIẾN ĐỘ CHI TIẾT -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<h2>📊 Mục 3: Bảng Tiến Độ Chi Tiết</h2>
+
+<!-- PHASE 1 -->
+<h3>🔴 Giai đoạn 1: Khắc Phục Lỗi Critical (Memory Leak & CPU Spike)</h3>
+<table>
+  <tr>
+    <th style="width:40px">✓</th>
+    <th>Công việc</th>
+    <th>File liên quan</th>
+    <th>Mức độ</th>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Cache EventChannel streams (transcriptStream, rmsStream, monitoringStateStream, callEventStream) bằng late final field</td>
+    <td><code>native_call_shield_bridge.dart</code></td>
+    <td><span class="tag tag-red">CRITICAL</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Tạo Riverpod Provider singleton cho L1Analyzer, L2Analyzer, L3Analyzer — không tạo mới mỗi lần navigate</td>
+    <td><code>monitoring_page.dart</code>, provider mới</td>
+    <td><span class="tag tag-red">CRITICAL</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Tối ưu RMS stream: tăng throttle 50ms→100ms, dùng circular buffer thay List.removeAt(0)</td>
+    <td><code>monitoring_page.dart</code></td>
+    <td><span class="tag tag-red">CRITICAL</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Verify memory leak fix bằng DevTools Memory profiler</td>
+    <td>—</td>
+    <td><span class="tag tag-red">VERIFY</span></td>
+  </tr>
+</table>
+
+<!-- PHASE 2 -->
+<h3>🟠 Giai đoạn 2: Tối Ưu Analysis Engine (Giảm nóng máy & tốn pin)</h3>
+<table>
+  <tr>
+    <th style="width:40px">✓</th>
+    <th>Công việc</th>
+    <th>File liên quan</th>
+    <th>Mức độ</th>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Tăng analysis debounce 600ms→1200ms; thêm guard "đang analyze thì skip"</td>
+    <td><code>monitoring_page.dart</code></td>
+    <td><span class="tag tag-orange">HIGH</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Tối ưu L1 Fuzzy Matching: pre-filter by length, cache results, giới hạn max tokens</td>
+    <td><code>l1_analysis.dart</code>, <code>fuzzy_matcher.dart</code></td>
+    <td><span class="tag tag-orange">HIGH</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Thêm concurrency limiter cho L2 (mutex/semaphore giữa TFLite và GDetection)</td>
+    <td><code>l2_analysis.dart</code></td>
+    <td><span class="tag tag-orange">HIGH</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Singleton hóa GDetectionEngine — tránh re-load 8 JSON files</td>
+    <td><code>g_detection_engine.dart</code></td>
+    <td><span class="tag tag-orange">HIGH</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Benchmark analysis latency trước/sau tối ưu</td>
+    <td>—</td>
+    <td><span class="tag tag-orange">VERIFY</span></td>
+  </tr>
+</table>
+
+<!-- PHASE 3 -->
+<h3>🟢 Giai đoạn 3: Sửa Bug Logic & UX</h3>
+<table>
+  <tr>
+    <th style="width:40px">✓</th>
+    <th>Công việc</th>
+    <th>File liên quan</th>
+    <th>Mức độ</th>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Fix SettingsController race condition — load settings trước runApp hoặc dùng AsyncNotifier</td>
+    <td><code>settings_controller.dart</code>, <code>main.dart</code></td>
+    <td><span class="tag tag-green">MEDIUM</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Fix DeveloperMode timer — tăng interval hoặc chỉ update on-demand</td>
+    <td><code>developer_mode_manager.dart</code></td>
+    <td><span class="tag tag-green">MEDIUM</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Thêm timeout 10s + circuit breaker cho L3 Gemini API calls</td>
+    <td><code>l3_analysis.dart</code>, <code>gemini_client.dart</code></td>
+    <td><span class="tag tag-green">MEDIUM</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Fix HomePage permission dialog spam — chỉ hiện lần đầu hoặc khi user tap Start</td>
+    <td><code>home_page.dart</code></td>
+    <td><span class="tag tag-green">MEDIUM</span></td>
+  </tr>
+</table>
+
+<!-- PHASE 4 -->
+<h3>🔵 Giai đoạn 4: Refactor & Polish</h3>
+<table>
+  <tr>
+    <th style="width:40px">✓</th>
+    <th>Công việc</th>
+    <th>File liên quan</th>
+    <th>Mức độ</th>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Tách MonitoringPage thành Controller (logic) + Page (UI) — giảm God Widget 758 dòng</td>
+    <td><code>monitoring_page.dart</code> → 2 files</td>
+    <td><span class="tag tag-green">MEDIUM</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Full regression test trên thiết bị thật (battery, thermal, FPS)</td>
+    <td>—</td>
+    <td><span class="tag tag-green">VERIFY</span></td>
+  </tr>
+  <tr>
+    <td><input type="checkbox"></td>
+    <td>Chạy flutter analyze — đảm bảo 0 warnings</td>
+    <td>—</td>
+    <td><span class="tag tag-green">VERIFY</span></td>
+  </tr>
+</table>
+
+<div class="summary-box" style="margin-top: 32px;">
+  <p><strong>📌 Tổng cộng:</strong> 12 vấn đề | 4 giai đoạn | 15 đầu việc</p>
+  <p><strong>Ưu tiên thực hiện:</strong> Phase 1 (Critical) → Phase 2 (High) → Phase 3 (Medium) → Phase 4 (Refactor)</p>
+  <p><strong>Lưu ý cho AI:</strong> Sau khi hoàn thành mỗi task, mở file này và đánh dấu <code>checked="checked"</code> vào checkbox tương ứng.</p>
+</div>
+
+</body>
+</html>
