@@ -27,26 +27,41 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
   int getKeyCount() => _keys.length;
 
   List<String> _parseKeys() {
-    final rawValues = <String>[
-      ..._commaSeparatedKeys.split(','),
-      if (_singleKey.trim().isNotEmpty) _singleKey,
-    ];
+    final commaKeys = _commaSeparatedKeys
+        .split(',')
+        .map((k) => k.trim())
+        .where((k) => k.isNotEmpty)
+        .toList();
+
     final seen = <String>{};
     final normalized = <String>[];
-    for (final rawValue in rawValues) {
-      final trimmed = rawValue.trim();
-      if (trimmed.isEmpty) {
-        continue;
+
+    for (final rawValue in commaKeys) {
+      final decoded = _validateAndDecode(rawValue);
+      if (decoded != null && seen.add(decoded)) {
+        normalized.add(decoded);
       }
-      final decoded = trimmed.startsWith('AIza')
-          ? trimmed
-          : ApiKeyObfuscator.decode(trimmed);
-      if (decoded.isEmpty || !seen.add(decoded)) {
-        continue;
-      }
-      normalized.add(decoded);
     }
+
+    // Thêm singleKey nếu chưa có trong comma list
+    final singleKey = _singleKey.trim();
+    if (singleKey.isNotEmpty) {
+      final decoded = _validateAndDecode(singleKey);
+      if (decoded != null && seen.add(decoded)) {
+        normalized.add(decoded);
+      }
+    }
+
     return normalized;
+  }
+
+  /// Decode key và validate format hợp lệ (phải bắt đầu bằng 'AIza').
+  /// Trả về null nếu key không hợp lệ.
+  String? _validateAndDecode(String raw) {
+    if (raw.isEmpty) return null;
+    if (raw.startsWith('AIza')) return raw;
+    final decoded = ApiKeyObfuscator.decode(raw);      if (decoded == null || decoded.isEmpty || !decoded.startsWith('AIza')) return null;
+      return decoded;
   }
 }
 

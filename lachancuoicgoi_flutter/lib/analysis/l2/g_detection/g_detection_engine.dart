@@ -62,26 +62,21 @@ class GDetectionEngine {
   Future<void> _doInitialize() async {
     _isReady = false;
 
-    final slangFuture = _loadSlangMap();
-    final scoringFuture = _loadScoringConfig();
-    final tierFuture = _loadTierConfig();
-
-    await Future.wait<void>([slangFuture, scoringFuture, tierFuture]);
-
-    final trieFuture = _buildTrie().then((trie) {
-      _riskKeywordTrie = trie;
-    });
-    final topicMapFuture = _buildTopicMap();
-    final patternsFuture = _loadPatterns();
-    final situationFuture = _loadSituationMatcher();
-    final sentencesFuture = _loadSentenceMatcher();
-
+    // Batch 1: Config nhẹ (slang, scoring, tier) ~50ms
     await Future.wait<void>([
-      trieFuture,
-      topicMapFuture,
-      patternsFuture,
-      situationFuture,
-      sentencesFuture,
+      _loadSlangMap(),
+      _loadScoringConfig(),
+      _loadTierConfig(),
+    ]);
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+
+    // Batch 2: Trie/TopicMap/Patterns/Sentences ~200-500ms
+    await Future.wait<void>([
+      _buildTrie().then((trie) => _riskKeywordTrie = trie),
+      _buildTopicMap(),
+      _loadPatterns(),
+      _loadSituationMatcher(),
+      _loadSentenceMatcher(),
     ]);
 
     _isReady = true;

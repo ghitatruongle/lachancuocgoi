@@ -55,6 +55,47 @@ class PIIStripper {
     'ho tro',
   ];
 
+  static final RegExp _otpRegex = RegExp(
+    r'\b(?:mã|ma)\s*(?:otp|xác minh|xac minh|bảo mật|bao mat|kích hoạt|kich hoat)\b(?:[^\d\n]{0,20})((?:\d[\s.-]?){3,7}\d)',
+    caseSensitive: false,
+  );
+
+  static final RegExp _bankAccountRegex = RegExp(
+    r'\b(?:số tài khoản|so tai khoan|số tk|so tk|stk|tài khoản|tai khoan)\b(?:[^\d\n]{0,20})((?:\d[\s.-]?){5,17}\d)',
+    caseSensitive: false,
+  );
+
+  static final RegExp _nationalIdRegex = RegExp(
+    r'\b(?:cccd|cmnd|căn cước|can cuoc|chứng minh nhân dân|chung minh nhan dan)\b(?:[^\d\n]{0,20})((?:\d[\s.-]?){8,11}\d)',
+    caseSensitive: false,
+  );
+
+  static final RegExp _cardNumberRegex = RegExp(
+    r'\b(?:số thẻ|so the|thẻ ngân hàng|the ngan hang|thẻ tín dụng|the tin dung)\b(?:[^\d\n]{0,20})((?:\d[\s-]?){12,18}\d)',
+    caseSensitive: false,
+  );
+
+  static final RegExp _emailRegex = RegExp(
+    r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b',
+    caseSensitive: false,
+  );
+
+  static final RegExp _phoneRegex = RegExp(
+    r'(?:\+84|84|0)(?:[\s.-]?\d){8,10}\b',
+  );
+
+  static final RegExp _personNameRegex = RegExp(
+    r'\b(?:tôi tên là|toi ten la|em tên là|em ten la|anh tên là|anh ten la|chị tên là|chi ten la|cháu tên là|chau ten la|tên tôi là|ten toi la|tên em là|ten em la|người nhận là|nguoi nhan la|tôi là|toi la|em là|em la|anh là|anh la|chị là|chi la|cháu là|chau la)\s+([a-zà-ỹ]{2,}(?:\s+[a-zà-ỹ]{2,}){0,4})',
+    caseSensitive: false,
+  );
+
+  static final RegExp _addressRegex = RegExp(
+    r'\b(?:địa chỉ|dia chi|nhà ở|nha o|gửi về|gui ve|giao tới|giao toi)\b(?:\s*(?:là|la|:))?\s+([^,.!?;\n]{6,80})',
+    caseSensitive: false,
+  );
+
+  static final RegExp _digitCleaner = RegExp(r'\D');
+
   static PiiRedactionResult redactPII(String originalText) {
     if (originalText.trim().isEmpty) {
       return PiiRedactionResult(
@@ -73,10 +114,7 @@ class PIIStripper {
       tokenByValue: tokenByValue,
       counters: counters,
       type: _PiiType.otp,
-      regex: RegExp(
-        r'\b(?:mã|ma)\s*(?:otp|xác minh|xac minh|bảo mật|bao mat|kích hoạt|kich hoat)\b(?:[^\d\n]{0,20})((?:\d[\s.-]?){3,7}\d)',
-        caseSensitive: false,
-      ),
+      regex: _otpRegex,
       groupIndex: 1,
     );
     _collectContextualNumberReplacements(
@@ -85,10 +123,7 @@ class PIIStripper {
       tokenByValue: tokenByValue,
       counters: counters,
       type: _PiiType.bankAccount,
-      regex: RegExp(
-        r'\b(?:số tài khoản|so tai khoan|số tk|so tk|stk|tài khoản|tai khoan)\b(?:[^\d\n]{0,20})((?:\d[\s.-]?){5,17}\d)',
-        caseSensitive: false,
-      ),
+      regex: _bankAccountRegex,
       groupIndex: 1,
     );
     _collectContextualNumberReplacements(
@@ -97,10 +132,7 @@ class PIIStripper {
       tokenByValue: tokenByValue,
       counters: counters,
       type: _PiiType.nationalId,
-      regex: RegExp(
-        r'\b(?:cccd|cmnd|căn cước|can cuoc|chứng minh nhân dân|chung minh nhan dan)\b(?:[^\d\n]{0,20})((?:\d[\s.-]?){8,11}\d)',
-        caseSensitive: false,
-      ),
+      regex: _nationalIdRegex,
       groupIndex: 1,
     );
     _collectContextualNumberReplacements(
@@ -109,10 +141,7 @@ class PIIStripper {
       tokenByValue: tokenByValue,
       counters: counters,
       type: _PiiType.cardNumber,
-      regex: RegExp(
-        r'\b(?:số thẻ|so the|thẻ ngân hàng|the ngan hang|thẻ tín dụng|the tin dung)\b(?:[^\d\n]{0,20})((?:\d[\s-]?){12,18}\d)',
-        caseSensitive: false,
-      ),
+      regex: _cardNumberRegex,
       groupIndex: 1,
     );
     _collectDirectReplacements(
@@ -121,11 +150,14 @@ class PIIStripper {
       tokenByValue: tokenByValue,
       counters: counters,
       type: _PiiType.email,
-      regex: RegExp(
-        r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b',
-        caseSensitive: false,
-      ),
+      regex: _emailRegex,
       validator: (_) => true,
+    );
+    _collectCompactPhoneLabelReplacements(
+      text: originalText,
+      replacements: replacements,
+      tokenByValue: tokenByValue,
+      counters: counters,
     );
     _collectDirectReplacements(
       text: originalText,
@@ -133,9 +165,9 @@ class PIIStripper {
       tokenByValue: tokenByValue,
       counters: counters,
       type: _PiiType.phoneNumber,
-      regex: RegExp(r'(?:\+84|84|0)(?:[\s.-]?\d){8,10}\b'),
+      regex: _phoneRegex,
       validator: (candidate) {
-        final digits = candidate.replaceAll(RegExp(r'\D'), '');
+        final digits = candidate.replaceAll(_digitCleaner, '');
         return digits.length >= 9 && digits.length <= 11;
       },
     );
@@ -145,10 +177,7 @@ class PIIStripper {
       tokenByValue: tokenByValue,
       counters: counters,
       type: _PiiType.personName,
-      regex: RegExp(
-        r'\b(?:tôi tên là|toi ten la|em tên là|em ten la|anh tên là|anh ten la|chị tên là|chi ten la|cháu tên là|chau ten la|tên tôi là|ten toi la|tên em là|ten em la|người nhận là|nguoi nhan la|tôi là|toi la|em là|em la|anh là|anh la|chị là|chi la|cháu là|chau la)\s+([a-zà-ỹ]{2,}(?:\s+[a-zà-ỹ]{2,}){0,4})',
-        caseSensitive: false,
-      ),
+      regex: _personNameRegex,
       validator: (candidate) {
         final normalized = _normalizeVietnamese(candidate);
         final wordCount = normalized
@@ -167,10 +196,7 @@ class PIIStripper {
       tokenByValue: tokenByValue,
       counters: counters,
       type: _PiiType.address,
-      regex: RegExp(
-        r'\b(?:địa chỉ|dia chi|nhà ở|nha o|gửi về|gui ve|giao tới|giao toi)\b(?:\s*(?:là|la|:))?\s+([^,.!?;\n]{6,80})',
-        caseSensitive: false,
-      ),
+      regex: _addressRegex,
       validator: (candidate) => candidate.trim().length >= 6,
     );
 
@@ -293,6 +319,37 @@ class PIIStripper {
     }
   }
 
+  static void _collectCompactPhoneLabelReplacements({
+    required String text,
+    required List<_Replacement> replacements,
+    required Map<String, String> tokenByValue,
+    required Map<_PiiType, int> counters,
+  }) {
+    final regex = RegExp(
+      r'\b(?:số điện thoại|so dien thoai|sdt|điện thoại|dien thoai)\s+((?:\+84|84|0)(?:[\s.-]?\d){8,10})\b',
+      caseSensitive: false,
+    );
+    for (final match in regex.allMatches(text)) {
+      final phoneNumber = match.group(1);
+      if (phoneNumber == null) continue;
+      _addReplacementIfValid(
+        text: text,
+        replacements: replacements,
+        tokenByValue: tokenByValue,
+        counters: counters,
+        type: _PiiType.phoneNumber,
+        start: match.start,
+        end: match.end,
+        tokenKeyValue: phoneNumber.replaceAll(RegExp(r'\D'), ''),
+        storedOriginalValue: phoneNumber,
+        validator: (_) {
+          final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+          return digits.length >= 9 && digits.length <= 11;
+        },
+      );
+    }
+  }
+
   static void _addReplacementIfValid({
     required String text,
     required List<_Replacement> replacements,
@@ -302,6 +359,8 @@ class PIIStripper {
     required int start,
     required int end,
     required bool Function(String candidate) validator,
+    String? tokenKeyValue,
+    String? storedOriginalValue,
   }) {
     if (start < 0 ||
         end > text.length ||
@@ -313,7 +372,8 @@ class PIIStripper {
     if (!validator(originalValue)) {
       return;
     }
-    final tokenKey = '${type.name}:${_normalizeVietnamese(originalValue)}';
+    final tokenKey =
+        '${type.name}:${_normalizeVietnamese(tokenKeyValue ?? originalValue)}';
     final token = tokenByValue.putIfAbsent(tokenKey, () {
       final nextIndex = (counters[type] ?? 0) + 1;
       counters[type] = nextIndex;
@@ -324,7 +384,7 @@ class PIIStripper {
         start: start,
         end: end,
         token: token,
-        originalValue: originalValue,
+        originalValue: storedOriginalValue ?? originalValue,
       ),
     );
   }

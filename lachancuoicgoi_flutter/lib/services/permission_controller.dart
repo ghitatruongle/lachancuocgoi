@@ -1,6 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 import 'native_call_shield_bridge.dart';
 
 /// State holder for all permission statuses.
@@ -46,6 +49,83 @@ class PermissionController extends StateNotifier<PermissionState> {
 
   final NativeCallShieldBridge _bridge;
   StreamSubscription<(MonitoringState, int?, String?)>? _monitoringStateSub;
+
+  static bool get _canUseRuntimePermissionUi =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  /// Microphone (and similar) via permission_handler; snapshot refreshed from native.
+  Future<bool> requestMicrophonePermission() async {
+    if (!_canUseRuntimePermissionUi) {
+      await _refresh();
+      return state.snapshot.recordAudio;
+    }
+    try {
+      await Permission.microphone.request();
+      await _refresh();
+      return state.snapshot.recordAudio;
+    } catch (e) {
+      debugPrint('Failed to request microphone permission: $e');
+      await _refresh();
+      return state.snapshot.recordAudio;
+    }
+  }
+
+  /// READ_PHONE_STATE / READ_CALL_LOG (Android) via permission_handler.
+  Future<bool> requestPhoneAndCallLogPermissions() async {
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      await _refresh();
+      return state.snapshot.phoneState && state.snapshot.callLog;
+    }
+    try {
+      await _bridge.requestPhoneAndCallLogPermissions();
+      await _refresh();
+      return state.snapshot.phoneState && state.snapshot.callLog;
+    } catch (e) {
+      debugPrint('Failed to request phone/call log permissions: $e');
+      await _refresh();
+      return state.snapshot.phoneState && state.snapshot.callLog;
+    }
+  }
+
+  /// POST_NOTIFICATIONS (Android 13+) / notification (iOS).
+  Future<bool> requestNotificationPermission() async {
+    if (!_canUseRuntimePermissionUi) {
+      await _refresh();
+      return state.snapshot.notification;
+    }
+    try {
+      await Permission.notification.request();
+      await _refresh();
+      return state.snapshot.notification;
+    } catch (e) {
+      debugPrint('Failed to request notification permission: $e');
+      await _refresh();
+      return state.snapshot.notification;
+    }
+  }
+
+  Future<void> _requestStandardRuntimePermissions() async {
+    if (!_canUseRuntimePermissionUi) return;
+
+    final s = state.snapshot;
+    final perms = <Permission>[];
+    if (!s.recordAudio) perms.add(Permission.microphone);
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      if (!s.notification) perms.add(Permission.notification);
+    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+      if (!s.notification) perms.add(Permission.notification);
+    }
+    if (perms.isEmpty) return;
+
+    try {
+      await perms.request();
+    } catch (e) {
+      debugPrint('Runtime permission batch request failed: $e');
+    }
+    await _refresh();
+  }
 
   /// Refresh permission snapshot from native.
   Future<void> _refresh() async {
@@ -125,6 +205,12 @@ class PermissionController extends StateNotifier<PermissionState> {
   /// Request all missing permissions in sequence.
   Future<Map<String, bool>> requestAllPermissions() async {
     final results = <String, bool>{};
+
+    await _requestStandardRuntimePermissions();
+
+    if (!state.snapshot.phoneState || !state.snapshot.callLog) {
+      results['phoneAndCallLog'] = await requestPhoneAndCallLogPermissions();
+    }
 
     if (!state.snapshot.overlay) {
       results['overlay'] = await requestOverlayPermission();

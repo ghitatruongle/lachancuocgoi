@@ -79,26 +79,39 @@ class AnalysisCoordinator {
 
     final deltaLength = fullText.length - processedTextLength;
     final lastResult = getLastResult(mode);
+    // Áp dụng minDelta cho TẤT CẢ mode, không chỉ L3
+    final minDelta = _adaptiveMinDelta(lastResult.overallRiskLevel, mode);
+    if (deltaLength < minDelta) {
+      return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
+          ? lastResult.copyWith(alertEnabled: false)
+          : lastResult;
+    }
+
+    // L3 dùng analyzeIncrementalL3() để gửi incremental text thay vì full text
     if (mode == AnalysisMode.geminiApi) {
-      final minDelta = _adaptiveMinDelta(lastResult.overallRiskLevel);
-      if (deltaLength < minDelta) {
-        return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
-            ? lastResult.copyWith(alertEnabled: false)
-            : lastResult;
-      }
+      final result = await analyzeIncrementalL3(fullText);
+      return result ?? _defaultResultFor(mode);
     }
 
     final textToAnalyze = fullText.substring(processedTextLength);
     return analyzeWithTranscript(textToAnalyze, fullText, mode);
   }
 
-  int _adaptiveMinDelta(RiskLevel currentRiskLevel) {
-    return switch (currentRiskLevel) {
+  int _adaptiveMinDelta(RiskLevel currentRiskLevel, [AnalysisMode? mode]) {
+    final modeMultiplier = switch (mode ?? _compatibilityMode) {
+      AnalysisMode.normal => 0.6,   // L1 keyword scan rất nhanh, threshold thấp
+      AnalysisMode.gDetection => 0.8, // L2 trung bình
+      AnalysisMode.geminiApi => 1.0,  // L3 tốn kém nhất
+    };
+    final baseDelta = switch (currentRiskLevel) {
       RiskLevel.red => _minDeltaRed,
       RiskLevel.orange => _minDeltaOrange,
       _ => _minDeltaDefault,
     };
+    return (baseDelta * modeMultiplier).round();
   }
+
+
 
   void reset() {
     for (final mode in AnalysisMode.values) {
@@ -155,6 +168,10 @@ class AnalysisCoordinator {
 
   Future<AnalysisResult?> analyzeIncrementalL3(String fullText) async {
     _compatibilityMode = AnalysisMode.geminiApi;
+    // Tự động tạo session nếu chưa có (cần cho analyzeIncremental)
+    if (_l3Analyzer.processedTextLength == 0) {
+      createL3Session();
+    }
     final result = await _l3Analyzer.analyzeIncremental(fullText);
     if (result == null) {
       return null;

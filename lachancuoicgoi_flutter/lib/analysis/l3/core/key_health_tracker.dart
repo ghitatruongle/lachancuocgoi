@@ -99,6 +99,10 @@ class KeyHealthTracker {
         active.add(index);
       }
     }
+    // Shuffle để tránh race condition: 2 luồng concurrent cùng lấy key 0.
+    // Bằng cách shuffle, các luồng khác nhau sẽ bắt đầu với key khác nhau,
+    // giảm khả năng cả 2 cùng đánh vào key đầu tiên.
+    active.shuffle();
     return active;
   }
 
