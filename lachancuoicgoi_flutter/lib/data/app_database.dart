@@ -160,6 +160,14 @@ CREATE TABLE IF NOT EXISTS call_history (
 
   Future<List<CallHistory>> getAll() => callHistoryDao.getAll();
 
+  Future<List<CallHistory>> getAllPaginated({
+    int limit = 20,
+    int offset = 0,
+  }) =>
+      callHistoryDao.getAllPaginated(limit: limit, offset: offset);
+
+  Future<int> count() => callHistoryDao.count();
+
   Stream<List<CallHistory>> watchAll() => callHistoryDao.watchAll();
 
   Future<CallHistory?> getById(int id) => callHistoryDao.getById(id);

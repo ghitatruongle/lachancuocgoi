@@ -16,31 +16,31 @@ void main() {
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(methodChannel, (call) async {
-      methodCalls.add(call);
-      return switch (call.method) {
-        'startMonitoring' => true,
-        'stopMonitoring' => true,
-        'showRedAlert' => true,
-        'showOrangeAlert' => true,
-        'dismissAlert' => true,
-        'getPermissionSnapshot' => <String, bool>{
-            'recordAudio': true,
-            'phoneState': true,
-            'callLog': false,
-            'overlay': true,
-            'notification': true,
-            'accessibility': false,
-            'callScreening': true,
-          },
-        'openAccessibilitySettings' => true,
-        'requestCallScreeningRole' => true,
-        'checkOverlayPermission' => true,
-        'requestOverlayPermission' => true,
-        'isAccessibilityEnabled' => false,
-        'isMonitoringActive' => false,
-        _ => null,
-      };
-    });
+          methodCalls.add(call);
+          return switch (call.method) {
+            'startMonitoring' => true,
+            'stopMonitoring' => true,
+            'showRedAlert' => true,
+            'showOrangeAlert' => true,
+            'dismissAlert' => true,
+            'getPermissionSnapshot' => <String, bool>{
+              'recordAudio': true,
+              'phoneState': true,
+              'callLog': false,
+              'overlay': true,
+              'notification': true,
+              'accessibility': false,
+              'callScreening': true,
+            },
+            'openAccessibilitySettings' => true,
+            'requestCallScreeningRole' => true,
+            'checkOverlayPermission' => true,
+            'requestOverlayPermission' => true,
+            'isAccessibilityEnabled' => false,
+            'isMonitoringActive' => false,
+            _ => null,
+          };
+        });
   });
 
   tearDown(() {
@@ -49,6 +49,18 @@ void main() {
   });
 
   group('NativeCallShieldBridge — MethodChannel', () {
+    test('startMonitoring uses default arguments when omitted', () async {
+      final result = await bridge.startMonitoring();
+
+      expect(result, isTrue);
+      expect(methodCalls, hasLength(1));
+      expect(methodCalls.first.method, 'startMonitoring');
+      expect(
+        methodCalls.first.arguments,
+        equals({'phoneNumber': null, 'enableSpeakerphone': false}),
+      );
+    });
+
     test('startMonitoring sends correct arguments', () async {
       final result = await bridge.startMonitoring(
         phoneNumber: '+84912345678',
@@ -59,11 +71,9 @@ void main() {
       expect(methodCalls, hasLength(1));
       expect(methodCalls.first.method, 'startMonitoring');
       expect(
-          methodCalls.first.arguments,
-          equals({
-            'phoneNumber': '+84912345678',
-            'enableSpeakerphone': true,
-          }));
+        methodCalls.first.arguments,
+        equals({'phoneNumber': '+84912345678', 'enableSpeakerphone': true}),
+      );
     });
 
     test('stopMonitoring sends correct method', () async {
@@ -86,8 +96,7 @@ void main() {
 
       expect(result, isTrue);
       expect(methodCalls.first.method, 'showOrangeAlert');
-      expect(
-          methodCalls.first.arguments, {'reason': 'Có nguy cơ lừa đảo.'});
+      expect(methodCalls.first.arguments, {'reason': 'Có nguy cơ lừa đảo.'});
     });
 
     test('dismissAlert calls correct method', () async {
@@ -95,6 +104,25 @@ void main() {
       expect(result, isTrue);
       expect(methodCalls.first.method, 'dismissAlert');
     });
+
+    test(
+      'getPermissionSnapshot falls back to defaults when native returns null',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(methodChannel, (call) async {
+              methodCalls.add(call);
+              if (call.method == 'getPermissionSnapshot') {
+                return null;
+              }
+              return true;
+            });
+
+        final snapshot = await bridge.getPermissionSnapshot();
+
+        expect(snapshot.allGranted, isFalse);
+        expect(snapshot.grantedCount, 0);
+      },
+    );
 
     test('getPermissionSnapshot parses map correctly', () async {
       final snapshot = await bridge.getPermissionSnapshot();
@@ -145,8 +173,8 @@ void main() {
     test('handles PlatformException gracefully', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(methodChannel, (call) async {
-        throw PlatformException(code: 'ERROR', message: 'Test error');
-      });
+            throw PlatformException(code: 'ERROR', message: 'Test error');
+          });
 
       final result = await bridge.startMonitoring();
       expect(result, isFalse);
@@ -157,6 +185,15 @@ void main() {
   });
 
   group('NativeCallShieldBridge — Data Models', () {
+    test('MonitoringState falls back to idle for unknown value', () {
+      final (state, duration, transcript) = MonitoringState.parse(
+        'SOMETHING_ELSE',
+      );
+      expect(state, MonitoringState.idle);
+      expect(duration, isNull);
+      expect(transcript, isNull);
+    });
+
     test('MonitoringState parses STARTED', () {
       final (state, duration, transcript) = MonitoringState.parse('STARTED');
       expect(state, MonitoringState.started);
@@ -165,16 +202,18 @@ void main() {
     });
 
     test('MonitoringState parses STOPPED with data', () {
-      final (state, duration, transcript) =
-          MonitoringState.parse('STOPPED:120:Xin chào anh');
+      final (state, duration, transcript) = MonitoringState.parse(
+        'STOPPED:120:Xin chào anh',
+      );
       expect(state, MonitoringState.stopped);
       expect(duration, 120);
       expect(transcript, 'Xin chào anh');
     });
 
     test('MonitoringState parses STOPPED with colons in transcript', () {
-      final (state, duration, transcript) =
-          MonitoringState.parse('STOPPED:60:Anh ơi: bước tiếp theo');
+      final (state, duration, transcript) = MonitoringState.parse(
+        'STOPPED:60:Anh ơi: bước tiếp theo',
+      );
       expect(state, MonitoringState.stopped);
       expect(duration, 60);
       expect(transcript, 'Anh ơi: bước tiếp theo');
@@ -194,10 +233,11 @@ void main() {
       final event = CallEvent.fromMap({
         'type': 'RINGING',
         'phoneNumber': '+84912345678',
+        'source': 'telecom',
       });
       expect(event.type, 'RINGING');
       expect(event.phoneNumber, '+84912345678');
-      expect(event.source, isNull);
+      expect(event.source, 'telecom');
     });
 
     test('CallEvent handles partial map', () {

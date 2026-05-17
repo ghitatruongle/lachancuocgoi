@@ -1,14 +1,19 @@
 class GeminiMetrics {
-  static int _totalCalls = 0;
-  static int _successCalls = 0;
-  static int _failureCalls = 0;
-  static int _cacheHits = 0;
-  static int _cacheMisses = 0;
-  static int _totalLatencyMs = 0;
-  static final Map<int, int> _callsPerKey = <int, int>{};
-  static final Map<int, int> _errorsPerKey = <int, int>{};
+  GeminiMetrics._();
 
-  static void recordCall({
+  /// Singleton instance used throughout the app.
+  static final GeminiMetrics instance = GeminiMetrics._();
+
+  int _totalCalls = 0;
+  int _successCalls = 0;
+  int _failureCalls = 0;
+  int _cacheHits = 0;
+  int _cacheMisses = 0;
+  int _totalLatencyMs = 0;
+  final Map<int, int> _callsPerKey = <int, int>{};
+  final Map<int, int> _errorsPerKey = <int, int>{};
+
+  void recordCall({
     required bool success,
     required int latencyMs,
     int keyIndex = -1,
@@ -28,15 +33,15 @@ class GeminiMetrics {
     }
   }
 
-  static void recordCacheHit() {
+  void recordCacheHit() {
     _cacheHits++;
   }
 
-  static void recordCacheMiss() {
+  void recordCacheMiss() {
     _cacheMisses++;
   }
 
-  static MetricsSnapshot getSnapshot() {
+  MetricsSnapshot getSnapshot() {
     final totalRequests = _cacheHits + _cacheMisses;
     final summaries = _callsPerKey.entries
         .map(
@@ -60,15 +65,17 @@ class GeminiMetrics {
     );
   }
 
-  static void reset() {
-    _totalCalls = 0;
-    _successCalls = 0;
-    _failureCalls = 0;
-    _cacheHits = 0;
-    _cacheMisses = 0;
-    _totalLatencyMs = 0;
-    _callsPerKey.clear();
-    _errorsPerKey.clear();
+  /// Create a fresh instance for testing isolation.
+  /// Tests should call this in setUp() instead of reset().
+  static void resetForTesting() {
+    instance._totalCalls = 0;
+    instance._successCalls = 0;
+    instance._failureCalls = 0;
+    instance._cacheHits = 0;
+    instance._cacheMisses = 0;
+    instance._totalLatencyMs = 0;
+    instance._callsPerKey.clear();
+    instance._errorsPerKey.clear();
   }
 }
 

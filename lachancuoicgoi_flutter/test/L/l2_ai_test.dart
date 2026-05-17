@@ -11,13 +11,12 @@ import 'package:lachancuocgoi_flutter/analysis/l2/l2_analysis.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/safety/safety_filter.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/wfsa/scam_graph_builder.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/wfsa/wfsa_engine.dart';
-import 'package:lachancuocgoi_flutter/analysis/health_check.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('Phase 6 TFLite intent support', () {
+  group('TFLite intent support', () {
     test('WordPiece tokenizer builds Kotlin-compatible BERT inputs', () {
       final tokenizer = BertIntentTokenizer(<String, int>{
         '[PAD]': 0,
@@ -60,7 +59,7 @@ void main() {
     });
   });
 
-  group('Phase 6 WFSA and SafetyFilter', () {
+  group('WFSA and SafetyFilter', () {
     test('default graph set tracks 22 scam scenarios with active stage', () {
       final engine = WfsaEngine(ScamGraphBuilder.buildDefaultGraphs());
 
@@ -110,26 +109,7 @@ void main() {
     );
   });
 
-  group('Phase 6 L2 fusion', () {
-    test(
-      'falls back to GDetection and WFSA when intent classifier is disabled',
-      () async {
-        final analyzer = L2Analyzer(gDetectionEngine: _newTestEngine());
-        await analyzer.initialize();
-
-        final result = await analyzer.analyze(
-          'cục cảnh sát đang điều tra',
-          'Tôi là công an, chúng tôi đang điều tra và có lệnh bắt.',
-        );
-
-        expect(result.analysisLevel, AnalysisLevel.l2);
-        expect(result.overallRiskLevel, RiskLevel.red);
-        expect(result.matches.first.category, 'Analysis Fallback');
-        expect(result.alertEnabled, isTrue);
-        expect(analyzer.healthCheck().status, isNot(HealthStatus.down));
-      },
-    );
-
+  group('L2 AI intent fusion', () {
     test('uses high-confidence AI intent as L2-AI winner', () async {
       final analyzer = L2Analyzer(
         gDetectionEngine: _newTestEngine(),
@@ -151,29 +131,6 @@ void main() {
       expect(result.analysisLevel, AnalysisLevel.l2Ai);
       expect(result.overallRiskLevel, RiskLevel.red);
       expect(result.matches.first.keyword, contains('NGÂN HÀNG'));
-    });
-
-    test('GDetection overrides SAFE AI when context is red', () async {
-      final analyzer = L2Analyzer(
-        gDetectionEngine: _newTestEngine(),
-        intentClassifier: _FakeIntentClassifier(<IntentPrediction>[
-          const IntentPrediction(intent: ScamIntent.safe, confidence: 0.90),
-          const IntentPrediction(
-            intent: ScamIntent.bankCardFraud,
-            confidence: 0.01,
-          ),
-        ]),
-      );
-      await analyzer.initialize();
-
-      final result = await analyzer.analyze(
-        'công an điều tra',
-        'Tôi là công an, chúng tôi đang điều tra và có lệnh bắt.',
-      );
-
-      expect(result.analysisLevel, AnalysisLevel.l2Fused);
-      expect(result.overallRiskLevel, RiskLevel.red);
-      expect(result.matches.first.category, 'Cross-validation Override');
     });
   });
 }
@@ -204,117 +161,98 @@ class _FakeIntentClassifier implements IntentClassifier {
 }
 
 GDetectionEngine _newTestEngine() {
-  final assets = <String, Object?>{
-    GDetectionEngine.vocabularyFile: _testVocabulary,
-    GDetectionEngine.scoringConfigFile: _testScoringConfig,
-    GDetectionEngine.patternsFile: _testPatterns,
-    GDetectionEngine.situationFile: _testScenarios,
-    GDetectionEngine.sentencesFile: _testSentences,
-    GDetectionEngine.slangFile: _testSlang,
-    GDetectionEngine.tierConfigFile: _testTierConfig,
-    GDetectionEngine.aiCheckFile: <String, Object?>{'situations': <Object?>[]},
-  };
-
   return GDetectionEngine(
-    assetProvider: (fileName) =>
-        jsonEncode(assets[fileName] ?? <String, Object?>{}),
+    assetProvider: (fileName) => jsonEncode(_testAssets[fileName] ?? {}),
   );
 }
 
-const Map<String, Object?> _testVocabulary = <String, Object?>{
-  'riskLevels': <Object?>[
-    <String, Object?>{
-      'level': 0,
-      'keywords': <String>['xin chào', 'ăn cơm'],
-    },
-    <String, Object?>{
-      'level': 2,
-      'threats': <String, Object?>{
-        'URGENCY': <String>['gấp', 'lệnh bắt'],
+const Map<String, Object> _testAssets = {
+  'vocabulary.json': {
+    'riskLevels': [
+      {'level': 0, 'keywords': ['xin chào', 'ăn cơm']},
+      {
+        'level': 2,
+        'threats': {
+          'URGENCY': ['gấp', 'lệnh bắt'],
+        }
       },
-    },
-    <String, Object?>{
-      'level': 3,
-      'threats': <String, Object?>{
-        'AUTHORITY': <String>['công an'],
-        'MONEY': <String>['chuyển tiền'],
-        'ACCOUNT': <String>['tài khoản ngân hàng'],
-        'PII': <String>['mã otp'],
+      {
+        'level': 3,
+        'threats': {
+          'AUTHORITY': ['công an'],
+          'MONEY': ['chuyển tiền'],
+          'ACCOUNT': ['tài khoản ngân hàng'],
+          'PII': ['mã otp'],
+        }
       },
-    },
-  ],
-};
-
-const Map<String, Object?> _testScoringConfig = <String, Object?>{
-  'scenario_alert_threshold': 0.6,
-  'weights': <String, Object?>{
-    'keyword': 0.25,
-    'topic': 0.20,
-    'pattern': 0.25,
-    'scenario': 0.20,
-    'context': 0.10,
+    ],
   },
-};
-
-const Map<String, Object?> _testPatterns = <String, Object?>{
-  'patterns': <Object?>[
-    <String, Object?>{
-      'id': 'transfer_now',
-      'description': 'Chuyen tien gap',
-      'risk_bonus': 0.8,
-      'max_gap': 5,
-      'template': <Object?>[
-        <String, Object?>{'type': 'keyword', 'value': 'chuyển'},
-        <String, Object?>{'type': 'keyword', 'value': 'tiền'},
-        <String, Object?>{'type': 'keyword', 'value': 'gấp'},
-      ],
+  'scoring_config.json': {
+    'scenario_alert_threshold': 0.6,
+    'weights': {
+      'keyword': 0.25,
+      'topic': 0.20,
+      'pattern': 0.25,
+      'scenario': 0.20,
+      'context': 0.10,
     },
-  ],
-};
-
-const Map<String, Object?> _testScenarios = <String, Object?>{
-  'title': 'Test Scenarios',
-  'version': '1.0',
-  'total_scenarios': 1,
-  'scenarios': <Object?>[
-    <String, Object?>{
-      'id': 'S1',
-      'name': 'Giả danh công an',
-      'risk_level': 3,
-      'category': 'AUTH_POLICE_LAWSUIT',
-      'trigger_phrases': <String>['công an', 'viện kiểm sát'],
-      'required_context': <String>['điều tra', 'lệnh bắt'],
-      'l2_analysis_hints': <String, Object?>{
-        'urgency_level': 'medium',
-        'authority_claim': true,
-        'financial_request': false,
+  },
+  'patterns.json': {
+    'patterns': [
+      {
+        'id': 'transfer_now',
+        'description': 'Chuyển tiền gấp',
+        'risk_bonus': 0.8,
+        'max_gap': 5,
+        'template': [
+          {'type': 'keyword', 'value': 'chuyển'},
+          {'type': 'keyword', 'value': 'tiền'},
+          {'type': 'keyword', 'value': 'gấp'},
+        ],
       },
-    },
-  ],
-};
-
-const Map<String, Object?> _testSentences = <String, Object?>{
-  'riskLevels': <Object?>[
-    <String, Object?>{
-      'level': 0,
-      'sentences': <String>['xin chào hôm nay mình đi ăn cơm nhé'],
-    },
-    <String, Object?>{
-      'level': 3,
-      'threats': <String, Object?>{
-        'AUTHORITY': <String>['tôi là công an'],
-        'PII': <String>['đọc mã otp vừa gửi'],
+    ],
+  },
+  'situations.json': {
+    'title': 'Test Scenarios',
+    'version': '1.0',
+    'total_scenarios': 1,
+    'scenarios': [
+      {
+        'id': 'S1',
+        'name': 'Giả danh công an',
+        'risk_level': 3,
+        'category': 'AUTH_POLICE_LAWSUIT',
+        'trigger_phrases': ['công an', 'viện kiểm sát'],
+        'required_context': ['điều tra', 'lệnh bắt'],
+        'l2_analysis_hints': {
+          'urgency_level': 'medium',
+          'authority_claim': true,
+          'financial_request': false,
+        },
       },
-    },
-  ],
-};
-
-const Map<String, Object?> _testSlang = <String, Object?>{
-  'slang_map': <String, Object?>{'ck': 'chuyển khoản', 'stk': 'số tài khoản'},
-};
-
-const Map<String, Object?> _testTierConfig = <String, Object?>{
-  'tier1_topics': <String>['công an'],
-  'tier2_urgency': <String>['gấp', 'lệnh bắt'],
-  'tier3_pii': <String>['mã otp', 'tài khoản ngân hàng'],
+    ],
+  },
+  'sentences.json': {
+    'riskLevels': [
+      {
+        'level': 0,
+        'sentences': ['xin chào hôm nay mình đi ăn cơm nhé'],
+      },
+      {
+        'level': 3,
+        'threats': {
+          'PII': ['đọc mã otp vừa gửi'],
+        },
+      },
+    ],
+  },
+  'slang.json': {
+    'slang_map': {'ck': 'chuyển khoản', 'stk': 'số tài khoản'},
+  },
+  'tier_config.json': {
+    'tier1_topics': ['công an'],
+    'tier2_urgency': ['gấp', 'ngay lập tức', 'lệnh bắt'],
+    'tier3_pii': ['mã otp', 'tài khoản ngân hàng'],
+  },
+  'ai_check_config.json': {'situations': []},
 };

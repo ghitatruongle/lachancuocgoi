@@ -62,8 +62,6 @@ class WfsaEngine {
     resetSession();
   }
 
-  static const int segmentCountThreshold = 3;
-
   final List<ScenarioGraph> graphs;
   final Map<String, double> _graphScores = <String, double>{};
   final Map<String, String> _currentSessionStates = <String, String>{};
@@ -104,11 +102,11 @@ class WfsaEngine {
 
       if (currentScore > 0) {
         final baseDecay = _decayForGraph(graphId);
-        final effectiveDecay = segmentsSinceLast >= segmentCountThreshold
-            ? baseDecay * 0.85
-            : baseDecay;
-        final newScore = currentScore * effectiveDecay;
-        _graphScores[graphId] = newScore < 1.0 ? 0 : newScore;
+        final newScore = currentScore * baseDecay;
+        // Giữ floor score để không mất tín hiệu hoàn toàn
+        _graphScores[graphId] = newScore < _minScoreFloor
+            ? newScore.clamp(_minScoreFloor, 100.0)
+            : newScore;
       }
       _segmentsSinceLastTrigger[graphId] = segmentsSinceLast + 1;
 
@@ -154,18 +152,35 @@ class WfsaEngine {
     return maxScore;
   }
 
+  /// Minimum score floor: dù decay lâu đến đâu, score không xuống dưới mức này
+  /// để giữ lại tín hiệu đã phát hiện trước đó.
+  static const double _minScoreFloor = 8.0;
+
   double _decayForGraph(String graphId) {
+    // Kịch bản nguy hiểm cao: decay rất chậm, giữ tín hiệu lâu
     if (graphId.startsWith('G_POLICE') ||
         graphId.startsWith('G_KIDNAP') ||
-        graphId.startsWith('G_SEXTORT')) {
-      return 0.95;
+        graphId.startsWith('G_SEXTORT') ||
+        graphId.startsWith('G_BANK')) {
+      return 0.995;
     }
+    // Kịch bản trung bình
+    if (graphId.startsWith('G_TECH') ||
+        graphId.startsWith('G_HOSPITAL') ||
+        graphId.startsWith('G_VNEID') ||
+        graphId.startsWith('G_TELECOM') ||
+        graphId.startsWith('G_CEO') ||
+        graphId.startsWith('G_DEEPFAKE') ||
+        graphId.startsWith('G_CREDIT')) {
+      return 0.99;
+    }
+    // Kịch bản nhẹ/dễ quên (từ thiện, chung chung)
     if (graphId.startsWith('G_CHARITY') ||
         graphId.startsWith('G_GENERIC') ||
         graphId.startsWith('G_GAMBLE')) {
-      return 0.80;
+      return 0.97;
     }
-    return 0.90;
+    return 0.98;
   }
 
   void _updateActiveScenario() {

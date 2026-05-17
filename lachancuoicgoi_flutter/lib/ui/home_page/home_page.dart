@@ -2,18 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../services/permission_controller.dart';
 import '../theme/app_theme.dart';
 import 'instruct_dialog.dart';
 import 'rights_dialog.dart';
 import 'settings_dialog.dart';
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  @override
+  void initState() {
+    super.initState();
+    // Check permissions on load and show dialog if missing
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndRequestPermissions();
+    });
+  }
+
+  void _checkAndRequestPermissions() {
+    final permState = ref.read(permissionControllerProvider);
+    
+    // Show RightsDialog if not all permissions are granted
+    if (!permState.allGranted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const RightsDialog(),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final permissionState = ref.watch(permissionControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -22,7 +51,7 @@ class HomePage extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Cài đặt',
-            onPressed: () => _showSettingsDialog(context, ref),
+            onPressed: () => _showSettingsDialog(context),
           ),
           IconButton(
             icon: const Icon(Icons.shield_outlined),
@@ -36,173 +65,187 @@ class HomePage extends ConsumerWidget {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Column(
-          children: [
-            const Spacer(flex: 1),
-
-            // ── Hero card ──
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-              elevation: 0,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppSpacing.xl,
-                  horizontal: AppSpacing.sm,
-                ),
-                child: Column(
-                  children: [
-                    Icon(Icons.shield_outlined,
-                        size: 64, color: cs.primary),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Lá chắn cuộc gọi',
-                      style:
-                          tt.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Phân tích cuộc gọi theo thời gian thực để phát hiện lừa đảo.',
-                      style: tt.bodyMedium?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const Spacer(flex: 2),
-
-            // ── Info card ──
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xxs,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            sliver: SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
                 children: [
-                  Icon(Icons.info_outlined,
-                      size: 16, color: cs.onSurfaceVariant),
-                  const SizedBox(width: AppSpacing.xxs),
-                  Flexible(
-                    child: Text(
-                      'Khuyên dùng: Bật Phụ đề trực tiếp để bảo vệ tốt nhất',
-                      style: tt.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
+                  const Spacer(flex: 1),
+
+                  // ── Hero card ──
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                    elevation: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.xl,
+                        horizontal: AppSpacing.sm,
+                      ),
+                      child: Column(
+                        children: [
+                          Image.asset(
+                            'assets/logo.png',
+                            width: 80,
+                            height: 80,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Icon(Icons.shield_outlined, size: 64, color: cs.primary),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'Lá chắn cuộc gọi',
+                            style:
+                                tt.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'Phân tích cuộc gọi theo thời gian thực để phát hiện lừa đảo.',
+                            style: tt.bodyMedium?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const Spacer(flex: 2),
+
+                  // ── Info card ──
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xxs,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.info_outlined,
+                            size: 16, color: cs.onSurfaceVariant),
+                        const SizedBox(width: AppSpacing.xxs),
+                        Flexible(
+                          child: Text(
+                            'Khuyên dùng: Bật Phụ đề trực tiếp để bảo vệ tốt nhất',
+                            style: tt.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: AppSpacing.sm),
+
+                  // ── Start monitoring button ──
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: permissionState.snapshot.recordAudio
+                          ? () => context.push('/monitoring')
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: cs.primary,
+                        foregroundColor: cs.onPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 6,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.shield_outlined, size: 24),
+                          const SizedBox(width: AppSpacing.xxs),
+                          Text(
+                            'Bắt đầu giám sát',
+                            style: tt.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: cs.onPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: AppSpacing.sm),
+
+                  // ── Two sub-buttons row ──
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _QuickActionCard(
+                          icon: Icons.science_outlined,
+                          label: 'Chế độ giả lập',
+                          onTap: () => context.push('/simulation'),
+                          colorScheme: cs,
+                          textTheme: tt,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: _QuickActionCard(
+                          icon: Icons.history_outlined,
+                          label: 'Lịch sử',
+                          onTap: () => context.push('/history'),
+                          colorScheme: cs,
+                          textTheme: tt,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: AppSpacing.xs),
+
+                  // ── Tips lesson button ──
+                  Material(
+                    color: cs.tertiaryContainer.withValues(alpha: 0.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: cs.tertiary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => context.push('/tips_lesson'),
+                      child: SizedBox(
+                        height: 64,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.lightbulb_outlined,
+                                size: 24, color: cs.tertiary),
+                            const SizedBox(width: AppSpacing.xxs),
+                            Text(
+                              'Mẹo chống lừa đảo',
+                              style: tt.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: cs.tertiary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // ── Start monitoring button ──
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () => context.push('/monitoring'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: cs.primary,
-                  foregroundColor: cs.onPrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 6,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.shield_outlined, size: 24),
-                    const SizedBox(width: AppSpacing.xxs),
-                    Text(
-                      'Bắt đầu giám sát',
-                      style: tt.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: cs.onPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // ── Two sub-buttons row ──
-            Row(
-              children: [
-                Expanded(
-                  child: _QuickActionCard(
-                    icon: Icons.science_outlined,
-                    label: 'Chế độ giả lập',
-                    onTap: () => context.push('/simulation'),
-                    colorScheme: cs,
-                    textTheme: tt,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: _QuickActionCard(
-                    icon: Icons.history_outlined,
-                    label: 'Lịch sử',
-                    onTap: () => context.push('/history'),
-                    colorScheme: cs,
-                    textTheme: tt,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: AppSpacing.xs),
-
-            // ── Tips lesson button ──
-            Material(
-              color: cs.tertiaryContainer.withValues(alpha: 0.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                  color: cs.tertiary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () => context.push('/tips_lesson'),
-                child: SizedBox(
-                  height: 64,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.lightbulb_outlined,
-                          size: 24, color: cs.tertiary),
-                      const SizedBox(width: AppSpacing.xxs),
-                      Text(
-                        'Mẹo chống lừa đảo',
-                        style: tt.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: cs.tertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  void _showSettingsDialog(BuildContext context, WidgetRef _) {
+  void _showSettingsDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (_) => const SettingsDialog(),
@@ -212,6 +255,7 @@ class HomePage extends ConsumerWidget {
   void _showRightsDialog(BuildContext context) {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (_) => const RightsDialog(),
     );
   }

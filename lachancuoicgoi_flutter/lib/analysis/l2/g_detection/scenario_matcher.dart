@@ -1,5 +1,6 @@
 import 'g_flash.dart';
 import 'g_models.dart';
+import '../../common/text_normalizer.dart';
 
 class ScenarioMatcher {
   ScenarioMatcher(this.masterModel);
@@ -131,7 +132,7 @@ class ScenarioMatcher {
         maxScore = score;
         bestMatch = ScenarioMatch(
           scenarioId: _javaStringHash(scenarioId),
-          situationName: info.name,
+          situationName: _displayName(info.name),
           similarityScore: score,
           group: info.category,
           level: info.level,
@@ -209,6 +210,16 @@ class ScenarioMatcher {
         bonus += 0.02;
     }
     return (baseScore + bonus).clamp(0.0, 1.0);
+  }
+
+  static String _displayName(String value) {
+    final normalized = TextNormalizer.normalize(
+      value,
+      applySlang: false,
+      noiseMode: NoiseMode.space,
+    );
+    if (normalized.isEmpty) return value;
+    return normalized[0].toUpperCase() + normalized.substring(1);
   }
 
   static int _javaStringHash(String value) {

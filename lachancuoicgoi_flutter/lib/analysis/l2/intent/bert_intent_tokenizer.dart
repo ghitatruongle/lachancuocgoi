@@ -99,9 +99,11 @@ class BertIntentTokenizer {
     final unkId = vocab[unkToken] ?? 100;
     const maxTokens = maxSeqLen - 2;
 
+    // Truncation: giữ phần cuối của cuộc hội thoại (nơi chứa đỉnh điểm kịch bản lừa đảo)
+    // Các tín hiệu quan trọng nhất (OTP, chuyển tiền, đe dọa) thường xuất hiện ở cuối.
     final truncatedTokens = tokens.length <= maxTokens
         ? tokens
-        : <String>[...tokens.take(50), ...tokens.takeLast(maxTokens - 50)];
+        : tokens.sublist(tokens.length - maxTokens);
 
     final inputIds = List<int>.filled(maxSeqLen, padId);
     final attentionMask = List<int>.filled(maxSeqLen, 0);
@@ -124,13 +126,5 @@ class BertIntentTokenizer {
       attentionMask: attentionMask,
       tokenTypeIds: tokenTypeIds,
     );
-  }
-}
-
-extension _TakeLastExtension<T> on List<T> {
-  Iterable<T> takeLast(int count) {
-    if (count <= 0) return <T>[];
-    if (count >= length) return this;
-    return skip(length - count);
   }
 }

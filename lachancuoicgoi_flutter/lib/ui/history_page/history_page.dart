@@ -12,9 +12,13 @@ class _HistoryState {
   const _HistoryState({
     this.items = const [],
     this.searchQuery = '',
+    this.hasMore = true,
+    this.isLoadingMore = false,
   });
   final List<CallHistory> items;
   final String searchQuery;
+  final bool hasMore;
+  final bool isLoadingMore;
 
   List<CallHistory> get filtered {
     if (searchQuery.isEmpty) return items;
@@ -27,6 +31,20 @@ class _HistoryState {
           (i.analysisType?.toLowerCase().contains(q) ?? false);
     }).toList();
   }
+
+  _HistoryState copyWith({
+    List<CallHistory>? items,
+    String? searchQuery,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) {
+    return _HistoryState(
+      items: items ?? this.items,
+      searchQuery: searchQuery ?? this.searchQuery,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
+  }
 }
 
 final _historyProvider =
@@ -34,23 +52,58 @@ final _historyProvider =
         _HistoryController.new);
 
 class _HistoryController extends AsyncNotifier<_HistoryState> {
+  static const int _pageSize = 20;
+
   @override
   Future<_HistoryState> build() async {
     final db = ref.watch(appDatabaseProvider);
-    final items = await db.getAll();
-    return _HistoryState(items: items);
+    final items = await db.getAllPaginated(limit: _pageSize, offset: 0);
+    final totalCount = await db.count();
+    return _HistoryState(
+      items: items,
+      hasMore: items.length < totalCount,
+    );
+  }
+
+  Future<void> loadMore() async {
+    final current = state.value;
+    if (current == null || !current.hasMore || current.isLoadingMore) return;
+    if (current.searchQuery.isNotEmpty) return;
+
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+    final db = ref.read(appDatabaseProvider);
+    // Không dùng mounted vì AsyncNotifier không có mounted property
+    final moreItems = await db.getAllPaginated(
+      limit: _pageSize,
+      offset: current.items.length,
+    );
+    final totalCount = await db.count();
+    final allItems = [...current.items, ...moreItems];
+    state = AsyncData(_HistoryState(
+      items: allItems,
+      searchQuery: current.searchQuery,
+      hasMore: allItems.length < totalCount,
+    ));
   }
 
   Future<void> refresh() async {
     final db = ref.read(appDatabaseProvider);
-    final items = await db.getAll();
-    state = AsyncData(
-        _HistoryState(items: items, searchQuery: state.value?.searchQuery ?? ''));
+    final items = await db.getAllPaginated(limit: _pageSize, offset: 0);
+    final totalCount = await db.count();
+    state = AsyncData(_HistoryState(
+      items: items,
+      searchQuery: state.value?.searchQuery ?? '',
+      hasMore: items.length < totalCount,
+    ));
   }
 
   void updateSearch(String query) {
     final current = state.value ?? const _HistoryState();
-    state = AsyncData(_HistoryState(items: current.items, searchQuery: query));
+    state = AsyncData(_HistoryState(
+      items: current.items,
+      searchQuery: query,
+      hasMore: current.hasMore,
+    ));
   }
 
   Future<void> deleteItem(int id) async {
@@ -75,12 +128,28 @@ class HistoryPage extends ConsumerStatefulWidget {
 class _HistoryPageState extends ConsumerState<HistoryPage> {
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      ref.read(_historyProvider.notifier).loadMore();
+    }
   }
 
   @override
@@ -185,11 +254,23 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                               : 'Không tìm thấy kết quả nào khớp với "$query".',
                         )
                       : ListView.separated(
-                          itemCount: items.length + 1,
+                          controller: _scrollController,
+                          itemCount: items.length + (query.isEmpty && historyState.hasMore ? 1 : 0) + 1,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 12),
                           itemBuilder: (context, index) {
-                            if (index == items.length) {
+                            if (query.isEmpty &&
+                                historyState.hasMore &&
+                                index == items.length) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
+                            final footerIdx = query.isEmpty && historyState.hasMore
+                                ? items.length + 1
+                                : items.length;
+                            if (index == footerIdx) {
                               return Padding(
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 16),

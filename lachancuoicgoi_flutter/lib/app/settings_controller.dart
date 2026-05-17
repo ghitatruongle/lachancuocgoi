@@ -9,24 +9,28 @@ class SettingsState {
     required this.analysisMode,
     required this.audioBoost,
     required this.autoEnableSpeakerphone,
+    required this.creatorAudioCapture,
   });
 
   final bool isDarkTheme;
   final AnalysisMode analysisMode;
   final bool audioBoost;
   final bool autoEnableSpeakerphone;
+  final bool creatorAudioCapture;
 
   SettingsState copyWith({
     bool? isDarkTheme,
     AnalysisMode? analysisMode,
     bool? audioBoost,
     bool? autoEnableSpeakerphone,
+    bool? creatorAudioCapture,
   }) {
     return SettingsState(
       isDarkTheme: isDarkTheme ?? this.isDarkTheme,
       analysisMode: analysisMode ?? this.analysisMode,
       audioBoost: audioBoost ?? this.audioBoost,
       autoEnableSpeakerphone: autoEnableSpeakerphone ?? this.autoEnableSpeakerphone,
+      creatorAudioCapture: creatorAudioCapture ?? this.creatorAudioCapture,
     );
   }
 }
@@ -43,6 +47,7 @@ class SettingsController extends Notifier<SettingsState> {
       analysisMode: AnalysisMode.gDetection,
       audioBoost: false,
       autoEnableSpeakerphone: false,
+      creatorAudioCapture: false,
     );
   }
 
@@ -56,6 +61,7 @@ class SettingsController extends Notifier<SettingsState> {
       ),
       audioBoost: prefs.getBool('AUDIO_BOOST') ?? false,
       autoEnableSpeakerphone: prefs.getBool('AUTO_ENABLE_SPEAKERPHONE') ?? false,
+      creatorAudioCapture: prefs.getBool('CREATOR_AUDIO_CAPTURE') ?? false,
     );
   }
 
@@ -66,5 +72,6 @@ class SettingsController extends Notifier<SettingsState> {
     await prefs.setString('ANALYSIS_MODE', next.analysisMode.storageName);
     await prefs.setBool('AUDIO_BOOST', next.audioBoost);
     await prefs.setBool('AUTO_ENABLE_SPEAKERPHONE', next.autoEnableSpeakerphone);
+    await prefs.setBool('CREATOR_AUDIO_CAPTURE', next.creatorAudioCapture);
   }
 }

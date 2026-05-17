@@ -110,7 +110,7 @@ class GeminiChatSession {
           _safeHistory.add(Content.text(text));
           _safeHistory.add(Content.model(<Part>[TextPart(responseText)]));
           keyHealthTracker?.markSuccess(_currentKeyIndex);
-          GeminiMetrics.recordCall(
+          GeminiMetrics.instance.recordCall(
             success: true,
             latencyMs: DateTime.now().difference(startTime).inMilliseconds,
             keyIndex: _currentKeyIndex,

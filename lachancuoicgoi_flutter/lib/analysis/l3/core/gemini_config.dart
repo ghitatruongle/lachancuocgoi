@@ -4,7 +4,7 @@ class GeminiConfig {
     required this.temperature,
     required this.topK,
     required this.topP,
-    this.timeout = const Duration(milliseconds: 7000),
+    this.timeout = const Duration(milliseconds: 25000),
     this.responseMimeType,
   });
 
@@ -15,22 +15,27 @@ class GeminiConfig {
   final Duration timeout;
   final String? responseMimeType;
 
+  /// Config cho phân tích L3 (classification với JSON response).
+  /// Dùng temperature thấp + topK=1 (greedy) để output ổn định, deterministic.
   static GeminiConfig forAnalysis() {
     return const GeminiConfig(
       modelName: 'gemini-2.5-flash-lite',
-      temperature: 0.2,
-      topK: 20,
-      topP: 0.9,
+      temperature: 0.1,
+      topK: 1,
+      topP: 1.0,
+      timeout: Duration(seconds: 25),
       responseMimeType: 'application/json',
     );
   }
 
+  /// Config cho tóm tắt cuộc gọi (cần độ sáng tạo vừa phải).
   static GeminiConfig forSummarization() {
     return const GeminiConfig(
       modelName: 'gemini-2.5-flash-lite',
       temperature: 0.7,
-      topK: 40,
+      topK: 20,
       topP: 0.95,
+      timeout: Duration(seconds: 30),
     );
   }
 }

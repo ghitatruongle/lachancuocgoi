@@ -85,10 +85,7 @@ class BackgroundMonitoringService : Service() {
 
         when (intent?.action) {
             ACTION_START -> {
-                if (isMonitoringActive || isStopping) {
-                    Log.i(TAG, "Ignoring duplicate start request while monitoring is active.")
-                    return START_NOT_STICKY
-                }
+                // ALWAYS call startForeground immediately to satisfy Android requirements when launched via startForegroundService
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     startForeground(
                         NOTIFICATION_ID,
@@ -97,6 +94,11 @@ class BackgroundMonitoringService : Service() {
                     )
                 } else {
                     startForeground(NOTIFICATION_ID, createMonitoringNotification("Đang sẵn sàng bảo vệ..."))
+                }
+
+                if (isMonitoringActive || isStopping) {
+                    Log.i(TAG, "Ignoring duplicate start request while monitoring is active.")
+                    return START_NOT_STICKY
                 }
                 startMonitoring()
             }

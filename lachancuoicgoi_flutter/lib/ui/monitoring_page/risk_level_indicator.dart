@@ -41,22 +41,16 @@ class RiskLevelIndicator extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        TweenAnimationBuilder<double>(
-          tween: Tween<double>(end: targetProgress),
+        TweenAnimationBuilder<Color?>(
+          tween: ColorTween(end: riskLevel.color),
           duration: const Duration(milliseconds: 800),
-          builder: (context, progress, _) {
-            return TweenAnimationBuilder<Color?>(
-              tween: ColorTween(end: riskLevel.color),
-              duration: const Duration(milliseconds: 800),
-              builder: (context, color, _) {
-                return LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 8,
-                  color: color,
-                  backgroundColor: cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(4),
-                );
-              },
+          builder: (context, color, _) {
+            return LinearProgressIndicator(
+              value: targetProgress,
+              minHeight: 8,
+              color: color,
+              backgroundColor: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(4),
             );
           },
         ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Live conversation transcript display with keyword highlighting.
-class LiveConversation extends StatelessWidget {
+class LiveConversation extends StatefulWidget {
   const LiveConversation({
     super.key,
     required this.transcript,
@@ -12,33 +11,45 @@ class LiveConversation extends StatelessWidget {
   final bool isSimulation;
 
   @override
+  State<LiveConversation> createState() => _LiveConversationState();
+}
+
+class _LiveConversationState extends State<LiveConversation> {
+  String _cachedTranscript = '';
+  String _cleanTranscript = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _cachedTranscript = widget.transcript;
+    _cleanTranscript = _cachedTranscript.replaceAll('+', ' ');
+  }
+
+  @override
+  void didUpdateWidget(LiveConversation oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.transcript != oldWidget.transcript) {
+      _cachedTranscript = widget.transcript;
+      _cleanTranscript = _cachedTranscript.replaceAll('+', ' ');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final cleanTranscript = transcript.replaceAll('+', ' ');
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: cleanTranscript.isEmpty
-          ? Center(
-              child: Text(
-                isSimulation
-                    ? 'Đang chờ kịch bản...'
-                    : 'Đang lắng nghe...',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-              ),
-            )
-          : ListView(
-              reverse: true,
-              children: [
-                Text(cleanTranscript),
-              ],
-            ),
+    if (_cleanTranscript.isEmpty) {
+      return Center(
+        child: Text(
+          widget.isSimulation ? 'Đang chờ kịch bản...' : 'Đang lắng nghe...',
+          style: TextStyle(color: cs.onSurfaceVariant),
+        ),
+      );
+    }
+
+    return Text(
+      _cleanTranscript,
+      style: const TextStyle(height: 1.4),
     );
   }
 }

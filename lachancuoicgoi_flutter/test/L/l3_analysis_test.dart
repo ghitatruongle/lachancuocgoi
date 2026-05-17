@@ -1,3 +1,4 @@
+import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lachancuocgoi_flutter/analysis/analysis_coordinator.dart';
@@ -10,8 +11,10 @@ import 'package:lachancuocgoi_flutter/analysis/l2/intent/intent_classifier.dart'
 import 'package:lachancuocgoi_flutter/analysis/l2/l2_analysis.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/wfsa/wfsa_engine.dart';
 import 'package:lachancuocgoi_flutter/analysis/l3/core/api_key_provider.dart';
+import 'package:lachancuocgoi_flutter/analysis/l3/core/gemini_chat_session.dart';
 import 'package:lachancuocgoi_flutter/analysis/l3/core/gemini_client.dart';
 import 'package:lachancuocgoi_flutter/analysis/l3/core/gemini_config.dart';
+import 'package:lachancuocgoi_flutter/analysis/l3/core/gemini_metrics.dart';
 import 'package:lachancuocgoi_flutter/analysis/l3/core/pii_stripper.dart';
 import 'package:lachancuocgoi_flutter/analysis/l3/l3_analysis.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
@@ -33,6 +36,43 @@ void main() {
         PIIStripper.restorePII(redaction.redactedText, redaction.tokensMap),
         text,
       );
+    });
+
+    test('PIIStripper redact email, CCCD va so the cung luc', () {
+      const text =
+          'Email a@example.com, CCCD 001234567890, so the ngan hang 1111 2222 3333 4444';
+
+      final redaction = PIIStripper.redactPII(text);
+
+      expect(redaction.redactedText, contains('[EMAIL_1]'));
+      expect(redaction.redactedText, contains('[CCCD_1]'));
+      expect(redaction.redactedText, contains('[SO_THE_1]'));
+      expect(
+        PIIStripper.restorePII(redaction.redactedText, redaction.tokensMap),
+        text,
+      );
+    });
+
+    test('PIIStripper khong redact nham cum vai tro nhu toi la cong an', () {
+      const text = 'Toi la cong an ho tro kiem tra ho so cho anh.';
+
+      final redaction = PIIStripper.redactPII(text);
+
+      expect(redaction.tokensMap, isEmpty);
+      expect(redaction.redactedText, text);
+    });
+
+    test('PIIStripper dung cung token cho gia tri lap lai', () {
+      const text =
+          'So dien thoai 0912345678, vui long goi lai 0912345678 ngay.';
+
+      final redaction = PIIStripper.redactPII(text);
+
+      expect(
+        redaction.redactedText,
+        '[SO_DIEN_THOAI_1], vui long goi lai [SO_DIEN_THOAI_1] ngay.',
+      );
+      expect(redaction.tokensMap.length, 1);
     });
 
     test('L3 parse JSON co text bao quanh va map dung risk', () {
@@ -77,6 +117,76 @@ void main() {
       expect(green1.overallRiskLevel, RiskLevel.red);
       expect(green2.overallRiskLevel, RiskLevel.red);
       expect(green3.overallRiskLevel, RiskLevel.orange);
+    });
+
+    test('L3 analyze dung cache cho cung mot transcript', () async {
+      GeminiMetrics.resetForTesting();
+      var requestCount = 0;
+      final analyzer = L3Analyzer(
+        apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
+        geminiClient: GeminiClient(
+          apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
+          config: GeminiConfig.forAnalysis(),
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                requestCount++;
+                return '{"level":"orange","label":"Canh bao","reason":"Co dau hieu dang ngo","recommendation":"Can than"}';
+              },
+        ),
+      );
+
+      const transcript =
+          'Toi la cong an, anh can xac minh thong tin tai khoan ngay bay gio.';
+      final first = await analyzer.analyze(transcript);
+      final second = await analyzer.analyze(transcript);
+
+      expect(requestCount, 1);
+      expect(first.overallRiskLevel, RiskLevel.orange);
+      expect(second.overallRiskLevel, RiskLevel.orange);
+      final metrics = analyzer.getMetrics();
+      expect(metrics.cacheMisses, 1);
+      expect(metrics.cacheHits, 1);
+    });
+
+    test('L3 incremental chi phan tich khi du do dai va cham bien cau', () async {
+      final prompts = <String>[];
+      final provider = StaticApiKeyProvider(const <String>['AIza_test']);
+      final analyzer = L3Analyzer(
+        apiKeyProvider: provider,
+        sessionFactory: () => GeminiChatSession(
+          apiKeyProvider: provider,
+          config: GeminiConfig.forAnalysis(),
+          chatExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required List<Content> history,
+                required String prompt,
+              }) async {
+                prompts.add(prompt);
+                return '{"level":"yellow","label":"Canh bao","reason":"Co dau hieu bat thuong","recommendation":"Can xem lai"}';
+              },
+        ),
+      );
+      analyzer.createSession();
+
+      final shortChunk = await analyzer.analyzeIncremental('Xin chao');
+      const fullText =
+          'Toi la cong an dang dieu tra ho so cua anh, vui long doc ma xac minh ngay.';
+      final fullResult = await analyzer.analyzeIncremental(fullText);
+
+      expect(shortChunk, isNull);
+      expect(fullResult, isNotNull);
+      expect(fullResult?.overallRiskLevel, RiskLevel.yellow);
+      expect(prompts, hasLength(1));
+      expect(prompts.single, contains('Toi la cong an dang dieu tra'));
+      expect(analyzer.processedTextLength, fullText.length);
     });
 
     test('Coordinator fallback L3 sang L2 khi Gemini loi mang', () async {

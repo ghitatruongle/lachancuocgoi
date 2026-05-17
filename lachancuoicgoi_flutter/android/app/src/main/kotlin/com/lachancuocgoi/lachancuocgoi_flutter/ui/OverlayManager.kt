@@ -272,11 +272,7 @@ object OverlayManager {
             val stopIntent = Intent(context, BackgroundMonitoringService::class.java).apply {
                 action = BackgroundMonitoringService.ACTION_STOP
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(stopIntent)
-            } else {
-                context.startService(stopIntent)
-            }
+            context.startService(stopIntent)
         } catch (_: Exception) {}
     }
 

@@ -178,11 +178,11 @@ class L3Analyzer implements Analyzer {
 
     final cached = _cache.get(text);
     if (cached != null) {
-      GeminiMetrics.recordCacheHit();
+      GeminiMetrics.instance.recordCacheHit();
       _lastResult = cached;
       return cached;
     }
-    GeminiMetrics.recordCacheMiss();
+    GeminiMetrics.instance.recordCacheMiss();
 
     final redaction = PIIStripper.redactPII(text);
     final prompt = PromptBuilder.buildAnalysisPrompt(redaction.redactedText);
@@ -296,7 +296,7 @@ class L3Analyzer implements Analyzer {
     _consecutiveGreenCount = 0;
   }
 
-  MetricsSnapshot getMetrics() => GeminiMetrics.getSnapshot();
+  MetricsSnapshot getMetrics() => GeminiMetrics.instance.getSnapshot();
 
   AnalysisResult parseResponse(String responseText, String modelName) {
     if (responseText.trim().isEmpty) {

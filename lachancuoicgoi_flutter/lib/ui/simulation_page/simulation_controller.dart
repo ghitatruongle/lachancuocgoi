@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/developer_mode_manager.dart';
 import 'simulation_data.dart';
 
 // ─── State ─────────────────────────────────────────────────────────────
@@ -33,10 +34,12 @@ class SimulationController extends Notifier<SimulationUiState> {
   List<SimulationScenarioData>? _allScenarios;
   String _searchQuery = '';
   String? _selectedCategory;
-  bool _isDevMode = false;
 
   @override
   SimulationUiState build() {
+    ref.listen<DeveloperModeState>(developerModeProvider, (_, next) {
+      _recompute(isDevMode: next.isActive);
+    });
     return const SimulationUiState();
   }
 
@@ -73,20 +76,16 @@ class SimulationController extends Notifier<SimulationUiState> {
     _selectedCategory = category;
     _recompute();
   }
-
-  void updateDevMode(bool isDev) {
-    _isDevMode = isDev;
-    _recompute();
-  }
-
-  void _recompute() {
+  void _recompute({bool? isDevMode}) {
     final scenarios = _allScenarios;
     if (scenarios == null) {
       state = const SimulationUiState();
       return;
     }
 
-    final sourceList = _isDevMode
+    final effectiveDevMode = isDevMode ?? ref.read(developerModeProvider).isActive;
+
+    final sourceList = effectiveDevMode
         ? scenarios
         : scenarios.where((s) => normalModeTitles.contains(s.title)).toList();
 
@@ -107,7 +106,7 @@ class SimulationController extends Notifier<SimulationUiState> {
       filteredScenarios: filtered,
       searchQuery: _searchQuery,
       selectedCategory: _selectedCategory,
-      isDevMode: _isDevMode,
+      isDevMode: effectiveDevMode,
     );
   }
 }

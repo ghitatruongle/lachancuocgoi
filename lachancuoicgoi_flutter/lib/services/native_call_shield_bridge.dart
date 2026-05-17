@@ -86,14 +86,14 @@ class PermissionSnapshot {
       callScreening;
 
   int get grantedCount => [
-        recordAudio,
-        phoneState,
-        callLog,
-        overlay,
-        notification,
-        accessibility,
-        callScreening,
-      ].where((p) => p).length;
+    recordAudio,
+    phoneState,
+    callLog,
+    overlay,
+    notification,
+    accessibility,
+    callScreening,
+  ].where((p) => p).length;
 
   static const int totalPermissions = 7;
 }
@@ -113,15 +113,19 @@ class NativeCallShieldBridge {
 
   static final NativeCallShieldBridge instance = NativeCallShieldBridge._();
 
-  static const _methodChannel =
-      MethodChannel('com.lachancuocgoi/native_bridge');
-  static const _transcriptChannel =
-      EventChannel('com.lachancuocgoi/transcript_stream');
+  static const _methodChannel = MethodChannel(
+    'com.lachancuocgoi/native_bridge',
+  );
+  static const _transcriptChannel = EventChannel(
+    'com.lachancuocgoi/transcript_stream',
+  );
   static const _rmsChannel = EventChannel('com.lachancuocgoi/rms_stream');
-  static const _monitoringStateChannel =
-      EventChannel('com.lachancuocgoi/monitoring_state');
-  static const _callEventChannel =
-      EventChannel('com.lachancuocgoi/call_events');
+  static const _monitoringStateChannel = EventChannel(
+    'com.lachancuocgoi/monitoring_state',
+  );
+  static const _callEventChannel = EventChannel(
+    'com.lachancuocgoi/call_events',
+  );
 
   // ─── MethodChannel calls ────────────────────────────────────────────────
 
@@ -131,10 +135,10 @@ class NativeCallShieldBridge {
     bool enableSpeakerphone = false,
   }) async {
     try {
-      final result = await _methodChannel.invokeMethod<bool>('startMonitoring', {
-        'phoneNumber': phoneNumber,
-        'enableSpeakerphone': enableSpeakerphone,
-      });
+      final result = await _methodChannel.invokeMethod<bool>(
+        'startMonitoring',
+        {'phoneNumber': phoneNumber, 'enableSpeakerphone': enableSpeakerphone},
+      );
       return result ?? false;
     } on PlatformException catch (e) {
       debugPrint('NativeBridge.startMonitoring error: $e');
@@ -153,11 +157,39 @@ class NativeCallShieldBridge {
     }
   }
 
+  /// Start creator monitoring via MediaProjection on Android.
+  Future<bool> startCreatorMonitoring({required int devModeExpiresAtMs}) async {
+    try {
+      final result = await _methodChannel.invokeMethod<bool>(
+        'startCreatorMonitoring',
+        {'devModeExpiresAtMs': devModeExpiresAtMs},
+      );
+      return result ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('NativeBridge.startCreatorMonitoring error: $e');
+      return false;
+    }
+  }
+
+  /// Stop creator monitoring service.
+  Future<bool> stopCreatorMonitoring() async {
+    try {
+      final result = await _methodChannel.invokeMethod<bool>(
+        'stopCreatorMonitoring',
+      );
+      return result ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('NativeBridge.stopCreatorMonitoring error: $e');
+      return false;
+    }
+  }
+
   /// Show RED alert overlay on Android.
   Future<bool> showRedAlert(String reason) async {
     try {
-      final result = await _methodChannel
-          .invokeMethod<bool>('showRedAlert', {'reason': reason});
+      final result = await _methodChannel.invokeMethod<bool>('showRedAlert', {
+        'reason': reason,
+      });
       return result ?? false;
     } on PlatformException catch (e) {
       debugPrint('NativeBridge.showRedAlert error: $e');
@@ -168,8 +200,10 @@ class NativeCallShieldBridge {
   /// Show ORANGE alert overlay on Android.
   Future<bool> showOrangeAlert(String reason) async {
     try {
-      final result = await _methodChannel
-          .invokeMethod<bool>('showOrangeAlert', {'reason': reason});
+      final result = await _methodChannel.invokeMethod<bool>(
+        'showOrangeAlert',
+        {'reason': reason},
+      );
       return result ?? false;
     } on PlatformException catch (e) {
       debugPrint('NativeBridge.showOrangeAlert error: $e');
@@ -191,8 +225,9 @@ class NativeCallShieldBridge {
   /// Get current permission status snapshot.
   Future<PermissionSnapshot> getPermissionSnapshot() async {
     try {
-      final result =
-          await _methodChannel.invokeMethod<Map>('getPermissionSnapshot');
+      final result = await _methodChannel.invokeMethod<Map>(
+        'getPermissionSnapshot',
+      );
       if (result != null) {
         return PermissionSnapshot.fromMap(result);
       }
@@ -205,8 +240,9 @@ class NativeCallShieldBridge {
   /// Open Android Accessibility Settings.
   Future<bool> openAccessibilitySettings() async {
     try {
-      final result =
-          await _methodChannel.invokeMethod<bool>('openAccessibilitySettings');
+      final result = await _methodChannel.invokeMethod<bool>(
+        'openAccessibilitySettings',
+      );
       return result ?? false;
     } on PlatformException catch (e) {
       debugPrint('NativeBridge.openAccessibilitySettings error: $e');
@@ -217,8 +253,9 @@ class NativeCallShieldBridge {
   /// Request Call Screening role (Android Q+).
   Future<bool> requestCallScreeningRole() async {
     try {
-      final result =
-          await _methodChannel.invokeMethod<bool>('requestCallScreeningRole');
+      final result = await _methodChannel.invokeMethod<bool>(
+        'requestCallScreeningRole',
+      );
       return result ?? false;
     } on PlatformException catch (e) {
       debugPrint('NativeBridge.requestCallScreeningRole error: $e');
@@ -226,11 +263,25 @@ class NativeCallShieldBridge {
     }
   }
 
+  /// Request READ_PHONE_STATE + READ_CALL_LOG on Android.
+  Future<bool> requestPhoneAndCallLogPermissions() async {
+    try {
+      final result = await _methodChannel.invokeMethod<bool>(
+        'requestPhoneAndCallLogPermissions',
+      );
+      return result ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('NativeBridge.requestPhoneAndCallLogPermissions error: $e');
+      return false;
+    }
+  }
+
   /// Check if overlay permission is granted.
   Future<bool> checkOverlayPermission() async {
     try {
-      final result =
-          await _methodChannel.invokeMethod<bool>('checkOverlayPermission');
+      final result = await _methodChannel.invokeMethod<bool>(
+        'checkOverlayPermission',
+      );
       return result ?? false;
     } on PlatformException catch (e) {
       debugPrint('NativeBridge.checkOverlayPermission error: $e');
@@ -241,8 +292,9 @@ class NativeCallShieldBridge {
   /// Request overlay permission.
   Future<bool> requestOverlayPermission() async {
     try {
-      final result =
-          await _methodChannel.invokeMethod<bool>('requestOverlayPermission');
+      final result = await _methodChannel.invokeMethod<bool>(
+        'requestOverlayPermission',
+      );
       return result ?? false;
     } on PlatformException catch (e) {
       debugPrint('NativeBridge.requestOverlayPermission error: $e');
@@ -253,8 +305,9 @@ class NativeCallShieldBridge {
   /// Check if accessibility service is enabled.
   Future<bool> isAccessibilityEnabled() async {
     try {
-      final result =
-          await _methodChannel.invokeMethod<bool>('isAccessibilityEnabled');
+      final result = await _methodChannel.invokeMethod<bool>(
+        'isAccessibilityEnabled',
+      );
       return result ?? false;
     } on PlatformException catch (e) {
       debugPrint('NativeBridge.isAccessibilityEnabled error: $e');
@@ -265,8 +318,9 @@ class NativeCallShieldBridge {
   /// Check if monitoring service is currently running.
   Future<bool> isMonitoringActive() async {
     try {
-      final result =
-          await _methodChannel.invokeMethod<bool>('isMonitoringActive');
+      final result = await _methodChannel.invokeMethod<bool>(
+        'isMonitoringActive',
+      );
       return result ?? false;
     } on PlatformException catch (e) {
       debugPrint('NativeBridge.isMonitoringActive error: $e');
@@ -274,13 +328,28 @@ class NativeCallShieldBridge {
     }
   }
 
+  /// Check if creator monitoring service is currently running.
+  Future<bool> isCreatorMonitoringActive() async {
+    try {
+      final result = await _methodChannel.invokeMethod<bool>(
+        'isCreatorMonitoringActive',
+      );
+      return result ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('NativeBridge.isCreatorMonitoringActive error: $e');
+      return false;
+    }
+  }
+
   // ─── EventChannel streams ──────────────────────────────────────────────
 
   /// Stream of transcript text from native STT.
-  Stream<String> get transcriptStream =>
-      _transcriptChannel.receiveBroadcastStream().map((event) {
+  Stream<String> get transcriptStream => _transcriptChannel
+      .receiveBroadcastStream()
+      .map((event) {
         return event?.toString() ?? '';
-      }).where((text) => text.isNotEmpty);
+      })
+      .where((text) => text.isNotEmpty);
 
   /// Stream of RMS (volume) values from native STT for waveform display.
   Stream<double> get rmsStream =>

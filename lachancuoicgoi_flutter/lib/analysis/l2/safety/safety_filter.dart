@@ -11,41 +11,9 @@ class SafetyFilter {
   static const String configFile = 'safety_keywords.json';
 
   static int _openingSectionLength = 200;
-  static List<String> _casualPhrases = <String>[
-    'ăn cơm chưa',
-    'đi chơi không',
-    'đang làm gì đấy',
-    'thế à',
-    'vậy hả',
-    'mẹ đây',
-    'bố đây',
-    'con đang',
-    'chút nữa gọi lại',
-    'mua rau',
-    'đi chợ',
-  ];
-  static List<String> _standardTransactions = <String>[
-    'chuyển khoản tiền trọ',
-    'tiền cơm',
-    'chia tiền nốt',
-    'chuyển tiền học phí',
-    'trả tiền điện',
-  ];
-  static List<String> _dangerOverrides = <String>[
-    'số tài khoản',
-    'mã otp',
-    'chuyển khoản',
-    'mật khẩu',
-    'cccd',
-    'cmnd',
-    'công an',
-    'kiểm sát',
-    'tải ứng dụng',
-    'cài app',
-    'link',
-    'bắt cóc',
-    'tống tiền',
-  ];
+  static List<String> _casualPhrases = <String>[];
+  static List<String> _standardTransactions = <String>[];
+  static List<String> _dangerOverrides = <String>[];
   static double _casualReductionPerMatch = 0.15;
   static double _transactionReductionPerMatch = 0.30;
   static double _minMultiplier = 0.4;

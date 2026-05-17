@@ -14,17 +14,21 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.lachancuocgoi.lachancuocgoi_flutter.R
+import com.lachancuocgoi.lachancuocgoi_flutter.audio.CreatorAudioCaptureManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.max
+import kotlin.math.min
 
 /**
- * Creator Mode media projection service for developer/debug mode.
- * Captures system audio via MediaProjection and processes through Vosk STT.
+ * Creator Mode service that captures system audio through MediaProjection and
+ * forwards transcript/RMS events to Flutter.
  */
 class CreatorMediaProjectionService : Service() {
 
@@ -33,10 +37,17 @@ class CreatorMediaProjectionService : Service() {
         const val ACTION_START = "START"
         const val ACTION_STOP = "STOP"
         private const val TAG = "CreatorService"
+        private const val NOTIFICATION_ID = 2001
+        private const val CHANNEL_ID = "media_projection_channel"
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var captureJob: Job? = null
+    private var transcriptJob: Job? = null
+    private var devModeWatchdogJob: Job? = null
+    private var projection: MediaProjection? = null
+    private var startedAtMs: Long = 0L
+    private var stopEventSent = false
 
     private lateinit var voskSttManager: VoskSttManager
 
@@ -50,44 +61,21 @@ class CreatorMediaProjectionService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             stopCapture()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                @Suppress("DEPRECATION")
-                stopForeground(true)
-            }
+            stopForegroundCompat()
             stopSelf()
             return START_NOT_STICKY
         }
 
         createNotificationChannel()
+        startForegroundInternal()
 
-        val stopIntent = Intent(this, CreatorMediaProjectionService::class.java).apply {
-            action = ACTION_STOP
-        }
-        val stopPendingIntent = PendingIntent.getService(
-            this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val notification = NotificationCompat.Builder(this, "media_projection_channel")
-            .setContentTitle("Lá chắn cuộc gọi")
-            .setContentText("Creator Mode: Đang ghi âm ngầm (Live)")
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .addAction(0, "DỪNG", stopPendingIntent)
-            .build()
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    startForeground(2001, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-                } else {
-                    startForeground(2001, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
-                }
-            } else {
-                startForeground(2001, notification)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to start foreground", e)
+        val devModeExpiresAtMs = intent?.getLongExtra("devModeExpiresAtMs", 0L) ?: 0L
+        if (devModeExpiresAtMs <= System.currentTimeMillis()) {
+            Log.w(TAG, "Developer Mode expired or missing. Stopping Creator service.")
+            stopCapture()
+            stopForegroundCompat()
+            stopSelf()
+            return START_NOT_STICKY
         }
 
         val code = intent?.getIntExtra("code", 0) ?: 0
@@ -102,22 +90,149 @@ class CreatorMediaProjectionService : Service() {
             try {
                 val mediaProjectionManager =
                     getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                val projection = mediaProjectionManager.getMediaProjection(code, data)
-                if (projection != null) {
-                    onMediaProjectionReady?.invoke(projection)
+                val readyProjection = mediaProjectionManager.getMediaProjection(code, data)
+                if (readyProjection != null) {
+                    projection = readyProjection
+                    onMediaProjectionReady?.invoke(readyProjection)
+                    startAudioLoop(readyProjection, devModeExpiresAtMs)
                 }
                 Log.d(TAG, "MediaProjection obtained successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to get MediaProjection", e)
+                NativeBridgeEventSink.sendMonitoringState("STOPPED:0:")
             }
         }
 
         return START_NOT_STICKY
     }
 
+    private fun startForegroundInternal() {
+        val stopIntent = Intent(this, CreatorMediaProjectionService::class.java).apply {
+            action = ACTION_STOP
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            this,
+            0,
+            stopIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText("Creator Mode: Đang ghi âm ngầm (Live)")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setOngoing(true)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "DỪNG", stopPendingIntent)
+            .build()
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val foregroundType =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION or
+                            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                    } else {
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                    }
+                startForeground(NOTIFICATION_ID, notification, foregroundType)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start foreground", e)
+        }
+    }
+
+    private fun startAudioLoop(mediaProjection: MediaProjection, devModeExpiresAtMs: Long) {
+        startedAtMs = System.currentTimeMillis()
+        stopEventSent = false
+        val record = CreatorAudioCaptureManager.startCapture(mediaProjection)
+        if (record == null) {
+            sendStoppedState()
+            return
+        }
+
+        voskSttManager.resetTranscript()
+        NativeBridgeEventSink.sendMonitoringState("STARTED")
+
+        devModeWatchdogJob?.cancel()
+        devModeWatchdogJob = serviceScope.launch {
+            while (isActive) {
+                val remainingMs = devModeExpiresAtMs - System.currentTimeMillis()
+                if (remainingMs <= 0L) {
+                    Log.w(TAG, "Developer Mode expired. Stopping Creator service.")
+                    stopCapture()
+                    stopForegroundCompat()
+                    stopSelf()
+                    break
+                }
+                delay(max(1000L, min(5000L, remainingMs)))
+            }
+        }
+
+        transcriptJob?.cancel()
+        transcriptJob = serviceScope.launch {
+            voskSttManager.creatorTranscriptFlow.collectLatest { text ->
+                if (text.isNotBlank()) {
+                    CreatorAudioCaptureManager.updateTranscript(text)
+                    NativeBridgeEventSink.sendTranscript(text)
+                }
+            }
+        }
+
+        captureJob?.cancel()
+        captureJob = serviceScope.launch {
+            val buffer = ByteArray(CreatorAudioCaptureManager.BUFFER_SIZE)
+            try {
+                while (isActive) {
+                    val read = record.read(buffer, 0, buffer.size)
+                    if (read > 0) {
+                        val amplitude = buffer.take(read)
+                            .chunked(2)
+                            .mapNotNull { bytes ->
+                                if (bytes.size < 2) {
+                                    null
+                                } else {
+                                    (bytes[1].toInt() shl 8 or (bytes[0].toInt() and 0xFF))
+                                        .toShort()
+                                        .toInt()
+                                }
+                            }
+                            .map { kotlin.math.abs(it).toFloat() }
+                            .average()
+                            .toFloat()
+                        val normalizedRms = (amplitude / 2184f).coerceIn(0f, 15f)
+                        CreatorAudioCaptureManager.emitAmplitude(normalizedRms)
+                        NativeBridgeEventSink.sendRms(normalizedRms)
+                        voskSttManager.processAudioBuffer(buffer, read)
+                    } else if (read < 0) {
+                        break
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Creator capture loop failed", e)
+            }
+        }
+    }
+
     private fun stopCapture() {
         captureJob?.cancel()
+        transcriptJob?.cancel()
+        devModeWatchdogJob?.cancel()
+        projection?.stop()
+        projection = null
+        CreatorAudioCaptureManager.stopCapture()
         voskSttManager.destroy()
+        sendStoppedState()
+    }
+
+    private fun sendStoppedState() {
+        if (stopEventSent) return
+        stopEventSent = true
+        val durationSeconds =
+            if (startedAtMs > 0L) ((System.currentTimeMillis() - startedAtMs) / 1000L).toInt() else 0
+        val finalTranscript = CreatorAudioCaptureManager.creatorTranscriptFlow.value
+        NativeBridgeEventSink.sendMonitoringState("STOPPED:$durationSeconds:$finalTranscript")
     }
 
     override fun onDestroy() {
@@ -125,12 +240,21 @@ class CreatorMediaProjectionService : Service() {
         stopCapture()
     }
 
+    private fun stopForegroundCompat() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+    }
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                "media_projection_channel",
+                CHANNEL_ID,
                 "Media Projection Service",
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_HIGH,
             )
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)

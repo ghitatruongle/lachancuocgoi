@@ -97,7 +97,7 @@ class GeminiClient {
           final parsed = parser(responseText, modelName);
           keyHealthTracker?.markSuccess(keyIndex);
           _recordSuccess();
-          GeminiMetrics.recordCall(
+          GeminiMetrics.instance.recordCall(
             success: true,
             latencyMs: DateTime.now().difference(startTime).inMilliseconds,
             keyIndex: keyIndex,
@@ -129,7 +129,7 @@ class GeminiClient {
     if (keyHealthTracker?.areAllKeysDown() ?? false) {
       _notifyAllKeysExhausted();
     }
-    GeminiMetrics.recordCall(
+    GeminiMetrics.instance.recordCall(
       success: false,
       latencyMs: DateTime.now().difference(startTime).inMilliseconds,
     );
