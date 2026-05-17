@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-class AudioWaveform extends StatefulWidget {
+class AudioWaveform extends StatelessWidget {
   const AudioWaveform({
     super.key,
     required this.amplitudes,
@@ -12,25 +12,9 @@ class AudioWaveform extends StatefulWidget {
   final ValueListenable<int> elapsedSeconds;
 
   @override
-  State<AudioWaveform> createState() => _AudioWaveformState();
-}
-
-class _AudioWaveformState extends State<AudioWaveform> {
-  _WaveformPainter? _cachedPainter;
-
-  @override
-  void didUpdateWidget(AudioWaveform oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Luôn tạo painter mới khi amplitudes thay đổi — shouldRepaint kiểm tra element-wise
-    _cachedPainter =
-        _WaveformPainter(amplitudes: widget.amplitudes);
-  }
-
-  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
-    _cachedPainter ??= _WaveformPainter(amplitudes: widget.amplitudes);
+    final tt = Theme.of(context).textTheme;
 
     return Container(
       decoration: BoxDecoration(
@@ -50,16 +34,15 @@ class _AudioWaveformState extends State<AudioWaveform> {
                   _MonitoringLabel(),
                 ],
               ),
-              _ElapsedTimeDisplay(elapsedSeconds: widget.elapsedSeconds),
+              _ElapsedTimeDisplay(elapsedSeconds: elapsedSeconds),
             ],
           ),
           const SizedBox(height: 8),
-          SizedBox(
-            height: 100,
-            width: double.infinity,
+          Expanded(
             child: RepaintBoundary(
               child: CustomPaint(
-                painter: _cachedPainter!,
+                size: const Size(double.infinity, 100),
+                painter: _WaveformPainter(amplitudes: amplitudes),
               ),
             ),
           ),
@@ -110,18 +93,48 @@ class _ElapsedTimeDisplay extends StatelessWidget {
   }
 }
 
-class _FlashingDot extends StatelessWidget {
+class _FlashingDot extends StatefulWidget {
   const _FlashingDot();
 
   @override
+  State<_FlashingDot> createState() => _FlashingDotState();
+}
+
+class _FlashingDotState extends State<_FlashingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.2, end: 1.0).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 8,
-      height: 8,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.red,
-      ),
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, _) {
+        return Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.red.withValues(alpha: _animation.value),
+          ),
+        );
+      },
     );
   }
 }
@@ -139,12 +152,11 @@ class _WaveformPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (amplitudes.isEmpty) return;
 
-    final paint = _paint;
     final barCount = amplitudes.length;
     final barWidth = size.width / (2 * barCount - 1);
     final maxAmp = size.height / 2;
 
-    paint.strokeWidth = barWidth;
+    _paint.strokeWidth = barWidth;
 
     for (var i = 0; i < barCount; i++) {
       final x = i * 2 * barWidth;
@@ -152,7 +164,7 @@ class _WaveformPainter extends CustomPainter {
       canvas.drawLine(
         Offset(x, size.height / 2 - amp),
         Offset(x, size.height / 2 + amp),
-        paint,
+        _paint,
       );
     }
   }
