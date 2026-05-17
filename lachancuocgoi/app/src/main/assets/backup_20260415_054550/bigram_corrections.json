@@ -1,0 +1,129 @@
+{
+  "corrections": [
+    {
+      "from": ["nhan", "hang"],
+      "to": ["ngan", "hang"],
+      "note": "nhân hàng → ngân hàng (STT lỗi phổ biến nhất)"
+    },
+    {
+      "from": ["tai", "khoan"],
+      "to": ["tai", "khoan"],
+      "note": "tại khoản → tài khoản (normalize giữ nguyên)"
+    },
+    {
+      "from": ["can", "bo"],
+      "to": ["cong", "an"],
+      "note": "cán bộ → công an (chỉ khi đi cặp)"
+    },
+    {
+      "from": ["chuyen", "khoan"],
+      "to": ["chuyen", "khoan"],
+      "note": "chuyện khoản → chuyển khoản (normalize giữ nguyên)"
+    },
+    {
+      "from": ["cong", "ang"],
+      "to": ["cong", "an"],
+      "note": "công àng → công an (STT nuốt phụ âm cuối)"
+    },
+    {
+      "from": ["ma", "ot"],
+      "to": ["ma", "otp"],
+      "note": "mã ót → mã otp (STT không nhận ký tự viết tắt)"
+    },
+    {
+      "from": ["ma", "op"],
+      "to": ["ma", "otp"],
+      "note": "mã ốp → mã otp"
+    },
+    {
+      "from": ["nha", "mam"],
+      "to": ["nha", "mang"],
+      "note": "nhà mạm → nhà mạng (STT lỗi phụ âm cuối)"
+    },
+    {
+      "from": ["can", "cuop"],
+      "to": ["can", "cuoc"],
+      "note": "căn cướp → căn cước (STT nhầm thanh điệu)"
+    },
+    {
+      "from": ["thu", "bao"],
+      "to": ["thue", "bao"],
+      "note": "thư bao → thuê bao (STT nhầm nguyên âm)"
+    },
+    {
+      "from": ["toong", "tien"],
+      "to": ["tong", "tien"],
+      "note": "toong tiền → tống tiền (STT thêm nguyên âm)"
+    },
+    {
+      "from": ["xa", "minh"],
+      "to": ["xac", "minh"],
+      "note": "xà minh → xác minh (STT nuốt phụ âm cuối)"
+    },
+    {
+      "from": ["dinh", "dan"],
+      "to": ["dinh", "danh"],
+      "note": "định dàn → định danh (STT nuốt h cuối)"
+    },
+    {
+      "from": ["vien", "phi"],
+      "to": ["vien", "phi"],
+      "note": "viện phì → viện phí (normalize giữ nguyên)"
+    },
+    {
+      "from": ["sinh", "trac"],
+      "to": ["sinh", "trac"],
+      "note": "sinh trạc → sinh trắc (normalize giữ nguyên)"
+    },
+    {
+      "from": ["phong", "toa"],
+      "to": ["phong", "toa"],
+      "note": "phong tọa → phong tỏa (normalize giữ nguyên)"
+    },
+    {
+      "from": ["bat", "cop"],
+      "to": ["bat", "coc"],
+      "note": "bắt cóp → bắt cóc (STT nhầm phụ âm cuối)"
+    },
+    {
+      "from": ["lua", "dao"],
+      "to": ["lua", "dao"],
+      "note": "lừa đạo → lừa đảo (normalize giữ nguyên)"
+    },
+    {
+      "from": ["dau", "tu"],
+      "to": ["dau", "tu"],
+      "note": "dầu tư → đầu tư (normalize giữ nguyên)"
+    },
+    {
+      "from": ["vay", "tien"],
+      "to": ["vay", "tien"],
+      "note": "vay tiền (normalize giữ nguyên)"
+    },
+    {
+      "from": ["mat", "khau"],
+      "to": ["mat", "khau"],
+      "note": "mật khấu → mật khẩu (normalize giữ nguyên)"
+    },
+    {
+      "from": ["chuyen", "tien"],
+      "to": ["chuyen", "tien"],
+      "note": "chuyện tiền → chuyển tiền (normalize giữ nguyên)"
+    },
+    {
+      "from": ["khoa", "sim"],
+      "to": ["khoa", "sim"],
+      "note": "khóa SIM (normalize giữ nguyên)"
+    },
+    {
+      "from": ["doi", "no"],
+      "to": ["doi", "no"],
+      "note": "đồi nợ → đòi nợ (normalize giữ nguyên)"
+    },
+    {
+      "from": ["trung", "thuong"],
+      "to": ["trung", "thuong"],
+      "note": "trúng thưởng → trúng thưởng (normalize giữ nguyên)"
+    }
+  ]
+}

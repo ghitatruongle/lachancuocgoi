@@ -1,0 +1,35 @@
+{
+  "openingSectionLength": 200,
+  "casualPhrases": [
+    "ăn cơm chưa", "đi chơi không", "đang làm gì đấy", "thế à", "vậy hả",
+    "mẹ đây", "bố đây", "con đang", "chút nữa gọi lại", "mua rau", "đi chợ",
+    "alo", "ơi", "dạ", "nè", "khỏe không",
+    "mới đi làm về", "mai gặp nhé", "tối nay rảnh không",
+    "đang ở đâu", "gọi lại sau nhé", "ok rồi",
+    "cảm ơn nha", "bận quá", "tí nhé", "nghỉ trưa chưa",
+    "đón con", "đi học", "về nhà", "đi ngủ chưa",
+    "hẹn gặp", "chiều nay", "sáng mai", "tuần sau",
+    "đi công tác", "họp rồi", "đang bận", "đã nhận",
+    "tạm biệt", "bye bye", "hẹn lại", "chào nhé"
+  ],
+  "standardTransactions": [
+    "chuyển khoản tiền trọ", "tiền cơm", "chia tiền nốt", "chuyển tiền học phí", "trả tiền điện",
+    "chuyển tiền trọ", "tiền điện tháng", "tiền nước tháng",
+    "trả tiền grab", "thanh toán shopee", "chuyển lương",
+    "tiền ăn trưa", "tiền xăng", "nạp điện thoại", "thuê phòng",
+    "tiền internet", "gửi tiền cho mẹ", "tiền nhà", "tiền bảo hiểm xe",
+    "trả góp hàng tháng", "phí gửi xe", "tiền cà phê", "tiền taxi"
+  ],
+  "dangerOverrides": [
+    "số tài khoản", "mã otp", "chuyển khoản", "mật khẩu",
+    "cccd", "cmnd", "công an", "kiểm sát", "tải ứng dụng",
+    "cài app", "link", "bắt cóc", "tống tiền",
+    "chia sẻ màn hình", "cấp quyền truy cập", "quét khuôn mặt",
+    "seed phrase", "private key", "deepfake",
+    "video call xác minh", "cài teamviewer", "cài anydesk",
+    "remote desktop", "mã pin", "phong tỏa tài khoản"
+  ],
+  "casualReductionPerMatch": 0.15,
+  "transactionReductionPerMatch": 0.30,
+  "minMultiplier": 0.4
+}
