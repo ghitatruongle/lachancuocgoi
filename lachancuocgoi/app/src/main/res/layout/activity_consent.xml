@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".ConsentActivity">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Quyền Ghi Âm"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Ứng dụng này cần quyền truy cập micrô để ghi âm và phân tích các cuộc gọi của bạn nhằm phát hiện các mối đe dọa tiềm ẩn. Chúng tôi cam kết bảo vệ quyền riêng tư của bạn và sẽ không chia sẻ bản ghi âm của bạn với bất kỳ bên thứ ba nào." />
+
+    <CheckBox
+        android:id="@+id/consent_checkbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Tôi đồng ý cho ứng dụng ghi âm các cuộc gọi của mình" />
+
+    <Button
+        android:id="@+id/continue_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="16dp"
+        android:enabled="false"
+        android:text="Tiếp tục" />
+
+</LinearLayout>
