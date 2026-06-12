@@ -246,8 +246,10 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       }
       _iosTimerTicks++;
 
-      // 1. Emit simulated RMS (waveform data) every 100ms
-      final double mockRms = 25.0 + 15.0 * (1.0 + double.parse((_iosTimerTicks % 30).toString()) / 30.0);
+      // 1. Emit simulated RMS (waveform data) every 100ms.
+      // Thang giả lập khớp rmsDb của Android (~ -2..10 dB) để pipeline
+      // chuẩn hóa waveform hoạt động giống nhau trên mọi nền tảng.
+      final double mockRms = 2.0 + 6.0 * ((_iosTimerTicks % 30) / 30.0);
       _iosRmsController.add(mockRms);
 
       // 2. Emit simulated scam script sentence every 10 seconds (100 ticks)
