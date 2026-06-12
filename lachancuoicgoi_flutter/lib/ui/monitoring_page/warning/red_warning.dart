@@ -18,6 +18,7 @@ class RedWarning extends StatelessWidget {
       subtitle: title,
       buttonColor: Colors.red,
       onDismiss: onDismiss,
+      isUrgent: true, // Heavy haptic feedback — break psychological manipulation
     );
   }
 }
