@@ -1,5 +1,9 @@
 package com.lachancuocgoi.lachancuocgoi_flutter.ui
 
+import android.media.AudioAttributes
+import android.media.MediaPlayer
+import android.media.RingtoneManager
+import android.net.Uri
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -36,6 +40,14 @@ object OverlayManager {
     private var monitoringOverlayView: View? = null
     private var incomingCallOverlayView: View? = null
 
+    // Alarm sound player — plays system alarm ringtone on RED alerts
+    // to break the victim's psychological manipulation state.
+    private var alarmPlayer: MediaPlayer? = null
+
+    // Handler for repeating heavy vibration pattern on RED alerts.
+    private val heavyVibrationHandler = Handler(Looper.getMainLooper())
+    private var heavyVibrationRunnable: Runnable? = null
+
     // Timer state for monitoring overlay
     private var monitoringStartTime: Long = 0L
     private var timerHandler: Handler? = null
@@ -71,16 +83,24 @@ object OverlayManager {
     // =========================================================================
 
     fun showRedAlert(context: Context, reason: String) {
-        showAlert(context, Color.parseColor("#F44336"), "CẢNH BÁO LỪA ĐẢO!", reason)
+        showAlert(context, Color.parseColor("#F44336"), "CẢNH BÁO LỪA ĐẢO!", reason, isRed = true)
     }
 
     fun showOrangeAlert(context: Context, reason: String) {
-        showAlert(context, Color.parseColor("#FF9800"), "CẢNH BÁO NGUY CƠ", reason)
+        showAlert(context, Color.parseColor("#FF9800"), "CẢNH BÁO NGUY CƠ", reason, isRed = false)
     }
 
-    private fun showAlert(context: Context, color: Int, title: String, summary: String) {
+    private fun showAlert(context: Context, color: Int, title: String, summary: String, isRed: Boolean) {
         removeAlertOverlay(context)
-        vibrate(context)
+
+        // RED: heavy vibration + alarm sound to break psychological manipulation.
+        // ORANGE: single light vibration only.
+        if (isRed) {
+            startHeavyVibration(context)
+            playAlarmSound(context)
+        } else {
+            vibrate(context)
+        }
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -182,6 +202,8 @@ object OverlayManager {
     }
 
     fun removeAlertOverlay(context: Context) {
+        stopAlarmSound()
+        stopHeavyVibration()
         alertOverlayView?.let {
             try { getWindowManager(context).removeView(it) } catch (_: Exception) {}
             alertOverlayView = null
@@ -506,21 +528,113 @@ object OverlayManager {
         } catch (_: Exception) {}
     }
 
+    /**
+     * Single light vibration (500ms) — used for ORANGE alerts.
+     */
     private fun vibrate(context: Context) {
         try {
-            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                vibratorManager.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            }
+            val vibrator = getVibrator(context) ?: return
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
             } else {
                 @Suppress("DEPRECATION") vibrator.vibrate(500)
             }
         } catch (_: Exception) {}
+    }
+
+    /**
+     * Heavy vibration pattern — repeated bursts designed to break the
+     * victim's psychological manipulation state during RED alerts.
+     *
+     * Pattern: [0ms silence, 400ms vibrate, 150ms silence, 400ms vibrate,
+     *           150ms silence, 400ms vibrate] — then repeat every 2 seconds.
+     */
+    private fun startHeavyVibration(context: Context) {
+        stopHeavyVibration()
+        try {
+            val vibrator = getVibrator(context) ?: return
+            // Pattern: wait, vibrate, pause, vibrate, pause, vibrate
+            val pattern = longArrayOf(0, 400, 150, 400, 150, 400)
+            val repeatIndex = 0 // repeat from the beginning
+
+            heavyVibrationRunnable = object : Runnable {
+                override fun run() {
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            vibrator.vibrate(
+                                VibrationEffect.createWaveform(pattern, repeatIndex)
+                            )
+                        } else {
+                            @Suppress("DEPRECATION")
+                            vibrator.vibrate(pattern, repeatIndex)
+                        }
+                    } catch (_: Exception) {}
+                    // Re-trigger every 2 seconds to sustain the heavy vibration
+                    // feel even if the OS limits the waveform duration.
+                    heavyVibrationHandler.postDelayed(this, 2000L)
+                }
+            }
+            heavyVibrationHandler.post(heavyVibrationRunnable!!)
+        } catch (_: Exception) {}
+    }
+
+    private fun stopHeavyVibration() {
+        heavyVibrationRunnable?.let { heavyVibrationHandler.removeCallbacks(it) }
+        heavyVibrationRunnable = null
+    }
+
+    /**
+     * Plays the system default ALARM ringtone in a loop.
+     * Uses MediaPlayer so we can control start/stop precisely.
+     * This is the "âm thanh báo động" described in the thesis — designed
+     * to immediately grab the victim's attention and break the scammer's
+     * psychological hold.
+     */
+    private fun playAlarmSound(context: Context) {
+        stopAlarmSound()
+        try {
+            val alarmUri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                ?: return
+
+            alarmPlayer = MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                setDataSource(context, alarmUri)
+                isLooping = true
+                setVolume(1.0f, 1.0f) // Maximum volume
+                prepare()
+                start()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("OverlayManager", "Failed to play alarm sound", e)
+            alarmPlayer = null
+        }
+    }
+
+    private fun stopAlarmSound() {
+        try {
+            alarmPlayer?.let {
+                if (it.isPlaying) it.stop()
+                it.release()
+            }
+        } catch (_: Exception) {}
+        alarmPlayer = null
+    }
+
+    private fun getVibrator(context: Context): Vibrator? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager =
+                context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
     }
 
     fun removeAll(context: Context) {
