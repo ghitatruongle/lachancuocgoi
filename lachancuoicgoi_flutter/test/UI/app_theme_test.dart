@@ -40,7 +40,7 @@ void main() {
       expect(
         AppTheme.shapes.extraSmall,
         isA<RoundedRectangleBorder>().having(
-          (b) => (b as RoundedRectangleBorder).borderRadius,
+          (b) => b.borderRadius,
           'borderRadius',
           const BorderRadius.all(Radius.circular(10)),
         ),
@@ -48,7 +48,7 @@ void main() {
       expect(
         AppTheme.shapes.small,
         isA<RoundedRectangleBorder>().having(
-          (b) => (b as RoundedRectangleBorder).borderRadius,
+          (b) => b.borderRadius,
           'borderRadius',
           const BorderRadius.all(Radius.circular(14)),
         ),
@@ -56,7 +56,7 @@ void main() {
       expect(
         AppTheme.shapes.medium,
         isA<RoundedRectangleBorder>().having(
-          (b) => (b as RoundedRectangleBorder).borderRadius,
+          (b) => b.borderRadius,
           'borderRadius',
           const BorderRadius.all(Radius.circular(18)),
         ),
@@ -64,7 +64,7 @@ void main() {
       expect(
         AppTheme.shapes.large,
         isA<RoundedRectangleBorder>().having(
-          (b) => (b as RoundedRectangleBorder).borderRadius,
+          (b) => b.borderRadius,
           'borderRadius',
           const BorderRadius.all(Radius.circular(24)),
         ),
@@ -72,7 +72,7 @@ void main() {
       expect(
         AppTheme.shapes.extraLarge,
         isA<RoundedRectangleBorder>().having(
-          (b) => (b as RoundedRectangleBorder).borderRadius,
+          (b) => b.borderRadius,
           'borderRadius',
           const BorderRadius.all(Radius.circular(28)),
         ),
@@ -128,8 +128,8 @@ void main() {
     });
 
     test('card theme has rounded shape', () {
-      expect(theme.cardTheme?.shape, isA<RoundedRectangleBorder>());
-      final shape = theme.cardTheme!.shape as RoundedRectangleBorder;
+      expect(theme.cardTheme.shape, isA<RoundedRectangleBorder>());
+      final shape = theme.cardTheme.shape as RoundedRectangleBorder;
       expect(
         shape.borderRadius,
         const BorderRadius.all(Radius.circular(18)),
@@ -137,8 +137,8 @@ void main() {
     });
 
     test('dialog theme has large rounded shape', () {
-      expect(theme.dialogTheme?.shape, isA<RoundedRectangleBorder>());
-      final shape = theme.dialogTheme!.shape as RoundedRectangleBorder;
+      expect(theme.dialogTheme.shape, isA<RoundedRectangleBorder>());
+      final shape = theme.dialogTheme.shape as RoundedRectangleBorder;
       expect(
         shape.borderRadius,
         const BorderRadius.all(Radius.circular(24)),
@@ -214,11 +214,11 @@ void main() {
     });
 
     test('card theme survives dark mode', () {
-      expect(theme.cardTheme?.shape, isA<RoundedRectangleBorder>());
+      expect(theme.cardTheme.shape, isA<RoundedRectangleBorder>());
     });
 
     test('dialog theme survives dark mode', () {
-      expect(theme.dialogTheme?.shape, isA<RoundedRectangleBorder>());
+      expect(theme.dialogTheme.shape, isA<RoundedRectangleBorder>());
     });
   });
 

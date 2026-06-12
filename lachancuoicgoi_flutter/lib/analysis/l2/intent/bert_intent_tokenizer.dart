@@ -99,11 +99,17 @@ class BertIntentTokenizer {
     final unkId = vocab[unkToken] ?? 100;
     const maxTokens = maxSeqLen - 2;
 
-    // Truncation: giữ phần cuối của cuộc hội thoại (nơi chứa đỉnh điểm kịch bản lừa đảo)
-    // Các tín hiệu quan trọng nhất (OTP, chuyển tiền, đe dọa) thường xuất hiện ở cuối.
+    // Chiến lược Sliding Truncation (đồng bộ với Kotlin gold standard):
+    // Giữ 50 token đầu tiên (chứa lời xưng danh: cảnh sát, công an, ngân hàng...)
+    // + phần còn lại ở cuối (chứa đỉnh điểm kịch bản: OTP, chuyển tiền, đe dọa).
+    // Không dùng tail-only vì bỏ mất thông tin xưng danh ở đầu cuộc gọi.
+    const int headSize = 50;
     final truncatedTokens = tokens.length <= maxTokens
         ? tokens
-        : tokens.sublist(tokens.length - maxTokens);
+        : <String>[
+            ...tokens.sublist(0, headSize),
+            ...tokens.sublist(tokens.length - (maxTokens - headSize)),
+          ];
 
     final inputIds = List<int>.filled(maxSeqLen, padId);
     final attentionMask = List<int>.filled(maxSeqLen, 0);

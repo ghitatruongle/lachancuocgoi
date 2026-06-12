@@ -42,6 +42,24 @@ void main() {
       expect(inputs.tokenTypeIds.toSet(), <int>{0});
     });
 
+    test('WordPiece tokenizer handles out-of-vocabulary words and casing', () {
+      final tokenizer = BertIntentTokenizer(<String, int>{
+        '[PAD]': 0,
+        '[UNK]': 100,
+        '[CLS]': 101,
+        '[SEP]': 102,
+        'chuyen': 201,
+      });
+
+      expect(tokenizer.tokenize('CHUYEN la hoan-toan-la'), <String>[
+        'chuyen',
+        '[UNK]',
+        '[UNK]',
+        '[UNK]',
+        '[UNK]',
+      ]);
+    });
+
     test('decodes quantized outputs and sorts intent probabilities', () {
       final raw = List<num>.filled(intentLabels.length, 128);
       raw[ScamIntent.bankCardFraud.index] = 168;
@@ -57,6 +75,39 @@ void main() {
       expect(predictions.first.intent, ScamIntent.bankCardFraud);
       expect(predictions.first.confidence, greaterThan(0.60));
       expect(IntentOutputMapper.decodeFlatOutput(<num>[1, 2, 3]), isEmpty);
+    });
+
+    test('softmax computes correct probabilities and handles edge cases', () {
+      final probs = IntentOutputMapper.softmax(<double>[1.0, 2.0, 3.0]);
+      expect(probs.length, 3);
+      expect(probs[2], greaterThan(probs[1]));
+      expect(probs[1], greaterThan(probs[0]));
+      expect(probs.reduce((a, b) => a + b), closeTo(1.0, 0.0001));
+
+      expect(IntentOutputMapper.softmax(<double>[]), isEmpty);
+
+      final extreme = IntentOutputMapper.softmax(<double>[1000.0, 1000.0, 1000.0]);
+      expect(extreme, <double>[1/3, 1/3, 1/3]);
+    });
+
+    test('decodeFlatOutput supports int8 quantization and float32 pass-through', () {
+      final rawFloat = List<num>.filled(intentLabels.length, 2.5);
+      final decodedFloat = IntentOutputMapper.decodeFlatOutput(
+        rawFloat,
+        outputType: IntentOutputType.float32,
+      );
+      expect(decodedFloat.every((x) => x == 2.5), isTrue);
+
+      final rawInt8 = List<num>.filled(intentLabels.length, -10);
+      rawInt8[0] = 50;
+      final decodedInt8 = IntentOutputMapper.decodeFlatOutput(
+        rawInt8,
+        outputType: IntentOutputType.int8,
+        scale: 0.5,
+        zeroPoint: 10,
+      );
+      expect(decodedInt8[0], (50 - 10) * 0.5); // 20.0
+      expect(decodedInt8[1], (-10 - 10) * 0.5); // -10.0
     });
   });
 

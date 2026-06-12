@@ -24,10 +24,14 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
 
     return Dialog(
       insetPadding: const EdgeInsets.all(AppSpacing.sm),
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.94,
-        child: Column(
-          children: [
+      child: SafeArea(
+        child: SizedBox(
+          height: (MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  MediaQuery.of(context).padding.bottom) *
+              0.90,
+          child: Column(
+            children: [
             // ── Header ──
             Padding(
               padding: const EdgeInsets.symmetric(
@@ -198,8 +202,9 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _requestAll() async {
     setState(() => _isRequestingAll = true);
@@ -244,8 +249,8 @@ class _PermissionItem extends StatelessWidget {
         title: Text(
           title,
           style: TextStyle(
-            decoration: isGranted ? null : TextDecoration.lineThrough,
-            decorationColor: cs.outline,
+            fontWeight: isGranted ? FontWeight.normal : FontWeight.bold,
+            color: isGranted ? cs.onSurface.withValues(alpha: 0.7) : cs.onSurface,
           ),
         ),
         subtitle: Text(description),

@@ -91,13 +91,31 @@ class HistoryItemCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
 
-                      // Analysis type chip
-                      ActionChip(
-                        label: Text(item.analysisType ?? 'Không phân tích'),
-                        onPressed: () {},
-                        backgroundColor: item.analysisType == null
-                            ? cs.surfaceContainerHighest.withValues(alpha: 0.5)
-                            : null,
+                      // Analysis type static label
+                      Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: item.analysisType == null
+                              ? cs.surfaceContainerHighest.withValues(alpha: 0.5)
+                              : cs.secondaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: cs.outlineVariant.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Text(
+                          item.analysisType ?? 'Không phân tích',
+                          style: tt.labelSmall?.copyWith(
+                            color: item.analysisType == null
+                                ? cs.onSurfaceVariant.withValues(alpha: 0.7)
+                                : cs.onSecondaryContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   ),

@@ -1,24 +1,138 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+
 import 'api_key_obfuscator.dart';
 
 abstract interface class ApiKeyProvider {
   List<String> getApiKeys();
 
   int getKeyCount();
+
+  /// True nếu keys đang được load từ bundled assets ( ship cùng APK).
+  /// Bị set bởi [EnvironmentApiKeyProvider] khi fallback vào rootBundle.
+  bool get isLoadedFromAssets => false;
 }
 
 class EnvironmentApiKeyProvider implements ApiKeyProvider {
-  EnvironmentApiKeyProvider({
-    String? commaSeparatedKeys,
-    String? singleKey,
-  })  : _commaSeparatedKeys = commaSeparatedKeys ??
-            const String.fromEnvironment('GEMINI_API_KEYS'),
-        _singleKey =
-            singleKey ?? const String.fromEnvironment('GEMINI_API_KEY');
+  EnvironmentApiKeyProvider({String? commaSeparatedKeys, String? singleKey})
+    : _commaSeparatedKeys =
+          commaSeparatedKeys ?? const String.fromEnvironment('GEMINI_API_KEYS'),
+      _singleKey = singleKey ?? const String.fromEnvironment('GEMINI_API_KEY') {
+    // Parse dart-define keys eagerly so getApiKeys() works without ensureLoaded().
+    _keys = _parseKeys();
+  }
 
   final String _commaSeparatedKeys;
   final String _singleKey;
 
-  late final List<String> _keys = _parseKeys();
+  /// Mutable list — populated eagerly from dart-define in constructor,
+  /// and optionally extended by [ensureLoaded] from  asset.
+  List<String> _keys = [];
+  bool _envLoaded = false;
+
+  /// True nếu [ensureLoaded] đã fallback sang đọc  từ rootBundle
+  /// (nghĩa là keys bị bundle trong APK — không an toàn).
+  bool _loadedFromAssets = false;
+
+  @override
+  bool get isLoadedFromAssets => _loadedFromAssets;
+
+  /// Sentinel patterns cho placeholder keys (AIzaReplace..., REPLACE_ME, etc.).
+  /// Khi  chứa các giá trị này, keys bị bỏ qua hoàn toàn — tránh
+  /// tình trạng dev commit nhầm env.example.json thay vì  thật.
+  static const List<String> _placeholderPatterns = <String>[
+    'aizareplace',
+    'aizayour',
+    'aizaexample',
+    'aizatest',
+    'replace_me',
+    'your_api_key',
+    'placeholder',
+  ];
+
+  /// True nếu value trông như placeholder (AIzaReplace..., REPLACE_ME, etc.).
+  /// Public để test.
+  static bool isPlaceholderKey(String value) {
+    final lower = value.toLowerCase();
+    return _placeholderPatterns.any(lower.contains);
+  }
+
+  /// Load keys from `` asset if dart-define keys were not provided.
+  /// Safe to call multiple times — only loads once.
+  ///
+  /// SECURITY:  trong assets bị bundle trong APK. Bất kỳ ai cài app
+  /// đều có thể extract API keys. Đây là fix tạm thời — fix triệt để phải:
+  /// 1. Rotate tất cả keys trên Google Cloud (xem SECURITY.md)
+  /// 2. Move  ra app documents directory (không bị bundle)
+  /// 3. Clean git history bằng BFG Repo Cleaner
+  Future<void> ensureLoaded() async {
+    if (_envLoaded) return;
+    _envLoaded = true;
+
+    // If dart-define already provided keys, no need to load .
+    if (_keys.isNotEmpty) return;
+
+    try {
+      final raw = await rootBundle.loadString('');
+      _loadedFromAssets = true;
+      _warnAboutBundledKeys();
+      _parseAndIngestEnvJson(raw);
+      debugPrint(
+        'Loaded ${_keys.length} API keys from  asset '
+        '(SECURITY WARNING: keys are bundled in APK).',
+      );
+    } catch (e) {
+      debugPrint('Failed to load : $e');
+    }
+  }
+
+  /// Parse JSON string và validate keys (loại bỏ placeholder, validate format).
+  void _parseAndIngestEnvJson(String raw) {
+    final json = jsonDecode(raw) as Map<String, dynamic>;
+    final seen = <String>{..._keys};
+    var placeholderCount = 0;
+    for (final entry in json.entries) {
+      if (entry.key.startsWith('_')) {
+        continue; // skip _comment, _warning, _format
+      }
+      final value = entry.value;
+      if (value is! String) continue;
+      if (isPlaceholderKey(value)) {
+        placeholderCount++;
+        continue;
+      }
+      final decoded = _validateAndDecode(value);
+      if (decoded != null && seen.add(decoded)) {
+        _keys.add(decoded);
+      }
+    }
+    if (placeholderCount > 0) {
+      debugPrint(
+        'SECURITY: Bỏ qua $placeholderCount placeholder key(s) trong . '
+        'Có thể bạn đang dùng env.example.json thay vì  thật. '
+        'Hãy tạo  với key thật rồi mới chạy app.',
+      );
+    }
+  }
+
+  /// Log warning nếu keys đang load từ assets (không an toàn).
+  void _warnAboutBundledKeys() {
+    if (kReleaseMode) {
+      debugPrint(
+        '🚨 SECURITY WARNING:  đang được bundle trong APK release. '
+        'Bất kỳ ai cài app đều có thể extract API keys. '
+        'Hãy move  ra app documents directory và rotate keys. '
+        'Xem SECURITY.md.',
+      );
+    } else {
+      debugPrint(
+        '⚠️ [DEBUG]  load từ assets. Trong production, '
+        'hãy dùng app documents dir để keys không bị ship cùng APK.',
+      );
+    }
+  }
 
   @override
   List<String> getApiKeys() => List<String>.unmodifiable(_keys);
@@ -60,16 +174,19 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
   String? _validateAndDecode(String raw) {
     if (raw.isEmpty) return null;
     if (raw.startsWith('AIza')) return raw;
-    final decoded = ApiKeyObfuscator.decode(raw);      if (decoded == null || decoded.isEmpty || !decoded.startsWith('AIza')) return null;
-      return decoded;
+    final decoded = ApiKeyObfuscator.decode(raw);
+    if (decoded == null || decoded.isEmpty || !decoded.startsWith('AIza')) {
+      return null;
+    }
+    return decoded;
   }
 }
 
 class StaticApiKeyProvider implements ApiKeyProvider {
   StaticApiKeyProvider(List<String> keys)
-      : _keys = List<String>.unmodifiable(
-          keys.map((key) => key.trim()).where((key) => key.isNotEmpty),
-        );
+    : _keys = List<String>.unmodifiable(
+        keys.map((key) => key.trim()).where((key) => key.isNotEmpty),
+      );
 
   final List<String> _keys;
 
@@ -78,4 +195,9 @@ class StaticApiKeyProvider implements ApiKeyProvider {
 
   @override
   int getKeyCount() => _keys.length;
+
+  // Static provider luôn inject keys từ constructor → không bao giờ
+  // load từ bundled assets. isLoadedFromAssets = false là an toàn.
+  @override
+  bool get isLoadedFromAssets => false;
 }

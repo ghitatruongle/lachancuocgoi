@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/risk_level.dart';
@@ -75,11 +76,22 @@ class GDetectionEngine {
       _buildTrie().then((trie) => _riskKeywordTrie = trie),
       _buildTopicMap(),
       _loadPatterns(),
+    ]);
+    // Yield to event loop between heavy batches — prevents frame skips.
+    await Future<void>.delayed(Duration.zero);
+
+    await Future.wait<void>([
       _loadSituationMatcher(),
       _loadSentenceMatcher(),
     ]);
 
-    _isReady = true;
+    // Only mark ready if the trie has at least some keywords loaded.
+    if (_riskKeywordTrie.children.isNotEmpty) {
+      _isReady = true;
+    } else {
+      debugPrint('[GDetectionEngine] Initialization complete but trie is empty — engine NOT ready.');
+      _initializingFuture = null; // Allow retry on next initialize() call.
+    }
   }
 
   Future<GResult> performFullAnalysis(String text) async {
@@ -154,7 +166,8 @@ class GDetectionEngine {
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[GDetectionEngine] Failed to load $slangFile: $e');
       GFlash.loadSlangConfig(const <String, String>{});
     }
   }
@@ -164,7 +177,8 @@ class GDetectionEngine {
       _scoringConfig = ScoringConfig.fromJson(
         await _loadJsonMap(scoringConfigFile),
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[GDetectionEngine] Failed to load $scoringConfigFile: $e');
       _scoringConfig = const ScoringConfig();
     }
   }
@@ -177,7 +191,8 @@ class GDetectionEngine {
         tier2: (config.tier2Urgency ?? const <String>[]).toSet(),
         tier3: (config.tier3Pii ?? const <String>[]).toSet(),
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[GDetectionEngine] Failed to load $tierConfigFile: $e');
       GThinking.loadTierConfig(
         tier1: const <String>{},
         tier2: const <String>{},
@@ -215,7 +230,8 @@ class GDetectionEngine {
           );
         }
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[GDetectionEngine] Failed to build trie from $vocabularyFile: $e');
       return root;
     }
     return root;
@@ -239,7 +255,8 @@ class GDetectionEngine {
               .add(situation.name);
         }
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[GDetectionEngine] Failed to load $aiCheckFile: $e');
       return;
     }
   }
@@ -252,7 +269,8 @@ class GDetectionEngine {
       _scamPatterns =
           config.patterns?.map((pattern) => pattern.toDomain()).toList() ??
           const <ScamPattern>[];
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[GDetectionEngine] Failed to load $patternsFile: $e');
       _scamPatterns = const <ScamPattern>[];
     }
   }
@@ -263,7 +281,8 @@ class GDetectionEngine {
         await _loadJsonMap(situationFile),
       );
       _scenarioMatcher = ScenarioMatcher(masterModel);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[GDetectionEngine] Failed to load $situationFile: $e');
       _scenarioMatcher = null;
     }
   }
@@ -274,7 +293,8 @@ class GDetectionEngine {
         await _loadJsonMap(sentencesFile),
       );
       _sentenceMatcher = SentenceMatcher(sentencesModel);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[GDetectionEngine] Failed to load $sentencesFile: $e');
       _sentenceMatcher = null;
     }
   }
@@ -293,7 +313,7 @@ class GDetectionEngine {
 
     MapEntry<String, int>? bestEntry;
     for (final entry in topicScores.entries) {
-      if (entry.value <= _topicConfirmationThreshold) continue;
+      if (entry.value < _topicConfirmationThreshold) continue;
       if (bestEntry == null || entry.value > bestEntry.value) {
         bestEntry = entry;
       }
@@ -392,7 +412,11 @@ class GDetectionEngine {
   Future<String> _loadString(String fileName) async {
     final provider = _assetProvider;
     if (provider != null) {
-      return Future<String>.value(provider(fileName));
+      // Must await — provider returns FutureOr<String>, and wrapping a
+      // Future in Future.value() creates a nested future, causing
+      // jsonDecode to receive a Future object instead of a String.
+      final result = await provider(fileName);
+      return result;
     }
     return _assetBundle.loadString('assets/$fileName');
   }

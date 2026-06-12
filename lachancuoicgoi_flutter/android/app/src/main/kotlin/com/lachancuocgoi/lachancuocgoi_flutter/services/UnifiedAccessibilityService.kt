@@ -31,6 +31,7 @@ class UnifiedAccessibilityService : AccessibilityService() {
     private var isCallActive: Boolean = false
     private var lastServiceStartTime: Long = 0L
     private var isNotificationShown: Boolean = false
+    private var lastCaptionCheckTime: Long = 0L
 
     companion object {
         private const val TAG = "UnifiedAccesService"
@@ -60,17 +61,57 @@ class UnifiedAccessibilityService : AccessibilityService() {
         return START_STICKY
     }
 
+    private fun isTargetCallPackage(pkg: String): Boolean {
+        if (pkg.isEmpty()) return true
+        return pkg.contains("dialer", ignoreCase = true) ||
+               pkg.contains("telecom", ignoreCase = true) ||
+               pkg.contains("zalo", ignoreCase = true) ||
+               pkg.contains("orca", ignoreCase = true) ||
+               pkg.contains("phone", ignoreCase = true)
+    }
+
+    private fun isTargetLiveCaptionPackage(pkg: String): Boolean {
+        if (pkg.isEmpty()) return true
+        return pkg == "com.google.android.as" ||
+               pkg.contains("livecaption", ignoreCase = true) ||
+               pkg.contains("live_caption", ignoreCase = true) ||
+               pkg.contains("samsung.accessibility", ignoreCase = true)
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
-            event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+        val eventType = event.eventType
+        val pkgName = event.packageName?.toString() ?: ""
 
-            handleCallDetection()
+        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            // State changes are less frequent, run call detection immediately to ensure rapid response.
+            handleCallDetection(force = true)
 
             val rootNode = rootInActiveWindow
             if (rootNode != null) {
                 traverseNodeForCaptions(rootNode)
+                rootNode.recycle()
+            }
+        } else if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            // For frequent content changes, filter by target packages to avoid CPU spikes.
+            val isCallPkg = isTargetCallPackage(pkgName)
+            val isCaptionPkg = isTargetLiveCaptionPackage(pkgName)
+
+            if (isCallPkg) {
+                handleCallDetection(force = false)
+            }
+
+            if (isCaptionPkg) {
+                val now = System.currentTimeMillis()
+                if (now - lastCaptionCheckTime >= 200L) {
+                    lastCaptionCheckTime = now
+                    val rootNode = rootInActiveWindow
+                    if (rootNode != null) {
+                        traverseNodeForCaptions(rootNode)
+                        rootNode.recycle()
+                    }
+                }
             }
         }
     }
@@ -79,8 +120,8 @@ class UnifiedAccessibilityService : AccessibilityService() {
     // CALL DETECTION
     // =========================================================================
 
-    private fun handleCallDetection() {
-        if (System.currentTimeMillis() - lastCheckTime < CALL_DETECTION_THROTTLE_MS) return
+    private fun handleCallDetection(force: Boolean = false) {
+        if (!force && System.currentTimeMillis() - lastCheckTime < CALL_DETECTION_THROTTLE_MS) return
         lastCheckTime = System.currentTimeMillis()
 
         var detectedApp: String? = null
@@ -222,6 +263,7 @@ class UnifiedAccessibilityService : AccessibilityService() {
                             val clicked = clickableNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                             Log.d(TAG, "Click action performed: $clicked")
                             clickableNode.recycle()
+                            textNodes.forEach { it.recycle() }
                             rootNode.recycle()
                             return true
                         }
@@ -248,16 +290,18 @@ class UnifiedAccessibilityService : AccessibilityService() {
     }
 
     private fun findClickableNode(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
-        var currentNode = node
-        while (currentNode != null) {
-            if (currentNode.isClickable) {
-                return currentNode
+        if (node == null) return null
+        if (node.isClickable) {
+            return AccessibilityNodeInfo.obtain(node)
+        }
+        var parent = node.parent
+        while (parent != null) {
+            if (parent.isClickable) {
+                return parent
             }
-            val parent = currentNode.parent
-            if (currentNode != node) {
-                currentNode.recycle()
-            }
-            currentNode = parent
+            val nextParent = parent.parent
+            parent.recycle()
+            parent = nextParent
         }
         return null
     }
@@ -271,13 +315,11 @@ class UnifiedAccessibilityService : AccessibilityService() {
             }
         }
         for (i in 0 until node.childCount) {
-            val child = node.getChild(i)
-            if (child != null) {
-                val found = findClickableNodeByDescription(child, descriptions)
-                if (found != null) {
-                    return found
-                }
-                child.recycle()
+            val child = node.getChild(i) ?: continue
+            val found = findClickableNodeByDescription(child, descriptions)
+            child.recycle()
+            if (found != null) {
+                return found
             }
         }
         return null
@@ -291,7 +333,12 @@ class UnifiedAccessibilityService : AccessibilityService() {
         if (node == null) return
         if (node.text != null && node.text.isNotBlank()) {
             val content = node.text.toString()
-            if (node.packageName == "com.google.android.as") {
+            val pkg = node.packageName?.toString() ?: ""
+            val isLiveCaptionPkg = pkg == "com.google.android.as" ||
+                    pkg.contains("livecaption", ignoreCase = true) ||
+                    pkg.contains("live_caption", ignoreCase = true) ||
+                    pkg.contains("samsung.accessibility", ignoreCase = true)
+            if (isLiveCaptionPkg) {
                 TranscriptionHub.postTranscript(content)
             }
         }
@@ -354,6 +401,7 @@ class UnifiedAccessibilityService : AccessibilityService() {
             .setContentText("Phát hiện $callerInfo. Bạn có muốn giám sát không?")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setContentIntent(fullScreenPendingIntent)
             .addAction(R.mipmap.ic_launcher, "Có, giám sát", monitorPendingIntent)

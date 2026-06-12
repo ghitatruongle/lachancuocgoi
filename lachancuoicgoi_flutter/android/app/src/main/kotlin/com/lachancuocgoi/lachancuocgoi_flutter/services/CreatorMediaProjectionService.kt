@@ -39,6 +39,9 @@ class CreatorMediaProjectionService : Service() {
         private const val TAG = "CreatorService"
         private const val NOTIFICATION_ID = 2001
         private const val CHANNEL_ID = "media_projection_channel"
+
+        @Volatile
+        var isRunning = false
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -60,12 +63,14 @@ class CreatorMediaProjectionService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
+            isRunning = false
             stopCapture()
             stopForegroundCompat()
             stopSelf()
             return START_NOT_STICKY
         }
 
+        isRunning = true
         createNotificationChannel()
         startForegroundInternal()
 
@@ -172,10 +177,22 @@ class CreatorMediaProjectionService : Service() {
 
         transcriptJob?.cancel()
         transcriptJob = serviceScope.launch {
-            voskSttManager.creatorTranscriptFlow.collectLatest { text ->
+            kotlinx.coroutines.flow.combine(
+                voskSttManager.voskFullTranscript,
+                voskSttManager.voskTextResults
+            ) { cumulative, partial ->
+                val composed = if (partial.isNotBlank() && cumulative.isNotBlank()) {
+                    "$cumulative\n$partial"
+                } else if (partial.isNotBlank()) {
+                    partial
+                } else {
+                    cumulative
+                }
+                composed to partial.isNotBlank()
+            }.collect { (text, isPartial) ->
                 if (text.isNotBlank()) {
                     CreatorAudioCaptureManager.updateTranscript(text)
-                    NativeBridgeEventSink.sendTranscript(text)
+                    NativeBridgeEventSink.sendTranscript(text, isPartial)
                 }
             }
         }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,19 +17,31 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
+  /// Prevents showing the permission dialog more than once per app session.
+  bool _hasCheckedPermissions = false;
+
   @override
   void initState() {
     super.initState();
-    // Check permissions on load and show dialog if missing
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAndRequestPermissions();
     });
   }
 
   void _checkAndRequestPermissions() {
+    if (_hasCheckedPermissions) return;
+    _hasCheckedPermissions = true;
+
+    // Bug #7 fix: only auto-show permission dialog on Android/iOS where native
+    // permissions are relevant. On Web/Desktop, permission_handler may throw
+    // MissingPluginException and the dialog shows confusing states.
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+         defaultTargetPlatform != TargetPlatform.iOS)) {
+      return;
+    }
+
     final permState = ref.read(permissionControllerProvider);
-    
-    // Show RightsDialog if not all permissions are granted
     if (!permState.allGranted) {
       showDialog(
         context: context,
@@ -174,6 +187,36 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                     ),
                   ),
+
+                  // Bug #4 fix: show a warning when recordAudio is granted
+                  // (button enabled) but other critical permissions are still
+                  // missing. Previously the user would enter monitoring with
+                  // no feedback that overlay alerts, accessibility transcription,
+                  // or call-screening auto-start would be non-functional.
+                  if (permissionState.snapshot.recordAudio &&
+                      (!permissionState.snapshot.overlay ||
+                          !permissionState.snapshot.accessibility ||
+                          !permissionState.snapshot.callScreening))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            size: 14,
+                            color: cs.error,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Một số quyền chưa được cấp — hiệu quả giám sát có thể bị giảm.',
+                              style: tt.bodySmall?.copyWith(color: cs.error),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                   const SizedBox(height: AppSpacing.sm),
 

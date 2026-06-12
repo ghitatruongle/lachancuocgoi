@@ -38,6 +38,7 @@ enum RiskLevel {
   static RiskLevel fromString(String? value) {
     final normalized = value?.trim().toUpperCase();
     return switch (normalized) {
+      null || '' => RiskLevel.green,
       'RED' => RiskLevel.red,
       'ORANGE' => RiskLevel.orange,
       'YELLOW' => RiskLevel.yellow,
@@ -50,7 +51,15 @@ enum RiskLevel {
       'CHU Y' => RiskLevel.yellow,
       'AN TOÀN' => RiskLevel.green,
       'AN TOAN' => RiskLevel.green,
-      _ => RiskLevel.green,
+      _ => _unknownRiskLevel(normalized),
     };
+  }
+
+  /// Conservative fallback for unrecognized risk level strings.
+  /// Logs a warning and returns [RiskLevel.orange] to be safe in a
+  /// security-focused app (better to over-warn than silently pass).
+  static RiskLevel _unknownRiskLevel(String? original) {
+    debugPrint('RiskLevel.fromString: unknown value "$original", defaulting to orange');
+    return RiskLevel.orange;
   }
 }

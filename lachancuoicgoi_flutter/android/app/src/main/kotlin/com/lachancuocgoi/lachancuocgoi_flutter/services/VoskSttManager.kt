@@ -7,6 +7,11 @@ import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.vosk.Model
 import org.vosk.Recognizer
@@ -18,7 +23,12 @@ sealed class ModelLoadState {
     data class Failed(val error: String, val retriesRemaining: Int) : ModelLoadState()
 }
 
-class VoskSttManager(private val context: Context) {
+class VoskSttManager(
+    private val context: Context,
+    private val recognizerFactory: (Model, Float) -> Recognizer = { model, sampleRate ->
+        Recognizer(model, sampleRate)
+    }
+) {
     companion object {
         private const val TAG = "VoskSttManager"
         private const val MAX_RETRIES = 3
@@ -32,9 +42,17 @@ class VoskSttManager(private val context: Context) {
     private var model: Model? = null
     private var recognizer: Recognizer? = null
     private val handler = Handler(Looper.getMainLooper())
+    private val modelScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    @Volatile private var isDestroyed = false
 
     private val _creatorTranscriptFlow = MutableStateFlow("")
     val creatorTranscriptFlow: StateFlow<String> = _creatorTranscriptFlow.asStateFlow()
+
+    private val _voskFullTranscript = MutableStateFlow("")
+    val voskFullTranscript: StateFlow<String> = _voskFullTranscript.asStateFlow()
+
+    private val _voskTextResults = MutableStateFlow("")
+    val voskTextResults: StateFlow<String> = _voskTextResults.asStateFlow()
 
     private val _modelLoadState = MutableStateFlow<ModelLoadState>(ModelLoadState.Loading)
     val modelLoadState: StateFlow<ModelLoadState> = _modelLoadState.asStateFlow()
@@ -53,6 +71,7 @@ class VoskSttManager(private val context: Context) {
     }
 
     private fun initModel(assetPathIndex: Int = 0) {
+        if (isDestroyed) return
         _modelLoadState.value = ModelLoadState.Loading
         val sourcePath = MODEL_ASSET_PATHS[assetPathIndex]
         StorageService.unpack(
@@ -60,19 +79,68 @@ class VoskSttManager(private val context: Context) {
             sourcePath,
             "model",
             { unpackedModel ->
-                model = unpackedModel
-                recognizer = Recognizer(unpackedModel, 16000.0f)
-                _isReady.value = true
-                retryCount = 0
-                _modelLoadState.value = ModelLoadState.Ready(16000.0f)
-                Log.d(TAG, "Vosk model initialized successfully")
+                if (isDestroyed) {
+                    try { unpackedModel.close() } catch (_: Exception) {}
+                    return@unpack
+                }
+                modelScope.launch {
+                    try {
+                        val newRecognizer = recognizerFactory(unpackedModel, 16000.0f)
+                        if (isDestroyed) {
+                            try { unpackedModel.close() } catch (_: Exception) {}
+                            try { newRecognizer.close() } catch (_: Exception) {}
+                            return@launch
+                        }
+                        handler.post {
+                            if (isDestroyed) {
+                                try { unpackedModel.close() } catch (_: Exception) {}
+                                try { newRecognizer.close() } catch (_: Exception) {}
+                                return@post
+                            }
+                            val oldModel = model
+                            model = unpackedModel
+                            recognizer = newRecognizer
+                            oldModel?.close()
+                            _isReady.value = true
+                            retryCount = 0
+                            _modelLoadState.value = ModelLoadState.Ready(16000.0f)
+                            Log.d(TAG, "Vosk model initialized successfully")
+                        }
+                    } catch (e: Exception) {
+                        try { unpackedModel.close() } catch (_: Exception) {}
+                        Log.e(TAG, "Failed to create Vosk Recognizer in background", e)
+                        handler.post {
+                            if (isDestroyed) return@post
+                            val nextAssetPathIndex = assetPathIndex + 1
+                            if (nextAssetPathIndex < MODEL_ASSET_PATHS.size) {
+                                Log.w(
+                                    TAG,
+                                    "Failed to load Vosk model from $sourcePath, trying fallback",
+                                    e,
+                                )
+                                initModel(nextAssetPathIndex)
+                            } else {
+                                retryCount++
+                                val retriesRemaining = MAX_RETRIES - retryCount
+                                _modelLoadState.value = ModelLoadState.Failed(
+                                    e.message ?: "Failed to create recognizer",
+                                    retriesRemaining,
+                                )
+                                if (retryCount < MAX_RETRIES) {
+                                    handler.postDelayed({ initModel() }, RETRY_DELAY_MS)
+                                }
+                            }
+                        }
+                    }
+                }
             },
             { exception ->
+                if (isDestroyed) return@unpack
                 val nextAssetPathIndex = assetPathIndex + 1
                 if (nextAssetPathIndex < MODEL_ASSET_PATHS.size) {
                     Log.w(
                         TAG,
-                        "Failed to load Vosk model from $sourcePath, trying fallback",
+                        "Failed to unpack Vosk model from $sourcePath, trying fallback",
                         exception,
                     )
                     initModel(nextAssetPathIndex)
@@ -85,7 +153,7 @@ class VoskSttManager(private val context: Context) {
                     exception?.message ?: "Unknown error",
                     retriesRemaining,
                 )
-                Log.e(TAG, "Failed to initialize Vosk model", exception)
+                Log.e(TAG, "Failed to unpack Vosk model", exception)
                 if (retryCount < MAX_RETRIES) {
                     handler.postDelayed({ initModel() }, RETRY_DELAY_MS)
                 }
@@ -115,6 +183,8 @@ class VoskSttManager(private val context: Context) {
                         "$cumulativeTranscript\n$recognizedText"
                     }
                     _creatorTranscriptFlow.value = cumulativeTranscript
+                    _voskFullTranscript.value = cumulativeTranscript
+                    _voskTextResults.value = ""
                 }
             } else {
                 val partialJson = activeRecognizer.partialResult
@@ -125,6 +195,7 @@ class VoskSttManager(private val context: Context) {
                     } else {
                         "$cumulativeTranscript\n$partialText"
                     }
+                    _voskTextResults.value = partialText
                 }
             }
         } catch (e: Exception) {
@@ -149,10 +220,16 @@ class VoskSttManager(private val context: Context) {
     fun resetTranscript() {
         cumulativeTranscript = ""
         _creatorTranscriptFlow.value = ""
+        _voskFullTranscript.value = ""
+        _voskTextResults.value = ""
     }
 
     fun destroy() {
+        isDestroyed = true
         handler.removeCallbacksAndMessages(null)
+        try {
+            modelScope.cancel()
+        } catch (_: Exception) {}
         recognizer?.close()
         recognizer = null
         model?.close()

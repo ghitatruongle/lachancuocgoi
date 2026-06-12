@@ -81,10 +81,9 @@ void main() {
 
       expect(result.isFailure, isTrue);
       expect(attemptedModels, <String>[
-        'gemini-3.1-flash-lite',
         'gemini-2.5-flash-lite',
-        'gemini-3-flash',
         'gemini-2.5-flash',
+        'gemini-2.0-flash',
       ]);
     });
 
@@ -103,7 +102,7 @@ void main() {
       final result = await client.query<String>('prompt', (text, modelName) => modelName);
 
       expect(result.isSuccess, isTrue);
-      expect(result.getOrThrow(), 'gemini-3-flash');
+      expect(result.getOrThrow(), 'gemini-2.0-flash');
       expect(attempts, 3);
     });
   });

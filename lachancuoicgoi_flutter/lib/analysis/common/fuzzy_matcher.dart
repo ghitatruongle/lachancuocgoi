@@ -47,40 +47,37 @@ class FuzzyMatcher {
       return maxDistance + 1;
     }
 
-    final dp = List.generate(
-      a.length + 1,
-      (_) => List<int>.filled(b.length + 1, 0),
-    );
-
-    for (var i = 0; i <= a.length; i++) {
-      dp[i][0] = i;
-    }
-    for (var j = 0; j <= b.length; j++) {
-      dp[0][j] = j;
-    }
+    var r0 = List<int>.filled(b.length + 1, 0);
+    var r1 = List<int>.generate(b.length + 1, (index) => index);
+    var r2 = List<int>.filled(b.length + 1, 0);
 
     for (var i = 1; i <= a.length; i++) {
+      r2[0] = i;
       for (var j = 1; j <= b.length; j++) {
         final cost = a.codeUnitAt(i - 1) == b.codeUnitAt(j - 1) ? 0 : 1;
         var value = _min3(
-          dp[i - 1][j] + 1,
-          dp[i][j - 1] + 1,
-          dp[i - 1][j - 1] + cost,
+          r1[j] + 1,
+          r2[j - 1] + 1,
+          r1[j - 1] + cost,
         );
 
         if (i > 1 &&
             j > 1 &&
             a.codeUnitAt(i - 1) == b.codeUnitAt(j - 2) &&
             a.codeUnitAt(i - 2) == b.codeUnitAt(j - 1)) {
-          final transposition = dp[i - 2][j - 2] + cost;
+          final transposition = r0[j - 2] + cost;
           value = value < transposition ? value : transposition;
         }
 
-        dp[i][j] = value;
+        r2[j] = value;
       }
+      final temp = r0;
+      r0 = r1;
+      r1 = r2;
+      r2 = temp;
     }
 
-    return dp[a.length][b.length];
+    return r1[b.length];
   }
 
   static String? findClosest(

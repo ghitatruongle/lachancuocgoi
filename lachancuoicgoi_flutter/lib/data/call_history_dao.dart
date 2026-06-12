@@ -51,6 +51,44 @@ class CallHistoryDao {
     return (result.first['cnt'] as int?) ?? 0;
   }
 
+  /// Searches call_history across transcript, summary, riskLevel, dateTime,
+  /// and analysisType columns. Returns paginated results ordered by id DESC.
+  Future<List<CallHistory>> search(
+    String query, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    if (query.isEmpty) {
+      return getAllPaginated(limit: limit, offset: offset);
+    }
+    final escaped = _escapeLike(query);
+    final like = '%$escaped%';
+    final rows = await _db.query(
+      'call_history',
+      where: r"transcript LIKE ? ESCAPE '\' OR summary LIKE ? ESCAPE '\' OR riskLevel LIKE ? ESCAPE '\' "
+          r"OR dateTime LIKE ? ESCAPE '\' OR analysisType LIKE ? ESCAPE '\'",
+      whereArgs: [like, like, like, like, like],
+      orderBy: 'id DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map(CallHistory.fromMap).toList();
+  }
+
+  /// Returns total count of search results.
+  Future<int> searchCount(String query) async {
+    if (query.isEmpty) return count();
+    final escaped = _escapeLike(query);
+    final like = '%$escaped%';
+    final result = await _db.rawQuery(
+      r"SELECT COUNT(*) as cnt FROM call_history WHERE "
+      r"transcript LIKE ? ESCAPE '\' OR summary LIKE ? ESCAPE '\' OR riskLevel LIKE ? ESCAPE '\' "
+      r"OR dateTime LIKE ? ESCAPE '\' OR analysisType LIKE ? ESCAPE '\'",
+      [like, like, like, like, like],
+    );
+    return (result.first['cnt'] as int?) ?? 0;
+  }
+
   Future<CallHistory?> getById(int id) async {
     final rows = await _db.query(
       'call_history',
@@ -61,8 +99,6 @@ class CallHistoryDao {
     if (rows.isEmpty) return null;
     return CallHistory.fromMap(rows.first);
   }
-
-  Future<CallHistory?> getByIdSync(int id) => getById(id);
 
   Future<void> deleteAll() async {
     await _db.delete('call_history');
@@ -100,6 +136,11 @@ class CallHistoryDao {
 
   Future<void> dispose() async {
     await _changeController.close();
+  }
+
+  /// Escapes SQLite LIKE wildcards (%, _) so user input is treated literally.
+  static String _escapeLike(String input) {
+    return input.replaceAll(r'\', r'\\').replaceAll('%', r'\%').replaceAll('_', r'\_');
   }
 
   void _notifyChanged() {

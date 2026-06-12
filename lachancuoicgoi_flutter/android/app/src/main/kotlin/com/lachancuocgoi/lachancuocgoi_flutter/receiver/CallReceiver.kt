@@ -99,6 +99,7 @@ class CallReceiver : BroadcastReceiver() {
             .setContentText("Phát hiện $callerInfo. Bạn có muốn giám sát không?")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setContentIntent(fullScreenPendingIntent)
             .addAction(R.mipmap.ic_launcher, "Có, giám sát", monitorPendingIntent)

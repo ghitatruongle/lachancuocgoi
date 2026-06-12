@@ -18,6 +18,38 @@ typedef GeminiRequestExecutor =
 
 enum GeminiErrorType { quota, auth, modelNotFound, timeout, network, unknown }
 
+/// Shared error classifier used by both [GeminiClient] and [GeminiChatSession].
+GeminiErrorType classifyGeminiError(Object? error) {
+  final message = error?.toString().toLowerCase() ?? '';
+  if (message.contains('429') || message.contains('quota')) {
+    return GeminiErrorType.quota;
+  }
+  if (message.contains('403') ||
+      message.contains('api key') ||
+      message.contains('api_key')) {
+    return GeminiErrorType.auth;
+  }
+  if (message.contains('404') || message.contains('not found')) {
+    return GeminiErrorType.modelNotFound;
+  }
+  if (message.contains('timeout')) {
+    return GeminiErrorType.timeout;
+  }
+  if (message.contains('socket') ||
+      message.contains('network') ||
+      message.contains('connection')) {
+    return GeminiErrorType.network;
+  }
+  return GeminiErrorType.unknown;
+}
+
+/// Default fallback models for Gemini API, shared across client and session.
+const List<String> geminiFallbackModels = <String>[
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+];
+
 class GeminiClient {
   GeminiClient({
     required this.apiKeyProvider,
@@ -30,12 +62,7 @@ class GeminiClient {
   static const Duration _minInterval = Duration(seconds: 1);
   static const int _circuitBreakerThreshold = 5;
   static const Duration _circuitBreakerTimeout = Duration(seconds: 30);
-  static const List<String> _fallbackModels = <String>[
-    'gemini-3.1-flash-lite',
-    'gemini-2.5-flash-lite',
-    'gemini-3-flash',
-    'gemini-2.5-flash',
-  ];
+  static const List<String> _fallbackModels = geminiFallbackModels;
 
   final ApiKeyProvider apiKeyProvider;
   final GeminiConfig config;
@@ -86,7 +113,14 @@ class GeminiClient {
 
     for (final keyIndex in activeIndices) {
       final apiKey = keys[keyIndex];
+      var retryCount = 0;
       for (final modelName in _fallbackModels) {
+        // Exponential backoff between retries: 1s, 2s, 4s
+        if (retryCount > 0) {
+          final delayMs = 1000 * (1 << (retryCount - 1)); // 1000, 2000, 4000
+          await Future<void>.delayed(Duration(milliseconds: delayMs));
+        }
+        retryCount++;
         try {
           final responseText = await _requestExecutor(
             apiKey: apiKey,
@@ -190,29 +224,7 @@ class GeminiClient {
     onAllKeysExhausted?.call();
   }
 
-  GeminiErrorType _classifyError(Object? error) {
-    final message = error?.toString().toLowerCase() ?? '';
-    if (message.contains('429') || message.contains('quota')) {
-      return GeminiErrorType.quota;
-    }
-    if (message.contains('403') ||
-        message.contains('api key') ||
-        message.contains('api_key')) {
-      return GeminiErrorType.auth;
-    }
-    if (message.contains('404') || message.contains('not found')) {
-      return GeminiErrorType.modelNotFound;
-    }
-    if (message.contains('timeout')) {
-      return GeminiErrorType.timeout;
-    }
-    if (message.contains('socket') ||
-        message.contains('network') ||
-        message.contains('connection')) {
-      return GeminiErrorType.network;
-    }
-    return GeminiErrorType.unknown;
-  }
+  GeminiErrorType _classifyError(Object? error) => classifyGeminiError(error);
 
   static Future<String> _defaultRequestExecutor({
     required String apiKey,

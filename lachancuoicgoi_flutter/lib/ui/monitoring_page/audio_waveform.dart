@@ -14,14 +14,13 @@ class AudioWaveform extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
 
     return Container(
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         children: [
           Row(
@@ -38,10 +37,11 @@ class AudioWaveform extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Expanded(
+          SizedBox(
+            height: 60,
             child: RepaintBoundary(
               child: CustomPaint(
-                size: const Size(double.infinity, 100),
+                size: const Size(double.infinity, 60),
                 painter: _WaveformPainter(amplitudes: amplitudes),
               ),
             ),
@@ -153,13 +153,13 @@ class _WaveformPainter extends CustomPainter {
     if (amplitudes.isEmpty) return;
 
     final barCount = amplitudes.length;
-    final barWidth = size.width / (2 * barCount - 1);
+    final barWidth = size.width / (2 * barCount).toDouble();
     final maxAmp = size.height / 2;
 
     _paint.strokeWidth = barWidth;
 
     for (var i = 0; i < barCount; i++) {
-      final x = i * 2 * barWidth;
+      final x = (i * 2 + 1) * barWidth;
       final amp = amplitudes[i].clamp(0.0, 1.0) * maxAmp;
       canvas.drawLine(
         Offset(x, size.height / 2 - amp),

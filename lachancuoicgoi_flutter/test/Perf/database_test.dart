@@ -105,7 +105,7 @@ void main() {
       await appDatabase.callHistoryDao.update(
         updatedRisk!.copyWith(summary: 'Canh bao moi'),
       );
-      final updatedSummary = await appDatabase.callHistoryDao.getByIdSync(id);
+      final updatedSummary = await appDatabase.callHistoryDao.getById(id);
       expect(updatedSummary?.summary, 'Canh bao moi');
 
       await appDatabase.callHistoryDao.deleteById(id);

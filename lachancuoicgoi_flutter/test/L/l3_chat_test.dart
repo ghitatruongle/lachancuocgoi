@@ -165,11 +165,11 @@ void main() {
 
         expect(result.isSuccess, isTrue);
         expect(attemptedModels, <String>[
-          'gemini-3.1-flash-lite',
           'gemini-2.5-flash-lite',
-          'gemini-3-flash',
+          'gemini-2.5-flash',
+          'gemini-2.0-flash',
         ]);
-        expect(result.getOrThrow(), 'gemini-3-flash');
+        expect(result.getOrThrow(), 'gemini-2.0-flash');
         final snapshot = GeminiMetrics.instance.getSnapshot();
         expect(snapshot.totalApiCalls, 1);
         expect(snapshot.successCalls, 1);

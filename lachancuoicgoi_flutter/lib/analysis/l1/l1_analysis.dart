@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
 
 import '../../core/risk_level.dart';
@@ -143,6 +144,12 @@ class L1Analyzer implements Analyzer {
   final int _fuzzyMaxDistance = 1;
   final int _fuzzyMinLength = 5;
 
+  // Phase 2.2: Cache fuzzy match results to avoid re-computing Levenshtein
+  // for the same token across multiple analysis calls.
+  final Map<String, String?> _fuzzyCache = {};
+  // Phase 2.2: Cap unmatched tokens to prevent O(n*keywords) blowup on long transcripts.
+  static const int _maxFuzzyTokens = 20;
+
   bool _hasInitialized = false;
   Future<void>? _initializingFuture;
 
@@ -179,6 +186,7 @@ class L1Analyzer implements Analyzer {
     _processedWordCount = 0;
     _lastFullTranscript = '';
     _processedTextLength = 0;
+    _fuzzyCache.clear(); // Phase 2.2: clear fuzzy cache on session reset
     _lastResult = const AnalysisResult(
       overallRiskLevel: RiskLevel.green,
       matches: [],
@@ -230,7 +238,7 @@ class L1Analyzer implements Analyzer {
     await _initializeIfNeeded();
     final rawTokens = _tokenize(text);
     final tokens = applyBigramCorrections(rawTokens);
-    final matches = _findMatchesLinear(tokens);
+    final matches = await _findMatchesLinear(tokens);
     return L1ResultParser.parse(matches, tokens.length);
   }
 
@@ -279,13 +287,26 @@ class L1Analyzer implements Analyzer {
     if (_fuzzyEnabled &&
         unmatchedTokens.isNotEmpty &&
         _singleTokenKeywords.isNotEmpty) {
-      for (final unmatched in unmatchedTokens) {
+      // Phase 2.2: limit fuzzy matching to first N unmatched tokens
+      final tokensToFuzzy = unmatchedTokens.length > _maxFuzzyTokens
+          ? unmatchedTokens.sublist(0, _maxFuzzyTokens)
+          : unmatchedTokens;
+      for (final unmatched in tokensToFuzzy) {
         if (unmatched.token.length < _fuzzyMinLength) continue;
-        final fuzzyMatch = FuzzyMatcher.findClosest(
-          unmatched.token,
-          _singleTokenKeywords,
-          maxDistance: _fuzzyMaxDistance,
-        );
+        // Phase 2.2: check cache first
+        final cached = _fuzzyCache[unmatched.token];
+        final fuzzyMatch =
+            cached != null || _fuzzyCache.containsKey(unmatched.token)
+            ? cached
+            : () {
+                final result = FuzzyMatcher.findClosest(
+                  unmatched.token,
+                  _singleTokenKeywords,
+                  maxDistance: _fuzzyMaxDistance,
+                );
+                _fuzzyCache[unmatched.token] = result;
+                return result;
+              }();
         if (fuzzyMatch == null) continue;
         final nodeId = _findExactMatchNode(fuzzyMatch);
         if (nodeId == null || !_trie.isMatchNode(nodeId)) continue;
@@ -345,14 +366,18 @@ class L1Analyzer implements Analyzer {
     _singleTokenKeywords.clear();
     _corrections.clear();
     await _buildTrie();
+    // Yield to event loop — prevents 48 skipped frames during first analysis.
+    await Future<void>.delayed(Duration.zero);
     await _loadBigramCorrections();
-    _computeAhoCorasickLinks();
+    await Future<void>.delayed(Duration.zero);
+    await _computeAhoCorasickLinks();
     _hasInitialized = true;
   }
 
   void _resetInitialization() {
     _hasInitialized = false;
     _initializingFuture = null;
+    _fuzzyCache.clear();
     resetSession();
   }
 
@@ -413,7 +438,8 @@ class L1Analyzer implements Analyzer {
         _corrections.add(_TokenCorrection(from, to));
       }
       _corrections.sort((a, b) => b.from.length.compareTo(a.from.length));
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[L1Analyzer] Failed to load bigram corrections: $e');
       _corrections.clear();
     }
   }
@@ -446,7 +472,7 @@ class L1Analyzer implements Analyzer {
     );
   }
 
-  void _computeAhoCorasickLinks() {
+  Future<void> _computeAhoCorasickLinks() async {
     final queue = <int>[];
     _trie.childrenMaps[FlatTrie.rootId]?.forEach((_, childId) {
       _trie.failureLinks[childId] = FlatTrie.rootId;
@@ -454,6 +480,9 @@ class L1Analyzer implements Analyzer {
     });
 
     var head = 0;
+    var processed = 0;
+    const yieldInterval = 200; // yield every 200 nodes
+
     while (head < queue.length) {
       final currentId = queue[head++];
       _trie.childrenMaps[currentId]?.forEach((token, childId) {
@@ -472,17 +501,25 @@ class L1Analyzer implements Analyzer {
             : _trie.dictionaryLinks[linkedFailureId];
         queue.add(childId);
       });
+
+      processed++;
+      if (processed % yieldInterval == 0) {
+        await Future<void>.delayed(Duration.zero); // yield to event loop
+      }
     }
   }
 
-  Set<KeywordMatch> _findMatchesLinear(List<String> tokens) {
+  Future<Set<KeywordMatch>> _findMatchesLinear(List<String> tokens) async {
     if (tokens.isEmpty) return <KeywordMatch>{};
 
     final matches = <KeywordMatch>{};
     final unmatchedTokens = <String>[];
     var currentStateId = FlatTrie.rootId;
+    const yieldInterval = 200;
 
-    for (final token in tokens) {
+    for (var wordIndex = 0; wordIndex < tokens.length; wordIndex++) {
+      final token = tokens[wordIndex];
+
       while (currentStateId != FlatTrie.rootId &&
           _trie.getChildId(currentStateId, token) == null) {
         currentStateId = _trie.failureLinks[currentStateId];
@@ -495,21 +532,41 @@ class L1Analyzer implements Analyzer {
         matches: matches,
       );
       if (!found) unmatchedTokens.add(token);
+
+      // Yield every N tokens to avoid blocking the UI on long transcripts.
+      if (wordIndex > 0 && wordIndex % yieldInterval == 0) {
+        // Await a micro-task yield to unblock the event loop for
+        // UI frames and stream events while scanning a long transcript.
+        await Future<void>.delayed(Duration.zero);
+      }
     }
 
     if (_fuzzyEnabled &&
         unmatchedTokens.isNotEmpty &&
         _singleTokenKeywords.isNotEmpty) {
-      for (final token in unmatchedTokens) {
+      // Phase 2.2: limit fuzzy matching to first N unmatched tokens
+      final tokensToFuzzy = unmatchedTokens.length > _maxFuzzyTokens
+          ? unmatchedTokens.sublist(0, _maxFuzzyTokens)
+          : unmatchedTokens;
+      for (final token in tokensToFuzzy) {
         if (token.length < _fuzzyMinLength) continue;
-        final fuzzyMatch = FuzzyMatcher.findClosest(
-          token,
-          _singleTokenKeywords,
-          maxDistance: _fuzzyMaxDistance,
-        );
+        // Phase 2.2: check cache first
+        final cached = _fuzzyCache[token];
+        final fuzzyMatch = cached != null || _fuzzyCache.containsKey(token)
+            ? cached
+            : () {
+                final result = FuzzyMatcher.findClosest(
+                  token,
+                  _singleTokenKeywords,
+                  maxDistance: _fuzzyMaxDistance,
+                );
+                _fuzzyCache[token] = result;
+                return result;
+              }();
         if (fuzzyMatch == null) continue;
         final nodeId = _findExactMatchNode(fuzzyMatch);
         if (nodeId == null || !_trie.isMatchNode(nodeId)) continue;
+
         matches.add(
           KeywordMatch(
             keyword: _trie.nodeOriginalKeywords[nodeId] ?? '',
@@ -605,13 +662,17 @@ class L1Analyzer implements Analyzer {
     FutureOr<String> Function()? provider,
   ) async {
     if (provider != null) {
-      return Future<String>.value(provider());
+      // Must await — provider returns FutureOr<String>, and wrapping a
+      // Future in Future.value() creates a nested future, causing
+      // jsonDecode to receive a Future object instead of a String.
+      final result = await provider();
+      return result;
     }
     return _assetBundle.loadString(assetKey);
   }
 
   void dispose() {
-    // Clean up resources if needed
+    _fuzzyCache.clear();
   }
 }
 

@@ -17,6 +17,7 @@ class LiveConversation extends StatefulWidget {
 class _LiveConversationState extends State<LiveConversation> {
   String _cachedTranscript = '';
   String _cleanTranscript = '';
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -31,7 +32,24 @@ class _LiveConversationState extends State<LiveConversation> {
     if (widget.transcript != oldWidget.transcript) {
       _cachedTranscript = widget.transcript;
       _cleanTranscript = _cachedTranscript.replaceAll('+', ' ');
+
+      // Auto scroll to bottom when new content is appended
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
+      });
     }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -47,9 +65,18 @@ class _LiveConversationState extends State<LiveConversation> {
       );
     }
 
-    return Text(
-      _cleanTranscript,
-      style: const TextStyle(height: 1.4),
+    return Scrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        padding: const EdgeInsets.only(right: 12),
+        child: Text(
+          _cleanTranscript,
+          style: const TextStyle(height: 1.4),
+        ),
+      ),
     );
   }
 }
+

@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/app_database.dart';
 import '../../data/call_history.dart';
+import '../home_page/settings_dialog.dart';
 import '../theme/app_theme.dart';
 import 'history_item_card.dart';
 
@@ -12,37 +15,17 @@ class _HistoryState {
   const _HistoryState({
     this.items = const [],
     this.searchQuery = '',
-    this.hasMore = true,
-    this.isLoadingMore = false,
   });
   final List<CallHistory> items;
   final String searchQuery;
-  final bool hasMore;
-  final bool isLoadingMore;
-
-  List<CallHistory> get filtered {
-    if (searchQuery.isEmpty) return items;
-    final q = searchQuery.toLowerCase();
-    return items.where((i) {
-      return i.summary.toLowerCase().contains(q) ||
-          i.riskLevel.toLowerCase().contains(q) ||
-          i.dateTime.toLowerCase().contains(q) ||
-          i.transcript.toLowerCase().contains(q) ||
-          (i.analysisType?.toLowerCase().contains(q) ?? false);
-    }).toList();
-  }
 
   _HistoryState copyWith({
     List<CallHistory>? items,
     String? searchQuery,
-    bool? hasMore,
-    bool? isLoadingMore,
   }) {
     return _HistoryState(
       items: items ?? this.items,
       searchQuery: searchQuery ?? this.searchQuery,
-      hasMore: hasMore ?? this.hasMore,
-      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     );
   }
 }
@@ -52,67 +35,68 @@ final _historyProvider =
         _HistoryController.new);
 
 class _HistoryController extends AsyncNotifier<_HistoryState> {
-  static const int _pageSize = 20;
+  StreamSubscription<List<CallHistory>>? _dbSubscription;
 
   @override
   Future<_HistoryState> build() async {
-    final db = ref.watch(appDatabaseProvider);
-    final items = await db.getAllPaginated(limit: _pageSize, offset: 0);
-    final totalCount = await db.count();
-    return _HistoryState(
-      items: items,
-      hasMore: items.length < totalCount,
-    );
+    final db = await ref.watch(appDatabaseFutureProvider.future);
+    _subscribeToDb(db);
+    ref.onDispose(() {
+      _dbSubscription?.cancel();
+    });
+    final initial = await db.getAll();
+    return _HistoryState(items: initial, searchQuery: '');
   }
 
-  Future<void> loadMore() async {
-    final current = state.value;
-    if (current == null || !current.hasMore || current.isLoadingMore) return;
-    if (current.searchQuery.isNotEmpty) return;
-
-    state = AsyncData(current.copyWith(isLoadingMore: true));
-    final db = ref.read(appDatabaseProvider);
-    // Không dùng mounted vì AsyncNotifier không có mounted property
-    final moreItems = await db.getAllPaginated(
-      limit: _pageSize,
-      offset: current.items.length,
-    );
-    final totalCount = await db.count();
-    final allItems = [...current.items, ...moreItems];
-    state = AsyncData(_HistoryState(
-      items: allItems,
-      searchQuery: current.searchQuery,
-      hasMore: allItems.length < totalCount,
-    ));
+  void _subscribeToDb(AppDatabase db) {
+    _dbSubscription?.cancel();
+    _dbSubscription = db.watchAll().listen((items) {
+      if (_dbSubscription == null) return; // Guard against events after cancel
+      final s = state.value;
+      if (s == null || s.searchQuery.isNotEmpty) return;
+      state = AsyncData(s.copyWith(items: items));
+    });
   }
 
   Future<void> refresh() async {
-    final db = ref.read(appDatabaseProvider);
-    final items = await db.getAllPaginated(limit: _pageSize, offset: 0);
-    final totalCount = await db.count();
-    state = AsyncData(_HistoryState(
-      items: items,
-      searchQuery: state.value?.searchQuery ?? '',
-      hasMore: items.length < totalCount,
-    ));
+    final db = await ref.read(appDatabaseFutureProvider.future);
+    final current = state.value;
+    final query = current?.searchQuery ?? '';
+    if (query.isEmpty) {
+      _subscribeToDb(db);
+      final items = await db.getAll();
+      state = AsyncData(_HistoryState(items: items, searchQuery: ''));
+    } else {
+      _dbSubscription?.cancel();
+      _dbSubscription = null;
+      final results = await db.search(query, limit: 100);
+      state = AsyncData(_HistoryState(items: results, searchQuery: query));
+    }
   }
 
-  void updateSearch(String query) {
-    final current = state.value ?? const _HistoryState();
-    state = AsyncData(_HistoryState(
-      items: current.items,
-      searchQuery: query,
-      hasMore: current.hasMore,
-    ));
+  Future<void> updateSearch(String query) async {
+    final db = await ref.read(appDatabaseFutureProvider.future);
+    if (query.isEmpty) {
+      _subscribeToDb(db);
+      final items = await db.getAll();
+      state = AsyncData(_HistoryState(items: items, searchQuery: ''));
+      return;
+    }
+    _dbSubscription?.cancel();
+    _dbSubscription = null;
+    final results = await db.search(query, limit: 100);
+    state = AsyncData(_HistoryState(items: results, searchQuery: query));
   }
 
   Future<void> deleteItem(int id) async {
-    await ref.read(appDatabaseProvider).deleteById(id);
+    final db = await ref.read(appDatabaseFutureProvider.future);
+    await db.deleteById(id);
     await refresh();
   }
 
   Future<void> deleteAll() async {
-    await ref.read(appDatabaseProvider).deleteAll();
+    final db = await ref.read(appDatabaseFutureProvider.future);
+    await db.deleteAll();
     await refresh();
   }
 }
@@ -128,28 +112,12 @@ class HistoryPage extends ConsumerStatefulWidget {
 class _HistoryPageState extends ConsumerState<HistoryPage> {
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
-  final _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     _searchController.dispose();
     _focusNode.dispose();
     super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      ref.read(_historyProvider.notifier).loadMore();
-    }
   }
 
   @override
@@ -169,7 +137,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Cài đặt',
-            onPressed: () {},
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => const SettingsDialog(),
+            ),
           ),
         ],
       ),
@@ -177,7 +148,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Lỗi: $e')),
         data: (historyState) {
-          final items = historyState.filtered;
+          final items = historyState.items;
           final query = historyState.searchQuery;
 
           return Padding(
@@ -242,71 +213,72 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
 
-                // ── List / Empty ──
+                // ── List / Empty (with pull-to-refresh) ──
                 Expanded(
-                  child: items.isEmpty
-                      ? _EmptyState(
-                          message: query.isEmpty
-                              ? 'Lịch sử trống.'
-                              : 'Không tìm thấy kết quả.',
-                          secondary: query.isEmpty
-                              ? 'Dữ liệu cuộc gọi chỉ được lưu trên thiết bị này để bạn xem lại trực tiếp.'
-                              : 'Không tìm thấy kết quả nào khớp với "$query".',
-                        )
-                      : ListView.separated(
-                          controller: _scrollController,
-                          itemCount: items.length + (query.isEmpty && historyState.hasMore ? 1 : 0) + 1,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            if (query.isEmpty &&
-                                historyState.hasMore &&
-                                index == items.length) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                child: Center(child: CircularProgressIndicator()),
-                              );
-                            }
-                            final footerIdx = query.isEmpty && historyState.hasMore
-                                ? items.length + 1
-                                : items.length;
-                            if (index == footerIdx) {
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                child: Text(
-                                  '*Lưu ý: Để đảm bảo quyền riêng tư và tối ưu bộ nhớ, file ghi âm sẽ không được lưu trong lịch sử; chỉ lưu văn bản cuộc gọi trên thiết bị này.',
-                                  style: tt.bodySmall?.copyWith(
-                                      color: cs.onSurfaceVariant),
-                                  textAlign: TextAlign.center,
+                  child: RefreshIndicator(
+                    onRefresh: () =>
+                        ref.read(_historyProvider.notifier).refresh(),
+                    child: items.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height: 240,
+                                child: _EmptyState(
+                                  message: query.isEmpty
+                                      ? 'Lịch sử trống.'
+                                      : 'Không tìm thấy kết quả.',
+                                  secondary: query.isEmpty
+                                      ? 'Dữ liệu cuộc gọi chỉ được lưu trên thiết bị này để bạn xem lại trực tiếp.'
+                                      : 'Không tìm thấy kết quả nào khớp với "$query".',
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: items.length + 1,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              if (index == items.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 16),
+                                  child: Text(
+                                    '*Lưu ý: Để đảm bảo quyền riêng tư và tối ưu bộ nhớ, file ghi âm sẽ không được lưu trong lịch sử; chỉ lưu văn bản cuộc gọi trên thiết bị này.',
+                                    style: tt.bodySmall
+                                        ?.copyWith(color: cs.onSurfaceVariant),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                );
+                              }
+                              final item = items[index];
+                              return Dismissible(
+                                key: ValueKey(item.id),
+                                direction: DismissDirection.endToStart,
+                                confirmDismiss: (_) =>
+                                    _showDeleteItemDialog(context, item),
+                                background: Container(
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20),
+                                  decoration: BoxDecoration(
+                                    color: cs.errorContainer,
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: Icon(Icons.delete,
+                                      color: cs.onErrorContainer),
+                                ),
+                                child: HistoryItemCard(
+                                  item: item,
+                                  onTap: () =>
+                                      context.push('/result/${item.id}'),
                                 ),
                               );
-                            }
-                            final item = items[index];
-                            return Dismissible(
-                              key: ValueKey(item.id),
-                              direction: DismissDirection.endToStart,
-                              confirmDismiss: (_) =>
-                                  _showDeleteItemDialog(context, item),
-                              background: Container(
-                                alignment: Alignment.centerRight,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 20),
-                                decoration: BoxDecoration(
-                                  color: cs.errorContainer,
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
-                                child: Icon(Icons.delete,
-                                    color: cs.onErrorContainer),
-                              ),
-                              child: HistoryItemCard(
-                                item: item,
-                                onTap: () =>
-                                    context.push('/result/${item.id}'),
-                              ),
-                            );
-                          },
-                        ),
+                            },
+                          ),
+                  ),
                 ),
               ],
             ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 typedef SafetyAssetProvider = FutureOr<String> Function(String fileName);
@@ -11,9 +12,19 @@ class SafetyFilter {
   static const String configFile = 'safety_keywords.json';
 
   static int _openingSectionLength = 200;
-  static List<String> _casualPhrases = <String>[];
-  static List<String> _standardTransactions = <String>[];
-  static List<String> _dangerOverrides = <String>[];
+  static List<String> _casualPhrases = const <String>[
+    'ăn cơm chưa', 'đi chơi không', 'đang làm gì đấy', 'thế à', 'vậy hả',
+    'mẹ đây', 'bố đây', 'con đang', 'chút nữa gọi lại', 'mua rau', 'đi chợ',
+  ];
+  static List<String> _standardTransactions = const <String>[
+    'chuyển khoản tiền trọ', 'tiền cơm', 'chia tiền nốt',
+    'chuyển tiền học phí', 'trả tiền điện',
+  ];
+  static List<String> _dangerOverrides = const <String>[
+    'số tài khoản', 'mã otp', 'chuyển khoản', 'mật khẩu',
+    'cccd', 'cmnd', 'công an', 'kiểm sát', 'tải ứng dụng',
+    'cài app', 'link', 'bắt cóc', 'tống tiền',
+  ];
   static double _casualReductionPerMatch = 0.15;
   static double _transactionReductionPerMatch = 0.30;
   static double _minMultiplier = 0.4;
@@ -32,14 +43,14 @@ class SafetyFilter {
       _openingSectionLength =
           (json['openingSectionLength'] as num?)?.toInt() ??
           _openingSectionLength;
-      _casualPhrases = _readStringList(json['casualPhrases'], _casualPhrases);
-      _standardTransactions = _readStringList(
-        json['standardTransactions'],
-        _standardTransactions,
+      _casualPhrases = List<String>.unmodifiable(
+        _readStringList(json['casualPhrases'], _casualPhrases),
       );
-      _dangerOverrides = _readStringList(
-        json['dangerOverrides'],
-        _dangerOverrides,
+      _standardTransactions = List<String>.unmodifiable(
+        _readStringList(json['standardTransactions'], _standardTransactions),
+      );
+      _dangerOverrides = List<String>.unmodifiable(
+        _readStringList(json['dangerOverrides'], _dangerOverrides),
       );
       _casualReductionPerMatch =
           (json['casualReductionPerMatch'] as num?)?.toDouble() ??
@@ -84,6 +95,28 @@ class SafetyFilter {
     }
 
     return discountMultiplier.clamp(_minMultiplier, 1.0).toDouble();
+  }
+
+  /// Resets all fields to hardcoded defaults. For use in unit tests only.
+  @visibleForTesting
+  static void resetForTesting() {
+    _openingSectionLength = 200;
+    _casualPhrases = <String>[
+      'ăn cơm chưa', 'đi chơi không', 'đang làm gì đấy', 'thế à', 'vậy hả',
+      'mẹ đây', 'bố đây', 'con đang', 'chút nữa gọi lại', 'mua rau', 'đi chợ',
+    ];
+    _standardTransactions = <String>[
+      'chuyển khoản tiền trọ', 'tiền cơm', 'chia tiền nốt',
+      'chuyển tiền học phí', 'trả tiền điện',
+    ];
+    _dangerOverrides = <String>[
+      'số tài khoản', 'mã otp', 'chuyển khoản', 'mật khẩu',
+      'cccd', 'cmnd', 'công an', 'kiểm sát', 'tải ứng dụng',
+      'cài app', 'link', 'bắt cóc', 'tống tiền',
+    ];
+    _casualReductionPerMatch = 0.15;
+    _transactionReductionPerMatch = 0.30;
+    _minMultiplier = 0.4;
   }
 
   static List<String> _readStringList(Object? raw, List<String> fallback) {

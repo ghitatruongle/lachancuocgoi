@@ -412,7 +412,7 @@ class ScamPatternDTO {
 
   factory ScamPatternDTO.fromJson(Map<String, Object?> json) {
     return ScamPatternDTO(
-      id: json['id'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
       description: json['description'] as String?,
       riskBonus: (json['risk_bonus'] as num?)?.toDouble(),
       minGap: (json['min_gap'] as num?)?.toInt(),
@@ -496,9 +496,9 @@ class MasterScenario {
 
   factory MasterScenario.fromJson(Map<String, Object?> json) {
     return MasterScenario(
-      id: json['id'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
       source: json['source'] as String?,
-      originalId: json['original_id'] as String?,
+      originalId: json['original_id']?.toString(),
       name: json['name'] as String? ?? '',
       description: json['description'] as String?,
       riskLevel: (json['risk_level'] as num?)?.toInt() ?? 0,

@@ -1,9 +1,14 @@
+import 'dart:async' show Completer;
+
+import 'package:flutter/foundation.dart';
+
 import '../analysis_level.dart';
 import '../analysis_result.dart';
 import '../analyzer.dart';
 import '../health_check.dart';
 import '../../core/risk_level.dart';
 import 'g_detection/g_detection_engine.dart';
+import 'g_detection/g_models.dart';
 import 'intent/intent_classifier.dart';
 import 'intent/scam_intent.dart';
 import 'l2_result.dart';
@@ -26,6 +31,10 @@ class L2Analyzer implements Analyzer {
   static const double aiDirectMargin = 0.15;
   static const double aiAssistConfidence = 0.50;
   static const double aiAssistMargin = 0.08;
+
+  // Phase 2.3: Concurrency limiter — only one analyze() runs at a time.
+  // Prevents CPU spike from concurrent TFLite + GDetection + WFSA.
+  Future<void> _analysisMutex = Future.value();
 
   final GDetectionEngine _gDetectionEngine;
   final IntentClassifier _intentClassifier;
@@ -123,43 +132,60 @@ class L2Analyzer implements Analyzer {
       return emptyResult;
     }
 
-    final luong1Future = _runIntentFlow(fullText);
-    final gDetectionFuture = _gDetectionEngine.performFullAnalysis(fullText);
+    // Phase 2.3: Wait for any in-flight analysis to finish before starting.
+    final prevMutex = _analysisMutex;
+    final completer = Completer<void>();
+    _analysisMutex = completer.future;
 
-    final luong1Result = await luong1Future;
-    final gResult = await gDetectionFuture;
-    final parsedGDetectionResult = L2ResultParser.parse(gResult);
-
-    final intentForWfsa = luong1Result is _Luong1Success
-        ? <IntentPrediction>[luong1Result.prediction]
-        : const <IntentPrediction>[];
-    var wfsaScore = _wfsaEngine.analyzeSegment(incrementalText, intentForWfsa);
-    final safetyDiscount = SafetyFilter.calculateSafetyDiscount(fullText);
-    wfsaScore *= safetyDiscount;
-
-    final wfsaRiskLevel = switch (wfsaScore) {
-      >= 50.0 => RiskLevel.red,
-      >= 20.0 => RiskLevel.yellow,
-      _ => RiskLevel.green,
-    };
-    final gDetectionRiskLevel = _discountGDetectionRisk(
-      parsedGDetectionResult.overallRiskLevel,
-      safetyDiscount,
-    );
-    final result2 = _mergeContextResult(
-      parsedGDetectionResult,
-      gDetectionRiskLevel,
-      wfsaRiskLevel,
-      wfsaScore,
+    await prevMutex.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        debugPrint('[L2Analyzer] Timeout waiting for previous analysis lock — force continuing');
+      },
     );
 
-    final result = switch (luong1Result) {
-      _Luong1Success() => _fuseIntentSuccess(luong1Result, result2, fullText),
-      _Luong1Fallback() => _fallbackResult(result2, fullText),
-    };
-    _processedTextLength = fullText.length;
-    _lastResult = result;
-    return result;
+    try {
+      final results = await Future.wait<Object>([
+        _runIntentFlow(fullText),
+        _gDetectionEngine.performFullAnalysis(fullText),
+      ]);
+      final luong1Result = results[0] as _Luong1Result;
+      final gResult = results[1] as GResult;
+      final parsedGDetectionResult = L2ResultParser.parse(gResult);
+
+      final intentForWfsa = luong1Result is _Luong1Success
+          ? <IntentPrediction>[luong1Result.prediction]
+          : const <IntentPrediction>[];
+      var wfsaScore = _wfsaEngine.analyzeSegment(incrementalText, intentForWfsa);
+      final safetyDiscount = SafetyFilter.calculateSafetyDiscount(fullText);
+      wfsaScore *= safetyDiscount;
+
+      final wfsaRiskLevel = switch (wfsaScore) {
+        >= 50.0 => RiskLevel.red,
+        >= 20.0 => RiskLevel.yellow,
+        _ => RiskLevel.green,
+      };
+      final gDetectionRiskLevel = _discountGDetectionRisk(
+        parsedGDetectionResult.overallRiskLevel,
+        safetyDiscount,
+      );
+      final result2 = _mergeContextResult(
+        parsedGDetectionResult,
+        gDetectionRiskLevel,
+        wfsaRiskLevel,
+        wfsaScore,
+      );
+
+      final result = switch (luong1Result) {
+        _Luong1Success() => _fuseIntentSuccess(luong1Result, result2, fullText),
+        _Luong1Fallback() => _fallbackResult(result2, fullText),
+      };
+      _processedTextLength = fullText.length;
+      _lastResult = result;
+      return result;
+    } finally {
+      completer.complete();
+    }
   }
 
   Future<_Luong1Result> _runIntentFlow(String fullText) async {
@@ -298,7 +324,7 @@ class L2Analyzer implements Analyzer {
         overallRiskLevel: _maxRisk(intentRisk, result2.overallRiskLevel),
         matches: _distinctMatches(highConfMatches),
         reason:
-            'Cảnh báo $intentLabel — ${topIntent.intent.description.toUpperCase()}',
+            '⚠️ ${intentLabel.toUpperCase()} — ${topIntent.intent.description.toUpperCase()}',
         analysisLevel: AnalysisLevel.l2Ai,
         alertEnabled: intentRisk != RiskLevel.green,
         confidence: topIntent.confidence,
@@ -309,7 +335,7 @@ class L2Analyzer implements Analyzer {
       return AnalysisResult(
         overallRiskLevel: intentRisk,
         matches: <KeywordMatch>[intentMatch],
-        reason: 'Cảnh báo $intentLabel — ${topIntent.intent.description}',
+        reason: '⚠️ $intentLabel — ${topIntent.intent.description}',
         analysisLevel: AnalysisLevel.l2Ai,
         alertEnabled: intentRisk != RiskLevel.green,
         confidence: topIntent.confidence,
@@ -329,7 +355,7 @@ class L2Analyzer implements Analyzer {
           intentMatch,
           ...result2.matches,
         ]),
-        reason: 'Cảnh báo $intentLabel — ${topIntent.intent.description}',
+        reason: '⚠️ $intentLabel — ${topIntent.intent.description}',
         analysisLevel: AnalysisLevel.l2Fused,
         alertEnabled: result2.alertEnabled || intentRisk != RiskLevel.green,
         confidence: ensembleConfidence,

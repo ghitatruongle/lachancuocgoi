@@ -25,7 +25,7 @@ void main() {
     });
 
     test('round-trip works with very long key (200 chars)', () {
-      final raw = 'AIza' + 'x' * 196;
+      final raw = 'AIza${'x' * 196}';
       final encoded = ApiKeyObfuscator.encode(raw);
       final decoded = ApiKeyObfuscator.decode(encoded);
       expect(decoded, raw);

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -42,13 +43,15 @@ class PermissionState {
 }
 
 /// Controller for managing Android permissions via native bridge.
-class PermissionController extends StateNotifier<PermissionState> {
+class PermissionController extends StateNotifier<PermissionState>
+    with WidgetsBindingObserver {
   PermissionController(this._bridge) : super(const PermissionState()) {
+    WidgetsBinding.instance.addObserver(this);
     _refresh();
   }
 
-  final NativeCallShieldBridge _bridge;
-  StreamSubscription<(MonitoringState, int?, String?)>? _monitoringStateSub;
+  final NativeBridgeInterface _bridge;
+  DateTime? _lastRefreshTime;
 
   static bool get _canUseRuntimePermissionUi =>
       !kIsWeb &&
@@ -128,34 +131,47 @@ class PermissionController extends StateNotifier<PermissionState> {
   }
 
   /// Refresh permission snapshot from native.
+  /// Throttled to avoid rapid successive platform channel calls
+  /// and unnecessary widget rebuilds.
   Future<void> _refresh() async {
-    state = state.copyWith(isLoading: true);
+    final now = DateTime.now();
+    if (_lastRefreshTime != null &&
+        now.difference(_lastRefreshTime!).inMilliseconds < 500) {
+      return; // Skip if refreshed within last 500ms
+    }
+    _lastRefreshTime = now;
     try {
       final snapshot = await _bridge.getPermissionSnapshot();
-      state = state.copyWith(
-        snapshot: snapshot,
-        isLoading: false,
-        lastUpdated: DateTime.now(),
-      );
-      debugPrint('Permission refreshed: $snapshot');
+      if (!mounted) return;
+      // Only update state if snapshot actually changed to avoid rebuilds
+      if (snapshot != state.snapshot) {
+        state = state.copyWith(
+          snapshot: snapshot,
+          lastUpdated: DateTime.now(),
+        );
+      }
     } catch (e) {
       debugPrint('Failed to refresh permissions: $e');
-      state = state.copyWith(isLoading: false);
     }
   }
 
   /// Public refresh method.
   Future<void> refresh() => _refresh();
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Reset throttle so resume always triggers a fresh snapshot.
+      _lastRefreshTime = null;
+      _refresh();
+    }
+  }
+
   /// Request overlay permission.
+  /// Lifecycle-based refresh handles state update when user returns from settings.
   Future<bool> requestOverlayPermission() async {
     try {
-      final result = await _bridge.requestOverlayPermission();
-      if (result) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        await _refresh();
-      }
-      return result;
+      return await _bridge.requestOverlayPermission();
     } catch (e) {
       debugPrint('Failed to request overlay permission: $e');
       return false;
@@ -163,14 +179,10 @@ class PermissionController extends StateNotifier<PermissionState> {
   }
 
   /// Request accessibility permission.
+  /// Lifecycle-based refresh handles state update when user returns from settings.
   Future<bool> requestAccessibilityPermission() async {
     try {
-      final result = await _bridge.openAccessibilitySettings();
-      // User must manually enable in settings, so we just refresh after delay
-      if (result) {
-        unawaited(Future.delayed(const Duration(seconds: 2)).then((_) => _refresh()));
-      }
-      return result;
+      return await _bridge.openAccessibilitySettings();
     } catch (e) {
       debugPrint('Failed to open accessibility settings: $e');
       return false;
@@ -178,14 +190,10 @@ class PermissionController extends StateNotifier<PermissionState> {
   }
 
   /// Request call screening role.
+  /// Lifecycle-based refresh handles state update when user returns from settings.
   Future<bool> requestCallScreeningPermission() async {
     try {
-      final result = await _bridge.requestCallScreeningRole();
-      if (result) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        await _refresh();
-      }
-      return result;
+      return await _bridge.requestCallScreeningRole();
     } catch (e) {
       debugPrint('Failed to request call screening role: $e');
       return false;
@@ -230,7 +238,7 @@ class PermissionController extends StateNotifier<PermissionState> {
 
   @override
   void dispose() {
-    _monitoringStateSub?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 }
