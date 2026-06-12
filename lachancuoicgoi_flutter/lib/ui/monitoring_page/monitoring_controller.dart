@@ -72,6 +72,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   // and helps debug stale snapshots during recovery.
   int _sessionStartEpochSeconds = 0;
 
+  // Fix: giữ subscription của ref.listen để đóng khi re-init — tránh
+  // tích lũy listener trùng lặp mỗi lần init() được gọi lại.
+  ProviderSubscription<SettingsState>? _settingsSub;
   StreamSubscription<TranscriptUpdate>? _transcriptSub;
   StreamSubscription<double>? _rmsSub;
   StreamSubscription<(MonitoringState, int?, String?)>? _stateSub;
@@ -145,7 +148,10 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     );
 
     if (!_hasTestAnalyzerOverride) {
-      ref.listen<SettingsState>(
+      // Fix: đóng subscription cũ trước khi đăng ký mới — init() có thể
+      // được gọi lại (mô phỏng → giám sát thật) và ref.listen không tự hủy.
+      _settingsSub?.close();
+      _settingsSub = ref.listen<SettingsState>(
         settingsControllerProvider,
         (previous, next) {
           if (_disposed) return;
@@ -230,6 +236,8 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _stateSub = null;
     _callEventSub?.cancel();
     _callEventSub = null;
+    _settingsSub?.close();
+    _settingsSub = null;
     _phoneNumber = null;
     _simulatedScenarioTitle = null;
     _simulatedTranscript = null;
@@ -290,6 +298,8 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _stateSub = null;
     _callEventSub?.cancel();
     _callEventSub = null;
+    _settingsSub?.close();
+    _settingsSub = null;
     _amplitudesNotifier?.dispose();
   }
 
@@ -358,8 +368,14 @@ class MonitoringController extends Notifier<MonitoringPageState> {
         }
         _lastAmplitudeUpdate = now;
         // Bug #2 fix: record peak amplitude for noAudio vs sttFailed detection.
+        // _peakAmplitude giữ thang RMS thô — ngưỡng noAudio (< 0.5) trong
+        // endSession() vẫn theo thang này, không đổi.
         if (rms > _peakAmplitude) _peakAmplitude = rms;
-        _amplitudes[_amplitudeWriteIndex] = max(0.1, rms);
+        // Chuẩn hóa rmsDb (~ -2..10 dB từ SpeechRecognizer.onRmsChanged)
+        // về 0..1 cho waveform — painter clamp 0..1 nên giá trị dB thô
+        // khiến mọi thanh sóng luôn kịch trần, mất ý nghĩa hiển thị.
+        final normalized = ((rms + 2.0) / 12.0).clamp(0.0, 1.0);
+        _amplitudes[_amplitudeWriteIndex] = max(0.1, normalized);
         // Build ordered list BEFORE incrementing write index — avoids
         // the new value being shifted to the end of the waveform.
         final ordered = List<double>.filled(_amplitudeBufferSize, 0.0);

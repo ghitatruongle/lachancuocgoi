@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/intent/intent_classifier.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/intent/tflite_intent_classifier.dart';

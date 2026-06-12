@@ -12,17 +12,6 @@ import 'package:lachancuocgoi_flutter/analysis/l3/gemini_summarizer.dart';
 void main() {
   group('Bug #3: Production path (no injected client)', () {
     test('creates and CACHES client on first call (lazy init)', () async {
-      var executorCallCount = 0;
-      final fakeExecutor = ({
-        required String apiKey,
-        required GeminiConfig config,
-        required String modelName,
-        required String prompt,
-      }) async {
-        executorCallCount++;
-        return 'Tóm tắt $executorCallCount';
-      };
-
       // Inject custom requestExecutor via subclass hack
       // Đây là cách gián tiếp: dùng GeminiSummarizer không inject client,
       // nhưng build một staticApiKeyProvider, và patch GeminiClient.constructor
@@ -56,8 +45,6 @@ void main() {
       // (không thể verify trực tiếp từ public API, nhưng indirect qua
       // consistent error messages hoặc timing).
       expect(true, isTrue, reason: 'Smoke test passes — summarizer tạo được');
-      // Reference unused vars to silence analyzer
-      executorCallCount.toString();
     });
 
     test('multiple summarizers each cache their own client', () async {
@@ -89,7 +76,7 @@ void main() {
       // 5 lần đầu fail → circuit breaker mở.
       // Lần thứ 6 KHÔNG gọi executor (cached client chặn).
       var executorCalls = 0;
-      final failingExecutor = ({
+      Future<String> failingExecutor({
         required String apiKey,
         required GeminiConfig config,
         required String modelName,
@@ -97,7 +84,7 @@ void main() {
       }) async {
         executorCalls++;
         throw Exception('Simulated failure #$executorCalls');
-      };
+      }
 
       final client = GeminiClient(
         apiKeyProvider: StaticApiKeyProvider(const ['AIzaTestKey']),

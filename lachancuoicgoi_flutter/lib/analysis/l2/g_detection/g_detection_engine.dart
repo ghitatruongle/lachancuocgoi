@@ -402,7 +402,13 @@ class GDetectionEngine {
 
   Future<Map<String, Object?>> _loadJsonMap(String fileName) async {
     final text = await _loadString(fileName);
-    final decoded = jsonDecode(text);
+    // Perf: file lớn (risk_scenarios_master, risk_model_sentences...) decode
+    // trên main thread sẽ chặn frame gây giật khi khởi tạo L2 — đẩy sang
+    // isolate riêng qua compute(). File nhỏ (< 10KB) decode tại chỗ để
+    // tránh overhead spawn isolate.
+    final decoded = text.length > 10 * 1024
+        ? await compute(_decodeJsonString, text)
+        : _decodeJsonString(text);
     if (decoded is! Map) {
       throw const FormatException('Expected JSON object');
     }
@@ -421,3 +427,6 @@ class GDetectionEngine {
     return _assetBundle.loadString('assets/$fileName');
   }
 }
+
+/// Top-level để dùng được với [compute] — decode JSON trên isolate riêng.
+Object? _decodeJsonString(String text) => jsonDecode(text);

@@ -16,6 +16,10 @@ class CallHistoryDao {
     yield* _changeController.stream.asyncMap((_) => getAll());
   }
 
+  /// Emits whenever the table changes — dùng cho UI phân trang để
+  /// tự re-query trang hiện tại thay vì load toàn bộ bảng vào RAM.
+  Stream<void> get changes => _changeController.stream;
+
   Future<int> insert(CallHistory callHistory) async {
     final id = await _db.insert(
       'call_history',

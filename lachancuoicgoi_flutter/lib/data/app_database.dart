@@ -197,6 +197,9 @@ CREATE TABLE IF NOT EXISTS call_history (
 
   Stream<List<CallHistory>> watchAll() => callHistoryDao.watchAll();
 
+  /// Emits whenever call_history changes (insert/delete/update).
+  Stream<void> get changes => callHistoryDao.changes;
+
   Future<CallHistory?> getById(int id) => callHistoryDao.getById(id);
 
   Future<void> deleteAll() => callHistoryDao.deleteAll();
@@ -275,6 +278,9 @@ class InMemoryAppDatabase implements AppDatabase {
 
   @override
   Stream<List<CallHistory>> watchAll() => _streamController.stream;
+
+  @override
+  Stream<void> get changes => _streamController.stream.map((_) {});
 
   @override
   Future<CallHistory?> getById(int id) async {

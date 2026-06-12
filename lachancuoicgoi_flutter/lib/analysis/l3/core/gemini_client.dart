@@ -109,14 +109,16 @@ class GeminiClient {
 
     Object? lastError;
     StackTrace? lastStackTrace;
-    _hasNotifiedAllExhausted = false;
 
     for (final keyIndex in activeIndices) {
       final apiKey = keys[keyIndex];
       var retryCount = 0;
+      var shouldBackoff = false;
       for (final modelName in _fallbackModels) {
-        // Exponential backoff between retries: 1s, 2s, 4s
-        if (retryCount > 0) {
+        // Fix: backoff (1s, 2s, 4s) chỉ áp dụng cho lỗi transient
+        // (timeout/network/unknown). Lỗi quota/modelNotFound chuyển
+        // model kế tiếp ngay lập tức, không chờ vô ích.
+        if (retryCount > 0 && shouldBackoff) {
           final delayMs = 1000 * (1 << (retryCount - 1)); // 1000, 2000, 4000
           await Future<void>.delayed(Duration(milliseconds: delayMs));
         }
@@ -148,6 +150,7 @@ class GeminiClient {
           }
           if (errorType == GeminiErrorType.quota ||
               errorType == GeminiErrorType.modelNotFound) {
+            shouldBackoff = false; // chuyển model ngay, không backoff
             continue;
           }
           keyHealthTracker?.markError(keyIndex, error.toString());
@@ -192,6 +195,10 @@ class GeminiClient {
 
   void _recordSuccess() {
     _consecutiveFailures = 0;
+    // Fix: chỉ reset cờ "all keys exhausted" khi có request thành công
+    // trở lại — tránh onAllKeysExhausted bị bắn lặp ở mọi query khi
+    // toàn bộ key vẫn đang down.
+    _hasNotifiedAllExhausted = false;
     if (_circuitState == _CircuitState.halfOpen) {
       _circuitState = _CircuitState.closed;
     }

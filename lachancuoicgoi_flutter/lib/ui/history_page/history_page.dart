@@ -15,17 +15,25 @@ class _HistoryState {
   const _HistoryState({
     this.items = const [],
     this.searchQuery = '',
+    this.hasMore = false,
+    this.isLoadingMore = false,
   });
   final List<CallHistory> items;
   final String searchQuery;
+  final bool hasMore;
+  final bool isLoadingMore;
 
   _HistoryState copyWith({
     List<CallHistory>? items,
     String? searchQuery,
+    bool? hasMore,
+    bool? isLoadingMore,
   }) {
     return _HistoryState(
       items: items ?? this.items,
       searchQuery: searchQuery ?? this.searchQuery,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     );
   }
 }
@@ -35,7 +43,11 @@ final _historyProvider =
         _HistoryController.new);
 
 class _HistoryController extends AsyncNotifier<_HistoryState> {
-  StreamSubscription<List<CallHistory>>? _dbSubscription;
+  /// Kích thước trang — chỉ load 20 bản ghi mỗi lần thay vì toàn bộ bảng
+  /// (mỗi bản ghi chứa full transcript nên rất tốn RAM).
+  static const int _pageSize = 20;
+
+  StreamSubscription<void>? _dbSubscription;
 
   @override
   Future<_HistoryState> build() async {
@@ -44,48 +56,85 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
     ref.onDispose(() {
       _dbSubscription?.cancel();
     });
-    final initial = await db.getAll();
-    return _HistoryState(items: initial, searchQuery: '');
+    final initial = await db.getAllPaginated(limit: _pageSize, offset: 0);
+    return _HistoryState(
+      items: initial,
+      searchQuery: '',
+      hasMore: initial.length == _pageSize,
+    );
   }
 
   void _subscribeToDb(AppDatabase db) {
     _dbSubscription?.cancel();
-    _dbSubscription = db.watchAll().listen((items) {
+    _dbSubscription = db.changes.listen((_) async {
       if (_dbSubscription == null) return; // Guard against events after cancel
       final s = state.value;
       if (s == null || s.searchQuery.isNotEmpty) return;
-      state = AsyncData(s.copyWith(items: items));
+      // Re-query đúng số item đang hiển thị để giữ vị trí cuộn,
+      // thay vì load toàn bộ bảng vào RAM.
+      final limit = s.items.length > _pageSize ? s.items.length : _pageSize;
+      final items = await db.getAllPaginated(limit: limit, offset: 0);
+      final current = state.value;
+      if (current == null || current.searchQuery.isNotEmpty) return;
+      state = AsyncData(current.copyWith(
+        items: items,
+        hasMore: items.length == limit,
+      ));
     });
   }
 
   Future<void> refresh() async {
-    final db = await ref.read(appDatabaseFutureProvider.future);
     final current = state.value;
-    final query = current?.searchQuery ?? '';
-    if (query.isEmpty) {
-      _subscribeToDb(db);
-      final items = await db.getAll();
-      state = AsyncData(_HistoryState(items: items, searchQuery: ''));
-    } else {
-      _dbSubscription?.cancel();
-      _dbSubscription = null;
-      final results = await db.search(query, limit: 100);
-      state = AsyncData(_HistoryState(items: results, searchQuery: query));
-    }
+    await _loadFirstPage(current?.searchQuery ?? '');
   }
 
-  Future<void> updateSearch(String query) async {
+  Future<void> updateSearch(String query) => _loadFirstPage(query);
+
+  Future<void> _loadFirstPage(String query) async {
     final db = await ref.read(appDatabaseFutureProvider.future);
     if (query.isEmpty) {
       _subscribeToDb(db);
-      final items = await db.getAll();
-      state = AsyncData(_HistoryState(items: items, searchQuery: ''));
+      final items = await db.getAllPaginated(limit: _pageSize, offset: 0);
+      state = AsyncData(_HistoryState(
+        items: items,
+        searchQuery: '',
+        hasMore: items.length == _pageSize,
+      ));
       return;
     }
     _dbSubscription?.cancel();
     _dbSubscription = null;
-    final results = await db.search(query, limit: 100);
-    state = AsyncData(_HistoryState(items: results, searchQuery: query));
+    final results = await db.search(query, limit: _pageSize);
+    state = AsyncData(_HistoryState(
+      items: results,
+      searchQuery: query,
+      hasMore: results.length == _pageSize,
+    ));
+  }
+
+  /// Lazy load trang kế tiếp khi người dùng cuộn gần cuối danh sách.
+  Future<void> loadMore() async {
+    final s = state.value;
+    if (s == null || s.isLoadingMore || !s.hasMore) return;
+    state = AsyncData(s.copyWith(isLoadingMore: true));
+    try {
+      final db = await ref.read(appDatabaseFutureProvider.future);
+      final next = s.searchQuery.isEmpty
+          ? await db.getAllPaginated(
+              limit: _pageSize, offset: s.items.length)
+          : await db.search(s.searchQuery,
+              limit: _pageSize, offset: s.items.length);
+      state = AsyncData(s.copyWith(
+        items: [...s.items, ...next],
+        hasMore: next.length == _pageSize,
+        isLoadingMore: false,
+      ));
+    } catch (_) {
+      final cur = state.value;
+      if (cur != null) {
+        state = AsyncData(cur.copyWith(isLoadingMore: false));
+      }
+    }
   }
 
   Future<void> deleteItem(int id) async {
@@ -112,12 +161,23 @@ class HistoryPage extends ConsumerStatefulWidget {
 class _HistoryPageState extends ConsumerState<HistoryPage> {
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
+  Timer? _searchDebounce;
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    // Debounce 300ms — tránh query DB theo từng ký tự gõ.
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      ref.read(_historyProvider.notifier).updateSearch(value);
+    });
   }
 
   @override
@@ -168,6 +228,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                           ? IconButton(
                               icon: const Icon(Icons.close),
                               onPressed: () {
+                                _searchDebounce?.cancel();
                                 _searchController.clear();
                                 ref
                                     .read(_historyProvider.notifier)
@@ -189,8 +250,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                       ),
                     ),
                     textInputAction: TextInputAction.search,
-                    onChanged: (v) =>
-                        ref.read(_historyProvider.notifier).updateSearch(v),
+                    onChanged: _onSearchChanged,
                     onSubmitted: (_) => _focusNode.unfocus(),
                   ),
                 ),
@@ -235,22 +295,48 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                               ),
                             ],
                           )
-                        : ListView.separated(
+                        : NotificationListener<ScrollNotification>(
+                            onNotification: (n) {
+                              // Lazy load: cuộn gần cuối thì tải trang kế.
+                              if (n.metrics.pixels >=
+                                  n.metrics.maxScrollExtent - 200) {
+                                ref
+                                    .read(_historyProvider.notifier)
+                                    .loadMore();
+                              }
+                              return false;
+                            },
+                            child: ListView.separated(
                             physics: const AlwaysScrollableScrollPhysics(),
                             itemCount: items.length + 1,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               if (index == items.length) {
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 16),
-                                  child: Text(
-                                    '*Lưu ý: Để đảm bảo quyền riêng tư và tối ưu bộ nhớ, file ghi âm sẽ không được lưu trong lịch sử; chỉ lưu văn bản cuộc gọi trên thiết bị này.',
-                                    style: tt.bodySmall
-                                        ?.copyWith(color: cs.onSurfaceVariant),
-                                    textAlign: TextAlign.center,
-                                  ),
+                                return Column(
+                                  children: [
+                                    if (historyState.isLoadingMore)
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            vertical: 12),
+                                        child: SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2),
+                                        ),
+                                      ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 16),
+                                      child: Text(
+                                        '*Lưu ý: Để đảm bảo quyền riêng tư và tối ưu bộ nhớ, file ghi âm sẽ không được lưu trong lịch sử; chỉ lưu văn bản cuộc gọi trên thiết bị này.',
+                                        style: tt.bodySmall?.copyWith(
+                                            color: cs.onSurfaceVariant),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
                                 );
                               }
                               final item = items[index];
@@ -277,6 +363,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                                 ),
                               );
                             },
+                            ),
                           ),
                   ),
                 ),

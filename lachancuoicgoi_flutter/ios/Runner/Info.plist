@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Lá Chắn Cuộc Gọi cần quyền micro để phân tích âm thanh cuộc gọi và cảnh báo lừa đảo theo thời gian thực.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Lá Chắn Cuộc Gọi cần nhận dạng giọng nói để chuyển nội dung cuộc gọi thành văn bản và phân tích rủi ro lừa đảo.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
