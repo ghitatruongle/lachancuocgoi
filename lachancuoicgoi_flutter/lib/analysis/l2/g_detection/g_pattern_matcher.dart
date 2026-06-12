@@ -108,6 +108,9 @@ class GPatternMatcher {
     return false;
   }
 
+  /// Check if element matches at given index.
+  /// Returns true if element matches, false otherwise.
+  /// For PatternKeyword, supports multi-token keywords (e.g. "chuyen khoan").
   static bool _checkElementAt(
     int index,
     PatternElement element,
@@ -115,20 +118,37 @@ class GPatternMatcher {
     Map<int, List<KeywordMatch>> matchesByIndex,
   ) {
     if (index >= tokens.length) return false;
+    final result = _tryConsumeElement(index, element, tokens, matchesByIndex);
+    return result != -1;
+  }
+
+  static int _tryConsumeElement(
+    int index,
+    PatternElement element,
+    List<String> tokens,
+    Map<int, List<KeywordMatch>> matchesByIndex,
+  ) {
+    if (index >= tokens.length) return -1;
 
     return switch (element) {
-      PatternKeyword(:final value) => _matchesKeyword(tokens[index], value),
+      PatternKeyword(:final value) => _matchKeyword(tokens, index, value),
       PatternCategory(:final categoryName) =>
         matchesByIndex[index]?.any(
               (match) =>
                   match.category.toLowerCase() == categoryName.toLowerCase(),
             ) ==
-            true,
-      PatternWildcard() => true,
+            true
+            ? index
+            : -1,
+      PatternWildcard() => index,
     };
   }
 
-  static bool _matchesKeyword(String token, String rawKeyword) {
+  /// Match keyword tokens starting at [startIndex] in the input tokens.
+  /// Returns the index of the last matched token, or -1 if no match.
+  /// For multi-token keywords (e.g. "chuyen khoan"), checks sequential tokens.
+  /// ✓ BUG #2 FIX: Now correctly checks ALL keyword tokens, not just the first.
+  static int _matchKeyword(List<String> tokens, int startIndex, String rawKeyword) {
     final normalized = _normalizedKeywordCache.putIfAbsent(
       rawKeyword,
       () => GFlash.tokenize(rawKeyword).join(' '),
@@ -137,7 +157,14 @@ class GPatternMatcher {
         .split(' ')
         .where((part) => part.isNotEmpty)
         .toList();
-    if (keywordTokens.isEmpty) return false;
-    return token == keywordTokens.first;
+    if (keywordTokens.isEmpty) return -1;
+
+    // Check all keyword tokens match sequentially from startIndex
+    if (startIndex + keywordTokens.length > tokens.length) return -1;
+    for (var i = 0; i < keywordTokens.length; i++) {
+      if (tokens[startIndex + i] != keywordTokens[i]) return -1;
+    }
+    // Return index of last matched token
+    return startIndex + keywordTokens.length - 1;
   }
 }

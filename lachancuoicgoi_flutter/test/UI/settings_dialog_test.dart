@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lachancuocgoi_flutter/analysis/analysis_mode.dart';
-import 'package:lachancuocgoi_flutter/app/settings_controller.dart';
 import 'package:lachancuocgoi_flutter/services/developer_mode_manager.dart';
 import 'package:lachancuocgoi_flutter/ui/home_page/settings_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -146,6 +144,7 @@ void main() {
       // First switch = theme, second = audio boost
       expect(switches, findsAtLeastNWidgets(2));
 
+      await tester.ensureVisible(switches.at(1));
       await tester.tap(switches.at(1));
       await tester.pumpAndSettle();
       // No crash = success
@@ -157,6 +156,7 @@ void main() {
       final switches = find.byType(Switch);
       expect(switches, findsAtLeastNWidgets(3));
 
+      await tester.ensureVisible(switches.at(2));
       await tester.tap(switches.at(2));
       await tester.pumpAndSettle();
     });

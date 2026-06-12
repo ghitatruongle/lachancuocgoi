@@ -12,6 +12,14 @@ class LachancuocgoiApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsControllerProvider);
+    // Wait until persisted settings are loaded to avoid a theme flash
+    // that causes Android Activity recreate (manifest android:theme mismatch).
+    if (!settings.isLoaded) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
     return MaterialApp.router(
       debugShowCheckedModeBanner: kDebugMode,
       title: 'Lá chắn cuộc gọi',

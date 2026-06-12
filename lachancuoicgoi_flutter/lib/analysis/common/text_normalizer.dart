@@ -6,7 +6,8 @@ enum NoiseMode {
 class TextNormalizer {
   TextNormalizer._();
 
-  static final List<MapEntry<String, String>> _slangEntries = [];
+  static List<MapEntry<String, String>> _slangEntries =
+      const <MapEntry<String, String>>[];
 
   static const Map<String, String> _phoneticMap = {
     '0': 'o',
@@ -85,6 +86,11 @@ class TextNormalizer {
     'đ': 'd',
   };
 
+  static final Map<int, int> _phoneticCodeUnitMap = _phoneticMap.map(
+    (key, value) => MapEntry(key.codeUnitAt(0), value.codeUnitAt(0)),
+  );
+
+
   static final RegExp _combiningMarks = RegExp(r'[\u0300-\u036f]');
   static final RegExp _noiseChars = RegExp(
     r'[^\p{L}\p{N}\s]',
@@ -92,17 +98,16 @@ class TextNormalizer {
   );
 
   static void loadSlangConfig(Map<String, String> config) {
-    _slangEntries
-      ..clear()
-      ..addAll(
-        config.entries.map(
+    final entries = config.entries
+        .map(
           (entry) => MapEntry(
             normalize(entry.key, applySlang: false),
             normalize(entry.value, applySlang: false),
           ),
-        ),
-      )
+        )
+        .toList()
       ..sort((a, b) => b.key.length.compareTo(a.key.length));
+    _slangEntries = List<MapEntry<String, String>>.unmodifiable(entries);
   }
 
   static String normalize(
@@ -150,11 +155,23 @@ class TextNormalizer {
   }
 
   static String _mapPhoneticCharacters(String value) {
-    final buffer = StringBuffer();
-    for (final rune in value.runes) {
-      final char = String.fromCharCode(rune);
-      buffer.write(_phoneticMap[char] ?? char);
+    final length = value.length;
+    var modified = false;
+    for (var i = 0; i < length; i++) {
+      final codeUnit = value.codeUnitAt(i);
+      if (_phoneticCodeUnitMap.containsKey(codeUnit)) {
+        modified = true;
+        break;
+      }
     }
-    return buffer.toString();
+    if (!modified) return value;
+
+    final codeUnits = List<int>.filled(length, 0);
+    for (var i = 0; i < length; i++) {
+      final codeUnit = value.codeUnitAt(i);
+      codeUnits[i] = _phoneticCodeUnitMap[codeUnit] ?? codeUnit;
+    }
+    return String.fromCharCodes(codeUnits);
   }
+
 }

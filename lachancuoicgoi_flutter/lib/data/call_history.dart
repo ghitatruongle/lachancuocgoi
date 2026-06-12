@@ -15,6 +15,7 @@ class CallHistory {
     this.analysisResult,
     this.analysisType,
     this.alertHistory,
+    this.recordingError,
   });
 
   final int id;
@@ -29,6 +30,16 @@ class CallHistory {
   final String? analysisType;
   final String? alertHistory;
 
+  /// Why no transcript was captured, or null if everything was fine.
+  /// Sprint 1 (A7): distinguishes "we never heard anything" (noAudio) from
+  /// "we heard something but the engine failed" (sttFailed). The schema
+  /// reserves the value `partial` for future use (e.g. session ended before
+  /// the first final result was committed).
+  final String? recordingError;
+
+  /// Sentinel object to distinguish "not passed" from "explicitly null".
+  static const _null = Object();
+
   CallHistory copyWith({
     int? id,
     String? dateTime,
@@ -37,10 +48,11 @@ class CallHistory {
     String? duration,
     int? flagCount,
     String? transcript,
-    String? audioPath,
-    String? analysisResult,
-    String? analysisType,
-    String? alertHistory,
+    Object? audioPath = _null,
+    Object? analysisResult = _null,
+    Object? analysisType = _null,
+    Object? alertHistory = _null,
+    Object? recordingError = _null,
   }) {
     return CallHistory(
       id: id ?? this.id,
@@ -50,10 +62,21 @@ class CallHistory {
       duration: duration ?? this.duration,
       flagCount: flagCount ?? this.flagCount,
       transcript: transcript ?? this.transcript,
-      audioPath: audioPath ?? this.audioPath,
-      analysisResult: analysisResult ?? this.analysisResult,
-      analysisType: analysisType ?? this.analysisType,
-      alertHistory: alertHistory ?? this.alertHistory,
+      audioPath: identical(audioPath, _null)
+          ? this.audioPath
+          : audioPath as String?,
+      analysisResult: identical(analysisResult, _null)
+          ? this.analysisResult
+          : analysisResult as String?,
+      analysisType: identical(analysisType, _null)
+          ? this.analysisType
+          : analysisType as String?,
+      alertHistory: identical(alertHistory, _null)
+          ? this.alertHistory
+          : alertHistory as String?,
+      recordingError: identical(recordingError, _null)
+          ? this.recordingError
+          : recordingError as String?,
     );
   }
 
@@ -90,6 +113,7 @@ class CallHistory {
       'analysisResult': analysisResult,
       'analysisType': analysisType,
       'alert_history': alertHistory,
+      'recordingError': recordingError,
     };
   }
 
@@ -106,6 +130,7 @@ class CallHistory {
       analysisResult: map['analysisResult'] as String?,
       analysisType: map['analysisType'] as String?,
       alertHistory: map['alert_history'] as String?,
+      recordingError: map['recordingError'] as String?,
     );
   }
 

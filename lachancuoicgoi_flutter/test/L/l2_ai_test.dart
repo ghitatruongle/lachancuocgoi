@@ -161,8 +161,18 @@ class _FakeIntentClassifier implements IntentClassifier {
 }
 
 GDetectionEngine _newTestEngine() {
+  final assets = <String, Object?>{
+    GDetectionEngine.vocabularyFile: _testAssets['vocabulary.json'],
+    GDetectionEngine.scoringConfigFile: _testAssets['scoring_config.json'],
+    GDetectionEngine.patternsFile: _testAssets['patterns.json'],
+    GDetectionEngine.situationFile: _testAssets['situations.json'],
+    GDetectionEngine.sentencesFile: _testAssets['sentences.json'],
+    GDetectionEngine.slangFile: _testAssets['slang.json'],
+    GDetectionEngine.tierConfigFile: _testAssets['tier_config.json'],
+    GDetectionEngine.aiCheckFile: _testAssets['ai_check_config.json'],
+  };
   return GDetectionEngine(
-    assetProvider: (fileName) => jsonEncode(_testAssets[fileName] ?? {}),
+    assetProvider: (fileName) => jsonEncode(assets[fileName] ?? {}),
   );
 }
 

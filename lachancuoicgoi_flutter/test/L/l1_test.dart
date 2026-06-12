@@ -110,6 +110,22 @@ void main() {
       expect(result.matches.single.isFuzzy, isTrue);
     });
 
+    test('detects level-2 normal keyword match (parity with Kotlin testAnalyze_NormalKeyword)', () async {
+      final analyzer = _newTestAnalyzer();
+      await analyzer.initialize();
+
+      final result = await analyzer.analyze(
+        'Chúc mừng anh đã nhận được khuyến mãi lớn.',
+      );
+
+      expect(result.overallRiskLevel, RiskLevel.yellow);
+      expect(result.alertEnabled, isTrue);
+      expect(
+        result.matches.map((m) => m.keyword),
+        contains('khuyến mãi'),
+      );
+    });
+
     test(
       'does not flicker to GREEN when stream receives no new tokens',
       () async {

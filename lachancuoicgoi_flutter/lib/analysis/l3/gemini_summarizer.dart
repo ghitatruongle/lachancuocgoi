@@ -18,14 +18,16 @@ class GeminiSummarizer {
   final ApiKeyProvider _apiKeyProvider;
   final KeyHealthTracker? _keyHealthTracker;
   final GeminiClient? _geminiClient;
+  GeminiClient? _cachedClient; // Cache client để preserve circuit breaker state
 
-  GeminiClient get _client =>
-      _geminiClient ??
-      GeminiClient(
-        apiKeyProvider: _apiKeyProvider,
-        config: GeminiConfig.forSummarization(),
-        keyHealthTracker: _keyHealthTracker,
-      );
+  GeminiClient get _client {
+    if (_geminiClient != null) return _geminiClient;
+    return _cachedClient ??= GeminiClient(
+      apiKeyProvider: _apiKeyProvider,
+      config: GeminiConfig.forSummarization(),
+      keyHealthTracker: _keyHealthTracker,
+    );
+  }
 
   Future<String> summarize(String text) async {
     final trimmed = text.trim();

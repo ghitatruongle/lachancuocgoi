@@ -11,19 +11,23 @@ object TranscriptionHub {
     private var fullHistory = ""
     private const val MAX_COMPARE_LENGTH = 1000
     private const val MAX_HISTORY_RETAIN = 5000
+    // Pre-compile regex to avoid re-compilation on every postTranscript call.
+    private val WHITESPACE_REGEX = Regex("\\s+")
 
     @Synchronized
     fun postTranscript(newText: String) {
         val cleanedNewText = newText.trim()
         if (cleanedNewText.isEmpty()) return
 
-        // Giới hạn bộ nhớ lịch sử — cắt tại ranh giới từ
+        // Giới hạn bộ nhớ lịch sử — giữ tối đa MAX_HISTORY_RETAIN chars từ cuối
         if (fullHistory.length > MAX_HISTORY_RETAIN) {
-            val cutPoint = fullHistory.length - MAX_COMPARE_LENGTH
-            val safeCutPoint = fullHistory.indexOf(' ', cutPoint).let { spaceIdx ->
-                if (spaceIdx != -1) spaceIdx + 1 else cutPoint
+            val targetLength = MAX_HISTORY_RETAIN - MAX_COMPARE_LENGTH
+            if (targetLength > 0 && targetLength < fullHistory.length) {
+                val safeCutPoint = findCutPoint(fullHistory, targetLength)
+                fullHistory = fullHistory.substring(safeCutPoint)
+            } else {
+                fullHistory = fullHistory.takeLast(MAX_HISTORY_RETAIN)
             }
-            fullHistory = fullHistory.substring(safeCutPoint)
         }
 
         val historyToCompare = if (fullHistory.length > MAX_COMPARE_LENGTH) {
@@ -32,8 +36,8 @@ object TranscriptionHub {
             fullHistory
         }
 
-        val wordsHistory = historyToCompare.split(Regex("\\s+")).filter { it.isNotBlank() }.takeLast(10)
-        val wordsNew = cleanedNewText.split(Regex("\\s+")).filter { it.isNotBlank() }
+        val wordsHistory = historyToCompare.split(WHITESPACE_REGEX).filter { it.isNotBlank() }.takeLast(10)
+        val wordsNew = cleanedNewText.split(WHITESPACE_REGEX).filter { it.isNotBlank() }
 
         var overlapIndex = 0
         for (i in 1..wordsNew.size.coerceAtMost(wordsHistory.size)) {
@@ -56,8 +60,33 @@ object TranscriptionHub {
         }
     }
 
+    @Synchronized
     fun reset() {
         fullHistory = ""
         _transcriptFlow.value = ""
+    }
+
+    /**
+     * Sprint 2 (C3): when we have to drop the front of [text] because
+     * the buffer is over [MAX_HISTORY_RETAIN], prefer to cut just after
+     * the next sentence boundary (`.` `?` `!` or Vietnamese `。`) so we
+     * don't split a sentence in half. If no boundary exists within
+     * `targetLength..targetLength+200`, fall back to the next space
+     * (preserves the previous behaviour).
+     */
+    private fun findCutPoint(text: String, targetLength: Int): Int {
+        val boundaryChars = charArrayOf('.', '?', '!', '。')
+        val searchEnd = minOf(text.length - 1, targetLength + 200)
+        for (i in targetLength..searchEnd) {
+            val c = text[i]
+            if (c in boundaryChars) {
+                // Cut just after the punctuation + any trailing spaces.
+                var endIdx = i + 1
+                while (endIdx < text.length && text[endIdx] == ' ') endIdx++
+                return endIdx
+            }
+        }
+        val spaceIdx = text.indexOf(' ', targetLength)
+        return if (spaceIdx != -1 && spaceIdx < text.length - 1) spaceIdx + 1 else targetLength
     }
 }

@@ -34,6 +34,19 @@ String? _stringFromExtra(Map<String, dynamic>? map, String key) {
   return null;
 }
 
+List<Map<String, dynamic>>? _scriptLinesFromExtra(Map<String, dynamic>? map) {
+  if (map == null) return null;
+  final v = map['scenarioScriptLines'];
+  if (v is List) {
+    return v.map((e) {
+      if (e is Map<String, dynamic>) return e;
+      if (e is Map) return Map<String, dynamic>.from(e);
+      return <String, dynamic>{};
+    }).toList();
+  }
+  return null;
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
@@ -59,6 +72,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return MonitoringPage(
             simulatedScenarioTitle: _stringFromExtra(extra, 'scenarioTitle'),
             simulatedTranscript: _stringFromExtra(extra, 'scenarioTranscript'),
+            simulatedScriptLines: _scriptLinesFromExtra(extra),
           );
         },
       ),

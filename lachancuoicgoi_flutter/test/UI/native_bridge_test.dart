@@ -182,6 +182,117 @@ void main() {
       final snapshot = await bridge.getPermissionSnapshot();
       expect(snapshot.allGranted, isFalse);
     });
+
+    test('startCreatorMonitoring sends devModeExpiresAtMs argument', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methodChannel, (call) async {
+            methodCalls.add(call);
+            return true;
+          });
+
+      final result = await bridge.startCreatorMonitoring(
+        devModeExpiresAtMs: 1700000000000,
+      );
+
+      expect(result, isTrue);
+      expect(methodCalls.last.method, 'startCreatorMonitoring');
+      expect(
+        methodCalls.last.arguments,
+        equals({'devModeExpiresAtMs': 1700000000000}),
+      );
+    });
+
+    test('startCreatorMonitoring returns false on PlatformException', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methodChannel, (call) async {
+            throw PlatformException(code: 'ERROR', message: 'Test error');
+          });
+
+      final result = await bridge.startCreatorMonitoring(
+        devModeExpiresAtMs: 0,
+      );
+      expect(result, isFalse);
+    });
+
+    test('stopCreatorMonitoring calls correct method', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methodChannel, (call) async {
+            methodCalls.add(call);
+            return true;
+          });
+
+      final result = await bridge.stopCreatorMonitoring();
+      expect(result, isTrue);
+      expect(methodCalls.last.method, 'stopCreatorMonitoring');
+    });
+
+    test('stopCreatorMonitoring returns false on PlatformException', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methodChannel, (call) async {
+            throw PlatformException(code: 'ERROR', message: 'Test error');
+          });
+
+      final result = await bridge.stopCreatorMonitoring();
+      expect(result, isFalse);
+    });
+
+    test('isCreatorMonitoringActive returns native value', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methodChannel, (call) async {
+            methodCalls.add(call);
+            if (call.method == 'isCreatorMonitoringActive') return true;
+            return null;
+          });
+
+      final result = await bridge.isCreatorMonitoringActive();
+      expect(result, isTrue);
+      expect(methodCalls.last.method, 'isCreatorMonitoringActive');
+    });
+
+    test('isCreatorMonitoringActive returns false on PlatformException', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methodChannel, (call) async {
+            throw PlatformException(code: 'ERROR', message: 'Test error');
+          });
+
+      final result = await bridge.isCreatorMonitoringActive();
+      expect(result, isFalse);
+    });
+
+    test('requestPhoneAndCallLogPermissions calls correct method', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methodChannel, (call) async {
+            methodCalls.add(call);
+            return true;
+          });
+
+      final result = await bridge.requestPhoneAndCallLogPermissions();
+      expect(result, isTrue);
+      expect(methodCalls.last.method, 'requestPhoneAndCallLogPermissions');
+    });
+
+    test('requestPhoneAndCallLogPermissions returns false on PlatformException', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methodChannel, (call) async {
+            throw PlatformException(code: 'ERROR', message: 'Test error');
+          });
+
+      final result = await bridge.requestPhoneAndCallLogPermissions();
+      expect(result, isFalse);
+    });
+
+    test('startCreatorMonitoring returns false when native returns null', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methodChannel, (call) async {
+            methodCalls.add(call);
+            return null;
+          });
+
+      final result = await bridge.startCreatorMonitoring(
+        devModeExpiresAtMs: 0,
+      );
+      expect(result, isFalse);
+    });
   });
 
   group('NativeCallShieldBridge — Data Models', () {
@@ -270,6 +381,46 @@ void main() {
       const snapshot = PermissionSnapshot();
       expect(snapshot.allGranted, isFalse);
       expect(snapshot.grantedCount, 0);
+    });
+
+    test('PermissionSnapshot equality — identical snapshots are equal', () {
+      const a = PermissionSnapshot(recordAudio: true, phoneState: true);
+      const b = PermissionSnapshot(recordAudio: true, phoneState: true);
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('PermissionSnapshot equality — different snapshots are not equal', () {
+      const a = PermissionSnapshot(recordAudio: true);
+      const b = PermissionSnapshot(recordAudio: false);
+      expect(a, isNot(equals(b)));
+    });
+
+    test('PermissionSnapshot equality — same instance', () {
+      const a = PermissionSnapshot(recordAudio: true);
+      expect(a, equals(a));
+    });
+
+    test('PermissionSnapshot equality — all fields compared', () {
+      const a = PermissionSnapshot(
+        recordAudio: true,
+        phoneState: true,
+        callLog: true,
+        overlay: true,
+        notification: true,
+        accessibility: true,
+        callScreening: true,
+      );
+      const b = PermissionSnapshot(
+        recordAudio: true,
+        phoneState: true,
+        callLog: true,
+        overlay: true,
+        notification: true,
+        accessibility: true,
+        callScreening: false, // different
+      );
+      expect(a, isNot(equals(b)));
     });
   });
 }

@@ -135,10 +135,13 @@ void main() {
       expect(RiskLevel.fromString('AN TOAN'), RiskLevel.green);
     });
 
-    test('handles null and unknown values', () {
+    test('handles null, empty and unknown values', () {
+      // null/empty = no data yet → green (safe default)
       expect(RiskLevel.fromString(null), RiskLevel.green);
       expect(RiskLevel.fromString(''), RiskLevel.green);
-      expect(RiskLevel.fromString('UNKNOWN'), RiskLevel.green);
+      // Unknown non-empty string = corrupted data → orange (conservative)
+      expect(RiskLevel.fromString('UNKNOWN'), RiskLevel.orange);
+      expect(RiskLevel.fromString('GARBAGE'), RiskLevel.orange);
     });
 
     test('case insensitive', () {

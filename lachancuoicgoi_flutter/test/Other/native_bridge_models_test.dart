@@ -81,7 +81,7 @@ void main() {
       final (state, duration, transcript) = MonitoringState.parse('STOPPED:30:');
       expect(state, MonitoringState.stopped);
       expect(duration, 30);
-      expect(transcript, '');
+      expect(transcript, isNull);
     });
 
     test('STOPPED: with invalid duration uses null', () {

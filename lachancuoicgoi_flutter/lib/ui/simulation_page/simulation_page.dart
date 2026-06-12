@@ -188,9 +188,13 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
               '/monitoring',
               extra: {
                 'scenarioTitle': scenario.title,
-                'scenarioTranscript': scenario.script
-                    .map((line) => '${line.speaker}: ${line.line}')
-                    .join('\n'),
+                'scenarioScriptLines': scenario.script
+                    .map((line) => {
+                          'speaker': line.speaker,
+                          'line': line.line,
+                          'delay': line.delay,
+                        })
+                    .toList(),
               },
             );
           },

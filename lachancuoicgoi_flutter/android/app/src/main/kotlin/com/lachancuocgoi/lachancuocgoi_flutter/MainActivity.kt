@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityManager
@@ -23,6 +24,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import kotlin.reflect.KClass
 
 class MainActivity : FlutterActivity() {
 
@@ -33,6 +35,7 @@ class MainActivity : FlutterActivity() {
         private const val RMS_CHANNEL = "com.lachancuocgoi/rms_stream"
         private const val MONITORING_STATE_CHANNEL = "com.lachancuocgoi/monitoring_state"
         private const val CALL_EVENT_CHANNEL = "com.lachancuocgoi/call_events"
+        private const val TEST_REQUEST_PHONE_PERMISSIONS_ACTION = "TEST_REQUEST_PHONE_PERMISSIONS"
         private const val REQUEST_CALL_SCREENING_ROLE = 1001
         private const val REQUEST_CREATOR_PROJECTION = 1002
         private const val REQUEST_PHONE_PERMISSIONS = 1003
@@ -42,12 +45,51 @@ class MainActivity : FlutterActivity() {
     private var pendingCreatorMonitoringResult: MethodChannel.Result? = null
     private var pendingCreatorDevModeExpiresAtMs: Long = 0L
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        maybeHandleDebugIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        maybeHandleDebugIntent(intent)
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQUEST_CREATOR_PROJECTION) {
             handleCreatorProjectionResult(resultCode, data)
             return
         }
         super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    private fun maybeHandleDebugIntent(intent: Intent?) {
+        if (!BuildConfig.DEBUG || intent?.action != TEST_REQUEST_PHONE_PERMISSIONS_ACTION) {
+            return
+        }
+        requestPhoneAndCallLogPermissionsForDebugIntent()
+    }
+
+    private fun requestPhoneAndCallLogPermissionsForDebugIntent() {
+        val hasPhoneState =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) ==
+                PackageManager.PERMISSION_GRANTED
+        val hasCallLog =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) ==
+                PackageManager.PERMISSION_GRANTED
+
+        if (hasPhoneState && hasCallLog) {
+            return
+        }
+
+        requestPermissions(
+            arrayOf(
+                Manifest.permission.READ_PHONE_STATE,
+                Manifest.permission.READ_CALL_LOG,
+            ),
+            REQUEST_PHONE_PERMISSIONS
+        )
     }
 
     private fun handleCreatorProjectionResult(resultCode: Int, data: Intent?) {
@@ -57,6 +99,7 @@ class MainActivity : FlutterActivity() {
         pendingCreatorDevModeExpiresAtMs = 0L
 
         if (resultCode == RESULT_OK && data != null) {
+            CreatorMediaProjectionService.isRunning = true
             val intent = Intent(this, CreatorMediaProjectionService::class.java).apply {
                 action = CreatorMediaProjectionService.ACTION_START
                 putExtra("code", resultCode)
@@ -136,6 +179,15 @@ class MainActivity : FlutterActivity() {
                         OverlayManager.removeAlertOverlay(applicationContext)
                         result.success(true)
                     }
+                    "showIncomingCallOverlay" -> {
+                        val callerInfo = call.argument<String>("callerInfo") ?: ""
+                        OverlayManager.showIncomingCallOverlay(applicationContext, callerInfo)
+                        result.success(true)
+                    }
+                    "dismissIncomingCallOverlay" -> {
+                        OverlayManager.removeIncomingCallOverlay(applicationContext)
+                        result.success(true)
+                    }
                     "getPermissionSnapshot" -> {
                         result.success(getPermissionSnapshot())
                     }
@@ -202,6 +254,7 @@ class MainActivity : FlutterActivity() {
                     if (currentCreatorTranscript.isNotBlank()) {
                         events?.success(currentCreatorTranscript)
                     }
+                    NativeBridgeEventSink.onSinksReconnected()
                 }
                 override fun onCancel(arguments: Any?) {
                     NativeBridgeEventSink.transcriptSink = null
@@ -229,6 +282,7 @@ class MainActivity : FlutterActivity() {
                     ) {
                         events?.success("STARTED")
                     }
+                    NativeBridgeEventSink.onSinksReconnected()
                 }
                 override fun onCancel(arguments: Any?) {
                     NativeBridgeEventSink.monitoringStateSink = null
@@ -240,14 +294,25 @@ class MainActivity : FlutterActivity() {
             .setStreamHandler(object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                     NativeBridgeEventSink.callEventSink = events
+                    NativeBridgeEventSink.onSinksReconnected()
                 }
                 override fun onCancel(arguments: Any?) {
                     NativeBridgeEventSink.callEventSink = null
                 }
             })
+
+        // Replay any events buffered while sinks were null (Activity recreate).
+        // Sprint 2 (B2): defer to a posted runnable so the buffered
+        // event replay does not block the very first frame. The replay
+        // iterates up to 50 buffered events per channel which, on a cold
+        // start, can add up to ~10ms on the platform thread.
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            NativeBridgeEventSink.onSinksReconnected()
+        }
     }
 
     private fun startMonitoringService(phoneNumber: String?, enableSpeakerphone: Boolean) {
+        BackgroundMonitoringService.isRunning = true
         val intent = Intent(this, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_START
             phoneNumber?.let { putExtra("PHONE_NUMBER", it) }
@@ -367,14 +432,26 @@ class MainActivity : FlutterActivity() {
         return false
     }
 
-    @Suppress("DEPRECATION")
     private fun isServiceRunning(serviceClass: Class<*>): Boolean {
-        val manager = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
-        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
-            if (serviceClass.name == service.service.className) {
-                return true
-            }
-        }
-        return false
+        // Sprint 2 (C5): service → running-flag lookup table. Replaces a
+        // hardcoded `when` block so adding a new service doesn't require
+        // editing this method. Each entry binds a service class to the
+        // @Volatile static `isRunning` flag exposed by the service itself.
+        return serviceRunningCheckers.entries
+            .firstOrNull { it.key.java == serviceClass }
+            ?.value
+            ?.invoke()
+            ?: false
     }
+
+    /**
+     * Map of [Class] → predicate. Add a new entry here when introducing a
+     * new foreground service. The predicate should return the service's
+     * `isRunning` flag so the bridge can answer `isXxxActive` queries
+     * without using the deprecated `ActivityManager.getRunningServices`.
+     */
+    private val serviceRunningCheckers: Map<KClass<*>, () -> Boolean> = mapOf(
+        BackgroundMonitoringService::class to { BackgroundMonitoringService.isRunning },
+        CreatorMediaProjectionService::class to { CreatorMediaProjectionService.isRunning },
+    )
 }

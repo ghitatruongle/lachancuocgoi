@@ -82,19 +82,19 @@ TRẢ VỀ JSON, KHÔNG markdown:
 '''.trim();
     }
     return '''
-[CONTINUATION] New text: "$newText"
-Analyze incrementally and update JSON. Keep level = "green" if still safe.
+[TIẾP TỤC] Văn bản mới: "$newText"
+Phân tích bổ sung và cập nhật JSON. Giữ level = "green" nếu vẫn an toàn.
 
-Few-shot examples of valid JSON responses:
+Ví dụ các phản hồi JSON hợp lệ:
 {"level": "green", "label": "", "reason": "Cuộc gọi xã hội thông thường", "recommendation": "Tiếp tục bình thường"}
 {"level": "yellow", "label": "Đáng ngờ", "reason": "Người gọi hỏi thông tin tài khoản", "recommendation": "Cẩn trọng, không cung cấp thông tin"}
 {"level": "orange", "label": "Có nguy cơ", "reason": "Yêu cầu xác minh danh tính với lý do khẩn", "recommendation": "Không làm theo, xác minh nguồn gốc"}
 {"level": "red", "label": "Giả danh công an", "reason": "Xưng danh cơ quan pháp luật + đe dọa + yêu cầu chuyển tiền", "recommendation": "Cúp máy ngay, báo công an"}
 
-Required JSON format:
+Định dạng JSON bắt buộc:
 {"level": "green|yellow|orange|red", "label": "Loại lừa đảo(nếu có)", "reason": "Giải thích", "recommendation": "Khuyến cáo"}
 
-Respond ONLY with valid JSON, no markdown, no explanation.
+Chỉ trả về JSON hợp lệ, không markdown, không giải thích.
 '''.trim();
   }
 }

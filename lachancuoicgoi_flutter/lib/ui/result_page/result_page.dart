@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/risk_level.dart';
 import '../../data/app_database.dart';
 import '../../data/call_history.dart';
+import '../home_page/settings_dialog.dart';
 import '../monitoring_page/alert_history_section.dart';
 import '../theme/app_theme.dart';
+
+final _callHistoryFutureProvider = FutureProvider.family<CallHistory?, int>((
+  ref,
+  historyId,
+) async {
+  final db = await ref.watch(appDatabaseFutureProvider.future);
+  return db.getById(historyId);
+});
 
 class ResultPage extends ConsumerWidget {
   const ResultPage({super.key, required this.historyId});
@@ -15,18 +25,24 @@ class ResultPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final asyncItem = ref.watch(_callHistoryFutureProvider(historyId));
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
-    return FutureBuilder<CallHistory?>(
-      future: ref.read(appDatabaseProvider).getById(historyId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
-        }
-
-        final item = snapshot.data;
+    return asyncItem.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, _) => Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.go('/'),
+          ),
+          title: const Text('Kết quả phân tích'),
+        ),
+        body: Center(child: Text('Lỗi: $e')),
+      ),
+      data: (item) {
         if (item == null) {
           return Scaffold(
             appBar: AppBar(
@@ -36,9 +52,7 @@ class ResultPage extends ConsumerWidget {
               ),
               title: const Text('Kết quả phân tích'),
             ),
-            body: const Center(
-              child: Text('Không tìm thấy dữ liệu.'),
-            ),
+            body: const Center(child: Text('Không tìm thấy dữ liệu.')),
           );
         }
 
@@ -59,21 +73,38 @@ class ResultPage extends ConsumerWidget {
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Lá chắn cuộc gọi',
-                    style: tt.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                Text('Phát hiện Lừa đảo & Bạo lực',
-                    style: tt.bodySmall),
+                Text(
+                  'Lá chắn cuộc gọi',
+                  style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                Text('Phát hiện Lừa đảo & Bạo lực', style: tt.bodySmall),
               ],
             ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.settings),
-                onPressed: () {},
+                tooltip: 'Cài đặt',
+                onPressed: () => showDialog(
+                  context: context,
+                  builder: (_) => const SettingsDialog(),
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.share),
-                onPressed: () {},
+                tooltip: 'Chia sẻ',
+                onPressed: () {
+                  final transcript = item.transcript.isEmpty
+                      ? 'Không có dữ liệu'
+                      : item.transcript.replaceAll('+', ' ');
+                  final shareText =
+                      'Lá chắn cuộc gọi - Kết quả phân tích:\n'
+                      'Đánh giá: ${risk.vietnameseName}\n'
+                      'Tóm tắt: ${item.summary}\n'
+                      '-------\n'
+                      'Nội dung cuộc gọi:\n'
+                      '$transcript';
+                  SharePlus.instance.share(ShareParams(text: shareText));
+                },
               ),
             ],
           ),
@@ -82,9 +113,12 @@ class ResultPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Kết quả phân tích',
-                    style: tt.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold)),
+                Text(
+                  'Kết quả phân tích',
+                  style: tt.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.sm),
 
                 // ── Analysis Summary Card ──
@@ -104,18 +138,33 @@ class ResultPage extends ConsumerWidget {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text('Đánh giá',
-                                        style: tt.titleMedium?.copyWith(
-                                            fontWeight: FontWeight.bold)),
+                                    Text(
+                                      'Đánh giá',
+                                      style: tt.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                     IconButton(
                                       icon: const Icon(Icons.share, size: 20),
-                                      onPressed: () {},
+                                      tooltip: 'Chia sẻ đánh giá',
+                                      onPressed: () {
+                                        SharePlus.instance.share(
+                                          ShareParams(
+                                            text:
+                                                'Lá chắn cuộc gọi - Đánh giá: '
+                                                '${risk.vietnameseName}\n'
+                                                'Tóm tắt: ${item.summary}',
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: riskColor.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(50),
@@ -148,14 +197,18 @@ class ResultPage extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Bản ghi âm',
-                            style: tt.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold)),
+                        Text(
+                          'Bản ghi âm',
+                          style: tt.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         Text(
                           'File ghi âm không được lưu lại nhằm bảo vệ quyền riêng tư.',
-                          style: tt.bodySmall
-                              ?.copyWith(color: cs.onSurfaceVariant),
+                          style: tt.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
@@ -178,12 +231,23 @@ class ResultPage extends ConsumerWidget {
                               child: Text(
                                 'Nội dung cuộc gọi (Bản lưu cục bộ)',
                                 style: tt.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold),
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             IconButton(
                               icon: const Icon(Icons.share, size: 20),
-                              onPressed: () {},
+                              tooltip: 'Chia sẻ nội dung',
+                              onPressed: () {
+                                final content = item.transcript.isEmpty
+                                    ? 'Không có dữ liệu âm thanh.'
+                                    : item.transcript.replaceAll('+', ' ');
+                                SharePlus.instance.share(
+                                  ShareParams(
+                                    text: 'Nội dung cuộc gọi:\n$content',
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -212,9 +276,7 @@ class ResultPage extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.sm),
 
                 // ── Alert history ──
-                AlertHistorySection(
-                  alertHistory: item.getAlertHistoryList(),
-                ),
+                AlertHistorySection(alertHistory: item.getAlertHistoryList()),
 
                 const SizedBox(height: AppSpacing.lg),
 
