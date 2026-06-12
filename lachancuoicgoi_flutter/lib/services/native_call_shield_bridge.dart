@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // ─── Data Models ──────────────────────────────────────────────────────────────
 
@@ -10,15 +11,30 @@ enum MonitoringState {
   started,
   stopped,
   networkAvailable,
-  networkLost;
+  networkLost,
+  /// Sprint 2 (C1): native STT switched to the Vosk offline fallback.
+  /// The `transcript` slot of the parsed tuple carries the reason
+  /// (e.g. "error12_loop" or "network_errors_3") which the UI can
+  /// surface in its banner.
+  sttFallbackVosk;
 
-  /// Duration and final transcript when state is [stopped].
+  /// Duration and final transcript when state is [stopped]. Reason string
+  /// when state is [sttFallbackVosk]. Otherwise null.
   static (MonitoringState, int?, String?) parse(String raw) {
     if (raw.startsWith('STOPPED:')) {
       final parts = raw.split(':');
       final duration = parts.length > 1 ? int.tryParse(parts[1]) : null;
-      final transcript = parts.length > 2 ? parts.sublist(2).join(':') : null;
+      // Extract transcript — normalize empty string to null for consistency
+      final rawTranscript = parts.length > 2 ? parts.sublist(2).join(':') : null;
+      final transcript = (rawTranscript == null || rawTranscript.isEmpty) ? null : rawTranscript;
       return (MonitoringState.stopped, duration, transcript);
+    }
+    if (raw.startsWith('STT_FALLBACK:VOSK:')) {
+      // The third field is the reason (e.g. "error12_loop",
+      // "network_errors_3"). Empty string is normalised to null.
+      const prefix = 'STT_FALLBACK:VOSK:';
+      final reason = raw.length > prefix.length ? raw.substring(prefix.length) : null;
+      return (MonitoringState.sttFallbackVosk, null, reason);
     }
     return switch (raw) {
       'STARTED' => (MonitoringState.started, null, null),
@@ -96,6 +112,29 @@ class PermissionSnapshot {
   ].where((p) => p).length;
 
   static const int totalPermissions = 7;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PermissionSnapshot &&
+          recordAudio == other.recordAudio &&
+          phoneState == other.phoneState &&
+          callLog == other.callLog &&
+          overlay == other.overlay &&
+          notification == other.notification &&
+          accessibility == other.accessibility &&
+          callScreening == other.callScreening;
+
+  @override
+  int get hashCode => Object.hash(
+        recordAudio,
+        phoneState,
+        callLog,
+        overlay,
+        notification,
+        accessibility,
+        callScreening,
+      );
 }
 
 // ─── Monitoring Stop Result ───────────────────────────────────────────────────
@@ -106,9 +145,56 @@ class MonitoringStopResult {
   final String? finalTranscript;
 }
 
+// ─── Transcript Update ────────────────────────────────────────────────────────
+
+/// A single transcript event from the native side.
+///
+/// `text` is either the latest cumulative final transcript (when [isPartial]
+/// is false) or the most recent partial / current-utterance text (when true).
+/// Flutter typically replaces its display transcript with [text]; the [isPartial]
+/// flag is informational and can be used to debounce analysis or to render a
+/// "đang nghe…" hint.
+class TranscriptUpdate {
+  const TranscriptUpdate({required this.text, required this.isPartial});
+  final String text;
+  final bool isPartial;
+}
+
+// ─── Bridge Interface ────────────────────────────────────────────────────────
+
+/// Abstract interface for the native bridge.
+/// Allows faking the bridge in tests without touching EventChannels.
+abstract class NativeBridgeInterface {
+  Future<bool> startMonitoring({
+    String? phoneNumber,
+    bool enableSpeakerphone = false,
+  });
+  Future<bool> stopMonitoring();
+  Future<bool> startCreatorMonitoring({required int devModeExpiresAtMs});
+  Future<bool> stopCreatorMonitoring();
+  Future<bool> showRedAlert(String reason);
+  Future<bool> showOrangeAlert(String reason);
+  Future<bool> dismissAlert();
+  Future<PermissionSnapshot> getPermissionSnapshot();
+  Future<bool> openAccessibilitySettings();
+  Future<bool> requestCallScreeningRole();
+  Future<bool> requestPhoneAndCallLogPermissions();
+  Future<bool> checkOverlayPermission();
+  Future<bool> requestOverlayPermission();
+  Future<bool> isMonitoringActive();
+  Future<bool> isCreatorMonitoringActive();
+  Future<void> showIncomingCallOverlay(String callerInfo);
+  Future<void> dismissIncomingCallOverlay();
+
+  Stream<TranscriptUpdate> get transcriptStream;
+  Stream<double> get rmsStream;
+  Stream<(MonitoringState, int?, String?)> get monitoringStateStream;
+  Stream<CallEvent> get callEventStream;
+}
+
 // ─── Bridge ───────────────────────────────────────────────────────────────────
 
-class NativeCallShieldBridge {
+class NativeCallShieldBridge implements NativeBridgeInterface {
   NativeCallShieldBridge._();
 
   static final NativeCallShieldBridge instance = NativeCallShieldBridge._();
@@ -127,13 +213,85 @@ class NativeCallShieldBridge {
     'com.lachancuocgoi/call_events',
   );
 
+  // iOS simulation fields
+  bool _iosMonitoringActive = false;
+  bool _iosCreatorMonitoringActive = false;
+  DateTime? _iosStartTime;
+  Timer? _iosSimulationTimer;
+  int _iosTimerTicks = 0;
+
+  final _iosMonitoringStateController = StreamController<(MonitoringState, int?, String?)>.broadcast();
+  final _iosTranscriptController = StreamController<TranscriptUpdate>.broadcast();
+  final _iosRmsController = StreamController<double>.broadcast();
+  final _iosCallEventController = StreamController<CallEvent>.broadcast();
+
+  // Preset script for simulating a scam call to show risk detection in action
+  static const List<String> _iosScamScript = [
+    "Xin chào ông, tôi là cán bộ điều tra thuộc Cơ quan Cảnh sát điều tra Bộ Công an.",
+    "Hiện tại số điện thoại và tài khoản ngân hàng của ông đang bị nghi ngờ liên quan đến một đường dây rửa tiền và buôn bán ma túy quy mô lớn xuyên quốc gia.",
+    "Để phục vụ công tác điều tra, yêu cầu ông không được tiết lộ thông tin này cho bất kỳ ai khác.",
+    "Bây giờ ông cần phải chuyển toàn bộ số tiền hiện có sang một tài khoản tạm giữ an toàn của Bộ Công an để chúng tôi xác minh nguồn gốc.",
+    "Tôi sẽ gửi thông tin tài khoản cho ông. Hãy nhanh chóng thực hiện giao dịch này trong vòng 15 phút, nếu không chúng tôi sẽ tiến hành phong tỏa toàn bộ tài sản của ông và gửi lệnh bắt tạm giam hình sự.",
+    "Hãy đọc lại cho tôi mã xác thực OTP vừa được gửi đến điện thoại của ông để chúng tôi hoàn tất thủ tục mở hồ sơ bảo lãnh tư pháp.",
+  ];
+
+  void _startSimulation() {
+    _iosSimulationTimer?.cancel();
+    _iosStartTime = DateTime.now();
+    _iosTimerTicks = 0;
+    _iosSimulationTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        timer.cancel();
+        return;
+      }
+      _iosTimerTicks++;
+
+      // 1. Emit simulated RMS (waveform data) every 100ms
+      final double mockRms = 25.0 + 15.0 * (1.0 + double.parse((_iosTimerTicks % 30).toString()) / 30.0);
+      _iosRmsController.add(mockRms);
+
+      // 2. Emit simulated scam script sentence every 10 seconds (100 ticks)
+      if (_iosTimerTicks % 100 == 0) {
+        final sentenceIndex = (_iosTimerTicks ~/ 100 - 1) % _iosScamScript.length;
+        final transcript = _iosScamScript.sublist(0, sentenceIndex + 1).join(" ");
+        _iosTranscriptController.add(TranscriptUpdate(text: transcript, isPartial: false));
+      } else if (_iosTimerTicks % 100 > 30 && _iosTimerTicks % 100 < 80 && _iosTimerTicks % 20 == 0) {
+        final sentenceIndex = (_iosTimerTicks ~/ 100) % _iosScamScript.length;
+        final nextSentence = _iosScamScript[sentenceIndex];
+        final words = nextSentence.split(" ");
+        final wordCount = ((_iosTimerTicks % 100) - 30) ~/ 5;
+        if (wordCount > 0 && wordCount <= words.length) {
+          final partialText = words.sublist(0, wordCount).join(" ");
+          final previousTranscript = sentenceIndex > 0
+              ? '${_iosScamScript.sublist(0, sentenceIndex).join(" ")} '
+              : '';
+          _iosTranscriptController.add(TranscriptUpdate(
+            text: "$previousTranscript$partialText", 
+            isPartial: true
+          ));
+        }
+      }
+    });
+  }
+
+  void _stopSimulation() {
+    _iosSimulationTimer?.cancel();
+    _iosSimulationTimer = null;
+  }
+
   // ─── MethodChannel calls ────────────────────────────────────────────────
 
-  /// Start monitoring service on Android.
+  @override
   Future<bool> startMonitoring({
     String? phoneNumber,
     bool enableSpeakerphone = false,
   }) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      _iosMonitoringActive = true;
+      _iosMonitoringStateController.add((MonitoringState.started, null, null));
+      _startSimulation();
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'startMonitoring',
@@ -146,8 +304,18 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Stop monitoring service.
+  @override
   Future<bool> stopMonitoring() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      _iosMonitoringActive = false;
+      _stopSimulation();
+      final duration = _iosStartTime != null 
+          ? DateTime.now().difference(_iosStartTime!).inSeconds 
+          : 0;
+      final fullTranscript = _iosScamScript.take((_iosTimerTicks ~/ 100)).join(" ");
+      _iosMonitoringStateController.add((MonitoringState.stopped, duration, fullTranscript));
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>('stopMonitoring');
       return result ?? false;
@@ -157,8 +325,14 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Start creator monitoring via MediaProjection on Android.
+  @override
   Future<bool> startCreatorMonitoring({required int devModeExpiresAtMs}) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      _iosCreatorMonitoringActive = true;
+      _iosMonitoringStateController.add((MonitoringState.started, null, null));
+      _startSimulation();
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'startCreatorMonitoring',
@@ -171,8 +345,18 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Stop creator monitoring service.
+  @override
   Future<bool> stopCreatorMonitoring() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      _iosCreatorMonitoringActive = false;
+      _stopSimulation();
+      final duration = _iosStartTime != null 
+          ? DateTime.now().difference(_iosStartTime!).inSeconds 
+          : 0;
+      final fullTranscript = _iosScamScript.take((_iosTimerTicks ~/ 100)).join(" ");
+      _iosMonitoringStateController.add((MonitoringState.stopped, duration, fullTranscript));
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'stopCreatorMonitoring',
@@ -184,8 +368,12 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Show RED alert overlay on Android.
+  @override
   Future<bool> showRedAlert(String reason) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      debugPrint("iOS Simulation: RED ALERT displayed - $reason");
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>('showRedAlert', {
         'reason': reason,
@@ -197,8 +385,12 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Show ORANGE alert overlay on Android.
+  @override
   Future<bool> showOrangeAlert(String reason) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      debugPrint("iOS Simulation: ORANGE ALERT displayed - $reason");
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'showOrangeAlert',
@@ -211,8 +403,12 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Dismiss any visible alert overlay.
+  @override
   Future<bool> dismissAlert() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      debugPrint("iOS Simulation: Alert dismissed");
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>('dismissAlert');
       return result ?? false;
@@ -222,8 +418,21 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Get current permission status snapshot.
+  @override
   Future<PermissionSnapshot> getPermissionSnapshot() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      final micGranted = await Permission.microphone.isGranted;
+      final notifGranted = await Permission.notification.isGranted;
+      return PermissionSnapshot(
+        recordAudio: micGranted,
+        phoneState: true,
+        callLog: true,
+        overlay: true,
+        notification: notifGranted,
+        accessibility: true,
+        callScreening: true,
+      );
+    }
     try {
       final result = await _methodChannel.invokeMethod<Map>(
         'getPermissionSnapshot',
@@ -237,8 +446,11 @@ class NativeCallShieldBridge {
     return const PermissionSnapshot();
   }
 
-  /// Open Android Accessibility Settings.
+  @override
   Future<bool> openAccessibilitySettings() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'openAccessibilitySettings',
@@ -250,8 +462,11 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Request Call Screening role (Android Q+).
+  @override
   Future<bool> requestCallScreeningRole() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'requestCallScreeningRole',
@@ -263,8 +478,11 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Request READ_PHONE_STATE + READ_CALL_LOG on Android.
+  @override
   Future<bool> requestPhoneAndCallLogPermissions() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'requestPhoneAndCallLogPermissions',
@@ -276,8 +494,11 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Check if overlay permission is granted.
+  @override
   Future<bool> checkOverlayPermission() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'checkOverlayPermission',
@@ -289,8 +510,11 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Request overlay permission.
+  @override
   Future<bool> requestOverlayPermission() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'requestOverlayPermission',
@@ -302,8 +526,10 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Check if accessibility service is enabled.
   Future<bool> isAccessibilityEnabled() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'isAccessibilityEnabled',
@@ -315,8 +541,11 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Check if monitoring service is currently running.
+  @override
   Future<bool> isMonitoringActive() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return _iosMonitoringActive;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'isMonitoringActive',
@@ -328,8 +557,11 @@ class NativeCallShieldBridge {
     }
   }
 
-  /// Check if creator monitoring service is currently running.
+  @override
   Future<bool> isCreatorMonitoringActive() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return _iosCreatorMonitoringActive;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>(
         'isCreatorMonitoringActive',
@@ -341,42 +573,112 @@ class NativeCallShieldBridge {
     }
   }
 
-  // ─── EventChannel streams ──────────────────────────────────────────────
+  @override
+  Future<void> showIncomingCallOverlay(String callerInfo) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      debugPrint("iOS Simulation: Incoming Call Overlay shown - $callerInfo");
+      return;
+    }
+    try {
+      await _methodChannel.invokeMethod<void>(
+        'showIncomingCallOverlay',
+        {'callerInfo': callerInfo},
+      );
+    } on PlatformException catch (e) {
+      debugPrint('NativeBridge.showIncomingCallOverlay error: $e');
+    }
+  }
 
-  /// Stream of transcript text from native STT.
-  Stream<String> get transcriptStream => _transcriptChannel
+  @override
+  Future<void> dismissIncomingCallOverlay() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      debugPrint("iOS Simulation: Incoming Call Overlay dismissed");
+      return;
+    }
+    try {
+      await _methodChannel.invokeMethod<void>('dismissIncomingCallOverlay');
+    } on PlatformException catch (e) {
+      debugPrint('NativeBridge.dismissIncomingCallOverlay error: $e');
+    }
+  }
+
+  // ─── EventChannel streams (cached to prevent memory leaks) ─────────────
+
+  late final Stream<TranscriptUpdate> _cachedTranscriptStream = _transcriptChannel
+      .receiveBroadcastStream()
+      .map<TranscriptUpdate>((event) {
+        if (event is Map) {
+          return TranscriptUpdate(
+            text: event['text']?.toString() ?? '',
+            isPartial: event['isPartial'] == true,
+          );
+        }
+        return TranscriptUpdate(
+          text: event?.toString() ?? '',
+          isPartial: false,
+        );
+      })
+      .where((u) => u.text.isNotEmpty)
+      .asBroadcastStream();
+
+  late final Stream<double> _cachedRmsStream = _rmsChannel
       .receiveBroadcastStream()
       .map((event) {
-        return event?.toString() ?? '';
-      })
-      .where((text) => text.isNotEmpty);
-
-  /// Stream of RMS (volume) values from native STT for waveform display.
-  Stream<double> get rmsStream =>
-      _rmsChannel.receiveBroadcastStream().map((event) {
         if (event is double) return event;
         if (event is num) return event.toDouble();
         return 0.0;
-      });
+      })
+      .asBroadcastStream();
 
-  /// Stream of monitoring state changes.
-  Stream<(MonitoringState, int?, String?)> get monitoringStateStream =>
-      _monitoringStateChannel.receiveBroadcastStream().map((event) {
-        return MonitoringState.parse(event?.toString() ?? '');
-      });
+  late final Stream<(MonitoringState, int?, String?)>
+      _cachedMonitoringStateStream = _monitoringStateChannel
+          .receiveBroadcastStream()
+          .map((event) => MonitoringState.parse(event?.toString() ?? ''))
+          .asBroadcastStream();
 
-  /// Stream of call events (incoming, ended, screening, etc.)
-  Stream<CallEvent> get callEventStream =>
-      _callEventChannel.receiveBroadcastStream().map((event) {
-        if (event is Map) {
-          return CallEvent.fromMap(event);
-        }
+  late final Stream<CallEvent> _cachedCallEventStream = _callEventChannel
+      .receiveBroadcastStream()
+      .map((event) {
+        if (event is Map) return CallEvent.fromMap(event);
         return const CallEvent(type: 'UNKNOWN');
-      });
+      })
+      .asBroadcastStream();
+
+  @override
+  Stream<TranscriptUpdate> get transcriptStream {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return _iosTranscriptController.stream;
+    }
+    return _cachedTranscriptStream;
+  }
+
+  @override
+  Stream<double> get rmsStream {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return _iosRmsController.stream;
+    }
+    return _cachedRmsStream;
+  }
+
+  @override
+  Stream<(MonitoringState, int?, String?)> get monitoringStateStream {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return _iosMonitoringStateController.stream;
+    }
+    return _cachedMonitoringStateStream;
+  }
+
+  @override
+  Stream<CallEvent> get callEventStream {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return _iosCallEventController.stream;
+    }
+    return _cachedCallEventStream;
+  }
 }
 
 // ─── Riverpod Provider ────────────────────────────────────────────────────────
 
-final nativeBridgeProvider = Provider<NativeCallShieldBridge>((ref) {
+final nativeBridgeProvider = Provider<NativeBridgeInterface>((ref) {
   return NativeCallShieldBridge.instance;
 });

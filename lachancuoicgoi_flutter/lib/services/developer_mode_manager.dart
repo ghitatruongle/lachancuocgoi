@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -42,6 +43,7 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
   int _lastTapMs = 0;
   int _lastDeactivateTapMs = 0;
   int _activatedAtMs = 0;
+  bool _restored = false;
   Timer? _ticker;
 
   @override
@@ -52,8 +54,10 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
   }
 
   Future<void> _restore() async {
+    if (_restored) return; // Prevent double restore.
     final prefs = await SharedPreferences.getInstance();
     _activatedAtMs = prefs.getInt(_prefsKeyActivatedAt) ?? 0;
+    _restored = true;
     _refreshState();
   }
 
@@ -92,8 +96,15 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
   Future<void> activate() async {
     _activatedAtMs = DateTime.now().millisecondsSinceEpoch;
     _deactivateTapCount = 0;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsKeyActivatedAt, _activatedAtMs);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_prefsKeyActivatedAt, _activatedAtMs);
+    } catch (e) {
+      // If persist fails, revert in-memory state to avoid contradiction
+      // between isActive (reads _activatedAtMs) and persisted state.
+      _activatedAtMs = 0;
+      debugPrint('DeveloperMode.activate() persist failed: $e');
+    }
     _refreshState();
   }
 
@@ -103,8 +114,14 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
     _deactivateTapCount = 0;
     _ticker?.cancel();
     state = const DeveloperModeState();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_prefsKeyActivatedAt);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefsKeyActivatedAt);
+    } catch (e) {
+      // Non-fatal — in-memory state is already cleared. On next restart
+      // the restore will see an expired activation and deactivate.
+      debugPrint('DeveloperMode.deactivate() persist failed: $e');
+    }
   }
 
   bool get isActive {
@@ -132,7 +149,13 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
   void _refreshState() {
     final remaining = _remainingSeconds();
     if (remaining < 0) {
-      unawaited(deactivate());
+      // Only deactivate if we were previously active (not a fresh start).
+      // This prevents calling deactivate() on first restore when expired.
+      if (state.isActive) {
+        unawaited(deactivate());
+      } else {
+        state = const DeveloperModeState();
+      }
       return;
     }
 
@@ -146,7 +169,9 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
 
   void _startTicker() {
     _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+    // 10s interval — reduces rebuilds from 600 to 60 over 10 minutes.
+    // Countdown display can round to nearest 10s without hurting UX.
+    _ticker = Timer.periodic(const Duration(seconds: 10), (_) {
       final remaining = _remainingSeconds();
       if (remaining < 0) {
         unawaited(deactivate());

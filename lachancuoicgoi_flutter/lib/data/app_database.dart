@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:math' show max, min;
+import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
@@ -5,14 +9,21 @@ import 'package:sqflite/sqflite.dart';
 import 'call_history.dart';
 import 'call_history_dao.dart';
 
-final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  throw UnimplementedError('AppDatabase must be provided at app startup.');
+/// Lazy database provider — opens the database on first read, not at app startup.
+/// This avoids blocking runApp() with the SQLite open + schema creation.
+final appDatabaseFutureProvider = FutureProvider<AppDatabase>((ref) async {
+  if (kIsWeb) {
+    return InMemoryAppDatabase();
+  }
+  final db = await AppDatabase.open();
+  ref.onDispose(() => db.close());
+  return db;
 });
 
 class AppDatabase {
   AppDatabase._(this.database) : callHistoryDao = CallHistoryDao(database);
 
-  static const int schemaVersion = 5;
+  static const int schemaVersion = 6;
   static const String databaseName = 'call_shield_database.db';
 
   final Database database;
@@ -54,7 +65,16 @@ class AppDatabase {
   }
 
   static DatabaseFactory databaseFactoryFfiSafe() {
-    return databaseFactory;
+    try {
+      return databaseFactory;
+    } catch (_) {
+      // Global databaseFactory not set — on mobile the plugin always sets
+      // it, so this only happens on desktop/FFI. Re-throw with context.
+      throw StateError(
+        'databaseFactory is null. On desktop, call sqfliteFfiInit() before '
+        'opening the database.',
+      );
+    }
   }
 
   static Future<void> _createSchema(Database db) async {
@@ -70,7 +90,8 @@ CREATE TABLE IF NOT EXISTS call_history (
   audioPath TEXT,
   analysisResult TEXT,
   analysisType TEXT,
-  alert_history TEXT
+  alert_history TEXT,
+  recordingError TEXT
 )
 ''');
     await db.execute(
@@ -98,25 +119,25 @@ CREATE TABLE IF NOT EXISTS call_history (
       await _addColumnIfMissing(db, 'call_history', 'alert_history', 'TEXT');
     }
 
+    if (oldVersion < 6) {
+      await _addColumnIfMissing(db, 'call_history', 'recordingError', 'TEXT');
+    }
+
     await _createIndexesIfNotExist(db);
   }
 
   static Future<void> _createIndexesIfNotExist(Database db) async {
-    try {
-      await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_call_history_dateTime ON call_history(dateTime)',
-      );
-    } catch (_) {}
-    try {
-      await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_call_history_riskLevel ON call_history(riskLevel)',
-      );
-    } catch (_) {}
-    try {
-      await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_call_history_dateTime_riskLevel ON call_history(dateTime, riskLevel)',
-      );
-    } catch (_) {}
+    // IF NOT EXISTS makes these idempotent — failures here signal real
+    // I/O problems (disk full, permission) and must surface to the caller.
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_call_history_dateTime ON call_history(dateTime)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_call_history_riskLevel ON call_history(riskLevel)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_call_history_dateTime_riskLevel ON call_history(dateTime, riskLevel)',
+    );
   }
 
   static const _allowedTables = <String>['call_history'];
@@ -132,6 +153,7 @@ CREATE TABLE IF NOT EXISTS call_history (
     'analysisResult',
     'analysisType',
     'alert_history',
+    'recordingError',
   ];
   static const _allowedTypes = <String>['TEXT', 'INTEGER', 'REAL', 'BLOB'];
 
@@ -168,6 +190,11 @@ CREATE TABLE IF NOT EXISTS call_history (
 
   Future<int> count() => callHistoryDao.count();
 
+  Future<List<CallHistory>> search(String query, {int limit = 20, int offset = 0}) =>
+      callHistoryDao.search(query, limit: limit, offset: offset);
+
+  Future<int> searchCount(String query) => callHistoryDao.searchCount(query);
+
   Stream<List<CallHistory>> watchAll() => callHistoryDao.watchAll();
 
   Future<CallHistory?> getById(int id) => callHistoryDao.getById(id);
@@ -179,5 +206,95 @@ CREATE TABLE IF NOT EXISTS call_history (
   Future<void> close() async {
     await callHistoryDao.dispose();
     await database.close();
+  }
+
+  /// Creates an [AppDatabase] wrapping an existing [Database] instance.
+  /// Used in tests to inject a fake/mock database without sqflite FFI.
+  @visibleForTesting
+  AppDatabase.withDatabase(Database db)
+      : database = db,
+        callHistoryDao = CallHistoryDao(db);
+}
+
+class InMemoryAppDatabase implements AppDatabase {
+  final List<CallHistory> _history = [];
+  final _streamController = StreamController<List<CallHistory>>.broadcast();
+
+  InMemoryAppDatabase() {
+    _streamController.add([]);
+  }
+
+  @override
+  Database get database => throw UnimplementedError();
+
+  @override
+  CallHistoryDao get callHistoryDao => throw UnimplementedError();
+
+  @override
+  Future<int> insert(CallHistory callHistory) async {
+    final newId = _history.isEmpty ? 1 : (_history.map((e) => e.id).reduce(max) + 1);
+    final historyWithId = callHistory.copyWith(id: newId);
+    _history.insert(0, historyWithId); // Newest first
+    _streamController.add(List.unmodifiable(_history));
+    return newId;
+  }
+
+  @override
+  Future<List<CallHistory>> getAll() async {
+    return List.from(_history);
+  }
+
+  @override
+  Future<List<CallHistory>> getAllPaginated({int limit = 20, int offset = 0}) async {
+    if (offset >= _history.length) return [];
+    return _history.sublist(offset, min(offset + limit, _history.length));
+  }
+
+  @override
+  Future<int> count() async => _history.length;
+
+  @override
+  Future<List<CallHistory>> search(String query, {int limit = 20, int offset = 0}) async {
+    final queryLower = query.toLowerCase();
+    final filtered = _history.where((e) {
+      return e.summary.toLowerCase().contains(queryLower) ||
+             e.transcript.toLowerCase().contains(queryLower);
+    }).toList();
+    if (offset >= filtered.length) return [];
+    return filtered.sublist(offset, min(offset + limit, filtered.length));
+  }
+
+  @override
+  Future<int> searchCount(String query) async {
+    final queryLower = query.toLowerCase();
+    return _history.where((e) {
+      return e.summary.toLowerCase().contains(queryLower) ||
+             e.transcript.toLowerCase().contains(queryLower);
+    }).length;
+  }
+
+  @override
+  Stream<List<CallHistory>> watchAll() => _streamController.stream;
+
+  @override
+  Future<CallHistory?> getById(int id) async {
+    return _history.firstWhereOrNull((e) => e.id == id);
+  }
+
+  @override
+  Future<void> deleteAll() async {
+    _history.clear();
+    _streamController.add([]);
+  }
+
+  @override
+  Future<void> deleteById(int id) async {
+    _history.removeWhere((e) => e.id == id);
+    _streamController.add(List.unmodifiable(_history));
+  }
+
+  @override
+  Future<void> close() async {
+    await _streamController.close();
   }
 }

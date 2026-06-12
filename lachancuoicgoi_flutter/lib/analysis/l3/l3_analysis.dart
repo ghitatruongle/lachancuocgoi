@@ -80,7 +80,12 @@ class L3Analyzer implements Analyzer {
   AnalysisLevel get level => AnalysisLevel.l3;
 
   @override
-  Future<void> initialize() async {}
+  Future<void> initialize() async {
+    final provider = _apiKeyProvider;
+    if (provider is EnvironmentApiKeyProvider) {
+      await provider.ensureLoaded();
+    }
+  }
 
   @override
   bool get isReady {
@@ -288,10 +293,12 @@ class L3Analyzer implements Analyzer {
     );
   }
 
-  void closeSession() {
+  void closeSession({bool resetProgress = true}) {
     _activeSession?.close();
     _activeSession = null;
-    _processedTextLength = 0;
+    if (resetProgress) {
+      _processedTextLength = 0;
+    }
     _maxRiskLevel = RiskLevel.green;
     _consecutiveGreenCount = 0;
   }

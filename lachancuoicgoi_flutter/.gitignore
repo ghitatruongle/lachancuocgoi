@@ -48,3 +48,6 @@ app.*.map.json
 
 .env
 .env.*
+
+# Local tool/IDE config
+.openclaude/

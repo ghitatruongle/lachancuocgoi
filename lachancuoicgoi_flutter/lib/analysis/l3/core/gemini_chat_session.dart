@@ -27,12 +27,10 @@ class GeminiChatSession {
   }) : _chatExecutor = chatExecutor ?? _defaultChatExecutor;
 
   static const Duration _minInterval = Duration(seconds: 1);
-  static const List<String> _fallbackModels = <String>[
-    'gemini-2.5-flash-lite',
-    'gemini-3-flash-preview',
-    'gemini-2.5-flash',
-    'gemini-3.1-flash-lite-preview',
-  ];
+  // Max number of Content entries in _safeHistory (user + model = 2 per exchange).
+  // 20 entries = 10 exchanges. Prevents exceeding Gemini context window.
+  static const int _maxHistoryEntries = 20;
+  static const List<String> _fallbackModels = geminiFallbackModels;
 
   final ApiKeyProvider apiKeyProvider;
   final GeminiConfig config;
@@ -91,6 +89,7 @@ class GeminiChatSession {
         _currentModelIndex = 0;
       }
 
+      var retryCount = 0;
       for (
         var modelIndex = _currentModelIndex;
         modelIndex < _fallbackModels.length;
@@ -98,6 +97,12 @@ class GeminiChatSession {
       ) {
         _currentModelIndex = modelIndex;
         final modelName = _fallbackModels[_currentModelIndex];
+        // Exponential backoff between retries: 1s, 2s, 4s
+        if (retryCount > 0) {
+          final delayMs = 1000 * (1 << (retryCount - 1));
+          await Future<void>.delayed(Duration(milliseconds: delayMs));
+        }
+        retryCount++;
         try {
           final responseText = await _chatExecutor(
             apiKey: keys[_currentKeyIndex],
@@ -109,6 +114,10 @@ class GeminiChatSession {
           final parsed = parser(responseText, modelName);
           _safeHistory.add(Content.text(text));
           _safeHistory.add(Content.model(<Part>[TextPart(responseText)]));
+          // Prune oldest entries to prevent unbounded growth.
+          while (_safeHistory.length > _maxHistoryEntries) {
+            _safeHistory.removeRange(0, 2); // Remove oldest user+model pair.
+          }
           keyHealthTracker?.markSuccess(_currentKeyIndex);
           GeminiMetrics.instance.recordCall(
             success: true,
@@ -164,29 +173,7 @@ class GeminiChatSession {
     _lastCallTime = DateTime.now();
   }
 
-  GeminiErrorType _classifyError(Object? error) {
-    final message = error?.toString().toLowerCase() ?? '';
-    if (message.contains('429') || message.contains('quota')) {
-      return GeminiErrorType.quota;
-    }
-    if (message.contains('403') ||
-        message.contains('api key') ||
-        message.contains('api_key')) {
-      return GeminiErrorType.auth;
-    }
-    if (message.contains('404') || message.contains('not found')) {
-      return GeminiErrorType.modelNotFound;
-    }
-    if (message.contains('timeout')) {
-      return GeminiErrorType.timeout;
-    }
-    if (message.contains('socket') ||
-        message.contains('network') ||
-        message.contains('connection')) {
-      return GeminiErrorType.network;
-    }
-    return GeminiErrorType.unknown;
-  }
+  GeminiErrorType _classifyError(Object? error) => classifyGeminiError(error);
 
   static Future<String> _defaultChatExecutor({
     required String apiKey,

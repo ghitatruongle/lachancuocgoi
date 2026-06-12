@@ -23,7 +23,7 @@ class GeminiConfig {
       temperature: 0.1,
       topK: 1,
       topP: 1.0,
-      timeout: Duration(seconds: 25),
+      timeout: Duration(seconds: 15),
       responseMimeType: 'application/json',
     );
   }

@@ -28,9 +28,11 @@ class AlertHistorySection extends StatelessWidget {
         const SizedBox(height: 12),
         Divider(color: cs.outlineVariant),
         const SizedBox(height: 12),
-        for (final entry in alertHistory.reversed) ...[
-          _AlertHistoryCard(entry: entry),
-          if (entry != alertHistory.first) const SizedBox(height: 8),
+        for (var i = 0; i < alertHistory.length; i++) ...[
+          _AlertHistoryCard(
+            entry: alertHistory[alertHistory.length - 1 - i],
+          ),
+          if (i < alertHistory.length - 1) const SizedBox(height: 8),
         ],
       ],
     );

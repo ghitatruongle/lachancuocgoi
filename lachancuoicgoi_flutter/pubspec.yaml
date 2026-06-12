@@ -16,39 +16,44 @@ dependencies:
   flutter_riverpod: ^2.5.1
   go_router: ^14.2.0
   google_generative_ai: ^0.4.6
-  http: ^1.2.2
   path: ^1.9.0
   path_provider: ^2.1.5
   permission_handler: ^11.3.1
-  shared_preferences: ^2.3.2
+  share_plus: ^13.1.0
+  shared_preferences: ^2.5.5
   sqflite: ^2.3.3
-  speech_to_text: ^7.3.0
+  sqflite_common_ffi: ^2.3.5
   tflite_flutter: ^0.12.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
   flutter_lints: ^4.0.0
-  sqflite_common_ffi: ^2.3.5
 
 dependency_overrides:
+  # path_provider_android 2.2.22 pinned to maintain compatibility with
+  # sqflite's platform channel contract. Remove when sqflite-next is released.
   path_provider_android: 2.2.22
 
 flutter:
   uses-material-design: true
   assets:
+    - 
     - assets/logo.png
     - assets/ghitav3.tflite
     - assets/vocab.txt
+    - assets/vocabulary_ai_check.json
     - assets/bigram_corrections.json
-    - assets/context_rules.json
     - assets/phrase_patterns.json
     - assets/risk_model_sentences.json
-    - assets/risk_model_situation.json
     - assets/risk_model_vocabulary.json
     - assets/risk_scenarios_master.json
     - assets/safety_keywords.json
     - assets/scoring_config.json
+    - assets/context_rules.json
+    - assets/risk_model_situation.json
     - assets/situation_test.json
     - assets/slang_config.json
     - assets/tier_config.json

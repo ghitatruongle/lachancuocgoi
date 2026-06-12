@@ -76,3 +76,6 @@ Thumbs.db
 
 # Exclude invalid Windows device name files
 nul
+
+# Tailieu documents
+tailieu/
