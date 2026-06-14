@@ -2,7 +2,7 @@ import 'dart:async' show Completer, StreamSubscription, Timer, unawaited;
 import 'dart:convert' show jsonEncode;
 import 'dart:math';
 
-import 'package:flutter/foundation.dart' show ChangeNotifier, ValueListenable, debugPrint;
+import 'package:flutter/foundation.dart' show ChangeNotifier, debugPrint, visibleForTesting;
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -63,7 +63,26 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   int _currentScriptLineIndex = 0;
   // Fixed seed for reproducible simulation waveforms.
   final Random _simRandom = Random(42);
-  Future<void>? _l1AnalysisFuture;
+  // Completer-based mutex: serialises concurrent _ensureAnalysisComplete()
+  // callers so only one _runAnalysis() actually executes at a time, while
+  // subsequent callers await the in-flight run. Avoids the race where two
+  // callers could each see `_analysisCompleter == null` and create their
+  // own analysis (one of which would leak and overwrite state at the
+  // wrong time).
+  Completer<void>? _analysisCompleter;
+  // Generation token guarding state commits in _runAnalysis and
+  // _runRealTimeAnalysis. Each run captures a snapshot of this value before
+  // awaiting the (async) coordinator call; before committing the result to
+  // state it checks the token is still current. If a newer run superseded it
+  // (newer transcript arrived, or endSession kicked off a final analysis),
+  // the stale result is discarded instead of clobbering the fresher one.
+  int _analysisGeneration = 0;
+  // Serialize the monitoring-restart sequence (start + re-init streams). Both
+  // the health-check auto-restart and the lifecycle-resume path can trigger a
+  // restart; without a lock they could race and call startMonitoring twice /
+  // double-subscribe streams. A pending Completer makes the second caller
+  // await the first instead of starting a parallel sequence.
+  Completer<void>? _restartLock;
   // Sprint 2 (C4): consecutive-failed health-check counter. Reset to 0
   // when monitoring is healthy. Backs off and eventually stops hammering
   // when the service is clearly not coming back.
@@ -98,14 +117,23 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   // reading state.amplitudes (which is always [] — waveform bypasses state
   // via _AmplitudesNotifier to avoid excessive Riverpod rebuilds).
   double _peakAmplitude = 0.0;
-  _AmplitudesNotifier? _amplitudesNotifier;
+  // Set to true the first time the rms stream emits a value. Used by
+  // endSession to distinguish "microphone never produced audio" from
+  // "audio was captured but STT returned an empty transcript".
+  bool _hasReceivedAnyAudio = false;
+  // True once _recoverFromKillIfAny has run, so a delayed `stopped`
+  // event from the native side can't trigger a second save.
+  bool _recoveryAttempted = false;
+  _WaveformNotifier? _waveformNotifier;
 
-  /// Exposed for waveform widget — uses ChangeNotifier for high-frequency updates.
-  ValueListenable<List<double>> get amplitudesListenable => _amplitudesNotifier!;
+  /// Exposed for waveform widget.
+  ChangeNotifier get waveformNotifier => _waveformNotifier!;
+  List<double> get currentAmplitudes => _amplitudes;
+  int get currentAmplitudeWriteIndex => _amplitudeWriteIndex;
 
   @override
   MonitoringPageState build() {
-    _amplitudesNotifier ??= _AmplitudesNotifier(List.from(_amplitudes));
+    _waveformNotifier ??= _WaveformNotifier();
     ref.onDispose(() {
       _disposeInternal();
     });
@@ -246,7 +274,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _coordinatorInstance = null;
     _hasAttemptedStart = false;
     _endSessionInProgress = false;
-    _l1AnalysisFuture = null;
+    _analysisCompleter = null;
     _pendingReanalysisText = null;
     _currentScriptLineIndex = 0;
     for (var i = 0; i < _amplitudeBufferSize; i++) {
@@ -255,6 +283,8 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _amplitudeWriteIndex = 0;
     _lastAmplitudeUpdate = null;
     _peakAmplitude = 0.0;
+    _hasReceivedAnyAudio = false;
+    _recoveryAttempted = false;
     _stoppedEventReceived = false;
     _stoppedCompleter = null;
     state = const MonitoringPageState();
@@ -300,7 +330,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _callEventSub = null;
     _settingsSub?.close();
     _settingsSub = null;
-    _amplitudesNotifier?.dispose();
+    _waveformNotifier?.dispose();
   }
 
   // ── Timer ────────────────────────────────────────────────────────────
@@ -338,22 +368,43 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     }
     _streamsDead = false;
 
+    // Hủy bỏ các đăng ký cũ một cách tường minh để tránh rò rỉ bộ nhớ
+    _transcriptSub?.cancel();
+    _transcriptSub = null;
+    _rmsSub?.cancel();
+    _rmsSub = null;
+    _stateSub?.cancel();
+    _stateSub = null;
+    _callEventSub?.cancel();
+    _callEventSub = null;
+
     final bridge = ref.read(nativeBridgeProvider);
 
     _transcriptSub = bridge.transcriptStream.listen(
       (update) {
         if (_disposed) return;
         state = state.copyWith(transcript: update.text);
-        _l1AnalysisFuture = null;
+        // Invalidate any in-flight analysis so the next _ensureAnalysisComplete
+        // call starts a fresh run on the new transcript.
+        _analysisCompleter = null;
         _runRealTimeAnalysis(update.text);
       },
       onDone: () {
         if (_disposed) return;
         debugPrint('transcriptStream done — marking subscriptions dead.');
         _streamsDead = true;
+        // Null out the field so the next _initStreams() can claim it
+        // without leaking a reference to the dead subscription until
+        // then. Cancel defensively in case the stream somehow reports
+        // onDone before cancel was called by dispose.
+        _transcriptSub?.cancel();
+        _transcriptSub = null;
       },
       onError: (Object e, StackTrace st) {
         debugPrint('transcriptStream error: $e');
+        _streamsDead = true;
+        _transcriptSub?.cancel();
+        _transcriptSub = null;
       },
     );
 
@@ -367,33 +418,38 @@ class MonitoringController extends Notifier<MonitoringPageState> {
           return;
         }
         _lastAmplitudeUpdate = now;
-        // Bug #2 fix: record peak amplitude for noAudio vs sttFailed detection.
+        // Record peak amplitude for noAudio vs sttFailed detection.
         // _peakAmplitude giữ thang RMS thô — ngưỡng noAudio (< 0.5) trong
         // endSession() vẫn theo thang này, không đổi.
         if (rms > _peakAmplitude) _peakAmplitude = rms;
+        // Track whether we ever received any meaningful audio. endSession
+        // uses this to disambiguate "no mic permission" (no events at all)
+        // from "mic worked but STT couldn't decode" (events but empty
+        // transcript). Without this, _peakAmplitude stays 0.0 simply
+        // because no events fired, and we'd misclassify every silent
+        // session as `noAudio`.
+        _hasReceivedAnyAudio = true;
         // Chuẩn hóa rmsDb (~ -2..10 dB từ SpeechRecognizer.onRmsChanged)
         // về 0..1 cho waveform — painter clamp 0..1 nên giá trị dB thô
         // khiến mọi thanh sóng luôn kịch trần, mất ý nghĩa hiển thị.
         final normalized = ((rms + 2.0) / 12.0).clamp(0.0, 1.0);
         _amplitudes[_amplitudeWriteIndex] = max(0.1, normalized);
-        // Build ordered list BEFORE incrementing write index — avoids
-        // the new value being shifted to the end of the waveform.
-        final ordered = List<double>.filled(_amplitudeBufferSize, 0.0);
-        for (var i = 0; i < _amplitudeBufferSize; i++) {
-          ordered[i] =
-              _amplitudes[(_amplitudeWriteIndex + i) % _amplitudeBufferSize];
-        }
         _amplitudeWriteIndex =
             (_amplitudeWriteIndex + 1) % _amplitudeBufferSize;
-        _amplitudesNotifier!.updateAndNotify(ordered);
+        _waveformNotifier?.notify();
       },
       onDone: () {
         if (_disposed) return;
         debugPrint('rmsStream done — marking subscriptions dead.');
         _streamsDead = true;
+        _rmsSub?.cancel();
+        _rmsSub = null;
       },
       onError: (Object e, StackTrace st) {
         debugPrint('rmsStream error: $e');
+        _streamsDead = true;
+        _rmsSub?.cancel();
+        _rmsSub = null;
       },
     );
 
@@ -427,7 +483,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
           final finalTranscript = stateData.$3?.trim();
           if (finalTranscript != null && finalTranscript.isNotEmpty) {
             state = state.copyWith(transcript: finalTranscript);
-            _l1AnalysisFuture = null;
+            // Invalidate in-flight analysis so endSession's await picks
+            // up the final transcript.
+            _analysisCompleter = null;
           }
           _stoppedEventReceived = true;
           _stoppedCompleter?.complete();
@@ -441,9 +499,14 @@ class MonitoringController extends Notifier<MonitoringPageState> {
         if (_disposed) return;
         debugPrint('monitoringStateStream done — marking subscriptions dead.');
         _streamsDead = true;
+        _stateSub?.cancel();
+        _stateSub = null;
       },
       onError: (Object e, StackTrace st) {
         debugPrint('monitoringStateStream error: $e');
+        _streamsDead = true;
+        _stateSub?.cancel();
+        _stateSub = null;
       },
     );
 
@@ -459,9 +522,14 @@ class MonitoringController extends Notifier<MonitoringPageState> {
         if (_disposed) return;
         debugPrint('callEventStream done — marking subscriptions dead.');
         _streamsDead = true;
+        _callEventSub?.cancel();
+        _callEventSub = null;
       },
       onError: (Object e, StackTrace st) {
         debugPrint('callEventStream error: $e');
+        _streamsDead = true;
+        _callEventSub?.cancel();
+        _callEventSub = null;
       },
     );
   }
@@ -505,10 +573,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
           transcript:
               '${state.transcript}\n[Hệ thống giám sát đã được khôi phục]',
         );
-        _l1AnalysisFuture = null;
+        _analysisCompleter = null;
         _hasAttemptedStart = false;
-        await _startLiveMonitoringIfNeeded();
-        if (!_disposed) _initStreams();
+        await _runRestartSequence();
       } else {
         debugPrint(
             'Health check: backoff attempt $_healthCheckRetryCount (still down)');
@@ -559,6 +626,15 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   /// and clear the snapshot.
   Future<void> _recoverFromKillIfAny() async {
     if (_hasTestAnalyzerOverride) return;
+    // Guard: only attempt recovery once per controller lifetime. The
+    // monitor stream's `MonitoringState.stopped` branch also calls
+    // endSession, and if the service is mid-tear-down, the
+    // `isMonitoringActive()` probe below can briefly return false even
+    // though endSession is about to commit a normal CallHistory row.
+    // That would double-save the same session as both `killed` and a
+    // normal record.
+    if (_recoveryAttempted) return;
+    _recoveryAttempted = true;
     final snapshot = await SessionRecoveryStore.load();
     if (snapshot == null) return;
     final age = DateTime.now().difference(snapshot.startedAt);
@@ -580,7 +656,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     try {
       final db = await ref.read(appDatabaseFutureProvider.future);
       if (_disposed) return;
-      final history = CallHistory(
+      final history = CallHistory.withRecordingError(
         dateTime: MonitoringController._formatDateTime(
           snapshot.startedAt,
         ),
@@ -595,7 +671,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
         analysisType: state.effectiveMode.name,
         // Sprint 2 (B5): new recordingError value. Indicates that
         // endSession() never ran because the app was killed.
-        recordingError: 'killed',
+        recordingError: RecordingError.killed,
       );
       await db.insert(history);
     } catch (e) {
@@ -616,9 +692,35 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   void onLifecycleChanged(AppLifecycleState lifecycle) {
     if (lifecycle == AppLifecycleState.resumed && !state.isEndingSession) {
       if (!_isSimulationSession() && !_hasTestAnalyzerOverride) {
-        _initStreams();
-        unawaited(_startLiveMonitoringIfNeeded());
+        // Run restart via the serialized lock to avoid racing with a
+        // concurrent health-check restart (double startMonitoring / double
+        // stream subscriptions).
+        unawaited(_runRestartSequence());
       }
+    }
+  }
+
+  /// Serialized monitoring-restart sequence. Both the health-check auto-restart
+  /// and the lifecycle-resume path funnel through here. The [_restartLock]
+  /// Completer makes a second concurrent caller await the first rather than
+  /// starting a parallel startMonitoring + _initStreams (which previously
+  /// could double-subscribe streams and double-start the service).
+  Future<void> _runRestartSequence() async {
+    if (_disposed) return;
+    final existing = _restartLock;
+    if (existing != null) {
+      // A restart is already in progress — wait for it instead of racing.
+      await existing.future;
+      return;
+    }
+    final completer = Completer<void>();
+    _restartLock = completer;
+    try {
+      await _startLiveMonitoringIfNeeded();
+      if (!_disposed) _initStreams();
+    } finally {
+      _restartLock = null;
+      completer.complete();
     }
   }
 
@@ -653,7 +755,10 @@ class MonitoringController extends Notifier<MonitoringPageState> {
           state = state.copyWith(
             transcript: current.isEmpty ? lineText : '$current\n$lineText',
           );
-          _l1AnalysisFuture = null;
+          // Invalidate in-flight analysis so the debounced re-run
+          // starts fresh on the latest transcript (which now includes
+          // this script line).
+          _analysisCompleter = null;
           _updateSimulationWaveform();
           _runRealTimeAnalysis(state.transcript);
           _currentScriptLineIndex++;
@@ -669,7 +774,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     for (var i = 0; i < _amplitudeBufferSize; i++) {
       _amplitudes[i] = _simRandom.nextDouble() * 0.6 + 0.2;
     }
-    _amplitudesNotifier!.updateAndNotify(List.from(_amplitudes));
+    _waveformNotifier?.notify();
   }
 
   // ── Live Monitoring ──────────────────────────────────────────────────
@@ -718,18 +823,51 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   Future<void> _ensureAnalysisComplete() async {
     if (state.transcript.trim().isEmpty) return;
     if (_coordinatorInstance == null) return;
-    // Bug #1 fix: cancel any pending debounce timer so it cannot fire
-    // concurrently and overwrite state after endSession has started.
+    // Cancel any pending debounce timer so it cannot fire concurrently
+    // and overwrite state after endSession has started.
     _analysisDebounce?.cancel();
-    // Bug #3 fix: capture the future into a local variable BEFORE awaiting.
-    // If a concurrent transcript event nulls _l1AnalysisFuture between the
-    // ??= assignment and the await, awaiting null would skip the final
-    // analysis entirely. Capturing the reference avoids that race.
-    final analysisToAwait = _l1AnalysisFuture ??= _runAnalysis();
-    await analysisToAwait;
+
+    // Completer-based mutex: if an analysis is already in flight, await
+    // it instead of starting a duplicate. If none is in flight, claim
+    // the slot synchronously (assigning `_analysisCompleter` before any
+    // await) and run the analysis. The `??= _newCompleter` pattern is
+    // race-free in Dart's single-threaded event loop because the
+    // assignment happens synchronously before the await on the captured
+    // future.
+    final existing = _analysisCompleter;
+    if (existing != null && !existing.isCompleted) {
+      try {
+        await existing.future;
+      } on Exception {
+        // Swallow — the original call site already logged the error.
+      }
+      return;
+    }
+    final completer = Completer<void>();
+    _analysisCompleter = completer;
+    try {
+      await _runAnalysis();
+      if (!completer.isCompleted) completer.complete();
+    } catch (e, st) {
+      if (!completer.isCompleted) completer.completeError(e, st);
+    } finally {
+      if (identical(_analysisCompleter, completer)) {
+        _analysisCompleter = null;
+      }
+    }
   }
 
   bool _endSessionInProgress = false;
+
+  /// Set audio state for testing endSession recording-error derivation.
+  @visibleForTesting
+  void debugSetAudioState({
+    required double peakAmplitude,
+    required bool hasReceivedAnyAudio,
+  }) {
+    _peakAmplitude = peakAmplitude;
+    _hasReceivedAnyAudio = hasReceivedAnyAudio;
+  }
 
   /// End the current monitoring session.
   Future<void> endSession() async {
@@ -772,16 +910,27 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       }
       // Sprint 1 (A7): if the transcript is empty, mark why so the history
       // card can show a meaningful reason instead of a blank GREEN row.
-      String? recordingError;
+      //
+      // Decision tree:
+      //   • No audio events ever fired  → `noAudio`  (mic permission denied /
+      //     wrong source / device muted)
+      //   • Audio events fired but _peakAmplitude stayed below noise floor
+      //                                       → `sttFailed` (silence captured
+      //     but STT produced nothing)
+      //
+      // Previously this only checked _peakAmplitude, which is 0.0 whenever
+      // the rms stream was silent — including the "no events at all" case.
+      // That conflated two different failure modes and made the history
+      // card's reason text misleading.
+      RecordingError? recordingError;
       if (state.transcript.trim().isEmpty) {
-        final maxStateAmp = state.amplitudes.isNotEmpty ? state.amplitudes.reduce(max) : 0.0;
-        final maxAmp = max(_peakAmplitude, maxStateAmp);
-        recordingError = maxAmp < 0.5 ? 'noAudio' : 'sttFailed';
+        recordingError =
+            _hasReceivedAnyAudio ? RecordingError.sttFailed : RecordingError.noAudio;
       }
-      if (recordingError == 'noAudio') {
+      if (recordingError == RecordingError.noAudio) {
         summaryParts
             .add('Không thu được âm thanh — kiểm tra quyền micro hoặc nguồn âm thanh');
-      } else if (recordingError == 'sttFailed') {
+      } else if (recordingError == RecordingError.sttFailed) {
         summaryParts.add('Không nhận diện được giọng nói (STT không khả dụng)');
       } else if (reason != null && reason.isNotEmpty) {
         summaryParts.add(reason);
@@ -791,7 +940,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       final summary = summaryParts.join(' ');
 
       final flagCount = result?.matches.length ?? 0;
-      final history = CallHistory(
+      final history = CallHistory.withRecordingError(
         dateTime: formatSessionDateTime(),
         riskLevel: risk.storageName,
         summary: summary,
@@ -845,11 +994,17 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   }
 
   Future<void> _runAnalysis() async {
+    // Bump generation: a concurrent _runRealTimeAnalysis arriving while we
+    // await the coordinator will bump it again, and our (stale) result will
+    // be discarded instead of overwriting the fresher incremental result.
+    final myGeneration = ++_analysisGeneration;
     state = state.copyWith(isAnalyzing: true);
     try {
       final result =
           await _coordinator.analyze(state.transcript, state.effectiveMode);
       if (_disposed) return;
+      // Discard stale results — a newer run may have already committed state.
+      if (myGeneration != _analysisGeneration) return;
       state = state.copyWith(
         analysisResult: result,
         riskLevel: result.overallRiskLevel,
@@ -858,6 +1013,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     } catch (e) {
       debugPrint('_runAnalysis failed: $e');
       if (_disposed) return;
+      if (myGeneration != _analysisGeneration) return;
       state = state.copyWith(
         analysisResult: const AnalysisResult(
           overallRiskLevel: RiskLevel.green,
@@ -877,21 +1033,37 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     if (_coordinatorInstance == null) return;
     _analysisDebounce?.cancel();
     _analysisDebounce = Timer(const Duration(milliseconds: 1200), () async {
-      // Use the latest transcript from state, not the captured closure
-      // variable which may be stale after 1200ms debounce.
-      final latestText = state.transcript;
-      if (_disposed || latestText.trim().isEmpty) return;
+      // The debounce fires once per 1200ms window; we should analyse the
+      // transcript as it was at the START of this window (the captured
+      // `text` parameter), not the live `state.transcript` which may
+      // have changed several times since. Otherwise we re-run the
+      // analysis on a newer transcript, then immediately get
+      // re-debounced — a thundering-herd of redundant work.
+      final textForRun = text;
+      // Tránh chạy phân tích thời gian thực nếu phiên làm việc đang trong quá trình kết thúc.
+      if (_disposed || textForRun.trim().isEmpty || state.isEndingSession) return;
       if (state.isAnalyzing) {
-        // Save latest text for retry after current analysis completes.
-        _pendingReanalysisText = latestText;
+        // Save the text that triggered this debounce so the in-flight
+        // analysis can re-run with the latest input when it finishes.
+        _pendingReanalysisText = textForRun;
         return;
       }
       _pendingReanalysisText = null;
+      // Bump generation so any in-flight _runAnalysis (e.g. a final analysis
+      // from endSession) will discard its older result rather than clobber
+      // this incremental one.
+      final myGeneration = ++_analysisGeneration;
       state = state.copyWith(isAnalyzing: true);
       try {
         AnalysisResult result =
-            await _coordinator.analyzeIncremental(latestText, state.effectiveMode);
+            await _coordinator.analyzeIncremental(textForRun, state.effectiveMode);
         if (_disposed) return;
+        // Discard this incremental result if a newer run superseded us.
+        if (myGeneration != _analysisGeneration) return;
+
+        // Nếu cuộc gọi đang kết thúc hoặc đã dừng, hủy bỏ kết quả phân tích
+        // thời gian thực này để tránh ghi đè lên kết quả phân tích cuối cùng.
+        if (state.isEndingSession) return;
 
         final resultLevel = result.analysisLevel;
         // Dual fallback: AnalysisCoordinator internally falls back from
@@ -939,13 +1111,19 @@ class MonitoringController extends Notifier<MonitoringPageState> {
         // If a newer transcript arrived while we were analyzing, re-run.
         final pendingText = _pendingReanalysisText;
         _pendingReanalysisText = null;
-        if (pendingText != null) {
+        if (pendingText != null && !state.isEndingSession) {
           _runRealTimeAnalysis(pendingText);
         }
       } catch (e) {
         debugPrint('_runRealTimeAnalysis failed: $e');
         if (!_disposed) {
           state = state.copyWith(isAnalyzing: false);
+        }
+        // BUG FIX: Phục hồi phân tích cho text mới đến trong lúc tiến trình phân tích cũ bị lỗi.
+        final pendingText = _pendingReanalysisText;
+        _pendingReanalysisText = null;
+        if (pendingText != null && !_disposed && !state.isEndingSession) {
+          _runRealTimeAnalysis(pendingText);
         }
       }
     });
@@ -1003,24 +1181,6 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   }
 }
 
-/// ChangeNotifier that always notifies on [notifyListeners] — unlike
-/// [ValueNotifier] which skips when the same reference is assigned.
-/// Used for the amplitude list where in-place mutation + forced rebuild
-/// avoids creating a new List every 100ms.
-class _AmplitudesNotifier extends ChangeNotifier
-    implements ValueListenable<List<double>> {
-  _AmplitudesNotifier(this._amplitudes);
-
-  List<double> _amplitudes;
-
-  List<double> get amplitudes => _amplitudes;
-
-  /// Update the amplitudes list and notify listeners.
-  void updateAndNotify(List<double> newAmplitudes) {
-    _amplitudes = newAmplitudes;
-    notifyListeners();
-  }
-
-  @override
-  List<double> get value => _amplitudes;
+class _WaveformNotifier extends ChangeNotifier {
+  void notify() => notifyListeners();
 }

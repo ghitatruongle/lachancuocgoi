@@ -40,6 +40,10 @@ class GeminiChatSession {
   int _currentKeyIndex = 0;
   int _currentModelIndex = 0;
   DateTime? _lastCallTime;
+  // Rate-limit serialization chain (see _applyRateLimit). Prevents concurrent
+  // sendMessage() calls from both reading a stale _lastCallTime and firing
+  // closer together than _minInterval.
+  Future<void> _rateLimitChain = Future<void>.value();
   final List<Content> _safeHistory = <Content>[];
 
   Future<Result<T>> sendMessage<T>(
@@ -163,14 +167,24 @@ class GeminiChatSession {
   }
 
   Future<void> _applyRateLimit() async {
-    final lastCall = _lastCallTime;
-    if (lastCall != null) {
-      final elapsed = DateTime.now().difference(lastCall);
-      if (elapsed < _minInterval) {
-        await Future<void>.delayed(_minInterval - elapsed);
+    // Serialize through a Future chain so concurrent callers queue up rather
+    // than each reading a stale _lastCallTime and firing together.
+    final completer = Completer<void>();
+    final previous = _rateLimitChain;
+    _rateLimitChain = completer.future;
+    try {
+      await previous;
+      final lastCall = _lastCallTime;
+      if (lastCall != null) {
+        final elapsed = DateTime.now().difference(lastCall);
+        if (elapsed < _minInterval) {
+          await Future<void>.delayed(_minInterval - elapsed);
+        }
       }
+      _lastCallTime = DateTime.now();
+    } finally {
+      completer.complete();
     }
-    _lastCallTime = DateTime.now();
   }
 
   GeminiErrorType _classifyError(Object? error) => classifyGeminiError(error);

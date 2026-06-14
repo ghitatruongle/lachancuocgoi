@@ -55,6 +55,10 @@ class GDetectionEngine {
     _initializingFuture = null;
   }
 
+  void reset() {
+    GPatternMatcher.clearCache();
+  }
+
   Future<void> initialize() {
     if (_isReady) return Future<void>.value();
     return _initializingFuture ??= _doInitialize();
@@ -113,16 +117,15 @@ class GDetectionEngine {
     }
 
     final sentenceMatch = _sentenceMatcher?.match(tokens);
+    final allMatchedKeywords = await _extractKeywordsFromTrie(tokens);
     if (sentenceMatch != null && !sentenceMatch.isSafe) {
       return GThinking.analyze(
-        allMatchedKeywords: const <KeywordMatch>{},
+        allMatchedKeywords: allMatchedKeywords,
         topTopic: null,
         sentenceMatch: sentenceMatch,
         config: _scoringConfig,
       );
     }
-
-    final allMatchedKeywords = _extractKeywordsFromTrie(tokens);
     if (sentenceMatch != null && sentenceMatch.isSafe) {
       return GThinking.analyze(
         allMatchedKeywords: allMatchedKeywords,
@@ -321,7 +324,16 @@ class GDetectionEngine {
     return bestEntry?.key;
   }
 
-  Set<KeywordMatch> _extractKeywordsFromTrie(List<String> tokens) {
+  /// Walks the risk-keyword trie over [tokens] and collects all matches.
+  ///
+  /// This is a nested-loop trie walk (O(tokens × max_keyword_length)). Unlike
+  /// L1 (which uses Aho-Corasick failure links for O(n)), this naive walk has
+  /// no yield points — on a long transcript it would jank the UI. To keep the
+  /// main isolate responsive we yield back to the event loop every 200 tokens.
+  /// Benchmark: 200 iterations between yields is well under a frame budget.
+  Future<Set<KeywordMatch>> _extractKeywordsFromTrie(
+    List<String> tokens,
+  ) async {
     final matches = <KeywordMatch>{};
 
     for (var i = 0; i < tokens.length; i++) {
@@ -343,6 +355,10 @@ class GDetectionEngine {
             ),
           );
         }
+      }
+      // Yield periodically so long transcripts don't block the UI isolate.
+      if (i > 0 && i % 200 == 0) {
+        await Future<void>.delayed(Duration.zero);
       }
     }
 

@@ -53,6 +53,18 @@ class PIIStripper {
     'nhan vien',
     'hỗ trợ',
     'ho tro',
+    'đại úy',
+    'dai uy',
+    'thiếu tá',
+    'thieu ta',
+    'trung tá',
+    'trung ta',
+    'thượng tá',
+    'thuong ta',
+    'tổng đài',
+    'tong dai',
+    'chăm sóc khách hàng',
+    'cham soc khach hang',
   ];
 
   static final RegExp _otpRegex = RegExp(
@@ -217,7 +229,17 @@ class PIIStripper {
         buffer.write(originalText.substring(lastIndex, replacement.start));
       }
       buffer.write(replacement.token);
-      tokensMap.putIfAbsent(replacement.token, () => replacement.originalValue);
+      
+      // Limit tokensMap size to 200 items to prevent memory leaks.
+      // Since Dart maps preserve insertion order, the oldest entry is tokensMap.keys.first.
+      if (!tokensMap.containsKey(replacement.token)) {
+        if (tokensMap.length >= 200) {
+          final oldestKey = tokensMap.keys.first;
+          tokensMap.remove(oldestKey);
+        }
+        tokensMap[replacement.token] = replacement.originalValue;
+      }
+      
       lastIndex = replacement.end;
     }
     if (lastIndex < originalText.length) {
@@ -374,6 +396,11 @@ class PIIStripper {
     }
     final tokenKey =
         '${type.name}:${_normalizeVietnamese(tokenKeyValue ?? originalValue)}';
+    // The putIfAbsent callback only fires for keys not yet seen, so
+    // `counters[type]` advances exactly once per unique PII value.
+    // Re-occurrences of the same value reuse the previously assigned
+    // token (no gap in numbering) and the validator result from a
+    // previous call already determined whether the token was created.
     final token = tokenByValue.putIfAbsent(tokenKey, () {
       final nextIndex = (counters[type] ?? 0) + 1;
       counters[type] = nextIndex;

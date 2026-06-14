@@ -116,7 +116,8 @@ void main() {
       expect(red.overallRiskLevel, RiskLevel.red);
       expect(green1.overallRiskLevel, RiskLevel.red);
       expect(green2.overallRiskLevel, RiskLevel.red);
-      expect(green3.overallRiskLevel, RiskLevel.orange);
+      // RED should NOT de-escalate (only YELLOW can de-escalate for safety)
+      expect(green3.overallRiskLevel, RiskLevel.red);
     });
 
     test('L3 analyze dung cache cho cung mot transcript', () async {
@@ -237,7 +238,8 @@ void main() {
       expect(result.analysisLevel, AnalysisLevel.l2);
       expect(result.reason, contains('API Error'));
       expect(result.reason, contains('GDetection phát hiện nguy cơ lừa đảo'));
-      expect(result.matches.first.keyword, 'L3 fallback');
+      expect(result.isFallback, isTrue);
+      expect(result.matches.any((m) => m.keyword == 'chuyển tiền'), isTrue);
       expect(result.overallRiskLevel, RiskLevel.orange);
     });
   });

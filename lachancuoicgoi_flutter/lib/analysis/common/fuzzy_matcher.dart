@@ -98,6 +98,7 @@ class FuzzyMatcher {
       if (distance < bestDistance) {
         best = candidate;
         bestDistance = distance;
+        if (distance == 0) return candidate;
       }
     }
 

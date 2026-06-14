@@ -10,6 +10,7 @@ void main() {
       await tester.pumpWidget(wrap(
         AudioWaveform(
           amplitudes: List.filled(30, 0.1),
+          writeIndex: 0,
           elapsedSeconds: _constNotifier(0),
         ),
       ));
@@ -23,6 +24,7 @@ void main() {
       await tester.pumpWidget(wrap(
         AudioWaveform(
           amplitudes: amplitudes,
+          writeIndex: 0,
           elapsedSeconds: _constNotifier(5),
         ),
       ));
@@ -35,6 +37,7 @@ void main() {
       await tester.pumpWidget(wrap(
         AudioWaveform(
           amplitudes: List.filled(30, 0.1),
+          writeIndex: 0,
           elapsedSeconds: _constNotifier(125),
         ),
       ));
@@ -46,6 +49,7 @@ void main() {
       await tester.pumpWidget(wrap(
         AudioWaveform(
           amplitudes: List.filled(30, 0.1),
+          writeIndex: 0,
           elapsedSeconds: _constNotifier(0),
         ),
       ));

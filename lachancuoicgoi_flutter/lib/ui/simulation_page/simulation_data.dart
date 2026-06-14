@@ -39,14 +39,18 @@ class SimulationScenarioData {
     if (lines.length <= 1) return lines;
     final result = <SimulationScriptLine>[];
     for (var i = 0; i < lines.length; i++) {
-      final relativeDelay = i == 0
+      // Default gap when timestamps are equal/zero/inverted: 1500ms
+      // (sits comfortably inside the [500, 10000] clamp window).
+      const fallbackGap = 1500;
+      final rawGap = i == 0
           ? 0
           : (lines[i].delay - lines[i - 1].delay).abs();
+      final relativeDelay = rawGap <= 0 ? fallbackGap : rawGap;
       result.add(SimulationScriptLine(
         speaker: lines[i].speaker,
         line: lines[i].line,
         riskLevel: lines[i].riskLevel,
-        delay: relativeDelay == 0 ? 0 : relativeDelay.clamp(500, 10000),
+        delay: relativeDelay.clamp(500, 10000),
       ));
     }
     return result;

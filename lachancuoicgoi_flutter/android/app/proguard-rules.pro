@@ -31,3 +31,8 @@
 
 # ─── Flutter deferred components (Play Core — not used, suppress R8 warnings) ───
 -dontwarn com.google.android.play.core.**
+
+# ─── JNA (Java Native Access) ───────────────────────────────────────────────────
+-keep class com.sun.jna.** { *; }
+-keepclassmembers class * extends com.sun.jna.** { *; }
+-dontwarn com.sun.jna.**

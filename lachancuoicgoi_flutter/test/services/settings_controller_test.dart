@@ -23,7 +23,7 @@ void main() {
   });
 
   group('SettingsController — _load', () {
-    test('loads saved preferences', () async {
+    testWidgets('loads saved preferences', (tester) async {
       SharedPreferences.setMockInitialValues({
         'IS_DARK_THEME': true,
         'ANALYSIS_MODE': 'geminiApi',
@@ -38,11 +38,8 @@ void main() {
       // Read triggers build() which calls _load()
       container.read(settingsControllerProvider);
 
-      // Wait for _load() to complete by checking isLoaded in a loop
-      for (int i = 0; i < 50; i++) {
-        if (container.read(settingsControllerProvider).isLoaded) break;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
+      // Wait for _load() to complete in fake time
+      await tester.pump();
 
       final state = container.read(settingsControllerProvider);
       expect(state.isDarkTheme, isTrue);
@@ -52,7 +49,7 @@ void main() {
       expect(state.creatorAudioCapture, isTrue);
     });
 
-    test('uses defaults for missing keys', () async {
+    testWidgets('uses defaults for missing keys', (tester) async {
       SharedPreferences.setMockInitialValues({
         'IS_DARK_THEME': true,
       });
@@ -61,10 +58,7 @@ void main() {
       addTearDown(container.dispose);
 
       container.read(settingsControllerProvider);
-      for (int i = 0; i < 50; i++) {
-        if (container.read(settingsControllerProvider).isLoaded) break;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
+      await tester.pump();
 
       final state = container.read(settingsControllerProvider);
       expect(state.isDarkTheme, isTrue);
@@ -72,7 +66,7 @@ void main() {
       expect(state.audioBoost, isFalse);
     });
 
-    test('handles invalid analysis mode gracefully', () async {
+    testWidgets('handles invalid analysis mode gracefully', (tester) async {
       SharedPreferences.setMockInitialValues({
         'ANALYSIS_MODE': 'nonexistent_mode',
       });
@@ -81,10 +75,7 @@ void main() {
       addTearDown(container.dispose);
 
       container.read(settingsControllerProvider);
-      for (int i = 0; i < 50; i++) {
-        if (container.read(settingsControllerProvider).isLoaded) break;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
+      await tester.pump();
 
       final state = container.read(settingsControllerProvider);
       expect(state.analysisMode, AnalysisMode.gDetection);
@@ -92,16 +83,13 @@ void main() {
   });
 
   group('SettingsController — update', () {
-    test('persists state to SharedPreferences', () async {
+    testWidgets('persists state to SharedPreferences', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       container.read(settingsControllerProvider);
-      for (int i = 0; i < 50; i++) {
-        if (container.read(settingsControllerProvider).isLoaded) break;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
+      await tester.pump();
 
       const newState = SettingsState(
         isDarkTheme: true,
@@ -126,16 +114,13 @@ void main() {
       expect(prefs.getBool('CREATOR_AUDIO_CAPTURE'), isTrue);
     });
 
-    test('update changes state immediately', () async {
+    testWidgets('update changes state immediately', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       container.read(settingsControllerProvider);
-      for (int i = 0; i < 50; i++) {
-        if (container.read(settingsControllerProvider).isLoaded) break;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
+      await tester.pump();
 
       expect(container.read(settingsControllerProvider).isDarkTheme, isFalse);
 

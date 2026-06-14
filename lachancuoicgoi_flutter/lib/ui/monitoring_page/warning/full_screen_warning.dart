@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
+import 'package:vibration/vibration.dart';
+
 /// Shared full-screen warning dialog used by both RedWarning and OrangeWarning.
 ///
 /// When [isUrgent] is true (RED alert), the widget plays a repeating
@@ -42,13 +45,42 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
   @override
   void initState() {
     super.initState();
+    _startAlerts();
+  }
+
+  Future<void> _startAlerts() async {
     if (widget.isUrgent) {
-      // Fire immediately, then repeat every 600ms while the warning is visible.
-      _playHapticOnce();
-      _hapticTimer = Timer.periodic(
-        const Duration(milliseconds: 600),
-        (_) => _playHapticOnce(),
-      );
+      // Mức độ nguy hiểm (Đỏ): Chuông báo động + Rung liên tục
+      try {
+        FlutterRingtonePlayer().playAlarm(loop: true, volume: 1.0);
+      } catch (e) {
+        // Fallback
+      }
+      
+      bool? hasVibrator = await Vibration.hasVibrator();
+      if (hasVibrator == true) {
+        Vibration.vibrate(pattern: [0, 500, 200, 500, 200, 500], intensities: [0, 255, 0, 255, 0, 255], repeat: 1);
+      } else {
+        _playHapticOnce();
+        _hapticTimer = Timer.periodic(
+          const Duration(milliseconds: 600),
+          (_) => _playHapticOnce(),
+        );
+      }
+    } else {
+      // Mức độ cảnh báo (Cam): Âm thanh thông báo + Rung 1 lần
+      try {
+        FlutterRingtonePlayer().playNotification(volume: 1.0);
+      } catch (e) {
+        // Fallback
+      }
+      
+      bool? hasVibrator = await Vibration.hasVibrator();
+      if (hasVibrator == true) {
+        Vibration.vibrate(duration: 500);
+      } else {
+        HapticFeedback.mediumImpact();
+      }
     }
   }
 
@@ -60,6 +92,12 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
   void dispose() {
     _hapticTimer?.cancel();
     _hapticTimer = null;
+    try {
+      FlutterRingtonePlayer().stop();
+    } catch (_) {}
+    try {
+      Vibration.cancel();
+    } catch (_) {}
     super.dispose();
   }
 

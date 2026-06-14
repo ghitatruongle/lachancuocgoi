@@ -14,6 +14,12 @@ class RightsDialog extends ConsumerStatefulWidget {
 
 class _RightsDialogState extends ConsumerState<RightsDialog> {
   bool _isRequestingAll = false;
+  // Track which permission requests are currently in flight so a fast
+  // double-tap on the same row can't spawn multiple concurrent
+  // permission dialogs. The old code only blocked "request all", which
+  // left individual buttons vulnerable to adb-style script replay or
+  // impatient fingers.
+  final Set<String> _inFlightPermissions = <String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -93,9 +99,13 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                       title: 'Ghi âm',
                       description: 'Thu âm thanh cuộc gọi qua microphone.',
                       isGranted: state.snapshot.recordAudio,
+                      isInFlight: _inFlightPermissions.contains('microphone'),
                       onRequest: state.snapshot.recordAudio
                           ? null
-                          : () => controller.requestMicrophonePermission(),
+                          : () => _requestPermission(
+                                'microphone',
+                                () => controller.requestMicrophonePermission(),
+                              ),
                     ),
                     _PermissionItem(
                       icon: Icons.phone,
@@ -103,20 +113,30 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                       description:
                           'Phát hiện cuộc gọi đến để tự động giám sát.',
                       isGranted: state.snapshot.phoneState,
+                      isInFlight: _inFlightPermissions
+                          .contains('phoneAndCallLog'),
                       onRequest: state.snapshot.phoneState
                           ? null
-                          : () =>
-                              controller.requestPhoneAndCallLogPermissions(),
+                          : () => _requestPermission(
+                                'phoneAndCallLog',
+                                () => controller
+                                    .requestPhoneAndCallLogPermissions(),
+                              ),
                     ),
                     _PermissionItem(
                       icon: Icons.history,
                       title: 'Lịch sử cuộc gọi',
                       description: 'Đọc lịch sử cuộc gọi liên quan tới giám sát.',
                       isGranted: state.snapshot.callLog,
+                      isInFlight: _inFlightPermissions
+                          .contains('phoneAndCallLog'),
                       onRequest: state.snapshot.callLog
                           ? null
-                          : () =>
-                              controller.requestPhoneAndCallLogPermissions(),
+                          : () => _requestPermission(
+                                'phoneAndCallLog',
+                                () => controller
+                                    .requestPhoneAndCallLogPermissions(),
+                              ),
                     ),
                     _PermissionItem(
                       icon: Icons.layers,
@@ -124,9 +144,14 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                       description:
                           'Hiện cảnh báo ngoài ứng dụng khi phát hiện lừa đảo.\n👉 Cần bật thủ công trong Cài đặt > Ứng dụng > Lá chắn > Hiển thị trên ứng dụng khác.',
                       isGranted: state.snapshot.overlay,
+                      isInFlight:
+                          _inFlightPermissions.contains('overlay'),
                       onRequest: state.snapshot.overlay
                           ? null
-                          : () => controller.requestOverlayPermission(),
+                          : () => _requestPermission(
+                                'overlay',
+                                () => controller.requestOverlayPermission(),
+                              ),
                     ),
                     _PermissionItem(
                       icon: Icons.notifications,
@@ -134,10 +159,15 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                       description:
                           'Gửi thông báo khi đang giám sát hoặc phát hiện nguy cơ.\n👉 Android 13+ cần bật thủ công trong Cài đặt > Thông báo ứng dụng.',
                       isGranted: state.snapshot.notification,
+                      isInFlight: _inFlightPermissions
+                          .contains('notification'),
                       onRequest: state.snapshot.notification
                           ? null
-                          : () =>
-                              controller.requestNotificationPermission(),
+                          : () => _requestPermission(
+                                'notification',
+                                () =>
+                                    controller.requestNotificationPermission(),
+                              ),
                     ),
                     _PermissionItem(
                       icon: Icons.call,
@@ -145,9 +175,15 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                       description:
                           'Tự động sàng lọc cuộc gọi đến trên thiết bị.\n👉 Cần bật thủ công: Cài đặt > Ứng dụng mặc định > Sàng lọc cuộc gọi > Lá chắn.',
                       isGranted: state.snapshot.callScreening,
+                      isInFlight: _inFlightPermissions
+                          .contains('callScreening'),
                       onRequest: state.snapshot.callScreening
                           ? null
-                          : () => controller.requestCallScreeningPermission(),
+                          : () => _requestPermission(
+                                'callScreening',
+                                () =>
+                                    controller.requestCallScreeningPermission(),
+                              ),
                     ),
                     _PermissionItem(
                       icon: Icons.accessibility_new,
@@ -155,9 +191,15 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                       description:
                           'Đọc phụ đề cuộc gọi để phân tích không cần loa.\n👉 Cần bật thủ công: Cài đặt > Trợ năng > Lá chắn > Bật dịch vụ.',
                       isGranted: state.snapshot.accessibility,
+                      isInFlight:
+                          _inFlightPermissions.contains('accessibility'),
                       onRequest: state.snapshot.accessibility
                           ? null
-                          : () => controller.requestAccessibilityPermission(),
+                          : () => _requestPermission(
+                                'accessibility',
+                                () =>
+                                    controller.requestAccessibilityPermission(),
+                              ),
                     ),
                   ],
                 ),
@@ -216,6 +258,26 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
       }
     }
   }
+
+  /// Wrap a permission-requestor so we can disable its button while the
+  /// underlying dialog / settings intent is in flight. Keys are stable
+  /// strings (`microphone`, `overlay`, …) — the controller already
+  /// knows how to handle concurrent calls, but the UI shouldn't be
+  /// firing the same channel twice within a few hundred milliseconds.
+  Future<void> _requestPermission(
+    String key,
+    Future<void> Function() requestor,
+  ) async {
+    if (_inFlightPermissions.contains(key)) return;
+    setState(() => _inFlightPermissions.add(key));
+    try {
+      await requestor();
+    } finally {
+      if (mounted) {
+        setState(() => _inFlightPermissions.remove(key));
+      }
+    }
+  }
 }
 
 class _PermissionItem extends StatelessWidget {
@@ -225,13 +287,17 @@ class _PermissionItem extends StatelessWidget {
     required this.description,
     required this.isGranted,
     this.onRequest,
+    this.isInFlight = false,
   });
 
   final IconData icon;
   final String title;
   final String description;
   final bool isGranted;
-  final Future<bool> Function()? onRequest;
+  final Future<void> Function()? onRequest;
+  // Disables the action button while a request for this row is in
+  // flight, preventing duplicate dialogs from rapid taps.
+  final bool isInFlight;
 
   @override
   Widget build(BuildContext context) {
@@ -264,9 +330,15 @@ class _PermissionItem extends StatelessWidget {
             if (canRequest && !isGranted) ...[
               const SizedBox(width: 8),
               IconButton.filled(
-                icon: const Icon(Icons.settings),
-                tooltip: 'Cấp quyền',
-                onPressed: onRequest,
+                icon: isInFlight
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.settings),
+                tooltip: isInFlight ? 'Đang cấp quyền...' : 'Cấp quyền',
+                onPressed: isInFlight ? null : onRequest,
               ),
             ],
           ],

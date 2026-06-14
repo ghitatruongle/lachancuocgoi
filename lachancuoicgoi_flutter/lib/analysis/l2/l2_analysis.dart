@@ -36,6 +36,12 @@ class L2Analyzer implements Analyzer {
   // Prevents CPU spike from concurrent TFLite + GDetection + WFSA.
   Future<void> _analysisMutex = Future.value();
 
+  // Generation counter: incremented at the start of each analyze() call.
+  // When a mutex timeout forces a new analysis to start while the previous
+  // one is still in-flight, the stale analysis will see a mismatched
+  // generation and skip writing to _lastResult / _processedTextLength.
+  int _analysisGeneration = 0;
+
   final GDetectionEngine _gDetectionEngine;
   final IntentClassifier _intentClassifier;
   final WfsaEngine _wfsaEngine;
@@ -98,6 +104,7 @@ class L2Analyzer implements Analyzer {
 
   @override
   void resetSession() {
+    _gDetectionEngine.reset();
     _wfsaEngine.resetSession();
     _processedTextLength = 0;
     _lastResult = const AnalysisResult(
@@ -137,12 +144,24 @@ class L2Analyzer implements Analyzer {
     final completer = Completer<void>();
     _analysisMutex = completer.future;
 
+    // Capture the generation BEFORE incrementing — used to detect if a
+    // newer analyze() call has superseded this one after a mutex timeout.
+    final myGeneration = ++_analysisGeneration;
+
     await prevMutex.timeout(
       const Duration(seconds: 5),
       onTimeout: () {
         debugPrint('[L2Analyzer] Timeout waiting for previous analysis lock — force continuing');
       },
     );
+
+    // Early bail-out: if a newer analyze() superseded us while we were waiting
+    // on the mutex (or its timeout), don't bother running the expensive
+    // TFLite + trie work — its result would be discarded by the generation
+    // guard below anyway. This avoids doubling CPU load when calls overlap.
+    if (myGeneration != _analysisGeneration) {
+      return _lastResult;
+    }
 
     try {
       final results = await Future.wait<Object>([
@@ -156,7 +175,7 @@ class L2Analyzer implements Analyzer {
       final intentForWfsa = luong1Result is _Luong1Success
           ? <IntentPrediction>[luong1Result.prediction]
           : const <IntentPrediction>[];
-      var wfsaScore = _wfsaEngine.analyzeSegment(incrementalText, intentForWfsa);
+      var wfsaScore = _wfsaEngine.analyzeIncremental(fullText, intentForWfsa);
       final safetyDiscount = SafetyFilter.calculateSafetyDiscount(fullText);
       wfsaScore *= safetyDiscount;
 
@@ -168,6 +187,7 @@ class L2Analyzer implements Analyzer {
       final gDetectionRiskLevel = _discountGDetectionRisk(
         parsedGDetectionResult.overallRiskLevel,
         safetyDiscount,
+        luong1Result,
       );
       final result2 = _mergeContextResult(
         parsedGDetectionResult,
@@ -180,8 +200,14 @@ class L2Analyzer implements Analyzer {
         _Luong1Success() => _fuseIntentSuccess(luong1Result, result2, fullText),
         _Luong1Fallback() => _fallbackResult(result2, fullText),
       };
-      _processedTextLength = fullText.length;
-      _lastResult = result;
+
+      // Guard: only write results if this generation is still the latest.
+      // A newer analyze() call may have force-continued via mutex timeout,
+      // in which case this stale result must not overwrite the fresher one.
+      if (myGeneration == _analysisGeneration) {
+        _processedTextLength = fullText.length;
+        _lastResult = result;
+      }
       return result;
     } finally {
       completer.complete();
@@ -215,16 +241,36 @@ class L2Analyzer implements Analyzer {
   RiskLevel _discountGDetectionRisk(
     RiskLevel originalRisk,
     double safetyDiscount,
+    _Luong1Result luong1Result,
   ) {
-    if (safetyDiscount >= 1.0 ||
-        originalRisk == RiskLevel.red ||
-        originalRisk == RiskLevel.orange) {
+    if (safetyDiscount >= 1.0 || originalRisk == RiskLevel.red) {
       return originalRisk;
     }
-    if (safetyDiscount <= 0.5 && originalRisk == RiskLevel.yellow) {
-      return RiskLevel.green;
+
+    bool isAiHighlyConfidentScam = false;
+    if (luong1Result is _Luong1Success) {
+      final topIntent = luong1Result.prediction;
+      final intentRisk = topIntent.intent.riskLevelForConfidence(topIntent.confidence);
+      final isSafeIntent = topIntent.intent == ScamIntent.safe || intentRisk == RiskLevel.green;
+      if (!isSafeIntent && topIntent.confidence > 0.8) {
+        isAiHighlyConfidentScam = true;
+      }
     }
-    return originalRisk;
+
+    RiskLevel newRisk = originalRisk;
+    // Strong safety context (discount <= 0.3) can reduce orange to yellow
+    if (safetyDiscount <= 0.3 && originalRisk == RiskLevel.orange) {
+      newRisk = RiskLevel.yellow;
+    }
+    // Moderate safety context (discount <= 0.5) can reduce yellow to green
+    else if (safetyDiscount <= 0.5 && originalRisk == RiskLevel.yellow) {
+      newRisk = RiskLevel.green;
+    }
+
+    if (isAiHighlyConfidentScam && newRisk == RiskLevel.green && originalRisk.index >= RiskLevel.yellow.index) {
+      return RiskLevel.yellow; // Keep it at least yellow if AI is confident it's a scam
+    }
+    return newRisk;
   }
 
   AnalysisResult _mergeContextResult(
@@ -343,8 +389,11 @@ class L2Analyzer implements Analyzer {
     }
 
     if (shouldFuseWithContext) {
+      double aiWeight = topIntent.confidence > 0.9 ? 0.8 : 0.6;
+      double contextWeight = 1.0 - aiWeight;
+      
       final ensembleConfidence = result2.confidence > 0
-          ? (topIntent.confidence * 0.6 + result2.confidence * 0.4).clamp(
+          ? (topIntent.confidence * aiWeight + result2.confidence * contextWeight).clamp(
               0.0,
               1.0,
             )

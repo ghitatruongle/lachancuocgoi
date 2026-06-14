@@ -25,9 +25,6 @@ class AnalysisCoordinator {
   final L2Analyzer _l2Analyzer;
   final L3Analyzer _l3Analyzer;
 
-  // Only updated synchronously at the end of methods — never at the start of async calls.
-  AnalysisMode _lastUsedMode = AnalysisMode.normal;
-
   Analyzer _analyzerFor(AnalysisMode mode) {
     return switch (mode) {
       AnalysisMode.normal => _l1Analyzer,
@@ -45,11 +42,11 @@ class AnalysisCoordinator {
     String fullText,
     AnalysisMode mode,
   ) async {
-    // Set _lastUsedMode at the start (synchronously) to avoid race when
-    // two concurrent analyze() calls use different modes — the second
-    // call would otherwise overwrite _lastUsedMode and confuse
-    // getLastResult() reading the first call's result.
-    _lastUsedMode = mode;
+    // Mode is passed explicitly to every internal call — there is no
+    // shared "last used mode" field. This eliminates the cross-call
+    // contamination that previously caused `getLastResult()` to return
+    // another analyzer's stale state when concurrent calls used
+    // different modes.
     if (mode == AnalysisMode.gDetection && !_l2Analyzer.isReady) {
       await _l2Analyzer.initialize();
       if (!_l2Analyzer.isReady) {
@@ -62,7 +59,7 @@ class AnalysisCoordinator {
       }
     }
     return switch (mode) {
-      AnalysisMode.normal => Future.value(_l1Analyzer.analyze(fullText)),
+      AnalysisMode.normal => _l1Analyzer.analyzeStream(fullText),
       AnalysisMode.gDetection => Future.value(
         _l2Analyzer.analyze(incrementalText, fullText),
       ),
@@ -77,15 +74,19 @@ class AnalysisCoordinator {
     String fullText,
     AnalysisMode mode,
   ) async {
-    // Set _lastUsedMode synchronously to avoid race with concurrent calls.
-    _lastUsedMode = mode;
+    // No shared "last used mode" — mode is read from the parameter for
+    // every sub-call, preventing concurrent calls with different modes
+    // from polluting each other's reads.
     final processedTextLength = getProcessedTextLength(mode);
+    final lastResult = getLastResult(mode);
+
     if (fullText.length <= processedTextLength) {
-      return _defaultResultFor(mode);
+      return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
+          ? lastResult.copyWith(alertEnabled: false)
+          : lastResult;
     }
 
     final deltaLength = fullText.length - processedTextLength;
-    final lastResult = getLastResult(mode);
     final minDelta = _adaptiveMinDelta(lastResult.overallRiskLevel, mode);
     if (deltaLength < minDelta) {
       return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
@@ -120,13 +121,9 @@ class AnalysisCoordinator {
     for (final mode in AnalysisMode.values) {
       resetMode(mode);
     }
-    _lastUsedMode = AnalysisMode.normal;
   }
 
   void resetMode(AnalysisMode mode) {
-    if (_lastUsedMode == mode) {
-      _lastUsedMode = AnalysisMode.normal;
-    }
     switch (mode) {
       case AnalysisMode.normal:
         _l1Analyzer.resetSession();
@@ -140,29 +137,25 @@ class AnalysisCoordinator {
     }
   }
 
-  int getProcessedTextLength([AnalysisMode? mode]) {
-    return _analyzerFor(mode ?? _lastUsedMode).processedTextLength;
+  int getProcessedTextLength(AnalysisMode mode) {
+    return _analyzerFor(mode).processedTextLength;
   }
 
-  AnalysisResult getLastResult([AnalysisMode? mode]) {
-    final targetMode = mode ?? _lastUsedMode;
-    final result = _analyzerFor(targetMode).lastResult;
-    if (targetMode == AnalysisMode.geminiApi &&
+  AnalysisResult getLastResult(AnalysisMode mode) {
+    final result = _analyzerFor(mode).lastResult;
+    if (mode == AnalysisMode.geminiApi &&
         result.overallRiskLevel == RiskLevel.green &&
         result.matches.isEmpty) {
-      return _defaultResultFor(targetMode);
+      return _defaultResultFor(mode);
     }
     return result;
   }
 
-  void syncProcessedTextLength(int length, [AnalysisMode? mode]) {
-    final targetMode = mode ?? _lastUsedMode;
-    _lastUsedMode = targetMode;
-    _analyzerFor(targetMode).syncProcessedTextLength(length);
+  void syncProcessedTextLength(int length, AnalysisMode mode) {
+    _analyzerFor(mode).syncProcessedTextLength(length);
   }
 
   void createL3Session({int initialProcessedTextLength = 0}) {
-    _lastUsedMode = AnalysisMode.geminiApi;
     _l3Analyzer.createSession(
       initialProcessedTextLength: initialProcessedTextLength < 0
           ? 0
@@ -186,7 +179,7 @@ class AnalysisCoordinator {
     }
     return _fallbackToL2(
       incrementalText: fullText.substring(
-        _l2Analyzer.processedTextLength.clamp(0, fullText.length),
+        _l3Analyzer.processedTextLength.clamp(0, fullText.length),
       ),
       fullText: fullText,
       fallbackReason: result.reason ?? 'L3 lỗi, chuyển sang L2.',
@@ -245,19 +238,13 @@ class AnalysisCoordinator {
         reason: fallbackReason,
         analysisLevel: AnalysisLevel.l2,
         isError: true,
+        isFallback: true,
       );
     }
     final l2Result = await _l2Analyzer.analyze(incrementalText, fullText);
     return l2Result.copyWith(
-      matches: <KeywordMatch>[
-        const KeywordMatch(
-          keyword: 'L3 fallback',
-          level: RiskLevel.green,
-          category: 'Analysis Fallback',
-        ),
-        ...l2Result.matches,
-      ],
       reason: '$fallbackReason ${l2Result.reason ?? ''}'.trim(),
+      isFallback: true,
     );
   }
 

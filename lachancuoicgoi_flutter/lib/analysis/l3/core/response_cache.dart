@@ -1,6 +1,8 @@
 import 'dart:collection';
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+
 import '../../../core/risk_level.dart';
 
 class ResponseCache<T> {
@@ -77,7 +79,7 @@ class ResponseCache<T> {
 
   String _hashKey(String text) {
     final normalized = text.trim().toLowerCase();
-    return base64.encode(utf8.encode(normalized));
+    return sha256.convert(utf8.encode(normalized)).toString();
   }
 }
 

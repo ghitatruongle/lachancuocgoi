@@ -25,7 +25,6 @@ void main() {
       expect(state.selectedMode, AnalysisMode.normal);
       expect(state.effectiveMode, AnalysisMode.normal);
       expect(state.isCreatorMode, false);
-      expect(state.amplitudes, isEmpty);
       expect(state.navigationIntent, isNull);
     });
 

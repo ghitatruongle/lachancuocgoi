@@ -21,7 +21,6 @@ class MonitoringPageState {
     this.selectedMode = AnalysisMode.normal,
     this.effectiveMode = AnalysisMode.normal,
     this.isCreatorMode = false,
-    this.amplitudes = const [],
     this.navigationIntent,
     this.alertHistory = const [],
     // Sprint 2 (C1): banner flag set by the Dart-side monitoring state
@@ -43,10 +42,9 @@ class MonitoringPageState {
   final AnalysisMode selectedMode;
   final AnalysisMode effectiveMode;
   final bool isCreatorMode;
-  /// ⚠️ Intentionally always empty. Waveform bypasses Riverpod via
-  /// _AmplitudesNotifier (ChangeNotifier) to avoid excessive rebuilds.
-  /// Peak amplitude for noAudio vs sttFailed is tracked in _peakAmplitude.
-  final List<double> amplitudes;
+  // Note: waveform amplitudes are intentionally NOT stored in this state.
+  // They are exposed via `amplitudesListenable` (a ChangeNotifier) to
+  // avoid excessive Riverpod rebuilds at 10+ Hz.
   final NavigationIntent? navigationIntent;
   final List<AlertHistoryEntry> alertHistory;
   /// Sprint 2 (C1): true while the user should see a banner explaining
@@ -74,7 +72,6 @@ class MonitoringPageState {
     AnalysisMode? selectedMode,
     AnalysisMode? effectiveMode,
     bool? isCreatorMode,
-    List<double>? amplitudes,
     NavigationIntent? navigationIntent,
     bool clearNavigationIntent = false,
     List<AlertHistoryEntry>? alertHistory,
@@ -99,7 +96,6 @@ class MonitoringPageState {
       selectedMode: selectedMode ?? this.selectedMode,
       effectiveMode: effectiveMode ?? this.effectiveMode,
       isCreatorMode: isCreatorMode ?? this.isCreatorMode,
-      amplitudes: amplitudes ?? this.amplitudes,
       navigationIntent: clearNavigationIntent
           ? null
           : (navigationIntent ?? this.navigationIntent),
@@ -133,8 +129,7 @@ class MonitoringPageState {
           _listEquals(alertHistory, other.alertHistory) &&
           isSttFallback == other.isSttFallback &&
           sttFallbackReason == other.sttFallbackReason &&
-          sttFallbackBannerId == other.sttFallbackBannerId &&
-          _listEquals(amplitudes, other.amplitudes);
+          sttFallbackBannerId == other.sttFallbackBannerId;
 
   @override
   int get hashCode => Object.hash(
@@ -155,7 +150,6 @@ class MonitoringPageState {
         isSttFallback,
         sttFallbackReason,
         sttFallbackBannerId,
-        Object.hashAll(amplitudes),
       );
 
   static bool _listEquals<T>(List<T> a, List<T> b) {

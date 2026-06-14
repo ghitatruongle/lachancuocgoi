@@ -13,6 +13,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.lachancuocgoi.lachancuocgoi_flutter.R
@@ -56,6 +57,19 @@ class BackgroundMonitoringService : Service() {
     private var connectivityJob: Job? = null
     private var transcriptCollectorJob: Job? = null
     private var phoneNumber: String? = null
+
+    // Dedicated lock object for `currentTranscript`. Previously `synchronized(this)`
+    // was used from both the main thread and the IO collector coroutine, which
+    // risks cross-thread deadlocks if any main-thread path ever holds the
+    // service lock. A plain String field guarded by its own lock is enough.
+    private val transcriptLock = Any()
+
+    // PARTIAL_WAKE_LOCK held for the duration of active monitoring. A foreground
+    // service keeps the process alive but does NOT by itself keep the CPU out
+    // of suspend — on many OEMs the device enters Doze once the screen is off,
+    // stalling the Vosk `record.read()` loop and the watchdog alarm. This is
+    // the most likely root cause of "transcript stops mid-call" reports.
+    private var wakeLock: PowerManager.WakeLock? = null
 
     @Volatile private var isMonitoringActive = false
     @Volatile private var isStopping = false
@@ -176,7 +190,8 @@ class BackgroundMonitoringService : Service() {
         monitoringJob?.cancel()
         connectivityJob?.cancel()
         transcriptCollectorJob?.cancel()
-        synchronized(this) {
+        acquireWakeLock()
+        synchronized(transcriptLock) {
             currentTranscript = ""
         }
         TranscriptionHub.reset()
@@ -310,7 +325,7 @@ class BackgroundMonitoringService : Service() {
                     }
                 }.collect { update ->
                     val u = update ?: return@collect
-                    synchronized(this@BackgroundMonitoringService) {
+                    synchronized(transcriptLock) {
                         currentTranscript = u.text
                     }
                     // Stream transcript to Flutter with partial flag
@@ -347,10 +362,12 @@ class BackgroundMonitoringService : Service() {
             Log.d(TAG, "Audio focus released")
         }
 
+        releaseWakeLock()
+
         val endTime = System.currentTimeMillis()
         val duration = (endTime - startTime) / 1000
 
-        val finalTranscript = synchronized(this) { currentTranscript.trim() }
+        val finalTranscript = synchronized(transcriptLock) { currentTranscript.trim() }
 
         // Notify Flutter that monitoring stopped with final data
         NativeBridgeEventSink.sendMonitoringState("STOPPED:$duration:$finalTranscript")
@@ -413,6 +430,7 @@ class BackgroundMonitoringService : Service() {
         if (speakerphoneChangedByService) {
             disableSpeakerphone()
         }
+        releaseWakeLock()
         // If we're being destroyed but not intentionally stopped, the watchdog
         // will detect the stale persisted flag and restart us.
     }
@@ -475,6 +493,46 @@ class BackgroundMonitoringService : Service() {
             )
         }
         Log.d(TAG, "Exact watchdog alarm scheduled at +${WATCHDOG_INTERVAL_MINUTES}m.")
+    }
+
+    /**
+     * Acquire a PARTIAL_WAKE_LOCK for the whole monitoring session. The mic
+     * read loop (Vosk) and the watchdog alarm rely on the CPU staying awake;
+     * without this the device enters Doze on screen-off and transcript capture
+     * stalls mid-call on many OEMs.
+     */
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = pm.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "lachancuocgoi::monitoring_wakelock"
+            ).apply {
+                // Reference-counted = false so multiple acquire() calls don't
+                // stack; we manage lifetime explicitly via start/stop.
+                setReferenceCounted(false)
+                acquire(/* timeout */ 6 * 60 * 60 * 1000L) // 6h safety release
+            }
+            Log.d(TAG, "PARTIAL_WAKE_LOCK acquired for monitoring session")
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Cannot acquire wake lock", e)
+        } catch (e: Exception) {
+            Log.w(TAG, "Unexpected error acquiring wake lock", e)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        val lock = wakeLock ?: return
+        try {
+            if (lock.isHeld) {
+                lock.release()
+                Log.d(TAG, "PARTIAL_WAKE_LOCK released")
+            }
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Failed to release wake lock", e)
+        }
+        wakeLock = null
     }
 
     private fun requestAudioFocus(): Boolean {
@@ -684,15 +742,23 @@ class BackgroundMonitoringService : Service() {
         val intent = Intent(this, ServiceWatchdogReceiver::class.java).apply {
             action = ServiceWatchdogReceiver.ACTION_CHECK_SERVICE
         }
-        val pendingIntent = PendingIntent.getBroadcast(
-            this, 0, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_NO_CREATE
-        )
-        pendingIntent?.let {
-            alarmManager.cancel(it)
-            it.cancel()
+        // Cancel BOTH request codes used by this service:
+        //   0 = setInexactRepeating (scheduleWatchdogAlarm)
+        //   1 = setAlarmClock       (scheduleExactWatchdogAlarm)
+        // Previously only code 0 was cancelled, leaking the higher-priority
+        // setAlarmClock PendingIntent — it kept firing after stop and burning
+        // battery / waking the device from Doze.
+        for (requestCode in intArrayOf(0, 1)) {
+            val pendingIntent = PendingIntent.getBroadcast(
+                this, requestCode, intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_NO_CREATE
+            )
+            pendingIntent?.let {
+                alarmManager.cancel(it)
+                it.cancel()
+            }
         }
-        Log.d(TAG, "Watchdog alarm cancelled.")
+        Log.d(TAG, "Watchdog alarm cancelled (request codes 0 and 1).")
     }
 
     companion object {

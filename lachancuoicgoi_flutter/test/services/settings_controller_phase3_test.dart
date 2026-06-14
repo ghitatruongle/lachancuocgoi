@@ -8,8 +8,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('SettingsController — Phase 3: race condition fix', () {
-    test('SharedPreferences pre-initialization makes _load() resolve fast',
-        () async {
+    testWidgets('SharedPreferences pre-initialization makes _load() resolve fast',
+        (tester) async {
       // Simulate main.dart pre-initializing SharedPreferences
       SharedPreferences.setMockInitialValues({
         'IS_DARK_THEME': true,
@@ -28,11 +28,8 @@ void main() {
       // Read triggers build() which calls _load()
       container.read(settingsControllerProvider);
 
-      // Wait for _load() to complete by checking isLoaded in a loop
-      for (int i = 0; i < 50; i++) {
-        if (container.read(settingsControllerProvider).isLoaded) break;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
+      // Wait for _load() to complete in fake time
+      await tester.pump();
 
       final state = container.read(settingsControllerProvider);
       expect(state.isDarkTheme, isTrue);
@@ -42,7 +39,7 @@ void main() {
       expect(state.creatorAudioCapture, isTrue);
     });
 
-    test('settings load within 200ms after pre-initialization', () async {
+    testWidgets('settings load within 200ms after pre-initialization', (tester) async {
       SharedPreferences.setMockInitialValues({
         'IS_DARK_THEME': true,
         'ANALYSIS_MODE': 'GEMINI_API',
@@ -56,23 +53,17 @@ void main() {
       final startTime = DateTime.now();
       container.read(settingsControllerProvider);
 
-      // Wait for _load() to complete by checking isLoaded in a loop
-      for (int i = 0; i < 50; i++) {
-        if (container.read(settingsControllerProvider).isLoaded) break;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
+      // Wait for _load() to complete in fake time
+      await tester.pump();
       final elapsed = DateTime.now().difference(startTime).inMilliseconds;
 
       final state = container.read(settingsControllerProvider);
       expect(state.isDarkTheme, isTrue);
       expect(state.isLoaded, isTrue);
-      // Under high load, CPU scheduling might add arbitrary delay to test execution,
-      // but the actual settings loading logic itself is extremely fast since SharedPreferences is cached.
-      // We check that it loaded within a generous threshold of 1000ms to avoid test flakiness under concurrency.
       expect(elapsed, lessThan(1000));
     });
 
-    test('default state used before _load() completes', () async {
+    testWidgets('default state used before _load() completes', (tester) async {
       SharedPreferences.setMockInitialValues({});
 
       // Don't pre-initialize — simulate the old behavior
@@ -85,27 +76,21 @@ void main() {
       expect(initialState.analysisMode, AnalysisMode.gDetection);
 
       // After _load() completes, state is updated
-      for (int i = 0; i < 50; i++) {
-        if (container.read(settingsControllerProvider).isLoaded) break;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
+      await tester.pump();
 
       final loadedState = container.read(settingsControllerProvider);
       expect(loadedState.isDarkTheme, isFalse);
       expect(loadedState.analysisMode, AnalysisMode.gDetection);
     });
 
-    test('update() persists to SharedPreferences and reloads', () async {
+    testWidgets('update() persists to SharedPreferences and reloads', (tester) async {
       SharedPreferences.setMockInitialValues({});
 
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       // Wait for initial _load() to complete
-      for (int i = 0; i < 50; i++) {
-        if (container.read(settingsControllerProvider).isLoaded) break;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
+      await tester.pump();
 
       // Update settings
       const newState = SettingsState(
@@ -128,16 +113,13 @@ void main() {
       expect(prefs.getBool('CREATOR_AUDIO_CAPTURE'), isTrue);
     });
 
-    test('update() persists to SharedPreferences', () async {
+    testWidgets('update() persists to SharedPreferences', (tester) async {
       SharedPreferences.setMockInitialValues({});
 
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      for (int i = 0; i < 50; i++) {
-        if (container.read(settingsControllerProvider).isLoaded) break;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
+      await tester.pump();
 
       // Update settings
       const newState = SettingsState(

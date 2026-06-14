@@ -2,6 +2,43 @@ import 'dart:convert';
 
 import 'alert_history_entry.dart';
 
+/// Why no usable transcript was captured for a session.
+///
+/// Stored on disk as the lower-snake string of [name] (e.g.
+/// [killed] → `"killed"`) for compatibility with the existing DB
+/// schema — previous versions wrote the literal strings.
+enum RecordingError {
+  /// No microphone data was ever received. Typical causes: mic
+  /// permission denied, wrong audio source, device muted.
+  noAudio('noAudio'),
+
+  /// Microphone produced audio but STT returned an empty transcript.
+  sttFailed('sttFailed'),
+
+  /// The session was killed by the OS before [endSession] could run.
+  /// Reported from a recovery snapshot.
+  killed('killed'),
+
+  /// Reserved: session ended before any final result was committed.
+  /// Not produced by current code paths.
+  partial('partial');
+
+  const RecordingError(this.wireName);
+
+  /// Stable string written to the `recordingError` DB column.
+  final String wireName;
+
+  /// Parse a wire string back into the enum. Unknown / null values
+  /// return null (the "no error" case).
+  static RecordingError? fromWire(String? value) {
+    if (value == null || value.isEmpty) return null;
+    for (final candidate in RecordingError.values) {
+      if (candidate.wireName == value) return candidate;
+    }
+    return null;
+  }
+}
+
 class CallHistory {
   const CallHistory({
     this.id = 0,
@@ -36,6 +73,43 @@ class CallHistory {
   /// reserves the value `partial` for future use (e.g. session ended before
   /// the first final result was committed).
   final String? recordingError;
+
+  /// Typed view of [recordingError] — null when there's no error.
+  /// Use this in app code instead of comparing the raw string.
+  RecordingError? get recordingErrorEnum =>
+      RecordingError.fromWire(recordingError);
+
+  /// Construct a [CallHistory] from a [RecordingError] (preferred over
+  /// passing the raw string).
+  factory CallHistory.withRecordingError({
+    int id = 0,
+    required String dateTime,
+    required String riskLevel,
+    required String summary,
+    required String duration,
+    required int flagCount,
+    required String transcript,
+    String? audioPath,
+    String? analysisResult,
+    String? analysisType,
+    String? alertHistory,
+    RecordingError? recordingError,
+  }) {
+    return CallHistory(
+      id: id,
+      dateTime: dateTime,
+      riskLevel: riskLevel,
+      summary: summary,
+      duration: duration,
+      flagCount: flagCount,
+      transcript: transcript,
+      audioPath: audioPath,
+      analysisResult: analysisResult,
+      analysisType: analysisType,
+      alertHistory: alertHistory,
+      recordingError: recordingError?.wireName,
+    );
+  }
 
   /// Sentinel object to distinguish "not passed" from "explicitly null".
   static const _null = Object();

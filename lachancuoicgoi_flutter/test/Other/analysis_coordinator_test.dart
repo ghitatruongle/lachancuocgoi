@@ -211,7 +211,10 @@ void main() {
         AnalysisMode.geminiApi,
       );
 
-      expect(result.matches.first.keyword, 'L3 fallback');
+      expect(result.isFallback, isTrue);
+      expect(result.matches.length, 2);
+      expect(result.matches.any((m) => m.keyword == 'Sử dụng Luồng 2 (GDetection & WFSA)'), isTrue);
+      expect(result.matches.any((m) => m.keyword == 'chuyển tiền'), isTrue);
       expect(result.reason, contains('API Error'));
     });
 
@@ -260,12 +263,11 @@ void main() {
         AnalysisMode.geminiApi,
       );
 
-      // Should have L3 fallback marker + original L2 match
-      expect(result.matches.length, greaterThanOrEqualTo(2));
-      expect(
-        result.matches.map((m) => m.keyword),
-        containsAll(['L3 fallback']),
-      );
+      // Should preserve original L2 match and have isFallback = true
+      expect(result.isFallback, isTrue);
+      expect(result.matches.length, 2);
+      expect(result.matches.any((m) => m.keyword == 'Sử dụng Luồng 2 (GDetection & WFSA)'), isTrue);
+      expect(result.matches.any((m) => m.keyword == 'công an'), isTrue);
     });
   });
 
@@ -316,23 +318,21 @@ void main() {
       expect(result.matches.any((m) => m.keyword.contains('mã otp')), isTrue);
     });
 
-    test('second call with same text re-analyzes (L1 analyze() does not track progress)', () async {
+    test('second call with same text returns last result to prevent flickering to green', () async {
       final l1 = _newTestL1();
       await l1.initialize();
       final coordinator = AnalysisCoordinator(l1Analyzer: l1);
 
-      // L1Analyzer.analyze() does NOT update _processedTextLength,
-      // so delta stays >= minDelta and re-analysis produces the same result.
       coordinator.syncProcessedTextLength(0, AnalysisMode.normal);
       const text = 'Vui lòng gửi mã OTP để xác minh.';
 
       final first = await coordinator.analyzeIncremental(text, AnalysisMode.normal);
       expect(first.overallRiskLevel, RiskLevel.red);
 
-      // Second call: delta >= minDelta still → re-analyses → same red result
+      // Second call: length hasn't changed, returns lastResult
       final second = await coordinator.analyzeIncremental(text, AnalysisMode.normal);
       expect(second.overallRiskLevel, RiskLevel.red);
-      expect(second.analysisLevel, AnalysisLevel.l1);
+      expect(second.alertEnabled, isFalse);
     });
   });
 
@@ -516,8 +516,11 @@ void main() {
         AnalysisMode.geminiApi,
       );
 
-      // Should fall back to L2 with L3 fallback marker
-      expect(result.matches.first.keyword, 'L3 fallback');
+      // Should fall back to L2 with isFallback = true
+      expect(result.isFallback, isTrue);
+      expect(result.matches.length, 2);
+      expect(result.matches.any((m) => m.keyword == 'Sử dụng Luồng 2 (GDetection & WFSA)'), isTrue);
+      expect(result.matches.any((m) => m.keyword == 'chuyển tiền'), isTrue);
       expect(result.reason, contains('Gemini API error'));
     });
   });

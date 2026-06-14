@@ -138,7 +138,7 @@ class L1Analyzer implements Analyzer {
 
   FlatTrie _trie = FlatTrie();
   final List<String> _singleTokenKeywords = [];
-  final List<_TokenCorrection> _corrections = [];
+  final Map<String, List<_TokenCorrection>> _corrections = {};
 
   final bool _fuzzyEnabled = true;
   final int _fuzzyMaxDistance = 1;
@@ -153,8 +153,8 @@ class L1Analyzer implements Analyzer {
   bool _hasInitialized = false;
   Future<void>? _initializingFuture;
 
-  int _currentSessionStateId = FlatTrie.rootId;
-  int _processedWordCount = 0;
+  List<String> _cachedCorrectedTokens = [];
+  List<int> _stateHistory = [FlatTrie.rootId];
   String _lastFullTranscript = '';
   int _processedTextLength = 0;
   AnalysisResult _lastResult = const AnalysisResult(
@@ -182,8 +182,8 @@ class L1Analyzer implements Analyzer {
 
   @override
   void resetSession() {
-    _currentSessionStateId = FlatTrie.rootId;
-    _processedWordCount = 0;
+    _cachedCorrectedTokens.clear();
+    _stateHistory = [FlatTrie.rootId];
     _lastFullTranscript = '';
     _processedTextLength = 0;
     _fuzzyCache.clear(); // Phase 2.2: clear fuzzy cache on session reset
@@ -226,11 +226,12 @@ class L1Analyzer implements Analyzer {
             'Trie OK (${_trie.nodesCount} nodes) nhưng không có bigram corrections.',
       );
     }
+    final correctionCount = _corrections.values.fold<int>(0, (sum, list) => sum + list.length);
     return HealthReport(
       status: HealthStatus.healthy,
       component: 'L1',
       message:
-          'Trie OK (${_trie.nodesCount} nodes, ${_corrections.length} corrections). Fuzzy=$_fuzzyEnabled',
+          'Trie OK (${_trie.nodesCount} nodes, $correctionCount corrections). Fuzzy=$_fuzzyEnabled',
     );
   }
 
@@ -239,7 +240,8 @@ class L1Analyzer implements Analyzer {
     final rawTokens = _tokenize(text);
     final tokens = applyBigramCorrections(rawTokens);
     final matches = await _findMatchesLinear(tokens);
-    return L1ResultParser.parse(matches, tokens.length);
+    final filteredMatches = _filterSafeMatches(matches, tokens);
+    return L1ResultParser.parse(filteredMatches, tokens.length);
   }
 
   Future<AnalysisResult> analyzeStream(String fullTranscript) async {
@@ -247,42 +249,59 @@ class L1Analyzer implements Analyzer {
 
     if (fullTranscript.length < _lastFullTranscript.length ||
         !_isTailAppend(fullTranscript)) {
-      _currentSessionStateId = FlatTrie.rootId;
-      _processedWordCount = 0;
+      _cachedCorrectedTokens.clear();
+      _stateHistory = [FlatTrie.rootId];
+      _lastFullTranscript = '';
     }
 
     final rawTokens = _tokenize(fullTranscript);
-    final allTokens = applyBigramCorrections(rawTokens);
-    if (allTokens.length <= _processedWordCount) {
+    final fullCorrected = applyBigramCorrections(rawTokens);
+
+    int commonLen = 0;
+    while (commonLen < _cachedCorrectedTokens.length &&
+           commonLen < fullCorrected.length &&
+           _cachedCorrectedTokens[commonLen] == fullCorrected[commonLen]) {
+      commonLen++;
+    }
+
+    if (commonLen == fullCorrected.length && commonLen == _cachedCorrectedTokens.length) {
       _lastFullTranscript = fullTranscript;
       _processedTextLength = fullTranscript.length;
       return _lastResult;
     }
 
-    final newTokens = allTokens.sublist(_processedWordCount);
+    if (commonLen < _cachedCorrectedTokens.length) {
+      _cachedCorrectedTokens.removeRange(commonLen, _cachedCorrectedTokens.length);
+      _stateHistory.removeRange(commonLen + 1, _stateHistory.length);
+    }
+
+    int currentState = _stateHistory.last;
     final matches = <KeywordMatch>{};
     final unmatchedTokens = <_UnmatchedToken>[];
 
-    for (var index = 0; index < newTokens.length; index++) {
-      final token = newTokens[index];
-      final wordIndex = _processedWordCount + index;
-
-      while (_currentSessionStateId != FlatTrie.rootId &&
-          _trie.getChildId(_currentSessionStateId, token) == null) {
-        _currentSessionStateId = _trie.failureLinks[_currentSessionStateId];
+    for (var index = commonLen; index < fullCorrected.length; index++) {
+      final token = fullCorrected[index];
+      
+      while (currentState != FlatTrie.rootId &&
+          _trie.getChildId(currentState, token) == null) {
+        currentState = _trie.failureLinks[currentState];
       }
-      _currentSessionStateId =
-          _trie.getChildId(_currentSessionStateId, token) ?? FlatTrie.rootId;
+      currentState = _trie.getChildId(currentState, token) ?? FlatTrie.rootId;
+      _stateHistory.add(currentState);
 
       final found = _collectMatchesAtState(
-        stateId: _currentSessionStateId,
+        stateId: currentState,
         matches: matches,
-        wordIndex: wordIndex,
+        wordIndex: index,
       );
       if (!found) {
-        unmatchedTokens.add(_UnmatchedToken(token, wordIndex));
+        unmatchedTokens.add(_UnmatchedToken(token, index));
       }
     }
+
+    _cachedCorrectedTokens = fullCorrected;
+    _lastFullTranscript = fullTranscript;
+    _processedTextLength = fullTranscript.length;
 
     if (_fuzzyEnabled &&
         unmatchedTokens.isNotEmpty &&
@@ -293,11 +312,13 @@ class L1Analyzer implements Analyzer {
           : unmatchedTokens;
       for (final unmatched in tokensToFuzzy) {
         if (unmatched.token.length < _fuzzyMinLength) continue;
-        // Phase 2.2: check cache first
-        final cached = _fuzzyCache[unmatched.token];
-        final fuzzyMatch =
-            cached != null || _fuzzyCache.containsKey(unmatched.token)
-            ? cached
+        // Phase 2.2: cache lookup. Distinguish "no match found
+        // previously" (key exists, value is null) from "never tried"
+        // (key absent) so we don't re-run Levenshtein for tokens we
+        // already know have no match. Use containsKey for the
+        // negative-cache case; value is null.
+        final String? cached = _fuzzyCache.containsKey(unmatched.token)
+            ? _fuzzyCache[unmatched.token]
             : () {
                 final result = FuzzyMatcher.findClosest(
                   unmatched.token,
@@ -307,6 +328,7 @@ class L1Analyzer implements Analyzer {
                 _fuzzyCache[unmatched.token] = result;
                 return result;
               }();
+        final fuzzyMatch = cached;
         if (fuzzyMatch == null) continue;
         final nodeId = _findExactMatchNode(fuzzyMatch);
         if (nodeId == null || !_trie.isMatchNode(nodeId)) continue;
@@ -324,10 +346,8 @@ class L1Analyzer implements Analyzer {
       }
     }
 
-    _processedWordCount = allTokens.length;
-    _lastFullTranscript = fullTranscript;
-    _processedTextLength = fullTranscript.length;
-    _lastResult = L1ResultParser.parse(matches, allTokens.length);
+    final filteredMatches = _filterSafeMatches(matches, fullCorrected);
+    _lastResult = L1ResultParser.parse(filteredMatches, fullCorrected.length);
     return _lastResult;
   }
 
@@ -338,10 +358,15 @@ class L1Analyzer implements Analyzer {
     var index = 0;
     while (index < tokens.length) {
       _TokenCorrection? matchedCorrection;
-      for (final correction in _corrections) {
-        if (_matchesCorrection(tokens, index, correction.from)) {
-          matchedCorrection = correction;
-          break;
+      final currentWord = tokens[index];
+      final possibleCorrections = _corrections[currentWord];
+
+      if (possibleCorrections != null) {
+        for (final correction in possibleCorrections) {
+          if (_matchesCorrection(tokens, index, correction.from)) {
+            matchedCorrection = correction;
+            break;
+          }
         }
       }
 
@@ -349,7 +374,7 @@ class L1Analyzer implements Analyzer {
         result.addAll(matchedCorrection.to);
         index += matchedCorrection.from.length;
       } else {
-        result.add(tokens[index]);
+        result.add(currentWord);
         index++;
       }
     }
@@ -382,40 +407,58 @@ class L1Analyzer implements Analyzer {
   }
 
   Future<void> _buildTrie() async {
-    final jsonText = await _loadString(
-      'assets/risk_model_vocabulary.json',
-      _vocabularyProvider,
-    );
-    final decoded = jsonDecode(jsonText);
-    if (decoded is! Map<String, dynamic>) return;
+    try {
+      final jsonText = await _loadString(
+        'assets/risk_model_vocabulary.json',
+        _vocabularyProvider,
+      );
+      final decoded = jsonDecode(jsonText);
+      if (decoded is! Map<String, dynamic>) {
+        _buildFallbackTrie();
+        return;
+      }
 
-    final riskLevels = decoded['riskLevels'];
-    if (riskLevels is! List) return;
+      final riskLevels = decoded['riskLevels'];
+      if (riskLevels is! List) {
+        _buildFallbackTrie();
+        return;
+      }
 
-    for (final rawLevel in riskLevels) {
-      if (rawLevel is! Map) continue;
-      final levelValue = (rawLevel['level'] as num?)?.toInt() ?? 0;
-      if (levelValue <= RiskLevel.green.index) continue;
+      for (final rawLevel in riskLevels) {
+        if (rawLevel is! Map) continue;
+        final levelValue = (rawLevel['level'] as num?)?.toInt() ?? 0;
+        if (levelValue <= RiskLevel.green.index) continue;
 
-      final threats = rawLevel['threats'];
-      if (threats is Map) {
-        for (final entry in threats.entries) {
-          final category = entry.key.toString();
-          final keywords = entry.value;
-          if (keywords is! List) continue;
+        final threats = rawLevel['threats'];
+        if (threats is Map) {
+          for (final entry in threats.entries) {
+            final category = entry.key.toString();
+            final keywords = entry.value;
+            if (keywords is! List) continue;
+            for (final keyword in keywords) {
+              _insertKeyword(keyword.toString(), levelValue, category);
+            }
+          }
+        }
+
+        final keywords = rawLevel['keywords'];
+        if (keywords is List) {
           for (final keyword in keywords) {
-            _insertKeyword(keyword.toString(), levelValue, category);
+            _insertKeyword(keyword.toString(), levelValue, 'Chung');
           }
         }
       }
-
-      final keywords = rawLevel['keywords'];
-      if (keywords is List) {
-        for (final keyword in keywords) {
-          _insertKeyword(keyword.toString(), levelValue, 'Chung');
-        }
-      }
+    } catch (e) {
+      debugPrint('[L1Analyzer] Failed to build trie: $e. Using fallback keywords.');
+      _buildFallbackTrie();
     }
+  }
+
+  void _buildFallbackTrie() {
+    _insertKeyword('lừa đảo', 3, 'Chung');
+    _insertKeyword('chuyển tiền', 2, 'Chung');
+    _insertKeyword('mã otp', 3, 'Chung');
+    _insertKeyword('công an', 2, 'Chung');
   }
 
   Future<void> _loadBigramCorrections() async {
@@ -435,9 +478,13 @@ class L1Analyzer implements Analyzer {
         final from = _readTokenList(rawEntry['from']);
         final to = _readTokenList(rawEntry['to']);
         if (from.isEmpty || to.isEmpty) continue;
-        _corrections.add(_TokenCorrection(from, to));
+        
+        final firstWord = from.first;
+        _corrections.putIfAbsent(firstWord, () => []).add(_TokenCorrection(from, to));
       }
-      _corrections.sort((a, b) => b.from.length.compareTo(a.from.length));
+      for (final list in _corrections.values) {
+        list.sort((a, b) => b.from.length.compareTo(a.from.length));
+      }
     } catch (e) {
       debugPrint('[L1Analyzer] Failed to load bigram corrections: $e');
       _corrections.clear();
@@ -513,7 +560,7 @@ class L1Analyzer implements Analyzer {
     if (tokens.isEmpty) return <KeywordMatch>{};
 
     final matches = <KeywordMatch>{};
-    final unmatchedTokens = <String>[];
+    final unmatchedTokens = <_UnmatchedToken>[];
     var currentStateId = FlatTrie.rootId;
     const yieldInterval = 200;
 
@@ -530,8 +577,9 @@ class L1Analyzer implements Analyzer {
       final found = _collectMatchesAtState(
         stateId: currentStateId,
         matches: matches,
+        wordIndex: wordIndex,
       );
-      if (!found) unmatchedTokens.add(token);
+      if (!found) unmatchedTokens.add(_UnmatchedToken(token, wordIndex));
 
       // Yield every N tokens to avoid blocking the UI on long transcripts.
       if (wordIndex > 0 && wordIndex % yieldInterval == 0) {
@@ -548,19 +596,19 @@ class L1Analyzer implements Analyzer {
       final tokensToFuzzy = unmatchedTokens.length > _maxFuzzyTokens
           ? unmatchedTokens.sublist(0, _maxFuzzyTokens)
           : unmatchedTokens;
-      for (final token in tokensToFuzzy) {
-        if (token.length < _fuzzyMinLength) continue;
+      for (final unmatched in tokensToFuzzy) {
+        if (unmatched.token.length < _fuzzyMinLength) continue;
         // Phase 2.2: check cache first
-        final cached = _fuzzyCache[token];
-        final fuzzyMatch = cached != null || _fuzzyCache.containsKey(token)
+        final cached = _fuzzyCache[unmatched.token];
+        final fuzzyMatch = cached != null || _fuzzyCache.containsKey(unmatched.token)
             ? cached
             : () {
                 final result = FuzzyMatcher.findClosest(
-                  token,
+                  unmatched.token,
                   _singleTokenKeywords,
                   maxDistance: _fuzzyMaxDistance,
                 );
-                _fuzzyCache[token] = result;
+                _fuzzyCache[unmatched.token] = result;
                 return result;
               }();
         if (fuzzyMatch == null) continue;
@@ -572,6 +620,8 @@ class L1Analyzer implements Analyzer {
             keyword: _trie.nodeOriginalKeywords[nodeId] ?? '',
             level: RiskLevel.fromInt(_trie.getRiskLevel(nodeId)),
             category: _trie.getCategoryName(nodeId),
+            startIndex: unmatched.wordIndex,
+            endIndex: unmatched.wordIndex,
             isFuzzy: true,
           ),
         );
@@ -638,8 +688,8 @@ class L1Analyzer implements Analyzer {
   List<String> _tokenize(String text) {
     return TextNormalizer.tokenize(
       text,
-      applySlang: false,
-      noiseMode: NoiseMode.remove,
+      applySlang: true,
+      noiseMode: NoiseMode.space,
     );
   }
 
@@ -649,8 +699,8 @@ class L1Analyzer implements Analyzer {
         .map(
           (item) => TextNormalizer.normalize(
             item.toString(),
-            applySlang: false,
-            noiseMode: NoiseMode.remove,
+            applySlang: true,
+            noiseMode: NoiseMode.space,
           ),
         )
         .where((token) => token.isNotEmpty)
@@ -672,7 +722,128 @@ class L1Analyzer implements Analyzer {
   }
 
   void dispose() {
+    // Release session-scoped state first (token history, Aho-Corasick state).
+    resetSession();
+    // Release the large static structures so they can be GC'd when the
+    // analyzer is torn down. Previously dispose() only cleared _fuzzyCache,
+    // leaving the trie (potentially thousands of nodes) + bigram corrections
+    // map + initialization future reachable.
+    _corrections.clear();
+    _trie = FlatTrie();
     _fuzzyCache.clear();
+    _hasInitialized = false;
+    _initializingFuture = null;
+  }
+
+  Set<KeywordMatch> _filterSafeMatches(Set<KeywordMatch> matches, List<String> tokens) {
+    if (matches.isEmpty) return matches;
+
+    final filtered = <KeywordMatch>{};
+
+    final negationPhrases = const [
+      'khong phai',
+      'dau phai',
+      'chua chac',
+      'khong co',
+      'dau co',
+    ];
+
+    final safeBeneficiaries = const [
+      'cho me',
+      'cho bo',
+      'cho ba',
+      'cho em',
+      'cho anh',
+      'cho chi',
+      'cho con',
+      'cho chau',
+      'cho ong',
+      'cho vo',
+      'cho chong',
+      'cho nguoi nha',
+      'cho nguoi than',
+      'cho ban',
+      'cho dong nghiep',
+    ];
+
+    final financialIndicatorKeywords = const [
+      'chuyen tien',
+      'chuyen khoan',
+      'gui tien',
+      'nap tien',
+      'rut tien',
+      'ck',
+      'ban tien',
+      'gui ma',
+      'nap the',
+      'mua the',
+      'thanh toan',
+    ];
+
+    final generalSafePhrases = const [
+      'noi dua',
+      'troll',
+    ];
+
+    for (final match in matches) {
+      if (match.startIndex == -1 || match.endIndex == -1) {
+        filtered.add(match);
+        continue;
+      }
+
+      // Get context around the match
+      final startPrefix = (match.startIndex - 4).clamp(0, tokens.length);
+      final prefixTokens = tokens.sublist(startPrefix, match.startIndex);
+      final prefixText = prefixTokens.join(' ');
+
+      final endSuffix = (match.endIndex + 4 + 1).clamp(0, tokens.length);
+      final suffixTokens = tokens.sublist(match.endIndex + 1, endSuffix);
+      final suffixText = suffixTokens.join(' ');
+
+      final wholeContextText = tokens.sublist(startPrefix, endSuffix).join(' ');
+
+      bool shouldFilter = false;
+
+      // Rule 1: Negation preceding the keyword
+      for (final neg in negationPhrases) {
+        if (prefixText.contains(neg)) {
+          shouldFilter = true;
+          break;
+        }
+      }
+
+      // Rule 2: Safe beneficiary succeeding a financial keyword
+      if (!shouldFilter) {
+        final normalizedKeyword = TextNormalizer.normalize(match.keyword, applySlang: true);
+        final isFinancial = financialIndicatorKeywords.any((fin) => normalizedKeyword.contains(fin));
+        if (isFinancial) {
+          for (final ben in safeBeneficiaries) {
+            if (suffixText.contains(ben)) {
+              shouldFilter = true;
+              break;
+            }
+          }
+        }
+      }
+
+      // Rule 3: General safe context (nói đùa, troll) anywhere in the immediate context window
+      if (!shouldFilter) {
+        for (final safe in generalSafePhrases) {
+          if (wholeContextText.contains(safe)) {
+            shouldFilter = true;
+            break;
+          }
+        }
+      }
+
+      if (!shouldFilter) {
+        filtered.add(match);
+      } else {
+        debugPrint('[L1Analyzer] Negative lookahead filtered match: "${match.keyword}" at [${match.startIndex}, ${match.endIndex}]');
+      }
+    }
+
+    return filtered;
   }
 }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import '../analysis_level.dart';
@@ -55,8 +56,8 @@ class L3Analyzer implements Analyzer {
        _cache = cache;
 
   static const int _minWords = 3;
-  static const int _minIncrementalChars = 40;
-  static const int _maxIncrementalChars = 200;
+  static const int _minIncrementalChars = 60;
+  static const int _maxIncrementalChars = 250;
 
   final ApiKeyProvider _apiKeyProvider;
   final KeyHealthTracker _keyHealthTracker;
@@ -65,6 +66,7 @@ class L3Analyzer implements Analyzer {
   final ResponseCache<AnalysisResult> _cache;
 
   GeminiChatSession? _activeSession;
+  bool _isAnalyzing = false;
   int _processedTextLength = 0;
   RiskLevel _maxRiskLevel = RiskLevel.green;
   int _consecutiveGreenCount = 0;
@@ -175,54 +177,69 @@ class L3Analyzer implements Analyzer {
   }
 
   Future<AnalysisResult> analyze(String text) async {
-    final validationError = _validateInput(text);
-    if (validationError != null) {
-      _lastResult = validationError;
-      return validationError;
+    // Concurrency guard: previously only analyzeIncremental() checked
+    // _isAnalyzing. If the coordinator calls analyze() while an incremental
+    // run is in flight, both mutate _lastResult / _maxRiskLevel /
+    // _consecutiveGreenCount across awaits → torn state. Reuse the same flag.
+    if (_isAnalyzing) {
+      // Return the last known result rather than racing; the in-flight call
+      // will produce the fresh result. (_lastResult is non-nullable — it is
+      // initialized to a green sentinel in the field declaration.)
+      return _lastResult;
     }
+    _isAnalyzing = true;
+    try {
+      final validationError = _validateInput(text);
+      if (validationError != null) {
+        _lastResult = validationError;
+        return validationError;
+      }
 
-    final cached = _cache.get(text);
-    if (cached != null) {
-      GeminiMetrics.instance.recordCacheHit();
-      _lastResult = cached;
-      return cached;
+      final cached = _cache.get(text);
+      if (cached != null) {
+        GeminiMetrics.instance.recordCacheHit();
+        _lastResult = cached;
+        return cached;
+      }
+      GeminiMetrics.instance.recordCacheMiss();
+
+      final redaction = PIIStripper.redactPII(text);
+      final prompt = PromptBuilder.buildAnalysisPrompt(redaction.redactedText);
+      final result = await _client.query<AnalysisResult>(
+        prompt,
+        (responseText, modelName) => parseResponse(
+          PIIStripper.restorePII(responseText, redaction.tokensMap),
+          modelName,
+        ),
+      );
+      return result.fold(
+        onSuccess: (analysisResult) {
+          _cache.put(
+            text,
+            analysisResult,
+            riskLevel: analysisResult.overallRiskLevel,
+          );
+          _consecutiveErrors = 0;
+          _lastResult = analysisResult;
+          return analysisResult;
+        },
+        onFailure: (error, _) {
+          _consecutiveErrors++;
+          _lastErrorTime = DateTime.now();
+          final analysisResult = AnalysisResult(
+            overallRiskLevel: RiskLevel.green,
+            matches: const <KeywordMatch>[],
+            reason: 'API Error: $error',
+            analysisLevel: AnalysisLevel.l3,
+            isError: true,
+          );
+          _lastResult = analysisResult;
+          return analysisResult;
+        },
+      );
+    } finally {
+      _isAnalyzing = false;
     }
-    GeminiMetrics.instance.recordCacheMiss();
-
-    final redaction = PIIStripper.redactPII(text);
-    final prompt = PromptBuilder.buildAnalysisPrompt(redaction.redactedText);
-    final result = await _client.query<AnalysisResult>(
-      prompt,
-      (responseText, modelName) => parseResponse(
-        PIIStripper.restorePII(responseText, redaction.tokensMap),
-        modelName,
-      ),
-    );
-    return result.fold(
-      onSuccess: (analysisResult) {
-        _cache.put(
-          text,
-          analysisResult,
-          riskLevel: analysisResult.overallRiskLevel,
-        );
-        _consecutiveErrors = 0;
-        _lastResult = analysisResult;
-        return analysisResult;
-      },
-      onFailure: (error, _) {
-        _consecutiveErrors++;
-        _lastErrorTime = DateTime.now();
-        final analysisResult = AnalysisResult(
-          overallRiskLevel: RiskLevel.green,
-          matches: const <KeywordMatch>[],
-          reason: 'API Error: $error',
-          analysisLevel: AnalysisLevel.l3,
-          isError: true,
-        );
-        _lastResult = analysisResult;
-        return analysisResult;
-      },
-    );
   }
 
   void createSession({int initialProcessedTextLength = 0}) {
@@ -242,7 +259,10 @@ class L3Analyzer implements Analyzer {
   }
 
   Future<AnalysisResult?> analyzeIncremental(String fullText) async {
-    final session = _activeSession;
+    if (_isAnalyzing) return null;
+    _isAnalyzing = true;
+    try {
+      final session = _activeSession;
     if (session == null) {
       return null;
     }
@@ -263,13 +283,43 @@ class L3Analyzer implements Analyzer {
       redaction.redactedText,
       _processedTextLength == 0,
     );
-    final result = await session.sendMessage<AnalysisResult>(
+    var result = await session.sendMessage<AnalysisResult>(
       prompt,
       (responseText, modelName) => parseResponse(
         PIIStripper.restorePII(responseText, redaction.tokensMap),
         modelName,
       ),
     );
+
+    // Local retry once for transient network or timeout errors
+    bool isTransient = false;
+    result.fold(
+      onSuccess: (_) {},
+      onFailure: (error, _) {
+        final errStr = error.toString().toLowerCase();
+        if (error is TimeoutException ||
+            errStr.contains('timeout') ||
+            errStr.contains('socket') ||
+            errStr.contains('network') ||
+            errStr.contains('connection') ||
+            errStr.contains('host')) {
+          isTransient = true;
+        }
+      },
+    );
+
+    if (isTransient) {
+      // Wait 1 second before retrying
+      await Future<void>.delayed(const Duration(seconds: 1));
+      result = await session.sendMessage<AnalysisResult>(
+        prompt,
+        (responseText, modelName) => parseResponse(
+          PIIStripper.restorePII(responseText, redaction.tokensMap),
+          modelName,
+        ),
+      );
+    }
+
     return result.fold(
       onSuccess: (analysisResult) {
         _processedTextLength = fullText.length;
@@ -291,6 +341,9 @@ class L3Analyzer implements Analyzer {
         return analysisResult;
       },
     );
+    } finally {
+      _isAnalyzing = false;
+    }
   }
 
   void closeSession({bool resetProgress = true}) {
@@ -305,6 +358,13 @@ class L3Analyzer implements Analyzer {
 
   MetricsSnapshot getMetrics() => GeminiMetrics.instance.getSnapshot();
 
+  /// Parses the raw LLM response text into an [AnalysisResult].
+  ///
+  /// NOTE: this method has a side effect — it mutates [_maxRiskLevel] and
+  /// [_consecutiveGreenCount] to implement the de-escalation state machine
+  /// (3 consecutive greens de-escalate from yellow only). This is safe because
+  /// both [analyze] and [analyzeIncremental] guard entry with [_isAnalyzing],
+  /// so only one parse can be in flight at a time per analyzer instance.
   AnalysisResult parseResponse(String responseText, String modelName) {
     if (responseText.trim().isEmpty) {
       throw const FormatException('Response is blank');
@@ -320,8 +380,10 @@ class L3Analyzer implements Analyzer {
     var finalRiskLevel = riskLevel;
     if (riskLevel == RiskLevel.green) {
       _consecutiveGreenCount++;
+      // Only de-escalate from yellow, not from orange/red during active scam
       if (_consecutiveGreenCount >= 3 &&
-          _maxRiskLevel.index > RiskLevel.green.index) {
+          _maxRiskLevel.index > RiskLevel.green.index &&
+          _maxRiskLevel.index <= RiskLevel.yellow.index) {
         _maxRiskLevel = _maxRiskLevel.deescalate();
         _consecutiveGreenCount = 0;
       }
@@ -378,7 +440,9 @@ class L3Analyzer implements Analyzer {
         .where((part) => part.isNotEmpty)
         .length;
     if (wordCount < _minWords) {
-      return const AnalysisResult(
+      // NOTE: cannot be `const` because of the string interpolation — Dart
+      // does not allow interpolation in const expressions.
+      return AnalysisResult(
         overallRiskLevel: RiskLevel.green,
         matches: <KeywordMatch>[],
         reason: 'Nội dung quá ngắn (cần ít nhất $_minWords từ)',
@@ -410,15 +474,23 @@ class L3Analyzer implements Analyzer {
       ' hen',
       ' nghe',
     ];
-    return endings.any(lower.endsWith) || trimmed.contains('  ');
+    return endings.any(lower.endsWith);
   }
 
   String _extractJson(String responseText) {
-    final match = RegExp(
-      r'\{[\s\S]*\}',
-      multiLine: true,
-    ).firstMatch(responseText);
-    return match?.group(0) ?? responseText;
+    final startIndex = responseText.indexOf('{');
+    if (startIndex == -1) return responseText;
+
+    int braceCount = 0;
+    for (int i = startIndex; i < responseText.length; i++) {
+      if (responseText[i] == '{') braceCount++;
+      else if (responseText[i] == '}') braceCount--;
+
+      if (braceCount == 0) {
+        return responseText.substring(startIndex, i + 1);
+      }
+    }
+    return responseText;
   }
 
   RiskLevel _parseRiskLevel(String? level, String? reason) {
@@ -482,14 +554,27 @@ class L3Analyzer implements Analyzer {
     if (<String>{'green', 'yellow', 'orange', 'red'}.contains(level)) {
       confidence += 0.3;
     }
-    if ((response.reason ?? '').trim().isNotEmpty) {
-      confidence += 0.3;
+    final reason = (response.reason ?? '').trim();
+    if (reason.isNotEmpty) {
+      // Base credit for having a reason
+      confidence += 0.15;
+      // Additional credit for substantive reasons (>20 chars)
+      if (reason.length > 20) {
+        confidence += 0.15;
+      }
     }
     if ((response.label ?? '').trim().isNotEmpty) {
-      confidence += 0.2;
+      confidence += 0.15;
     }
     if ((response.recommendation ?? '').trim().isNotEmpty) {
-      confidence += 0.2;
+      confidence += 0.15;
+    }
+    // Penalize uncertain language in reason
+    final lowerReason = reason.toLowerCase();
+    final uncertaintyWords = ['có thể', 'không chắc', 'có lẽ', 'hơi', 'tạm thời'];
+    final uncertaintyCount = uncertaintyWords.where(lowerReason.contains).length;
+    if (uncertaintyCount > 0) {
+      confidence -= 0.1 * uncertaintyCount;
     }
     return confidence.clamp(0.0, 1.0);
   }

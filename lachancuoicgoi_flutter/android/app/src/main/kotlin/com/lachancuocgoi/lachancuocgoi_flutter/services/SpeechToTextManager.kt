@@ -39,6 +39,10 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         private const val CLIENT_ERROR_FALLBACK_THRESHOLD = 3
         private const val GOOGLE_RETRY_INTERVAL_MS = 30_000L
         private const val GOOGLE_RETRY_MAX_ATTEMPTS = 10
+        // Max wait for the Google test recognizer to signal readiness/error
+        // during a retry probe. If neither fires (service hung), we abort the
+        // probe and resume Vosk so the call doesn't go silent.
+        private const val GOOGLE_TEST_TIMEOUT_MS = 5_000L
         private const val VOSK_SAMPLE_RATE = 16000
         private const val VOSK_CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
         private const val VOSK_AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
@@ -149,6 +153,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         override fun onReadyForSpeech(params: Bundle?) {
             _isListening.value = true
             _sttState.value = SttState.Listening
+            Log.i(TAG, "Google Speech connected & ready for speech (vi-VN)")
         }
         override fun onBeginningOfSpeech() {}
         override fun onRmsChanged(rmsdB: Float) {
@@ -362,7 +367,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         }
 
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            Log.e(TAG, "Speech recognition not available on this device")
+            Log.w(TAG, "Google Speech recognition not available on this device — Vosk fallback will be used")
             _sttState.value = SttState.Error("Thiết bị không hỗ trợ nhận diện giọng nói", false)
             return
         }
@@ -377,7 +382,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 return@post
             }
             isRestarting = true
-            if (DEBUG_LOGS) Log.d(TAG, "Starting speech recognition...")
+            Log.i(TAG, "Starting Google Speech recognition (vi-VN)...")
             _isListening.value = true
             try { speechRecognizer?.cancel() } catch (_: Exception) {}
             try { speechRecognizer?.destroy() } catch (_: Exception) {}
@@ -393,10 +398,10 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 try {
                     startListening(intent)
                     isRestarting = false
-                    if (DEBUG_LOGS) Log.d(TAG, "Speech recognition started successfully")
+                    Log.i(TAG, "Google Speech recognition start requested (awaiting onReadyForSpeech)")
                 } catch (e: Exception) {
                     isRestarting = false
-                    Log.e(TAG, "Error starting speech recognition", e)
+                    Log.e(TAG, "Error starting Google speech recognition", e)
                     handleError12()
                 }
             }
@@ -531,6 +536,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             return
         }
 
+        Log.i(TAG, "Switching STT engine: Google → Vosk (offline fallback)")
         isVoskFallbackActive = true
         consecutiveNetworkErrors = 0
         consecutiveClientErrors = 0
@@ -550,6 +556,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
     }
 
     private fun switchToGoogle() {
+        Log.i(TAG, "Switching STT engine: Vosk → Google (online restored)")
         isVoskFallbackActive = false
         consecutiveNetworkErrors = 0
         consecutiveClientErrors = 0
@@ -612,6 +619,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         vosk.resetTranscript()
         _isListening.value = true
         _sttState.value = SttState.Listening
+        Log.i(TAG, "Vosk offline STT is now listening (mic read loop started)")
 
         voskMicJob = voskScope.launch {
             val buffer = ByteArray(bufferSize)
@@ -739,10 +747,26 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 return@post
             }
             var decided = false
+            // Safety timeout: if the recognizer neither fires onReadyForSpeech
+            // nor onError within GOOGLE_TEST_TIMEOUT_MS (e.g. the Google speech
+            // service is hung), we must NOT leave Vosk mic stopped forever —
+            // resume it and reschedule. Without this, the call goes silent.
+            val timeoutRunnable = Runnable {
+                if (decided) return@Runnable
+                decided = true
+                Log.w(TAG, "Google retry #$googleRetryCount: test recognizer timed out — staying on Vosk")
+                try { testRecognizer.cancel() } catch (_: Exception) {}
+                try { testRecognizer.destroy() } catch (_: Exception) {}
+                resumeVoskIfNeeded()
+                googleRetryCount++
+                scheduleGoogleRetryAttempt()
+            }
+            handler.postDelayed(timeoutRunnable, GOOGLE_TEST_TIMEOUT_MS)
             testRecognizer.setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) {
                     if (decided) return
                     decided = true
+                    handler.removeCallbacks(timeoutRunnable)
                     Log.i(TAG, "Google retry #$googleRetryCount: service responsive — switching back to Google")
                     try { testRecognizer.cancel() } catch (_: Exception) {}
                     try { testRecognizer.destroy() } catch (_: Exception) {}
@@ -755,6 +779,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 override fun onError(error: Int) {
                     if (decided) return
                     decided = true
+                    handler.removeCallbacks(timeoutRunnable)
                     Log.d(TAG, "Google retry #$googleRetryCount: service responded with error $error — staying on Vosk")
                     try { testRecognizer.cancel() } catch (_: Exception) {}
                     try { testRecognizer.destroy() } catch (_: Exception) {}
@@ -776,6 +801,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             } catch (e: Exception) {
                 if (decided) return@post
                 decided = true
+                handler.removeCallbacks(timeoutRunnable)
                 Log.w(TAG, "Google retry #$googleRetryCount: startListening threw — staying on Vosk")
                 try { testRecognizer.destroy() } catch (_: Exception) {}
                 resumeVoskIfNeeded()

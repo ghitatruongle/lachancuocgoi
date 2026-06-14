@@ -5,10 +5,12 @@ class AudioWaveform extends StatelessWidget {
   const AudioWaveform({
     super.key,
     required this.amplitudes,
+    required this.writeIndex,
     required this.elapsedSeconds,
   });
 
   final List<double> amplitudes;
+  final int writeIndex;
   final ValueListenable<int> elapsedSeconds;
 
   @override
@@ -42,7 +44,10 @@ class AudioWaveform extends StatelessWidget {
             child: RepaintBoundary(
               child: CustomPaint(
                 size: const Size(double.infinity, 60),
-                painter: _WaveformPainter(amplitudes: amplitudes),
+                painter: _WaveformPainter(
+                  amplitudes: amplitudes,
+                  writeIndex: writeIndex,
+                ),
               ),
             ),
           ),
@@ -140,9 +145,10 @@ class _FlashingDotState extends State<_FlashingDot>
 }
 
 class _WaveformPainter extends CustomPainter {
-  _WaveformPainter({required this.amplitudes});
+  _WaveformPainter({required this.amplitudes, required this.writeIndex});
 
   final List<double> amplitudes;
+  final int writeIndex;
 
   static final Paint _paint = Paint()
     ..color = Colors.green
@@ -160,7 +166,8 @@ class _WaveformPainter extends CustomPainter {
 
     for (var i = 0; i < barCount; i++) {
       final x = (i * 2 + 1) * barWidth;
-      final amp = amplitudes[i].clamp(0.0, 1.0) * maxAmp;
+      final bufferIndex = (writeIndex + i) % barCount;
+      final amp = amplitudes[bufferIndex].clamp(0.0, 1.0) * maxAmp;
       canvas.drawLine(
         Offset(x, size.height / 2 - amp),
         Offset(x, size.height / 2 + amp),
@@ -171,10 +178,6 @@ class _WaveformPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WaveformPainter old) {
-    if (old.amplitudes.length != amplitudes.length) return true;
-    for (var i = 0; i < amplitudes.length; i++) {
-      if ((old.amplitudes[i] - amplitudes[i]).abs() > 0.001) return true;
-    }
-    return false;
+    return true; // Animator triggers this natively, always repaint when called.
   }
 }
