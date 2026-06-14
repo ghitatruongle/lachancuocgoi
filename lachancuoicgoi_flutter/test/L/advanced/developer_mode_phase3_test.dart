@@ -5,12 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('DeveloperModeController — Phase 3: timer optimization', () {
-    test('timer interval is 10 seconds (not 1 second)', () async {
+    testWidgets('timer interval is 10 seconds (not 1 second)', (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      await Future<void>.delayed(Duration.zero);
+      await tester.pump();
 
       // Activate developer mode via tap + password + activate
       final controller =
@@ -26,24 +26,26 @@ void main() {
       final remaining1 = state1.remainingSeconds;
 
       // Wait 2 seconds — with 10s interval, state should NOT update
-      await Future.delayed(const Duration(seconds: 2));
+      await tester.pump(const Duration(seconds: 2));
       final state2 = container.read(developerModeProvider);
       // remainingSeconds should be the same (timer hasn't fired yet)
       expect(state2.remainingSeconds, remaining1);
 
       // Wait for timer to fire (10s total)
-      await Future.delayed(const Duration(seconds: 9));
+      await tester.pump(const Duration(seconds: 9));
       final state3 = container.read(developerModeProvider);
       // Now remainingSeconds should have decreased
       expect(state3.remainingSeconds, lessThan(remaining1));
+
+      await controller.deactivate();
     });
 
-    test('deactivation still works with 10s timer', () async {
+    testWidgets('deactivation still works with 10s timer', (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      await Future<void>.delayed(Duration.zero);
+      await tester.pump();
 
       // Activate
       final controller =
@@ -64,12 +66,12 @@ void main() {
       expect(container.read(developerModeProvider).isActive, isFalse);
     });
 
-    test('remainingSeconds decreases in 10s increments', () async {
+    testWidgets('remainingSeconds decreases in 10s increments', (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      await Future<void>.delayed(Duration.zero);
+      await tester.pump();
 
       // Activate
       final controller =
@@ -84,7 +86,7 @@ void main() {
           container.read(developerModeProvider).remainingSeconds;
 
       // Wait for one timer tick (10s)
-      await Future.delayed(const Duration(seconds: 11));
+      await tester.pump(const Duration(seconds: 11));
 
       final newRemaining =
           container.read(developerModeProvider).remainingSeconds;
@@ -93,6 +95,8 @@ void main() {
       final diff = initialRemaining - newRemaining;
       expect(diff, greaterThanOrEqualTo(8));
       expect(diff, lessThanOrEqualTo(12));
+
+      await controller.deactivate();
     });
 
     test('onTitleTap returns showPassword on 10th tap', () {
@@ -105,12 +109,12 @@ void main() {
       expect(lastResult, DeveloperTapResult.showPassword);
     });
 
-    test('onTitleTap returns deactivated on 3 taps when active', () async {
+    testWidgets('onTitleTap returns deactivated on 3 taps when active', (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      await Future<void>.delayed(Duration.zero);
+      await tester.pump();
 
       // Activate via container
       final controller =

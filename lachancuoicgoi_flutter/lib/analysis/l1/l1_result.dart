@@ -32,13 +32,13 @@ class L1ResultParser {
         .toSet();
 
     if (riskMatches.isEmpty) {
-      return const AnalysisResult(
+      return AnalysisResult(
         overallRiskLevel: RiskLevel.green,
-        matches: [],
+        matches: const [],
         reason: 'Không tìm thấy từ khóa rủi ro.',
         analysisLevel: AnalysisLevel.l1,
         alertEnabled: false,
-        confidence: 0.9,
+        confidence: totalTokens < 10 ? 0.6 : 0.9,
       );
     }
 
@@ -68,7 +68,7 @@ class L1ResultParser {
     final adjustedRiskLevel = switch (bestScore) {
       _ when hasCriticalKeyword => RiskLevel.red,
       < 1.00 => RiskLevel.yellow,
-      < 2.00 => RiskLevel.orange,
+      < 2.50 => RiskLevel.orange,
       _ => RiskLevel.red,
     };
 
@@ -105,7 +105,8 @@ class L1ResultParser {
   static bool _containsCriticalKeyword(Set<KeywordMatch> matches) {
     return matches.any((match) {
       final keyword = match.keyword.toLowerCase();
-      return _criticalKeywords.any((critical) => keyword.contains(critical));
+      return _criticalKeywords.any((critical) => 
+          RegExp(r'(?:\b|\s|^)' + RegExp.escape(critical) + r'(?:\b|\s|$)').hasMatch(keyword));
     });
   }
 

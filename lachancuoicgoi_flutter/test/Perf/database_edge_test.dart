@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/data/app_database.dart';
 import 'package:lachancuocgoi_flutter/data/call_history.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -89,6 +92,72 @@ void main() {
 
           final record = await db2.callHistoryDao.getById(id);
           expect(record?.alertHistory, '[{"ts":1}]');
+        },
+      );
+
+      test(
+        'regression: upgrade from a v1 schema (missing core columns) '
+        'adds all current columns so inserts do not throw',
+        () async {
+          // Simulate a v1-era install: only the original columns exist. This
+          // is the case the old migration code mishandled (it had no branch
+          // for oldVersion < 5 to add audioPath/analysisResult/analysisType).
+          //
+          // We use a real temp file (not inMemoryDatabasePath) so the same
+          // database file is reopened and the onUpgrade path actually runs —
+          // in-memory databases are per-connection, so a second open would
+          // start from scratch and never exercise the migration.
+          final rawFactory = databaseFactoryFfi;
+          final tempDir = await Directory.systemTemp.createTemp(
+            'lachan_migration_test_',
+          );
+          addTearDown(() => tempDir.delete(recursive: true));
+          final dbPath = p.join(tempDir.path, 'migration.db');
+
+          final seedDb = await rawFactory.openDatabase(
+            dbPath,
+            options: OpenDatabaseOptions(
+              version: 1,
+              onCreate: (db, _) async {
+                await db.execute('''
+CREATE TABLE call_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  dateTime TEXT NOT NULL,
+  riskLevel TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  duration TEXT NOT NULL,
+  flagCount INTEGER NOT NULL,
+  transcript TEXT NOT NULL
+)
+''');
+              },
+            ),
+          );
+          await seedDb.close();
+
+          // Reopen through AppDatabase — this runs _upgradeSchema(1 -> 6).
+          final upgraded = await AppDatabase.open(
+            databaseFactory: rawFactory,
+            databasePath: dbPath,
+          );
+          addTearDown(() => upgraded.close());
+
+          // Inserting a row that uses post-v1 columns must succeed.
+          final id = await upgraded.callHistoryDao.insert(
+            makeEntry(
+              audioPath: '/tmp/x.m4a',
+              analysisResult: '{"risk":"RED"}',
+              analysisType: 'L3',
+              alertHistory: '[{"ts":1,"level":"RED"}]',
+            ),
+          );
+          expect(id, greaterThan(0));
+
+          final record = await upgraded.callHistoryDao.getById(id);
+          expect(record, isNotNull);
+          expect(record?.audioPath, '/tmp/x.m4a');
+          expect(record?.analysisType, 'L3');
+          expect(record?.alertHistory, '[{"ts":1,"level":"RED"}]');
         },
       );
     });
@@ -288,7 +357,9 @@ void main() {
       test('updateRiskLevel for non-existent ID does not crash', () async {
         // Should not throw even if ID doesn't exist
         await db.callHistoryDao.updateRiskLevel(99999, 'RED');
-        // No rows affected but no error
+        // No rows should exist — the missing ID must not silently create one.
+        expect(await db.callHistoryDao.count(), 0);
+        expect(await db.callHistoryDao.getById(99999), isNull);
       });
 
       test('update non-existent record does not crash', () async {
@@ -303,7 +374,9 @@ void main() {
           transcript: 'ghost',
         );
         await db.callHistoryDao.update(ghost);
-        // No crash, just 0 rows affected
+        // No crash, and no phantom row should have been created.
+        expect(await db.callHistoryDao.count(), 0);
+        expect(await db.callHistoryDao.getById(99999), isNull);
       });
     });
 

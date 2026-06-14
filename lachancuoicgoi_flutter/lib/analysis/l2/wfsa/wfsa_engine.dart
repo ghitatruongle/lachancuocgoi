@@ -67,6 +67,10 @@ class WfsaEngine {
   final Map<String, String> _currentSessionStates = <String, String>{};
   final Map<String, int> _segmentsSinceLastTrigger = <String, int>{};
 
+  /// Tracks how many characters of the transcript have been analyzed.
+  /// Used by [analyzeIncremental] to only tokenize the delta portion.
+  int _analyzedTextLength = 0;
+
   String? activeScenarioName;
   int? activeScenarioStage;
 
@@ -74,6 +78,7 @@ class WfsaEngine {
     _currentSessionStates.clear();
     _graphScores.clear();
     _segmentsSinceLastTrigger.clear();
+    _analyzedTextLength = 0;
     for (final graph in graphs) {
       _currentSessionStates[graph.graphId] = graph.initialStateId;
       _graphScores[graph.graphId] = 0;
@@ -81,6 +86,28 @@ class WfsaEngine {
     }
     activeScenarioName = null;
     activeScenarioStage = null;
+  }
+
+  /// Incremental analysis: only tokenize the delta portion of [fullText]
+  /// that hasn't been analyzed yet. Tracks internal progress so repeated
+  /// calls with the same [fullText] return cached score without re-tokenizing.
+  ///
+  /// If [fullText] is shorter than [_analyzedTextLength] (transcript reset),
+  /// the tracking resets automatically.
+  double analyzeIncremental(
+    String fullText,
+    List<IntentPrediction> intentPredictions,
+  ) {
+    if (fullText.length < _analyzedTextLength) {
+      // Transcript was reset — re-analyze from scratch
+      _analyzedTextLength = 0;
+    }
+    if (fullText.length <= _analyzedTextLength) {
+      return currentRiskScore;
+    }
+    final deltaText = fullText.substring(_analyzedTextLength);
+    _analyzedTextLength = fullText.length;
+    return analyzeSegment(deltaText, intentPredictions);
   }
 
   double analyzeSegment(
@@ -103,10 +130,8 @@ class WfsaEngine {
       if (currentScore > 0) {
         final baseDecay = _decayForGraph(graphId);
         final newScore = currentScore * baseDecay;
-        // Giữ floor score để không mất tín hiệu hoàn toàn
-        _graphScores[graphId] = newScore < _minScoreFloor
-            ? newScore.clamp(_minScoreFloor, 100.0)
-            : newScore;
+        // Reset to 0 when below floor, allowing full signal decay
+        _graphScores[graphId] = newScore < _minScoreFloor ? 0.0 : newScore;
       }
       _segmentsSinceLastTrigger[graphId] = segmentsSinceLast + 1;
 
@@ -152,9 +177,9 @@ class WfsaEngine {
     return maxScore;
   }
 
-  /// Minimum score floor: dù decay lâu đến đâu, score không xuống dưới mức này
-  /// để giữ lại tín hiệu đã phát hiện trước đó.
-  static const double _minScoreFloor = 8.0;
+  /// Minimum score floor: once decay brings score below this, it resets to 0.
+  /// Allows the system to "forget" old detections when context changes.
+  static const double _minScoreFloor = 2.0;
 
   double _decayForGraph(String graphId) {
     // Kịch bản nguy hiểm cao: decay rất chậm, giữ tín hiệu lâu

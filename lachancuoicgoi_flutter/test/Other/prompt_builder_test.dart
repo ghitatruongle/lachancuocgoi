@@ -50,7 +50,7 @@ void main() {
       const text = 'Anh cần chuyển tiền gấp.';
       final prompt = PromptBuilder.buildIncrementalPrompt(text, false);
 
-      expect(prompt, contains('[TIẾP TỤC]'));
+      expect(prompt, contains('[TIẾP TỤC CUỘC GỌI ĐANG PHÂN TÍCH]'));
       expect(prompt, contains(text));
       expect(prompt, contains('Ví dụ'));
       expect(prompt, isNot(contains('[Đoạn hội thoại]')));

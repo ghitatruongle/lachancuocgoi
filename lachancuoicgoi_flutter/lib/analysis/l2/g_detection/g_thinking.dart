@@ -117,14 +117,17 @@ class GThinking {
       tieredReason =
           'CẢNH BÁO: Yêu cầu thông tin nhạy cảm / Lệnh chuyển tiền (Tầng 3)';
     } else if (hasTier1 && hasTier2 && tier1Count >= 2 && tier2Count >= 2) {
-      // Chỉ leo thang RED khi có thêm bằng chứng xác nhận
+      // Chỉ leo thang RED khi có bằng chứng xác nhận
       // (pattern match, scenario match, hoặc số lượng đủ lớn)
       // để tránh false positive từ hội thoại thông thường
-      final hasCorroboratingEvidence = matchedPatterns.isNotEmpty ||
-          (scenarioMatch != null &&
-              scenarioMatch.similarityScore >= config.scenarioAlertThreshold * 0.8) ||
-          baseHighestKeywordRisk.index >= RiskLevel.orange.index ||
-          (tier1Count >= 3 && tier2Count >= 3);
+      final hasCorroboratingEvidence = _hasCorroboratingEvidence(
+        matchedPatterns: matchedPatterns,
+        scenarioMatch: scenarioMatch,
+        config: config,
+        baseHighestKeywordRisk: baseHighestKeywordRisk,
+        tier1Count: tier1Count,
+        tier2Count: tier2Count,
+      );
       if (hasCorroboratingEvidence) {
         tieredLevel = RiskLevel.red;
         tieredReason =
@@ -196,11 +199,14 @@ class GThinking {
         tier2Count >= 2 &&
         finalLevel.index < RiskLevel.red.index) {
       // Safety net: chỉ forced RED nếu có corroborating evidence
-      final hasCorroboratingEvidence = matchedPatterns.isNotEmpty ||
-          (scenarioMatch != null &&
-              scenarioMatch.similarityScore >= config.scenarioAlertThreshold * 0.8) ||
-          baseHighestKeywordRisk.index >= RiskLevel.orange.index ||
-          (tier1Count >= 3 && tier2Count >= 3);
+      final hasCorroboratingEvidence = _hasCorroboratingEvidence(
+        matchedPatterns: matchedPatterns,
+        scenarioMatch: scenarioMatch,
+        config: config,
+        baseHighestKeywordRisk: baseHighestKeywordRisk,
+        tier1Count: tier1Count,
+        tier2Count: tier2Count,
+      );
       if (hasCorroboratingEvidence) {
         finalLevel = RiskLevel.red;
         finalReason =
@@ -274,6 +280,27 @@ class GThinking {
     );
   }
 
+  /// Determines if there is corroborating evidence beyond just tier keyword
+  /// counts to justify escalating to RED risk level.
+  ///
+  /// Checks: pattern matches, strong scenario similarity (≥ 80% threshold),
+  /// high base keyword risk (orange+), or very high tier counts (3+ each).
+  static bool _hasCorroboratingEvidence({
+    required List<MatchedPattern> matchedPatterns,
+    required ScenarioMatch? scenarioMatch,
+    required ScoringConfig config,
+    required RiskLevel baseHighestKeywordRisk,
+    required int tier1Count,
+    required int tier2Count,
+  }) {
+    return matchedPatterns.isNotEmpty ||
+        (scenarioMatch != null &&
+            scenarioMatch.similarityScore >=
+                config.scenarioAlertThreshold * 0.8) ||
+        baseHighestKeywordRisk.index >= RiskLevel.orange.index ||
+        (tier1Count >= 3 && tier2Count >= 3);
+  }
+
   static RiskLevel _highestRisk(Iterable<KeywordMatch> matches) {
     var highest = RiskLevel.green;
     for (final match in matches) {
@@ -292,11 +319,16 @@ class GThinking {
 
   static bool _matchesWholeWord(String token, String target) {
     if (target.isEmpty) return false;
-    final idx = token.indexOf(target);
-    if (idx < 0) return false;
-    final leftBoundary = idx == 0 || token[idx - 1].trim().isEmpty;
-    final end = idx + target.length;
-    final rightBoundary = end == token.length || token[end].trim().isEmpty;
-    return leftBoundary && rightBoundary;
+    var searchFrom = 0;
+    while (searchFrom < token.length) {
+      final idx = token.indexOf(target, searchFrom);
+      if (idx < 0) return false;
+      final leftBoundary = idx == 0 || token[idx - 1].trim().isEmpty;
+      final end = idx + target.length;
+      final rightBoundary = end == token.length || token[end].trim().isEmpty;
+      if (leftBoundary && rightBoundary) return true;
+      searchFrom = idx + 1;
+    }
+    return false;
   }
 }

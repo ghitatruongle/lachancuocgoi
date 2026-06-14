@@ -60,7 +60,8 @@ void main() {
   /// call endSession() in runAsync, and return the inserted row.
   Future<CallHistory?> driveEndSession({
     required String transcript,
-    required List<double> amplitudes,
+    double peakAmplitude = 0.0,
+    bool hasReceivedAnyAudio = false,
   }) async {
     final analyzer = L1Analyzer(
       vocabularyProvider: () => '{"riskLevels": []}',
@@ -68,10 +69,11 @@ void main() {
     );
     final c = container.read(monitoringControllerProvider.notifier);
     c.init(l1AnalyzerOverride: analyzer);
-    c.state = c.state.copyWith(
-      transcript: transcript,
-      amplitudes: amplitudes,
+    c.debugSetAudioState(
+      peakAmplitude: peakAmplitude,
+      hasReceivedAnyAudio: hasReceivedAnyAudio,
     );
+    c.state = c.state.copyWith(transcript: transcript);
 
     // Escape the fake async zone so the awaits inside endSession
     // (DB insert) actually run.
@@ -84,7 +86,8 @@ void main() {
   test('endSession with empty transcript + zero amplitudes → noAudio', () async {
     final row = await driveEndSession(
       transcript: '',
-      amplitudes: const [0.1, 0.1, 0.1],
+      peakAmplitude: 0.0,
+      hasReceivedAnyAudio: false,
     );
     expect(row, isNotNull, reason: 'no row inserted');
     expect(row!.recordingError, 'noAudio');
@@ -98,7 +101,8 @@ void main() {
       () async {
     final row = await driveEndSession(
       transcript: '',
-      amplitudes: const [0.0, 0.1, 0.8, 0.4, 0.6],
+      peakAmplitude: 0.8,
+      hasReceivedAnyAudio: true,
     );
     expect(row, isNotNull);
     expect(row!.recordingError, 'sttFailed');
@@ -110,7 +114,8 @@ void main() {
   test('endSession with non-empty transcript → null recordingError', () async {
     final row = await driveEndSession(
       transcript: 'Anh ơi cho em xin OTP',
-      amplitudes: const [0.0, 0.5, 0.9],
+      peakAmplitude: 0.9,
+      hasReceivedAnyAudio: true,
     );
     expect(row, isNotNull);
     expect(row!.recordingError, isNull);
@@ -123,7 +128,8 @@ void main() {
       () async {
     final row = await driveEndSession(
       transcript: '',
-      amplitudes: const [0.5],
+      peakAmplitude: 0.5,
+      hasReceivedAnyAudio: true,
     );
     expect(row, isNotNull);
     expect(row!.recordingError, 'sttFailed');
@@ -134,7 +140,8 @@ void main() {
       () async {
     final row = await driveEndSession(
       transcript: '',
-      amplitudes: const [],
+      peakAmplitude: 0.0,
+      hasReceivedAnyAudio: false,
     );
     expect(row, isNotNull);
     expect(row!.recordingError, 'noAudio');
@@ -144,7 +151,8 @@ void main() {
   test('endSession calls stopMonitoring on the bridge', () async {
     await driveEndSession(
       transcript: 'hello',
-      amplitudes: const [0.5],
+      peakAmplitude: 0.5,
+      hasReceivedAnyAudio: true,
     );
     expect(fakeBridge.stopMonitoringCalls, 1);
   });
@@ -157,10 +165,8 @@ void main() {
       bigramCorrectionsProvider: () => '{"corrections": []}',
     );
     c.init(l1AnalyzerOverride: analyzer);
-    c.state = c.state.copyWith(
-      transcript: 'hello',
-      amplitudes: const [0.5],
-    );
+    c.debugSetAudioState(peakAmplitude: 0.5, hasReceivedAnyAudio: true);
+    c.state = c.state.copyWith(transcript: 'hello');
     await Future<void>.delayed(const Duration(milliseconds: 1));
     await c.endSession();
 

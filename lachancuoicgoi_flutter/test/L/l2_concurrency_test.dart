@@ -39,7 +39,7 @@ class ManualMockGDetectionEngine implements GDetectionEngine {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('L2Analyzer - should run analyses sequentially even if triggered concurrently', () async {
+  testWidgets('L2Analyzer - should run analyses sequentially even if triggered concurrently', (tester) async {
     final mockEngine = ManualMockGDetectionEngine();
     final analyzer = L2Analyzer(gDetectionEngine: mockEngine);
 
@@ -50,10 +50,12 @@ void main() {
       analyzer.analyze('text 3', 'full text 3'),
     ];
 
+    // Pump 5 seconds to let all sequential analyses finish in fake time
+    await tester.pump(const Duration(seconds: 5));
+
     await Future.wait(futures);
 
     // If the lock works perfectly, maxConcurrentAnalyses should be 1.
-    // Given the current bug, it will likely be 3.
     expect(mockEngine.maxConcurrentAnalyses, 1, reason: 'Analyses should not run concurrently');
   });
 }

@@ -74,6 +74,13 @@ class GeminiClient {
   int _consecutiveFailures = 0;
   DateTime? _circuitOpenedAt;
   bool _hasNotifiedAllExhausted = false;
+  // Rate-limit serialization: a Future chain that every call appends to.
+  // Each call awaits the previous link, then enforces the min spacing
+  // relative to the previous call's completion. This makes _applyRateLimit
+  // atomic under concurrency — two overlapping query() calls can no longer
+  // both read the stale timestamp and fire simultaneously (which previously
+  // defeated the 1s minimum spacing).
+  Future<void> _rateLimitChain = Future<void>.value();
   DateTime? _lastCallTimestamp;
 
   Future<Result<T>> query<T>(
@@ -148,9 +155,12 @@ class GeminiClient {
             keyHealthTracker?.markInvalid(keyIndex, error.toString());
             break;
           }
-          if (errorType == GeminiErrorType.quota ||
-              errorType == GeminiErrorType.modelNotFound) {
+          if (errorType == GeminiErrorType.modelNotFound) {
             shouldBackoff = false; // chuyển model ngay, không backoff
+            continue;
+          }
+          if (errorType == GeminiErrorType.quota) {
+            shouldBackoff = true; // Lỗi quota cần trì hoãn trước khi đổi model
             continue;
           }
           keyHealthTracker?.markError(keyIndex, error.toString());
@@ -213,14 +223,25 @@ class GeminiClient {
   }
 
   Future<void> _applyRateLimit() async {
-    final lastCall = _lastCallTimestamp;
-    if (lastCall != null) {
-      final elapsed = DateTime.now().difference(lastCall);
-      if (elapsed < _minInterval) {
-        await Future<void>.delayed(_minInterval - elapsed);
+    // Serialize rate-limit checks through a Future chain so concurrent callers
+    // queue up rather than each reading a stale _lastCallTimestamp and firing
+    // together. Each caller appends its own delay link after the previous one.
+    final completer = Completer<void>();
+    final previous = _rateLimitChain;
+    _rateLimitChain = completer.future;
+    try {
+      await previous;
+      final lastCall = _lastCallTimestamp;
+      if (lastCall != null) {
+        final elapsed = DateTime.now().difference(lastCall);
+        if (elapsed < _minInterval) {
+          await Future<void>.delayed(_minInterval - elapsed);
+        }
       }
+      _lastCallTimestamp = DateTime.now();
+    } finally {
+      completer.complete();
     }
-    _lastCallTimestamp = DateTime.now();
   }
 
   void _notifyAllKeysExhausted() {

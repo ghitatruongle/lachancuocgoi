@@ -19,6 +19,11 @@
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Needed by BackgroundMonitoringService to hold a PARTIAL_WAKE_LOCK during
+         active monitoring so the CPU stays awake (Vosk mic read loop + watchdog
+         alarm) after the screen turns off. Without this the device enters Doze
+         on screen-off and transcript capture stalls mid-call. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:name=".MainApplication"

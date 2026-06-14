@@ -82,12 +82,12 @@ void main() {
         );
         expect(g2.overallRiskLevel, RiskLevel.red);
 
-        // Green 3: de-escalate to orange
+        // Green 3: RED should NOT de-escalate (only YELLOW can for safety)
         final g3 = analyzer.parseResponse(
           '{"level":"green","label":"","reason":"An toàn","recommendation":""}',
           'gemini',
         );
-        expect(g3.overallRiskLevel, RiskLevel.orange);
+        expect(g3.overallRiskLevel, RiskLevel.red);
       },
     );
 
@@ -121,7 +121,7 @@ void main() {
         );
         expect(orange.overallRiskLevel, RiskLevel.orange); // returns parsed level, not max
 
-        // Now we need 3 more greens to de-escalate
+        // Now we need 3 more greens, but RED still won't de-escalate
         // Green 1 (after reset)
         analyzer.parseResponse(
           '{"level":"green","label":"","reason":"An toàn","recommendation":""}',
@@ -132,12 +132,12 @@ void main() {
           '{"level":"green","label":"","reason":"An toàn","recommendation":""}',
           'gemini',
         );
-        // Green 3 should de-escalate
+        // Green 3 should NOT de-escalate from RED (safety constraint)
         final deescalated = analyzer.parseResponse(
           '{"level":"green","label":"","reason":"An toàn","recommendation":""}',
           'gemini',
         );
-        expect(deescalated.overallRiskLevel, RiskLevel.orange);
+        expect(deescalated.overallRiskLevel, RiskLevel.red);
       },
     );
 

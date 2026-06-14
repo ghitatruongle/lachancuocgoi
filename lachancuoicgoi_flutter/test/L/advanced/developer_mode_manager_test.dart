@@ -36,14 +36,14 @@ void main() {
       expect(finalResult, DeveloperTapResult.showPassword);
     });
 
-    test('tap counter resets after timeout (2000ms)', () async {
+    testWidgets('tap counter resets after timeout (2000ms)', (tester) async {
       final controller = DeveloperModeController();
       // Tap 5 times
       for (var i = 0; i < 5; i++) {
         controller.onTitleTap();
       }
       // Wait past timeout
-      await Future.delayed(const Duration(milliseconds: 2100));
+      await tester.pump(const Duration(milliseconds: 2100));
       // Next tap should reset counter (since timeout passed)
       expect(controller.onTitleTap(), DeveloperTapResult.nothing);
       // Tapping 8 more times + 1 final = 10 total (to trigger showPassword)
@@ -132,7 +132,7 @@ void main() {
       expect(state.isActive, isFalse);
     });
 
-    test('deactivate tap counter resets after timeout', () async {
+    testWidgets('deactivate tap counter resets after timeout', (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -144,7 +144,7 @@ void main() {
       controller.onTitleTap();
       controller.onTitleTap();
       // Wait past timeout
-      await Future.delayed(const Duration(milliseconds: 2100));
+      await tester.pump(const Duration(milliseconds: 2100));
       // Next tap should reset counter
       expect(controller.onTitleTap(), DeveloperTapResult.nothing);
       // One more

@@ -9,6 +9,10 @@ class GPatternMatcher {
 
   static final Map<String, String> _normalizedKeywordCache = <String, String>{};
 
+  static void clearCache() {
+    _normalizedKeywordCache.clear();
+  }
+
   static List<MatchedPattern> matchPatterns(
     List<String> tokens,
     List<ScamPattern> patterns,

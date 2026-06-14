@@ -252,24 +252,46 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       final double mockRms = 2.0 + 6.0 * ((_iosTimerTicks % 30) / 30.0);
       _iosRmsController.add(mockRms);
 
-      // 2. Emit simulated scam script sentence every 10 seconds (100 ticks)
-      if (_iosTimerTicks % 100 == 0) {
-        final sentenceIndex = (_iosTimerTicks ~/ 100 - 1) % _iosScamScript.length;
-        final transcript = _iosScamScript.sublist(0, sentenceIndex + 1).join(" ");
-        _iosTranscriptController.add(TranscriptUpdate(text: transcript, isPartial: false));
-      } else if (_iosTimerTicks % 100 > 30 && _iosTimerTicks % 100 < 80 && _iosTimerTicks % 20 == 0) {
-        final sentenceIndex = (_iosTimerTicks ~/ 100) % _iosScamScript.length;
+      // 2. Emit simulated scam script sentences.
+      //
+      // Within each 10-second window (100 ticks):
+      //   • tick % 100 == 0           → commit the current sentence
+      //     as a *final* transcript update.
+      //   • tick % 100 in [31..79]    → at every 20-tick boundary,
+      //     emit a *partial* transcript update that progressively reveals
+      //     the next sentence in 5-word chunks (one chunk per 5 ticks).
+      //   • everything else           → no transcript event.
+      const sentenceCommitInterval = 100;
+      const partialWindowStart = 30;
+      const partialWindowEnd = 80;
+      const partialStride = 20;
+      const partialChunkWords = 5;
+      final phaseTick = _iosTimerTicks % sentenceCommitInterval;
+      if (phaseTick == 0) {
+        final sentenceIndex = (_iosTimerTicks ~/ sentenceCommitInterval - 1) %
+            _iosScamScript.length;
+        final transcript =
+            _iosScamScript.sublist(0, sentenceIndex + 1).join(' ');
+        _iosTranscriptController.add(
+          TranscriptUpdate(text: transcript, isPartial: false),
+        );
+      } else if (phaseTick > partialWindowStart &&
+          phaseTick < partialWindowEnd &&
+          phaseTick % partialStride == 0) {
+        final sentenceIndex =
+            (_iosTimerTicks ~/ sentenceCommitInterval) % _iosScamScript.length;
         final nextSentence = _iosScamScript[sentenceIndex];
-        final words = nextSentence.split(" ");
-        final wordCount = ((_iosTimerTicks % 100) - 30) ~/ 5;
+        final words = nextSentence.split(' ');
+        // Chunks grow: at phaseTick=40, (40-30)/5 = 2 words; at 60, 6 words…
+        final wordCount = (phaseTick - partialWindowStart) ~/ partialChunkWords;
         if (wordCount > 0 && wordCount <= words.length) {
-          final partialText = words.sublist(0, wordCount).join(" ");
+          final partialText = words.sublist(0, wordCount).join(' ');
           final previousTranscript = sentenceIndex > 0
-              ? '${_iosScamScript.sublist(0, sentenceIndex).join(" ")} '
+              ? '${_iosScamScript.sublist(0, sentenceIndex).join(' ')} '
               : '';
           _iosTranscriptController.add(TranscriptUpdate(
-            text: "$previousTranscript$partialText", 
-            isPartial: true
+            text: '$previousTranscript$partialText',
+            isPartial: true,
           ));
         }
       }
@@ -279,6 +301,34 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   void _stopSimulation() {
     _iosSimulationTimer?.cancel();
     _iosSimulationTimer = null;
+  }
+
+  /// Tears down the iOS/desktop simulation state (timer + broadcast stream
+  /// controllers). The bridge is normally a singleton kept alive for the whole
+  /// app, so this is mainly for tests and explicit teardown — it makes the
+  /// previously-uncancellable simulation timer / controllers collectible and
+  /// prevents a 100 ms periodic timer from firing into a controller nobody
+  /// listens to if monitoring was started but never stopped (e.g. app killed
+  /// during a desktop/test run).
+  @visibleForTesting
+  void dispose() {
+    _stopSimulation();
+    _iosMonitoringActive = false;
+    _iosCreatorMonitoringActive = false;
+    _iosStartTime = null;
+    _iosTimerTicks = 0;
+    if (!_iosMonitoringStateController.isClosed) {
+      _iosMonitoringStateController.close();
+    }
+    if (!_iosTranscriptController.isClosed) {
+      _iosTranscriptController.close();
+    }
+    if (!_iosRmsController.isClosed) {
+      _iosRmsController.close();
+    }
+    if (!_iosCallEventController.isClosed) {
+      _iosCallEventController.close();
+    }
   }
 
   // ─── MethodChannel calls ────────────────────────────────────────────────

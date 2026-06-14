@@ -46,6 +46,11 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
             l1AnalyzerOverride: widget.l1AnalyzerOverride,
           );
       ref.read(monitoringControllerProvider.notifier).initAfterFrame();
+      // Seed the elapsed-time notifier with the current value now that the
+      // controller has been initialized (it was previously assigned inside
+      // build() on every rebuild).
+      _elapsedNotifier.value =
+          ref.read(monitoringControllerProvider).elapsedSeconds;
     });
   }
 
@@ -57,31 +62,58 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
   }
 
   @override
+  void didUpdateWidget(MonitoringPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.simulatedScenarioTitle != oldWidget.simulatedScenarioTitle ||
+        widget.simulatedTranscript != oldWidget.simulatedTranscript ||
+        widget.simulatedScriptLines != oldWidget.simulatedScriptLines ||
+        widget.l1AnalyzerOverride != oldWidget.l1AnalyzerOverride) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(monitoringControllerProvider.notifier).init(
+              simulatedScenarioTitle: widget.simulatedScenarioTitle,
+              simulatedTranscript: widget.simulatedTranscript,
+              simulatedScriptLines: widget.simulatedScriptLines,
+              l1AnalyzerOverride: widget.l1AnalyzerOverride,
+            );
+        ref.read(monitoringControllerProvider.notifier).initAfterFrame();
+      });
+    }
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     ref
         .read(monitoringControllerProvider.notifier)
         .onLifecycleChanged(state);
 
-    // Bug #5 fix: check for pending navigation intents when the app resumes.
-    // ref.listen in build() doesn't fire while the widget tree is inactive,
-    // so navigation intents set while backgrounded would be lost.
+    // On resume, re-check for a pending navigation intent. The ref.listen in
+    // build() does not fire while the widget tree is inactive, so an intent
+    // set while backgrounded would otherwise be lost. Both this path and the
+    // build() listener delegate to _consumeNavigationIntent, which is
+    // idempotent (it clears the intent first), so it's safe for both to run.
     if (state == AppLifecycleState.resumed) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final currentState = ref.read(monitoringControllerProvider);
-        final intent = currentState.navigationIntent;
-        if (intent != null) {
-          ref
-              .read(monitoringControllerProvider.notifier)
-              .clearNavigationIntent();
-          switch (intent) {
-            case NavigateToResult(:final historyId):
-              context.go('/result/$historyId');
-            case NavigateToHome():
-              context.go('/');
-          }
-        }
+        _consumeNavigationIntent();
       });
+    }
+  }
+
+  /// Reads the pending navigation intent (if any), clears it, and performs
+  /// the navigation. Idempotent: a no-op when there is no intent. Centralizes
+  /// the navigation logic so the lifecycle-resume path and the ref.listen
+  /// path can't diverge. Navigation runs in a post-frame callback to avoid
+  /// calling context.go() during a build phase (which go_router warns about).
+  void _consumeNavigationIntent() {
+    final intent = ref.read(monitoringControllerProvider).navigationIntent;
+    if (intent == null) return;
+    ref.read(monitoringControllerProvider.notifier).clearNavigationIntent();
+    switch (intent) {
+      case NavigateToResult(:final historyId):
+        context.go('/result/$historyId');
+      case NavigateToHome():
+        context.go('/');
     }
   }
 
@@ -90,25 +122,35 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
-    // Listen for navigation intents.
+    // Listen for navigation intents while the widget is active. The lifecycle
+    // resume path covers the backgrounded case. Both are idempotent.
     ref.listen<MonitoringPageState>(monitoringControllerProvider, (prev, next) {
-      final intent = next.navigationIntent;
-      if (intent != null) {
-        ref
-            .read(monitoringControllerProvider.notifier)
-            .clearNavigationIntent();
-        switch (intent) {
-          case NavigateToResult(:final historyId):
-            context.go('/result/$historyId');
-          case NavigateToHome():
-            context.go('/');
-        }
-      }
+      if (next.navigationIntent == null) return;
+      // Defer navigation out of the listener (which fires synchronously during
+      // a provider notification) to avoid navigating during build/dispose.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _consumeNavigationIntent();
+      });
     });
+
+    // Drive the elapsed-time notifier from a targeted listener on
+    // elapsedSeconds only, instead of assigning _elapsedNotifier.value inside
+    // build(). Previously build() reassigned the value every rebuild, and
+    // since the controller bumps elapsedSeconds once per second the whole
+    // page (risk card, status badges, chips) rebuilt every second for no
+    // reason — the notifier already has its own ValueListenableBuilder.
+    ref.listen<MonitoringPageState>(
+      monitoringControllerProvider,
+      (prev, next) {
+        if (prev?.elapsedSeconds != next.elapsedSeconds) {
+          _elapsedNotifier.value = next.elapsedSeconds;
+        }
+      },
+    );
 
     final state = ref.watch(monitoringControllerProvider);
     final controller = ref.read(monitoringControllerProvider.notifier);
-    _elapsedNotifier.value = state.elapsedSeconds;
 
     final hasScenarioTitle =
         (widget.simulatedScenarioTitle?.trim().isNotEmpty ?? false);
@@ -268,11 +310,12 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                     child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: RepaintBoundary(
-                        child: ValueListenableBuilder<List<double>>(
-                          valueListenable: controller.amplitudesListenable,
-                          builder: (context, amplitudes, _) {
+                        child: AnimatedBuilder(
+                          animation: controller.waveformNotifier,
+                          builder: (context, _) {
                             return AudioWaveform(
-                              amplitudes: amplitudes,
+                              amplitudes: controller.currentAmplitudes,
+                              writeIndex: controller.currentAmplitudeWriteIndex,
                               elapsedSeconds: _elapsedNotifier,
                             );
                           },
