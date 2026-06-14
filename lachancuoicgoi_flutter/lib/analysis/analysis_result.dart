@@ -90,6 +90,7 @@ class AnalysisResult {
     this.confidence = -1,
     this.modelName,
     this.isError = false,
+    this.isFallback = false,
   });
 
   final RiskLevel overallRiskLevel;
@@ -101,6 +102,12 @@ class AnalysisResult {
   final String? modelName;
   final bool isError;
 
+  /// True when this result was produced by a fallback analyzer (e.g. L3→L2
+  /// when Gemini is unavailable). Surfaced to the UI so it can render a
+  /// "L3 fallback" notice without polluting [matches] with a synthetic
+  /// "L3 fallback" keyword.
+  final bool isFallback;
+
   AnalysisResult copyWith({
     RiskLevel? overallRiskLevel,
     List<KeywordMatch>? matches,
@@ -110,6 +117,7 @@ class AnalysisResult {
     double? confidence,
     String? modelName,
     bool? isError,
+    bool? isFallback,
   }) {
     return AnalysisResult(
       overallRiskLevel: overallRiskLevel ?? this.overallRiskLevel,
@@ -120,6 +128,7 @@ class AnalysisResult {
       confidence: confidence ?? this.confidence,
       modelName: modelName ?? this.modelName,
       isError: isError ?? this.isError,
+      isFallback: isFallback ?? this.isFallback,
     );
   }
 
@@ -133,6 +142,7 @@ class AnalysisResult {
       'confidence': confidence,
       'modelName': modelName,
       'isError': isError,
+      'isFallback': isFallback,
     };
   }
 
@@ -154,6 +164,7 @@ class AnalysisResult {
       confidence: (json['confidence'] as num?)?.toDouble() ?? -1,
       modelName: json['modelName'] as String?,
       isError: json['isError'] as bool? ?? false,
+      isFallback: json['isFallback'] as bool? ?? false,
     );
   }
 }

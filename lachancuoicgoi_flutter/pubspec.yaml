@@ -24,6 +24,10 @@ dependencies:
   sqflite: ^2.3.3
   sqflite_common_ffi: ^2.3.5
   tflite_flutter: ^0.12.1
+  clock: ^1.1.1
+  flutter_ringtone_player: ^4.0.0+4
+  vibration: ^3.2.0
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

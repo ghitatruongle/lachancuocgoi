@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -134,7 +135,7 @@ class PermissionController extends StateNotifier<PermissionState>
   /// Throttled to avoid rapid successive platform channel calls
   /// and unnecessary widget rebuilds.
   Future<void> _refresh() async {
-    final now = DateTime.now();
+    final now = clock.now();
     if (_lastRefreshTime != null &&
         now.difference(_lastRefreshTime!).inMilliseconds < 500) {
       return; // Skip if refreshed within last 500ms
@@ -147,7 +148,7 @@ class PermissionController extends StateNotifier<PermissionState>
       if (snapshot != state.snapshot) {
         state = state.copyWith(
           snapshot: snapshot,
-          lastUpdated: DateTime.now(),
+          lastUpdated: clock.now(),
         );
       }
     } catch (e) {

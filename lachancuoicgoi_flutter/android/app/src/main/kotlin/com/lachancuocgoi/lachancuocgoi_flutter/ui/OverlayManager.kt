@@ -93,14 +93,10 @@ object OverlayManager {
     private fun showAlert(context: Context, color: Int, title: String, summary: String, isRed: Boolean) {
         removeAlertOverlay(context)
 
-        // RED: heavy vibration + alarm sound to break psychological manipulation.
-        // ORANGE: single light vibration only.
-        if (isRed) {
-            startHeavyVibration(context)
-            playAlarmSound(context)
-        } else {
-            vibrate(context)
-        }
+        // NOTE: vibration/alarm are started ONLY after addView() succeeds below.
+        // Previously they ran unconditionally before addView; if addView then
+        // threw (e.g. overlay permission revoked mid-call) there was no dismiss
+        // button and the device would vibrate / alarm forever.
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -195,15 +191,28 @@ object OverlayManager {
         alertOverlayView = rootLayout
         try {
             getWindowManager(context).addView(rootLayout, params)
+            // addView succeeded — NOW it is safe to start vibration / alarm.
+            // The dismiss button exists, so the user can stop them.
+            if (isRed) {
+                startHeavyVibration(context)
+                playAlarmSound(context)
+            } else {
+                vibrate(context)
+            }
         } catch (e: Exception) {
             android.util.Log.e("OverlayManager", "Failed to show alert overlay", e)
             alertOverlayView = null
+            // Make sure no half-started alarm/vibration lingers (removeAlertOverlay
+            // already called stopAlarmSound / stopHeavyVibration at the top, but
+            // guard again in case a subclass path started them).
+            stopAlarmSound()
+            stopHeavyVibration(context)
         }
     }
 
     fun removeAlertOverlay(context: Context) {
         stopAlarmSound()
-        stopHeavyVibration()
+        stopHeavyVibration(context)
         alertOverlayView?.let {
             try { getWindowManager(context).removeView(it) } catch (_: Exception) {}
             alertOverlayView = null
@@ -550,7 +559,7 @@ object OverlayManager {
      *           150ms silence, 400ms vibrate] — then repeat every 2 seconds.
      */
     private fun startHeavyVibration(context: Context) {
-        stopHeavyVibration()
+        stopHeavyVibration(context)
         try {
             val vibrator = getVibrator(context) ?: return
             // Pattern: wait, vibrate, pause, vibrate, pause, vibrate
@@ -578,9 +587,12 @@ object OverlayManager {
         } catch (_: Exception) {}
     }
 
-    private fun stopHeavyVibration() {
+    private fun stopHeavyVibration(context: Context) {
         heavyVibrationRunnable?.let { heavyVibrationHandler.removeCallbacks(it) }
         heavyVibrationRunnable = null
+        try {
+            getVibrator(context)?.cancel()
+        } catch (_: Exception) {}
     }
 
     /**

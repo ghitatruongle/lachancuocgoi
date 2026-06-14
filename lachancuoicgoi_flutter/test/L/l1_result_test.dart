@@ -15,9 +15,9 @@ void main() {
       expect(result.analysisLevel, AnalysisLevel.l1);
     });
 
-    test('empty matches returns confidence 0.9', () {
+    test('empty matches returns confidence 0.6', () {
       final result = L1ResultParser.parse(<KeywordMatch>{});
-      expect(result.confidence, 0.9);
+      expect(result.confidence, 0.6);
     });
 
     test('empty matches reason mentions no risk keywords found', () {
@@ -86,7 +86,7 @@ void main() {
     });
 
     test('three RED keywords in same category reach RED (score=2.55)', () {
-      // score = maxLevel(3) * weight(0.85 for 3 keywords) = 2.55 >= 2.0 => RED
+      // score = maxLevel(3) * weight(0.85 for 3 keywords) = 2.55 >= 2.50 => RED
       final matches = <KeywordMatch>{
         const KeywordMatch(
           keyword: 'đe dọa',
@@ -232,7 +232,7 @@ void main() {
     });
 
     test('two RED keywords in same category reach ORANGE (score=1.95)', () {
-      // score = maxLevel(3) * weight(0.65 for 2 keywords) = 1.95 < 2.0 => ORANGE
+      // score = maxLevel(3) * weight(0.65 for 2 keywords) = 1.95 < 2.50 => ORANGE
       final matches = <KeywordMatch>{
         const KeywordMatch(
           keyword: 'đe dọa',
@@ -329,9 +329,9 @@ void main() {
   });
 
   group('L1ResultParser.parse - confidence calculation', () {
-    test('confidence with zero matches (GREEN path) is 0.9', () {
+    test('confidence with zero matches (GREEN path) is 0.6', () {
       final result = L1ResultParser.parse(<KeywordMatch>{});
-      expect(result.confidence, 0.9);
+      expect(result.confidence, 0.6);
     });
 
     test('confidence increases with more matches', () {

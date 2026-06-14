@@ -12,6 +12,16 @@ class GeminiMetrics {
   int _totalLatencyMs = 0;
   final Map<int, int> _callsPerKey = <int, int>{};
   final Map<int, int> _errorsPerKey = <int, int>{};
+  final List<String> _errorLogs = <String>[];
+
+  List<String> get recentErrors => List<String>.unmodifiable(_errorLogs);
+
+  void addErrorLog(String log) {
+    _errorLogs.add(log);
+    if (_errorLogs.length > 100) {
+      _errorLogs.removeAt(0);
+    }
+  }
 
   void recordCall({
     required bool success,
@@ -62,6 +72,7 @@ class GeminiMetrics {
       averageLatencyMs: _totalCalls > 0 ? _totalLatencyMs ~/ _totalCalls : 0,
       cacheHitRate: totalRequests > 0 ? _cacheHits / totalRequests : 0,
       perKeyMetrics: summaries,
+      recentErrors: recentErrors,
     );
   }
 
@@ -76,6 +87,7 @@ class GeminiMetrics {
     instance._totalLatencyMs = 0;
     instance._callsPerKey.clear();
     instance._errorsPerKey.clear();
+    instance._errorLogs.clear();
   }
 }
 
@@ -103,6 +115,7 @@ class MetricsSnapshot {
     required this.averageLatencyMs,
     required this.cacheHitRate,
     this.perKeyMetrics = const <KeyMetricSummary>[],
+    this.recentErrors = const <String>[],
   });
 
   final int totalApiCalls;
@@ -113,6 +126,7 @@ class MetricsSnapshot {
   final int averageLatencyMs;
   final double cacheHitRate;
   final List<KeyMetricSummary> perKeyMetrics;
+  final List<String> recentErrors;
 
   double get successRate => totalApiCalls > 0 ? successCalls / totalApiCalls : 0;
 

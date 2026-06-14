@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:clock/clock.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,7 +38,14 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
   static const int _deactivateTaps = 3;
   static const int _tapTimeoutMs = 2000;
   static const int _durationMs = 600000;
-  static const String _password = '110210';
+  // The dev-mode password is stored as a SHA-256 hash rather than cleartext.
+  // Previously the literal password ('110210') was baked into the APK and
+  // trivially extractable via apktool/jadx. Storing only the digest means
+  // reverse-engineering the APK no longer reveals the password, and it can be
+  // rotated in future builds simply by replacing this digest.
+  // Digest = sha256('110210').
+  static const String _passwordHash =
+      '252342c7f49f80e619a9ddfd621e2cfeceac60db0973176004613350842e02c0';
   static const String _prefsKeyActivatedAt = 'DEV_MODE_ACTIVATED_AT_MS';
 
   int _tapCount = 0;
@@ -62,7 +72,7 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
   }
 
   DeveloperTapResult onTitleTap() {
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final now = clock.now().millisecondsSinceEpoch;
 
     if (isActive) {
       if (now - _lastDeactivateTapMs > _tapTimeoutMs) {
@@ -91,10 +101,13 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
     return DeveloperTapResult.nothing;
   }
 
-  bool verifyPassword(String input) => input.trim() == _password;
+  bool verifyPassword(String input) {
+    final digest = sha256.convert(utf8.encode(input.trim()));
+    return digest.toString() == _passwordHash;
+  }
 
   Future<void> activate() async {
-    _activatedAtMs = DateTime.now().millisecondsSinceEpoch;
+    _activatedAtMs = clock.now().millisecondsSinceEpoch;
     _deactivateTapCount = 0;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -138,7 +151,7 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
 
   int _remainingSeconds() {
     if (_activatedAtMs == 0) return -1;
-    final elapsedMs = DateTime.now().millisecondsSinceEpoch - _activatedAtMs;
+    final elapsedMs = clock.now().millisecondsSinceEpoch - _activatedAtMs;
     final remainingMs = _durationMs - elapsedMs;
     if (remainingMs <= 0) {
       return -1;

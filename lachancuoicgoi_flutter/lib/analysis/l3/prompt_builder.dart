@@ -82,8 +82,9 @@ TRẢ VỀ JSON, KHÔNG markdown:
 '''.trim();
     }
     return '''
-[TIẾP TỤC] Văn bản mới: "$newText"
-Phân tích bổ sung và cập nhật JSON. Giữ level = "green" nếu vẫn an toàn.
+[TIẾP TỤC CUỘC GỌI ĐANG PHÂN TÍCH] Văn bản mới: "$newText"
+Phân tích bổ sung dựa trên ngữ cảnh cuộc gọi trước đó và cập nhật JSON.
+Giữ level = "green" nếu vẫn an toàn, nhưng tăng level nếu phát hiện dấu hiệu lừa đảo mới.
 
 Ví dụ các phản hồi JSON hợp lệ:
 {"level": "green", "label": "", "reason": "Cuộc gọi xã hội thông thường", "recommendation": "Tiếp tục bình thường"}

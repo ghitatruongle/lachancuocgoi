@@ -199,7 +199,7 @@ void main() {
 
     // Type a query.
     await tester.enterText(find.byType(TextField), 'unique');
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.runAsync(() async {
       for (int i = 0; i < 100; i++) {
         await tester.pump();

@@ -115,8 +115,19 @@ CREATE TABLE IF NOT EXISTS call_history (
       return;
     }
 
+    // Bring the table up to the full current column set regardless of which
+    // pre-5 version we're upgrading from. The original Android→Flutter
+    // migration only added columns in branches for versions >=5/6, which left
+    // installs on schema v1–v4 (e.g. early internal builds) missing core
+    // columns like audioPath/analysisResult/analysisType — inserts would then
+    // throw "no such column". _addColumnIfMissing is idempotent, so listing
+    // every column here is safe even if the column already exists.
     if (oldVersion < 5) {
+      await _addColumnIfMissing(db, 'call_history', 'audioPath', 'TEXT');
+      await _addColumnIfMissing(db, 'call_history', 'analysisResult', 'TEXT');
+      await _addColumnIfMissing(db, 'call_history', 'analysisType', 'TEXT');
       await _addColumnIfMissing(db, 'call_history', 'alert_history', 'TEXT');
+      await _addColumnIfMissing(db, 'call_history', 'recordingError', 'TEXT');
     }
 
     if (oldVersion < 6) {
