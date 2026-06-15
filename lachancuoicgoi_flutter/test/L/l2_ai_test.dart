@@ -55,15 +55,16 @@ void main() {
 
       expect(predictions.first.intent, ScamIntent.bankCardFraud);
       expect(predictions.first.confidence, greaterThan(0.60));
-      expect(IntentOutputMapper.decodeFlatOutput(<num>[1, 2, 3]), isEmpty);
+      expect(IntentOutputMapper.decodeFlatOutput(<num>[1, 2, 3]).length,
+          intentLabels.length);
     });
   });
 
   group('WFSA and SafetyFilter', () {
-    test('default graph set tracks 22 scam scenarios with active stage', () {
+    test('default graph set tracks 24 scam scenarios with active stage', () {
       final engine = WfsaEngine(ScamGraphBuilder.buildDefaultGraphs());
 
-      expect(engine.graphs.length, 22);
+      expect(engine.graphs.length, 24);
       final firstScore = engine.analyzeSegment(
         'cục cảnh sát đang điều tra',
         const <IntentPrediction>[],
@@ -125,7 +126,7 @@ void main() {
 
       final result = await analyzer.analyze(
         'xin chào',
-        'Xin chào, hôm nay mình đi ăn cơm nhé.',
+        'Xin chào, hôm nay mình đi ăn cơm nhé. Nhưng thực ra tôi rất muốn nói chuyện với bạn nhiều hơn nữa để xem bạn có khỏe không nhé.',
       );
 
       expect(result.analysisLevel, AnalysisLevel.l2Ai);

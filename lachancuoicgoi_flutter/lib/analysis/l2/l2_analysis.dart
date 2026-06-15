@@ -1,16 +1,21 @@
 import 'dart:async' show Completer;
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+import '../analysis_config.dart';
 import '../analysis_level.dart';
 import '../analysis_result.dart';
 import '../analyzer.dart';
+import '../common/text_normalizer.dart';
 import '../health_check.dart';
 import '../../core/risk_level.dart';
 import 'g_detection/g_detection_engine.dart';
-import 'g_detection/g_models.dart';
+
 import 'intent/intent_classifier.dart';
+import 'intent/intent_output_mapper.dart';
 import 'intent/scam_intent.dart';
+import '../l3/core/response_cache.dart';
 import 'l2_result.dart';
 import 'safety/safety_filter.dart';
 import 'wfsa/scam_graph_builder.dart';
@@ -18,19 +23,34 @@ import 'wfsa/wfsa_engine.dart';
 
 class L2Analyzer implements Analyzer {
   L2Analyzer({
+    this.config = const L2Config(),
     GDetectionEngine? gDetectionEngine,
     IntentClassifier? intentClassifier,
     WfsaEngine? wfsaEngine,
+    ResponseCache<AnalysisResult>? cache,
   }) : _gDetectionEngine = gDetectionEngine ?? GDetectionEngine(),
        _intentClassifier = intentClassifier ?? const DisabledIntentClassifier(),
        _wfsaEngine =
-           wfsaEngine ?? WfsaEngine(ScamGraphBuilder.buildDefaultGraphs());
+           wfsaEngine ?? WfsaEngine(ScamGraphBuilder.buildDefaultGraphs()),
+       _cache = cache ?? ResponseCache<AnalysisResult>();
 
-  static const double aiHighConfidenceThreshold = 0.80;
-  static const double aiDirectConfidence = 0.62;
-  static const double aiDirectMargin = 0.15;
-  static const double aiAssistConfidence = 0.50;
-  static const double aiAssistMargin = 0.08;
+  final L2Config config;
+  final ResponseCache<AnalysisResult> _cache;
+
+  double get aiHighConfidenceThreshold => config.aiHighConfidenceThreshold;
+  double get aiDirectConfidence => config.aiDirectConfidence;
+  double get aiDirectMargin => config.aiDirectMargin;
+  double get aiAssistConfidence => config.aiAssistConfidence;
+  double get aiAssistMargin => config.aiAssistMargin;
+
+  // Ensemble weights cho _tryFuseWithContext
+  double get _ensembleHighConfCutoff => config.ensembleHighConfCutoff;
+  double get _ensembleHighConfAiWeight => config.ensembleHighConfAiWeight;
+  double get _ensembleDefaultAiWeight => config.ensembleDefaultAiWeight;
+
+  /// Marker category do L2ResultParser set khi GResult có confirmedSituation.
+  /// Dùng cho Cross-validation Override detection (xem _tryCrossValidationOverride).
+  static const String _confirmedScamTopicMarker = 'Chủ đề Lừa đảo';
 
   // Phase 2.3: Concurrency limiter — only one analyze() runs at a time.
   // Prevents CPU spike from concurrent TFLite + GDetection + WFSA.
@@ -106,6 +126,7 @@ class L2Analyzer implements Analyzer {
   void resetSession() {
     _gDetectionEngine.reset();
     _wfsaEngine.resetSession();
+    // Cache is maintained across sessions intentionally to avoid redundant compute
     _processedTextLength = 0;
     _lastResult = const AnalysisResult(
       overallRiskLevel: RiskLevel.green,
@@ -124,6 +145,16 @@ class L2Analyzer implements Analyzer {
 
   @override
   AnalysisResult get lastResult => _lastResult;
+
+  /// Release native resources: TFLite isolate (nặng nhất — giữ thread sống)
+  /// và GDetection internal state. Trước đây L2Analyzer không có dispose()
+  /// → TFLiteIntentClassifier.close() không bao giờ được gọi → isolate leak
+  /// (singleton che giấu leak này, nhưng contract leak). Idempotent.
+  @override
+  void dispose() {
+    _intentClassifier.close();
+    _gDetectionEngine.dispose();
+  }
 
   Future<AnalysisResult> analyze(
     String incrementalText,
@@ -160,23 +191,44 @@ class L2Analyzer implements Analyzer {
     // TFLite + trie work — its result would be discarded by the generation
     // guard below anyway. This avoids doubling CPU load when calls overlap.
     if (myGeneration != _analysisGeneration) {
+      completer.complete();
       return _lastResult;
     }
 
     try {
-      final results = await Future.wait<Object>([
-        _runIntentFlow(fullText),
-        _gDetectionEngine.performFullAnalysis(fullText),
-      ]);
-      final luong1Result = results[0] as _Luong1Result;
-      final gResult = results[1] as GResult;
+      final normalizedKey = _normalizeForCache(fullText);
+      final cached = _cache.get(normalizedKey);
+      if (cached != null) {
+        _lastResult = cached;
+        return cached;
+      }
+
+      final gResult = await _gDetectionEngine.performFullAnalysis(fullText);
       final parsedGDetectionResult = L2ResultParser.parse(gResult);
+
+      final isLongText = fullText.length > 80;
+      final hasGDetectionRisk = parsedGDetectionResult.overallRiskLevel.index >= RiskLevel.yellow.index;
+      
+      _Luong1Result luong1Result = const _Luong1Fallback();
+      if (isLongText || hasGDetectionRisk) {
+        luong1Result = await _runIntentFlow(fullText);
+      }
 
       final intentForWfsa = luong1Result is _Luong1Success
           ? <IntentPrediction>[luong1Result.prediction]
           : const <IntentPrediction>[];
       var wfsaScore = _wfsaEngine.analyzeIncremental(fullText, intentForWfsa);
-      final safetyDiscount = SafetyFilter.calculateSafetyDiscount(fullText);
+      // PERF-2: Truyền text ĐÃ normalize xuống SafetyFilter để tránh normalize
+      // 2 lần (GDetection/L2 path cũng normalize cùng text). Normalize 1 lần ở
+      // đây, dùng cho cả safety discount.
+      final normalizedForSafety = TextNormalizer.normalize(
+        fullText,
+        applySlang: true,
+        noiseMode: NoiseMode.space,
+      );
+      final safetyDiscount = SafetyFilter.calculateSafetyDiscountNormalized(
+        normalizedForSafety,
+      );
       wfsaScore *= safetyDiscount;
 
       final wfsaRiskLevel = switch (wfsaScore) {
@@ -207,6 +259,11 @@ class L2Analyzer implements Analyzer {
       if (myGeneration == _analysisGeneration) {
         _processedTextLength = fullText.length;
         _lastResult = result;
+        _cache.put(
+          normalizedKey,
+          result,
+          riskLevel: result.overallRiskLevel,
+        );
       }
       return result;
     } finally {
@@ -219,8 +276,26 @@ class L2Analyzer implements Analyzer {
       return const _Luong1Fallback();
     }
     try {
-      final intentPredictions = await _intentClassifier.predictIntent(fullText);
+      var intentPredictions = await _intentClassifier.predictIntent(fullText);
       if (intentPredictions.isEmpty) return const _Luong1Fallback();
+      
+      // Platt scaling (sigmoid calibration) replaces old temperature scaling.
+      // Converts softmax confidences to logits, applies sigmoid, re-normalises.
+      final rawConfidences = intentPredictions.map((p) => p.confidence).toList();
+      // Invert softmax to approximate logits: logit = ln(p / (1 - p))
+      final approxLogits = rawConfidences.map((p) {
+        final clamped = p.clamp(1e-7, 1.0 - 1e-7);
+        return math.log(clamped / (1.0 - clamped));
+      }).toList();
+      final calibrated = IntentOutputMapper.plattCalibrate(approxLogits);
+      intentPredictions = List.generate(intentPredictions.length, (i) {
+        return IntentPrediction(
+          intent: intentPredictions[i].intent,
+          confidence: calibrated[i],
+        );
+      }).toList();
+      
+      intentPredictions.sort((a, b) => b.confidence.compareTo(a.confidence));
       final topIntent = intentPredictions.first;
       final secondConfidence = intentPredictions.length > 1
           ? intentPredictions[1].confidence
@@ -233,7 +308,11 @@ class L2Analyzer implements Analyzer {
         return _Luong1Success(topIntent, confidenceMargin);
       }
       return const _Luong1Fallback();
-    } catch (_) {
+    } catch (e, st) {
+      // Trước đây `catch (_)` nuốt exception không log → khó debug production.
+      // Giờ log đầy đủ để intent-flow failure có thể truy vết (key TFLite
+      // isolate, lỗi vocab, v.v.) mà vẫn fallback an toàn.
+      debugPrint('[L2Analyzer] Intent flow failed, falling back: $e\n$st');
       return const _Luong1Fallback();
     }
   }
@@ -301,117 +380,151 @@ class L2Analyzer implements Analyzer {
     );
   }
 
+  /// Fusion logic Luồng 1 (AI) + Luồng 2 (Context). Trước đây 4 outcome nằm
+  /// interleaved trong 1 function 112 dòng (CCN ~14). Refactor thành strategy
+  /// chain — mỗi outcome 1 method riêng, áp dụng theo priority cố định:
+  /// Cross-validation Override → AI High Confidence → AI Direct Winner
+  /// → Fuse with Context → fallback. Thứ tự ưu tiên KHÔNG đổi.
   AnalysisResult _fuseIntentSuccess(
     _Luong1Success luong1Result,
     AnalysisResult result2,
     String fullText,
   ) {
-    final topIntent = luong1Result.prediction;
-    final intentLabel = topIntent.intent.displayName;
-    final intentRisk = topIntent.intent.riskLevelForConfidence(
-      topIntent.confidence,
+    final fusionCtx = _IntentFusionContext(
+      prediction: luong1Result.prediction,
+      confidenceMargin: luong1Result.confidenceMargin,
+      result2: result2,
     );
+
+    return _tryCrossValidationOverride(fusionCtx) ??
+        _tryAiHighConfidence(fusionCtx) ??
+        _tryAiDirectWinner(fusionCtx) ??
+        _tryFuseWithContext(fusionCtx) ??
+        result2;
+  }
+
+  /// #1 Priority — Cross-validation Override: AI nói an toàn nhưng GDetection
+  /// phát hiện rủi ro (RED hoặc có "Chủ đề Lừa đảo") → override để chống false
+  /// negative từ AI. Marker 'Chủ đề Lừa đảo' do L2ResultParser set khi có
+  /// confirmedSituation — giữ làm marker thay vì check structured field để
+  /// tránh phá contract AnalysisResult.
+  AnalysisResult? _tryCrossValidationOverride(_IntentFusionContext ctx) {
     final isSafeIntent =
-        topIntent.intent == ScamIntent.safe || intentRisk == RiskLevel.green;
-    final isAiDirectWinner =
-        !isSafeIntent &&
-        topIntent.confidence >= aiDirectConfidence &&
-        luong1Result.confidenceMargin >= aiDirectMargin;
-    final shouldFuseWithContext =
-        !isSafeIntent &&
-        result2.overallRiskLevel.index >= RiskLevel.yellow.index &&
-        topIntent.confidence >= aiAssistConfidence &&
-        luong1Result.confidenceMargin >= aiAssistMargin;
-    final intentMatch = KeywordMatch(
-      keyword: intentLabel,
-      level: intentRisk,
-      category:
-          'Luồng 1 (AI) Độ tin cậy: ${(topIntent.confidence * 100).toInt()}% | Margin: ${(luong1Result.confidenceMargin * 100).toInt()}%',
+        ctx.prediction.intent == ScamIntent.safe ||
+        ctx.intentRisk == RiskLevel.green;
+    if (!isSafeIntent) return null;
+
+    final hasStrongRisk =
+        ctx.result2.overallRiskLevel.index >= RiskLevel.red.index ||
+        ctx.result2.matches.any(
+          (match) => match.category == _confirmedScamTopicMarker,
+        );
+    if (!hasStrongRisk) return null;
+
+    final overrideMatches = <KeywordMatch>[
+      KeywordMatch(
+        keyword: 'AI nói an toàn nhưng GDetection phát hiện rủi ro',
+        level: ctx.result2.overallRiskLevel,
+        category: 'Cross-validation Override',
+      ),
+      ...ctx.result2.matches,
+    ];
+    return AnalysisResult(
+      overallRiskLevel: ctx.result2.overallRiskLevel,
+      matches: overrideMatches,
+      reason:
+          ctx.result2.reason ??
+          'GDetection override: Phát hiện rủi ro dù AI không nhận ra',
+      analysisLevel: AnalysisLevel.l2Fused,
+      alertEnabled: ctx.result2.alertEnabled,
+      confidence: ctx.result2.confidence,
     );
+  }
 
-    final gDetectionOverride =
-        isSafeIntent &&
-        (result2.overallRiskLevel.index >= RiskLevel.red.index ||
-            result2.matches.any((match) => match.category == 'Chủ đề Lừa đảo'));
-    if (gDetectionOverride) {
-      final overrideMatches = <KeywordMatch>[
-        KeywordMatch(
-          keyword: 'AI nói an toàn nhưng GDetection phát hiện rủi ro',
-          level: result2.overallRiskLevel,
-          category: 'Cross-validation Override',
-        ),
-        ...result2.matches,
-      ];
-      return AnalysisResult(
-        overallRiskLevel: result2.overallRiskLevel,
-        matches: overrideMatches,
-        reason:
-            result2.reason ??
-            'GDetection override: Phát hiện rủi ro dù AI không nhận ra',
-        analysisLevel: AnalysisLevel.l2Fused,
-        alertEnabled: result2.alertEnabled,
-        confidence: result2.confidence,
-      );
-    }
+  /// #2 Priority — AI High Confidence (≥ 80%): AI tự tin scam → trực tiếp
+  /// quyết định, merge keyword matches.
+  AnalysisResult? _tryAiHighConfidence(_IntentFusionContext ctx) {
+    final isSafeIntent =
+        ctx.prediction.intent == ScamIntent.safe ||
+        ctx.intentRisk == RiskLevel.green;
+    if (isSafeIntent) return null;
+    if (ctx.prediction.confidence < aiHighConfidenceThreshold) return null;
 
-    final isAiHighConfidence =
-        !isSafeIntent && topIntent.confidence >= aiHighConfidenceThreshold;
-    if (isAiHighConfidence) {
-      final highConfMatches = <KeywordMatch>[
-        KeywordMatch(
-          keyword: intentLabel.toUpperCase(),
-          level: intentRisk,
-          category:
-              'AI >= 80% — Độ tin cậy: ${(topIntent.confidence * 100).toInt()}%',
-        ),
-        ...result2.matches,
-      ];
-      return AnalysisResult(
-        overallRiskLevel: _maxRisk(intentRisk, result2.overallRiskLevel),
-        matches: _distinctMatches(highConfMatches),
-        reason:
-            '⚠️ ${intentLabel.toUpperCase()} — ${topIntent.intent.description.toUpperCase()}',
-        analysisLevel: AnalysisLevel.l2Ai,
-        alertEnabled: intentRisk != RiskLevel.green,
-        confidence: topIntent.confidence,
-      );
-    }
+    final highConfMatches = <KeywordMatch>[
+      KeywordMatch(
+        keyword: ctx.intentLabel.toUpperCase(),
+        level: ctx.intentRisk,
+        category:
+            'AI >= 80% — Độ tin cậy: ${(ctx.prediction.confidence * 100).toInt()}%',
+      ),
+      ...ctx.result2.matches,
+    ];
+    return AnalysisResult(
+      overallRiskLevel: _maxRisk(ctx.intentRisk, ctx.result2.overallRiskLevel),
+      matches: _distinctMatches(highConfMatches),
+      reason:
+          '⚠️ ${ctx.intentLabel.toUpperCase()} — ${ctx.prediction.intent.description.toUpperCase()}',
+      analysisLevel: AnalysisLevel.l2Ai,
+      alertEnabled: ctx.intentRisk != RiskLevel.green,
+      confidence: ctx.prediction.confidence,
+    );
+  }
 
-    if (isAiDirectWinner) {
-      return AnalysisResult(
-        overallRiskLevel: intentRisk,
-        matches: <KeywordMatch>[intentMatch],
-        reason: '⚠️ $intentLabel — ${topIntent.intent.description}',
-        analysisLevel: AnalysisLevel.l2Ai,
-        alertEnabled: intentRisk != RiskLevel.green,
-        confidence: topIntent.confidence,
-      );
-    }
+  /// #3 Priority — AI Direct Winner: scam intent + confidence ≥ 0.62 + margin
+  /// ≥ 0.15 → AI thắng trực tiếp (không cần context).
+  AnalysisResult? _tryAiDirectWinner(_IntentFusionContext ctx) {
+    final isSafeIntent =
+        ctx.prediction.intent == ScamIntent.safe ||
+        ctx.intentRisk == RiskLevel.green;
+    if (isSafeIntent) return null;
+    final isAiDirectWinner =
+        ctx.prediction.confidence >= aiDirectConfidence &&
+        ctx.confidenceMargin >= aiDirectMargin;
+    if (!isAiDirectWinner) return null;
 
-    if (shouldFuseWithContext) {
-      double aiWeight = topIntent.confidence > 0.9 ? 0.8 : 0.6;
-      double contextWeight = 1.0 - aiWeight;
-      
-      final ensembleConfidence = result2.confidence > 0
-          ? (topIntent.confidence * aiWeight + result2.confidence * contextWeight).clamp(
-              0.0,
-              1.0,
-            )
-          : topIntent.confidence;
-      return AnalysisResult(
-        overallRiskLevel: _maxRisk(intentRisk, result2.overallRiskLevel),
-        matches: _distinctMatches(<KeywordMatch>[
-          intentMatch,
-          ...result2.matches,
-        ]),
-        reason: '⚠️ $intentLabel — ${topIntent.intent.description}',
-        analysisLevel: AnalysisLevel.l2Fused,
-        alertEnabled: result2.alertEnabled || intentRisk != RiskLevel.green,
-        confidence: ensembleConfidence,
-      );
-    }
+    return AnalysisResult(
+      overallRiskLevel: ctx.intentRisk,
+      matches: <KeywordMatch>[ctx.intentMatch],
+      reason: '⚠️ ${ctx.intentLabel} — ${ctx.prediction.intent.description}',
+      analysisLevel: AnalysisLevel.l2Ai,
+      alertEnabled: ctx.intentRisk != RiskLevel.green,
+      confidence: ctx.prediction.confidence,
+    );
+  }
 
-    return result2;
+  /// #4 Priority — Fuse with Context: scam intent (confidence ≥ 0.50, margin
+  /// ≥ 0.08) + context đã có dấu hiệu (≥ yellow) → ensemble AI + context.
+  AnalysisResult? _tryFuseWithContext(_IntentFusionContext ctx) {
+    final isSafeIntent =
+        ctx.prediction.intent == ScamIntent.safe ||
+        ctx.intentRisk == RiskLevel.green;
+    if (isSafeIntent) return null;
+    final shouldFuse =
+        ctx.result2.overallRiskLevel.index >= RiskLevel.yellow.index &&
+        ctx.prediction.confidence >= aiAssistConfidence &&
+        ctx.confidenceMargin >= aiAssistMargin;
+    if (!shouldFuse) return null;
+
+    final aiWeight = ctx.prediction.confidence > _ensembleHighConfCutoff
+        ? _ensembleHighConfAiWeight
+        : _ensembleDefaultAiWeight;
+    final contextWeight = 1.0 - aiWeight;
+    final ensembleConfidence = ctx.result2.confidence > 0
+        ? (ctx.prediction.confidence * aiWeight +
+              ctx.result2.confidence * contextWeight).clamp(0.0, 1.0)
+        : ctx.prediction.confidence;
+    return AnalysisResult(
+      overallRiskLevel: _maxRisk(ctx.intentRisk, ctx.result2.overallRiskLevel),
+      matches: _distinctMatches(<KeywordMatch>[
+        ctx.intentMatch,
+        ...ctx.result2.matches,
+      ]),
+      reason: '⚠️ ${ctx.intentLabel} — ${ctx.prediction.intent.description}',
+      analysisLevel: AnalysisLevel.l2Fused,
+      alertEnabled: ctx.result2.alertEnabled ||
+          ctx.intentRisk != RiskLevel.green,
+      confidence: ensembleConfidence,
+    );
   }
 
   AnalysisResult _fallbackResult(AnalysisResult result2, String fullText) {
@@ -444,6 +557,10 @@ class L2Analyzer implements Analyzer {
   List<KeywordMatch> _distinctMatches(List<KeywordMatch> matches) {
     return <KeywordMatch>{...matches}.toList();
   }
+
+  String _normalizeForCache(String text) {
+    return text.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
 }
 
 sealed class _Luong1Result {
@@ -459,4 +576,31 @@ class _Luong1Success extends _Luong1Result {
 
 class _Luong1Fallback extends _Luong1Result {
   const _Luong1Fallback();
+}
+
+/// Pre-computed context cho 4 strategy outcome trong `_fuseIntentSuccess`.
+/// Tính 1 lần (intentRisk, intentLabel, intentMatch) rồi truyền cho cả 4
+/// strategy method — tránh tính lại trong mỗi method.
+class _IntentFusionContext {
+  _IntentFusionContext({
+    required this.prediction,
+    required this.confidenceMargin,
+    required this.result2,
+  }) : intentRisk = prediction.intent.riskLevelForConfidence(
+         prediction.confidence,
+       ),
+       intentLabel = prediction.intent.displayName,
+       intentMatch = KeywordMatch(
+         keyword: prediction.intent.displayName,
+         level: prediction.intent.riskLevelForConfidence(prediction.confidence),
+         category:
+             'Luồng 1 (AI) Độ tin cậy: ${(prediction.confidence * 100).toInt()}% | Margin: ${(confidenceMargin * 100).toInt()}%',
+       );
+
+  final IntentPrediction prediction;
+  final double confidenceMargin;
+  final AnalysisResult result2;
+  final RiskLevel intentRisk;
+  final String intentLabel;
+  final KeywordMatch intentMatch;
 }

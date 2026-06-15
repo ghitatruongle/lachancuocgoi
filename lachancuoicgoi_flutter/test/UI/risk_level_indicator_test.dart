@@ -21,11 +21,11 @@ void main() {
       expect(find.text('An toàn'), findsOneWidget);
     });
 
-    testWidgets('shows Có nguy cơ for orange risk', (tester) async {
+    testWidgets('shows Nguy cơ for orange risk', (tester) async {
       await tester.pumpWidget(wrap(
         const RiskLevelIndicator(riskLevel: RiskLevel.orange),
       ));
-      expect(find.text('Có nguy cơ'), findsOneWidget);
+      expect(find.text('Nguy cơ'), findsOneWidget);
     });
 
     testWidgets('shows Nguy hiểm for red risk', (tester) async {

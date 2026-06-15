@@ -3,12 +3,12 @@ import 'package:lachancuocgoi_flutter/analysis/l2/intent/scam_intent.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 
 void main() {
-  group('ScamIntent enum — all 23 intents are defined', () {
-    test('ScamIntent.values has 23 entries', () {
-      expect(ScamIntent.values.length, 23);
+  group('ScamIntent enum — all 25 intents are defined', () {
+    test('ScamIntent.values has 25 entries', () {
+      expect(ScamIntent.values.length, 25);
     });
 
-    test('all 23 intents are present in ScamIntent.values', () {
+    test('all 25 intents are present in ScamIntent.values', () {
       const expectedIntents = <ScamIntent>[
         ScamIntent.authPoliceLawsuit,
         ScamIntent.taxGovApp,
@@ -31,14 +31,16 @@ void main() {
         ScamIntent.fakeSubscription,
         ScamIntent.blackCreditTerror,
         ScamIntent.recoveryScam,
+        ScamIntent.fakeEcommerce,
+        ScamIntent.cryptoDrain,
         ScamIntent.genericScam,
         ScamIntent.safe,
       ];
       expect(ScamIntent.values, expectedIntents);
     });
 
-    test('intentLabels list has 23 entries matching ScamIntent.values', () {
-      expect(intentLabels.length, 23);
+    test('intentLabels list has 25 entries matching ScamIntent.values', () {
+      expect(intentLabels.length, 25);
       expect(intentLabels, ScamIntent.values);
     });
   });
@@ -113,6 +115,8 @@ void main() {
         ScamIntent.gamblingPrediction,
         ScamIntent.ceoFraudB2b,
         ScamIntent.socialDeepfakeLoan,
+        ScamIntent.fakeEcommerce,
+        ScamIntent.cryptoDrain,
       ];
       for (final intent in orangeIntents) {
         expect(intent.baseRiskLevel, RiskLevel.orange,

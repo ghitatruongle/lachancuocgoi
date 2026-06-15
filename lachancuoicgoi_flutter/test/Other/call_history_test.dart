@@ -45,7 +45,7 @@ void main() {
         id: 42,
         dateTime: '15:30:00 12/06/2026',
         riskLevel: 'ORANGE',
-        summary: 'Có nguy cơ',
+        summary: 'Nguy cơ',
         duration: '120s',
         flagCount: 5,
         transcript: 'Tôi là công an...',
@@ -61,7 +61,7 @@ void main() {
       expect(restored.id, 42);
       expect(restored.dateTime, '15:30:00 12/06/2026');
       expect(restored.riskLevel, 'ORANGE');
-      expect(restored.summary, 'Có nguy cơ');
+      expect(restored.summary, 'Nguy cơ');
       expect(restored.duration, '120s');
       expect(restored.flagCount, 5);
       expect(restored.transcript, 'Tôi là công an...');

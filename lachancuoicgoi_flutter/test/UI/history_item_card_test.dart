@@ -61,7 +61,7 @@ void main() {
         ),
       ));
 
-      expect(find.text('Có nguy cơ'), findsOneWidget);
+      expect(find.text('Nguy cơ'), findsOneWidget);
     });
 
     testWidgets('displays risk level color bar for YELLOW', (tester) async {

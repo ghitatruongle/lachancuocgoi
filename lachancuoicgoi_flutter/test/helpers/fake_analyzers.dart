@@ -99,6 +99,11 @@ class FakeAnalyzer implements Analyzer {
       message: ready ? 'OK' : 'Not ready',
     );
   }
+
+  @override
+  void dispose() {
+    // FakeAnalyzer owns no native resources.
+  }
 }
 
 /// A no-op Analyzer that always returns [RiskLevel.green] and reports

@@ -119,51 +119,62 @@ class GeminiClient {
 
     for (final keyIndex in activeIndices) {
       final apiKey = keys[keyIndex];
-      var retryCount = 0;
-      var shouldBackoff = false;
       for (final modelName in _fallbackModels) {
-        // Fix: backoff (1s, 2s, 4s) chỉ áp dụng cho lỗi transient
-        // (timeout/network/unknown). Lỗi quota/modelNotFound chuyển
-        // model kế tiếp ngay lập tức, không chờ vô ích.
-        if (retryCount > 0 && shouldBackoff) {
-          final delayMs = 1000 * (1 << (retryCount - 1)); // 1000, 2000, 4000
-          await Future<void>.delayed(Duration(milliseconds: delayMs));
+        int modelRetries = 0;
+        bool shouldMoveToNextModel = false;
+
+        while (modelRetries < 2 && !shouldMoveToNextModel) {
+          if (modelRetries > 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 1000));
+          }
+          
+          try {
+            final responseText = await _requestExecutor(
+              apiKey: apiKey,
+              config: config,
+              modelName: modelName,
+              prompt: prompt,
+            );
+            final parsed = parser(responseText, modelName);
+            keyHealthTracker?.markSuccess(keyIndex);
+            
+            // L3 Resilience: Cost tracking
+            final estimatedTokens = (prompt.length + responseText.length) ~/ 4;
+            keyHealthTracker?.recordTokenUsage(keyIndex, estimatedTokens);
+            
+            _recordSuccess();
+            GeminiMetrics.instance.recordCall(
+              success: true,
+              latencyMs: DateTime.now().difference(startTime).inMilliseconds,
+              keyIndex: keyIndex,
+            );
+            return Result.success(parsed);
+          } catch (error, stackTrace) {
+            lastError = error;
+            lastStackTrace = stackTrace;
+            _recordFailure();
+            
+            final errorType = _classifyError(error);
+            if (errorType == GeminiErrorType.auth) {
+              keyHealthTracker?.markInvalid(keyIndex, error.toString());
+              shouldMoveToNextModel = true;
+              break;
+            }
+            if (errorType == GeminiErrorType.modelNotFound) {
+              shouldMoveToNextModel = true;
+              continue;
+            }
+            if (errorType == GeminiErrorType.quota) {
+              shouldMoveToNextModel = true;
+              continue;
+            }
+            
+            modelRetries++;
+            keyHealthTracker?.markError(keyIndex, error.toString());
+          }
         }
-        retryCount++;
-        try {
-          final responseText = await _requestExecutor(
-            apiKey: apiKey,
-            config: config,
-            modelName: modelName,
-            prompt: prompt,
-          );
-          final parsed = parser(responseText, modelName);
-          keyHealthTracker?.markSuccess(keyIndex);
-          _recordSuccess();
-          GeminiMetrics.instance.recordCall(
-            success: true,
-            latencyMs: DateTime.now().difference(startTime).inMilliseconds,
-            keyIndex: keyIndex,
-          );
-          return Result.success(parsed);
-        } catch (error, stackTrace) {
-          lastError = error;
-          lastStackTrace = stackTrace;
-          _recordFailure();
-          final errorType = _classifyError(error);
-          if (errorType == GeminiErrorType.auth) {
-            keyHealthTracker?.markInvalid(keyIndex, error.toString());
-            break;
-          }
-          if (errorType == GeminiErrorType.modelNotFound) {
-            shouldBackoff = false; // chuyển model ngay, không backoff
-            continue;
-          }
-          if (errorType == GeminiErrorType.quota) {
-            shouldBackoff = true; // Lỗi quota cần trì hoãn trước khi đổi model
-            continue;
-          }
-          keyHealthTracker?.markError(keyIndex, error.toString());
+        
+        if (_classifyError(lastError) == GeminiErrorType.auth) {
           break;
         }
       }

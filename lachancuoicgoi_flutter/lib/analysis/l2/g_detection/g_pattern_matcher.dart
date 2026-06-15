@@ -4,16 +4,36 @@ import '../../analysis_result.dart';
 import 'g_flash.dart';
 import 'g_models.dart';
 
+/// Pattern matcher cho L2 — match ScamPattern templates (keyword + category +
+/// wildcard) trên token stream.
+///
+/// Phase 6: trước đây toàn bộ state + methods là static → `_normalizedKeywordCache`
+/// là process-wide mutable. 2 L2Analyzer instance song song sẻ cache → race
+/// condition + test pollution. Giờ cache là instance field; static API
+/// (`matchPatterns`, `clearCache`) giữ làm backward-compat facade delegate
+/// sang singleton `_singleton`. GDetectionEngine inject instance riêng.
 class GPatternMatcher {
-  GPatternMatcher._();
+  GPatternMatcher();
 
-  static final Map<String, String> _normalizedKeywordCache = <String, String>{};
+  /// Static facade singleton — chỉ dùng cho backward-compat static API.
+  /// GDetectionEngine nên inject instance riêng (xem `GDetectionEngine._patternMatcher`).
+  static final GPatternMatcher _singleton = GPatternMatcher();
 
-  static void clearCache() {
+  /// Per-instance cache: normalize keyword → tokenized string. Phân biệt
+  /// "đã compute" (key exist) vs "chưa" — tránh re-normalize cùng keyword.
+  final Map<String, String> _normalizedKeywordCache = <String, String>{};
+
+  /// Clear instance cache.
+  void clearCacheInstance() {
     _normalizedKeywordCache.clear();
   }
 
-  static List<MatchedPattern> matchPatterns(
+  /// Static facade — clear cache của singleton.
+  /// @deprecated: dùng instance method qua `GDetectionEngine.patternMatcher.clearCacheInstance()`.
+  static void clearCache() => _singleton.clearCacheInstance();
+
+  /// Instance API: match patterns trên token stream, dùng instance cache.
+  List<MatchedPattern> matchPatternsInstance(
     List<String> tokens,
     List<ScamPattern> patterns,
     Set<KeywordMatch> keywordMatches,
@@ -45,7 +65,16 @@ class GPatternMatcher {
     return results;
   }
 
-  static bool _matchSinglePattern(
+  /// Static facade — delegate sang singleton. Giữ tên `matchPatterns` để
+  /// backward-compat với tất cả call site hiện tại (test + GDetectionEngine).
+  /// @deprecated: dùng instance method `matchPatternsInstance`.
+  static List<MatchedPattern> matchPatterns(
+    List<String> tokens,
+    List<ScamPattern> patterns,
+    Set<KeywordMatch> keywordMatches,
+  ) => _singleton.matchPatternsInstance(tokens, patterns, keywordMatches);
+
+  bool _matchSinglePattern(
     List<String> tokens,
     ScamPattern pattern,
     Map<int, List<KeywordMatch>> matchesByIndex,
@@ -78,7 +107,7 @@ class GPatternMatcher {
     return false;
   }
 
-  static bool _matchRemainingSequence(
+  bool _matchRemainingSequence(
     int currentIndex,
     int patternIndex,
     List<String> tokens,
@@ -115,7 +144,7 @@ class GPatternMatcher {
   /// Check if element matches at given index.
   /// Returns true if element matches, false otherwise.
   /// For PatternKeyword, supports multi-token keywords (e.g. "chuyen khoan").
-  static bool _checkElementAt(
+  bool _checkElementAt(
     int index,
     PatternElement element,
     List<String> tokens,
@@ -126,7 +155,7 @@ class GPatternMatcher {
     return result != -1;
   }
 
-  static int _tryConsumeElement(
+  int _tryConsumeElement(
     int index,
     PatternElement element,
     List<String> tokens,
@@ -152,7 +181,8 @@ class GPatternMatcher {
   /// Returns the index of the last matched token, or -1 if no match.
   /// For multi-token keywords (e.g. "chuyen khoan"), checks sequential tokens.
   /// ✓ BUG #2 FIX: Now correctly checks ALL keyword tokens, not just the first.
-  static int _matchKeyword(List<String> tokens, int startIndex, String rawKeyword) {
+  /// Uses instance `_normalizedKeywordCache` thay vì static (Phase 6).
+  int _matchKeyword(List<String> tokens, int startIndex, String rawKeyword) {
     final normalized = _normalizedKeywordCache.putIfAbsent(
       rawKeyword,
       () => GFlash.tokenize(rawKeyword).join(' '),

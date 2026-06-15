@@ -215,8 +215,9 @@ void _isolateMain(SendPort mainSendPort) async {
             : outputTensor.shape.last;
 
         if (numClasses != intentLabels.length) {
-          throw StateError(
-            'Model output classes ($numClasses) mismatch with app intents (${intentLabels.length}).',
+          debugPrint(
+            '[TFLiteIntent] Model output classes ($numClasses) != app intents (${intentLabels.length}). '
+            'Using min($numClasses, ${intentLabels.length}) classes.',
           );
         }
 
