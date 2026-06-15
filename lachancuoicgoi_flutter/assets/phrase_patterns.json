@@ -749,6 +749,46 @@
                     "value": "công an"
                 }
             ]
+        },
+        {
+            "id": "nfc_scan_scam",
+            "description": "Quét NFC + Áp lưng điện thoại",
+            "risk_bonus": 0.95,
+            "min_gap": 0,
+            "max_gap": 6,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "áp thẻ"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "lưng điện thoại"
+                }
+            ]
+        },
+        {
+            "id": "face_scan_scam",
+            "description": "Đưa mặt vào để quét",
+            "risk_bonus": 0.95,
+            "min_gap": 0,
+            "max_gap": 4,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "đưa mặt"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "quét"
+                }
+            ]
         }
     ]
 }

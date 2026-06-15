@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 enum RiskLevel {
   green('An toàn', Colors.green),
   yellow('Chú ý', Colors.yellow),
-  orange('Có nguy cơ', Color(0xFFFFA500)),
+  orange('Nguy cơ', Color(0xFFFFA500)),
   red('Nguy hiểm', Colors.red);
 
   const RiskLevel(this.vietnameseName, this.color);
@@ -45,6 +45,8 @@ enum RiskLevel {
       'GREEN' => RiskLevel.green,
       'NGUY HIỂM' => RiskLevel.red,
       'NGUY HIEM' => RiskLevel.red,
+      'NGUY CƠ' => RiskLevel.orange,
+      'NGUY CO' => RiskLevel.orange,
       'CÓ NGUY CƠ' => RiskLevel.orange,
       'CO NGUY CO' => RiskLevel.orange,
       'CHÚ Ý' => RiskLevel.yellow,

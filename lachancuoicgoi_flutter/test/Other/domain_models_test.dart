@@ -123,6 +123,7 @@ void main() {
 
     test('parses Vietnamese names with diacritics', () {
       expect(RiskLevel.fromString('Nguy hiểm'), RiskLevel.red);
+      expect(RiskLevel.fromString('Nguy cơ'), RiskLevel.orange);
       expect(RiskLevel.fromString('Có nguy cơ'), RiskLevel.orange);
       expect(RiskLevel.fromString('Chú ý'), RiskLevel.yellow);
       expect(RiskLevel.fromString('An toàn'), RiskLevel.green);
@@ -130,6 +131,7 @@ void main() {
 
     test('parses Vietnamese names without diacritics', () {
       expect(RiskLevel.fromString('NGUY HIEM'), RiskLevel.red);
+      expect(RiskLevel.fromString('NGUY CO'), RiskLevel.orange);
       expect(RiskLevel.fromString('CO NGUY CO'), RiskLevel.orange);
       expect(RiskLevel.fromString('CHU Y'), RiskLevel.yellow);
       expect(RiskLevel.fromString('AN TOAN'), RiskLevel.green);

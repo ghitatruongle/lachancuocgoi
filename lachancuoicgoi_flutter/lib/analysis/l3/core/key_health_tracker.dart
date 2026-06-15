@@ -14,6 +14,7 @@ class KeyHealth {
     required this.cooldownUntil,
     required this.lastErrorTime,
     required this.lastErrorMessage,
+    this.tokensUsedToday = 0,
   });
 
   final int index;
@@ -22,6 +23,7 @@ class KeyHealth {
   final DateTime? cooldownUntil;
   final DateTime? lastErrorTime;
   final String? lastErrorMessage;
+  final int tokensUsedToday;
 }
 
 class KeyHealthTracker {
@@ -33,6 +35,12 @@ class KeyHealthTracker {
   final Map<int, DateTime> _keyCooldownUntil = <int, DateTime>{};
   final Map<int, DateTime> _keyLastErrorTime = <int, DateTime>{};
   final Map<int, String?> _keyLastErrorMessage = <int, String?>{};
+  final Map<int, int> _keyTokensUsed = <int, int>{};
+  final Map<int, DateTime> _keyTokenResetTime = <int, DateTime>{};
+
+  // Giả định 1M tokens / phút (free tier limit cho Gemini)
+  // Đặt ngưỡng an toàn là 900k tokens để predictive cooldown
+  static const int _predictiveCooldownThreshold = 900000;
 
   int _preferredKeyIndex = 0;
 
@@ -48,6 +56,26 @@ class KeyHealthTracker {
     _keyStatuses[keyIndex] = KeyStatus.exhausted;
     _keyLastErrorTime[keyIndex] = DateTime.now();
     _keyLastErrorMessage[keyIndex] = message ?? '403 Forbidden / Invalid key';
+  }
+
+  void recordTokenUsage(int keyIndex, int tokens) {
+    _resetTokenUsageIfNeeded(keyIndex);
+    final currentTokens = (_keyTokensUsed[keyIndex] ?? 0) + tokens;
+    _keyTokensUsed[keyIndex] = currentTokens;
+    
+    if (currentTokens >= _predictiveCooldownThreshold && _keyStatuses[keyIndex] == KeyStatus.active) {
+      // Predictive cooldown: Tạm ngưng key 1 phút trước khi dính 429
+      _keyStatuses[keyIndex] = KeyStatus.cooldown;
+      _keyCooldownUntil[keyIndex] = DateTime.now().add(const Duration(minutes: 1));
+    }
+  }
+
+  void _resetTokenUsageIfNeeded(int keyIndex) {
+    final resetTime = _keyTokenResetTime[keyIndex];
+    if (resetTime == null || DateTime.now().isAfter(resetTime)) {
+      _keyTokensUsed[keyIndex] = 0;
+      _keyTokenResetTime[keyIndex] = DateTime.now().add(const Duration(minutes: 1));
+    }
   }
 
   void markSuccess(int keyIndex) {
@@ -121,6 +149,7 @@ class KeyHealthTracker {
         cooldownUntil: _keyCooldownUntil[index],
         lastErrorTime: _keyLastErrorTime[index],
         lastErrorMessage: _keyLastErrorMessage[index],
+        tokensUsedToday: _keyTokensUsed[index] ?? 0,
       );
     });
   }

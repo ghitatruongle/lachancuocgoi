@@ -16,7 +16,10 @@ enum _PiiType {
   nationalId('CCCD'),
   email('EMAIL'),
   address('DIA_CHI'),
-  cardNumber('SO_THE');
+  cardNumber('SO_THE'),
+  socialMedia('MANG_XA_HOI'),
+  urlLink('DUONG_DAN'),
+  dateOfBirth('NGAY_SINH');
 
   const _PiiType(this.tokenPrefix);
 
@@ -92,6 +95,26 @@ class PIIStripper {
     caseSensitive: false,
   );
 
+  static final RegExp _socialMediaRegex = RegExp(
+    r'\b(?:zalo|facebook|telegram|tele|fb|ig|instagram|tiktok)\s*(?::|là|la|của tôi là)?\s*([@a-zA-Z0-9_.-]+)\b',
+    caseSensitive: false,
+  );
+
+  static final RegExp _urlRegex = RegExp(
+    r'\b(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)',
+    caseSensitive: false,
+  );
+
+  static final RegExp _dobRegex = RegExp(
+    r'\b(?:sinh ngày|sinh nam|ngày sinh|ngay sinh|sn)?\s*((?:0?[1-9]|[12][0-9]|3[01])[-/\.](?:0?[1-9]|1[012])[-/\.](?:19|20)\d\d)\b',
+    caseSensitive: false,
+  );
+
+  static final RegExp _partialPiiRegex = RegExp(
+    r'\b(?:bắt đầu bằng|bat dau bang|đuôi là|duoi la|kết thúc bằng|ket thuc bang|số cuối là|so cuoi la)\s+([a-zA-Z0-9]{3,})',
+    caseSensitive: false,
+  );
+
   static final RegExp _phoneRegex = RegExp(
     r'(?:\+84|84|0)(?:[\s.-]?\d){8,10}\b',
   );
@@ -99,6 +122,10 @@ class PIIStripper {
   static final RegExp _personNameRegex = RegExp(
     r'\b(?:tôi tên là|toi ten la|em tên là|em ten la|anh tên là|anh ten la|chị tên là|chi ten la|cháu tên là|chau ten la|tên tôi là|ten toi la|tên em là|ten em la|người nhận là|nguoi nhan la|tôi là|toi la|em là|em la|anh là|anh la|chị là|chi la|cháu là|chau la)\s+([a-zà-ỹ]{2,}(?:\s+[a-zà-ỹ]{2,}){0,4})',
     caseSensitive: false,
+  );
+
+  static final RegExp _genericNameRegex = RegExp(
+    r'\b([A-ZĐ][a-zà-ỹ]+(?:\s+[A-ZĐ][a-zà-ỹ]+){1,4})\b',
   );
 
   static final RegExp _addressRegex = RegExp(
@@ -165,6 +192,42 @@ class PIIStripper {
       regex: _emailRegex,
       validator: (_) => true,
     );
+    _collectDirectReplacements(
+      text: originalText,
+      replacements: replacements,
+      tokenByValue: tokenByValue,
+      counters: counters,
+      type: _PiiType.urlLink,
+      regex: _urlRegex,
+      validator: (_) => true,
+    );
+    _collectContextualTextReplacements(
+      text: originalText,
+      replacements: replacements,
+      tokenByValue: tokenByValue,
+      counters: counters,
+      type: _PiiType.socialMedia,
+      regex: _socialMediaRegex,
+      validator: (_) => true,
+    );
+    _collectContextualTextReplacements(
+      text: originalText,
+      replacements: replacements,
+      tokenByValue: tokenByValue,
+      counters: counters,
+      type: _PiiType.dateOfBirth,
+      regex: _dobRegex,
+      validator: (_) => true,
+    );
+    _collectContextualTextReplacements(
+      text: originalText,
+      replacements: replacements,
+      tokenByValue: tokenByValue,
+      counters: counters,
+      type: _PiiType.bankAccount,
+      regex: _partialPiiRegex,
+      validator: (_) => true,
+    );
     _collectCompactPhoneLabelReplacements(
       text: originalText,
       replacements: replacements,
@@ -190,6 +253,25 @@ class PIIStripper {
       counters: counters,
       type: _PiiType.personName,
       regex: _personNameRegex,
+      validator: (candidate) {
+        final normalized = _normalizeVietnamese(candidate);
+        final wordCount = normalized
+            .split(' ')
+            .where((part) => part.isNotEmpty)
+            .length;
+        return normalized.length >= 5 &&
+            wordCount >= 2 &&
+            wordCount <= 5 &&
+            _roleKeywords.every((keyword) => !normalized.contains(keyword));
+      },
+    );
+    _collectDirectReplacements(
+      text: originalText,
+      replacements: replacements,
+      tokenByValue: tokenByValue,
+      counters: counters,
+      type: _PiiType.personName,
+      regex: _genericNameRegex,
       validator: (candidate) {
         final normalized = _normalizeVietnamese(candidate);
         final wordCount = normalized

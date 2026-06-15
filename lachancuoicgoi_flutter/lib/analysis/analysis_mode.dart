@@ -1,13 +1,15 @@
 enum AnalysisMode {
   normal,
   gDetection,
-  geminiApi;
+  geminiApi,
+  parallel;
 
   String get storageName {
     return switch (this) {
       AnalysisMode.normal => 'NORMAL',
       AnalysisMode.gDetection => 'GDetection',
       AnalysisMode.geminiApi => 'GEMINI_API',
+      AnalysisMode.parallel => 'PARALLEL',
     };
   }
 
@@ -16,6 +18,7 @@ enum AnalysisMode {
       AnalysisMode.normal => 'Cấp 1: Cơ bản',
       AnalysisMode.gDetection => 'Cấp 2: Nâng cao',
       AnalysisMode.geminiApi => 'Cấp 3: AI',
+      AnalysisMode.parallel => 'Tối ưu: L1+L2+L3 Song song',
     };
   }
 
@@ -24,6 +27,7 @@ enum AnalysisMode {
       AnalysisMode.normal => 'Phân tích nhanh dựa trên từ khóa.',
       AnalysisMode.gDetection => 'Phân tích chủ đề lừa đảo nâng cao.',
       AnalysisMode.geminiApi => 'Phân tích bằng AI trực tuyến.',
+      AnalysisMode.parallel => 'Phân tích song song kết hợp 3 lớp.',
     };
   }
 }
@@ -36,10 +40,12 @@ extension AnalysisModeX on AnalysisMode {
     'NORMAL': AnalysisMode.normal,
     'GDetection': AnalysisMode.gDetection,
     'GEMINI_API': AnalysisMode.geminiApi,
+    'PARALLEL': AnalysisMode.parallel,
     // Lowercase fallbacks (legacy / enum.name).
     'normal': AnalysisMode.normal,
     'gDetection': AnalysisMode.gDetection,
     'geminiApi': AnalysisMode.geminiApi,
+    'parallel': AnalysisMode.parallel,
   };
 
   static AnalysisMode fromName(

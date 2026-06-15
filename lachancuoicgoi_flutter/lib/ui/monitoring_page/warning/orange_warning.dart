@@ -16,7 +16,7 @@ class OrangeWarning extends StatelessWidget {
     return FullScreenWarning(
       color: _orangeColor,
       icon: Icons.info,
-      titleText: 'CÓ NGUY CƠ',
+      titleText: 'NGUY CƠ',
       subtitle: title,
       buttonColor: _orangeColor,
       onDismiss: onDismiss,

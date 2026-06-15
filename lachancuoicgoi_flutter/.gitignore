@@ -51,3 +51,7 @@ env.json
 
 # Local tool/IDE config
 .openclaude/
+.qoder/
+.cursor/
+.cline/
+.windsurf/

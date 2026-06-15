@@ -98,6 +98,13 @@ class KeywordTrieData {
 class TrieNode {
   final Map<String, TrieNode> children = <String, TrieNode>{};
   KeywordTrieData? keywordData;
+
+  // Aho-Corasick links — built once after trie construction (Phase 7).
+  // failureLink: longest proper suffix that is a prefix of some keyword.
+  // dictionaryLink: next keyword node along failure chain (for emitting
+  // overlapping/contained keyword matches without re-walking).
+  TrieNode? failureLink;
+  TrieNode? dictionaryLink;
 }
 
 class RiskModelVocabulary {
@@ -230,9 +237,9 @@ class ScoringConfig {
 
 class RiskThresholds {
   const RiskThresholds({
-    this.red = 0.70,
-    this.orange = 0.50,
-    this.yellow = 0.30,
+    this.red = 0.50,
+    this.orange = 0.35,
+    this.yellow = 0.20,
   });
 
   final double red;
@@ -241,9 +248,9 @@ class RiskThresholds {
 
   factory RiskThresholds.fromJson(Map<String, Object?> json) {
     return RiskThresholds(
-      red: (json['red'] as num?)?.toDouble() ?? 0.70,
-      orange: (json['orange'] as num?)?.toDouble() ?? 0.50,
-      yellow: (json['yellow'] as num?)?.toDouble() ?? 0.30,
+      red: (json['red'] as num?)?.toDouble() ?? 0.50,
+      orange: (json['orange'] as num?)?.toDouble() ?? 0.35,
+      yellow: (json['yellow'] as num?)?.toDouble() ?? 0.20,
     );
   }
 }

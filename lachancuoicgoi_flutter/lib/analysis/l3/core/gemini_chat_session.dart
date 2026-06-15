@@ -93,7 +93,6 @@ class GeminiChatSession {
         _currentModelIndex = 0;
       }
 
-      var retryCount = 0;
       for (
         var modelIndex = _currentModelIndex;
         modelIndex < _fallbackModels.length;
@@ -101,52 +100,69 @@ class GeminiChatSession {
       ) {
         _currentModelIndex = modelIndex;
         final modelName = _fallbackModels[_currentModelIndex];
-        // Exponential backoff between retries: 1s, 2s, 4s
-        if (retryCount > 0) {
-          final delayMs = 1000 * (1 << (retryCount - 1));
-          await Future<void>.delayed(Duration(milliseconds: delayMs));
-        }
-        retryCount++;
-        try {
-          final responseText = await _chatExecutor(
-            apiKey: keys[_currentKeyIndex],
-            config: config,
-            modelName: modelName,
-            history: List<Content>.unmodifiable(_safeHistory),
-            prompt: text,
-          );
-          final parsed = parser(responseText, modelName);
-          _safeHistory.add(Content.text(text));
-          _safeHistory.add(Content.model(<Part>[TextPart(responseText)]));
-          // Prune oldest entries to prevent unbounded growth.
-          while (_safeHistory.length > _maxHistoryEntries) {
-            _safeHistory.removeRange(0, 2); // Remove oldest user+model pair.
+        
+        int modelRetries = 0;
+        bool shouldMoveToNextModel = false;
+        
+        while (modelRetries < 2 && !shouldMoveToNextModel) {
+          if (modelRetries > 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 1000));
           }
-          keyHealthTracker?.markSuccess(_currentKeyIndex);
-          GeminiMetrics.instance.recordCall(
-            success: true,
-            latencyMs: DateTime.now().difference(startTime).inMilliseconds,
-            keyIndex: _currentKeyIndex,
-          );
-          return Result.success(parsed);
-        } catch (error, stackTrace) {
-          lastError = error;
-          lastStackTrace = stackTrace;
-          final errorType = _classifyError(error);
-          if (errorType == GeminiErrorType.auth) {
-            keyHealthTracker?.markInvalid(_currentKeyIndex, error.toString());
-            break;
-          }
-          if (errorType == GeminiErrorType.quota ||
-              errorType == GeminiErrorType.modelNotFound) {
-            continue;
-          }
-          if (error is TimeoutException) {
+          
+          try {
+            final responseText = await _chatExecutor(
+              apiKey: keys[_currentKeyIndex],
+              config: config,
+              modelName: modelName,
+              history: List<Content>.unmodifiable(_safeHistory),
+              prompt: text,
+            );
+            final parsed = parser(responseText, modelName);
+            
+            // L3 Resilience: Cost tracking
+            var historyTextLength = _safeHistory.fold<int>(
+                0, (sum, content) => sum + (content.parts.firstOrNull is TextPart ? (content.parts.first as TextPart).text.length : 0));
+            final estimatedTokens = (historyTextLength + text.length + responseText.length) ~/ 4;
+            keyHealthTracker?.recordTokenUsage(_currentKeyIndex, estimatedTokens);
+            
+            _safeHistory.add(Content.text(text));
+            _safeHistory.add(Content.model(<Part>[TextPart(responseText)]));
+            while (_safeHistory.length > _maxHistoryEntries) {
+              _safeHistory.removeRange(0, 2);
+            }
+            keyHealthTracker?.markSuccess(_currentKeyIndex);
+            GeminiMetrics.instance.recordCall(
+              success: true,
+              latencyMs: DateTime.now().difference(startTime).inMilliseconds,
+              keyIndex: _currentKeyIndex,
+            );
+            return Result.success(parsed);
+          } catch (error, stackTrace) {
+            lastError = error;
+            lastStackTrace = stackTrace;
+            final errorType = _classifyError(error);
+            if (errorType == GeminiErrorType.auth) {
+              keyHealthTracker?.markInvalid(_currentKeyIndex, error.toString());
+              shouldMoveToNextModel = true;
+              break;
+            }
+            if (errorType == GeminiErrorType.quota ||
+                errorType == GeminiErrorType.modelNotFound) {
+              shouldMoveToNextModel = true;
+              continue;
+            }
+            if (error is TimeoutException) {
+              modelRetries++;
+              keyHealthTracker?.markError(_currentKeyIndex, error.toString());
+              continue;
+            }
+            modelRetries++;
             keyHealthTracker?.markError(_currentKeyIndex, error.toString());
-            break;
           }
-          keyHealthTracker?.markError(_currentKeyIndex, error.toString());
-          return Result.failure(error, stackTrace);
+        }
+        
+        if (_classifyError(lastError) == GeminiErrorType.auth) {
+          break;
         }
       }
 

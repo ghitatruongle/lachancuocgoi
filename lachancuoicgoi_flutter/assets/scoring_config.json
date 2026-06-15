@@ -1,5 +1,5 @@
 {
-  "version": "2.2",
+  "version": "2.3",
   "description": "Cấu hình scoring cho L2 GDetection Engine với scenario-based alert",
   "topicConfirmationThreshold": 3,
   "scenarioSimilarityThreshold": 0.3,
@@ -23,7 +23,9 @@
     "multi_layer_enabled": true,
     "min_layers_required": 2,
     "context_window_size": 5,
-    "min_confidence": 0.6
+    "min_confidence": 0.6,
+    "deepfake_detection_enabled": true,
+    "audio_anomaly_threshold": 0.75
   },
   "pattern_matching": {
     "use_risk_bonus": true,
@@ -32,7 +34,7 @@
   },
   "scenario_matching": {
     "use_l2_hints": true,
-    "similarity_threshold": 0.3,
+    "similarity_threshold": 0.25,
     "match_dialogue": true,
     "match_triggers": true,
     "match_context": true,
@@ -47,24 +49,24 @@
   "decision_thresholds": {
     "safe": {
       "min": 0.0,
-      "max": 0.3,
+      "max": 0.2,
       "action": "allow",
       "color": "green"
     },
     "warning": {
-      "min": 0.3,
-      "max": 0.5,
+      "min": 0.2,
+      "max": 0.35,
       "action": "warn",
       "color": "yellow"
     },
     "danger": {
-      "min": 0.5,
-      "max": 0.7,
+      "min": 0.35,
+      "max": 0.5,
       "action": "alert",
       "color": "orange"
     },
     "critical": {
-      "min": 0.7,
+      "min": 0.5,
       "max": 1.0,
       "action": "block",
       "color": "red"

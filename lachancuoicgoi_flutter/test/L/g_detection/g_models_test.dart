@@ -134,9 +134,9 @@ void main() {
   group('RiskThresholds', () {
     test('default values', () {
       const t = RiskThresholds();
-      expect(t.red, 0.70);
-      expect(t.orange, 0.50);
-      expect(t.yellow, 0.30);
+      expect(t.red, 0.50);
+      expect(t.orange, 0.35);
+      expect(t.yellow, 0.20);
     });
 
     test('fromJson overrides', () {

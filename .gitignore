@@ -79,3 +79,10 @@ nul
 
 # Tailieu documents
 tailieu/
+
+# Local tool/IDE config
+.openclaude/
+.qoder/
+.cursor/
+.cline/
+.windsurf/

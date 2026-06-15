@@ -5,7 +5,9 @@ import '../analysis_result.dart';
 class L1ResultParser {
   L1ResultParser._();
 
-  static final Set<String> _criticalKeywords = {
+  /// Default critical keywords (fallback when not provided externally).
+  /// These can be overridden by passing [criticalKeywords] to [parse()].
+  static final Set<String> _defaultCriticalKeywords = {
     'mã otp',
     'mã xác thực',
     'mã bảo mật',
@@ -25,8 +27,26 @@ class L1ResultParser {
     'nhận mã',
   };
 
-  static AnalysisResult parse(Set<KeywordMatch> matches,
-      [int totalTokens = 0]) {
+  /// Public accessor for default critical keywords (used as fallback by L1Analyzer).
+  static Set<String> get defaultCriticalKeywords =>
+      Set<String>.unmodifiable(_defaultCriticalKeywords);
+
+  /// Co-occurrence bonus: when matches span 2+ different categories,
+  /// add a small score boost reflecting compound-threat risk.
+  static const double _coOccurrenceBonusPerExtraCategory = 0.15;
+  static const int _maxCoOccurrenceBonusCategories = 4;
+
+  /// Positional weighting: keywords appearing in the first N% of the
+  /// transcript (greeting/opening phase) get a score multiplier.
+  /// Scammers often state their authority/urgency early in the call.
+  static const double _earlyPositionFraction = 0.20;
+  static const double _earlyPositionMultiplier = 1.15;
+
+  static AnalysisResult parse(
+    Set<KeywordMatch> matches, [
+    int totalTokens = 0,
+    Set<String>? criticalKeywords,
+  ]) {
     final riskMatches = matches
         .where((match) => match.level.index > RiskLevel.green.index)
         .toSet();
@@ -51,6 +71,12 @@ class L1ResultParser {
       categoryGroups.entries.where((entry) => entry.value.length >= 2),
     );
 
+    // Positional weighting threshold: matches in the first 25% of the
+    // transcript are considered "early" (greeting/opening phase).
+    final earlyThreshold = totalTokens > 0
+        ? (totalTokens * _earlyPositionFraction).ceil()
+        : 0;
+
     final bestScore = categoryGroups.values.map((keywords) {
       final maxLevel = keywords
           .map((match) => match.level.index)
@@ -61,11 +87,30 @@ class L1ResultParser {
         2 => 0.65,
         _ => 0.30,
       };
-      return maxLevel * weight;
+
+      // Positional weighting: if any keyword in this category group
+      // appears early in the transcript, apply a score multiplier.
+      final hasEarlyKeyword = earlyThreshold > 0 &&
+          keywords.any((m) => m.startIndex >= 0 && m.startIndex < earlyThreshold);
+      final positionalBonus = hasEarlyKeyword ? _earlyPositionMultiplier : 1.0;
+
+      return maxLevel * weight * positionalBonus;
     }).fold<double>(0, (best, score) => score > best ? score : best);
 
-    final hasCriticalKeyword = _containsCriticalKeyword(riskMatches);
-    final adjustedRiskLevel = switch (bestScore) {
+    // Category co-occurrence bonus: 2+ distinct categories with risk matches
+    // indicates a compound scam pattern (e.g. AUTHORITY + MONEY + URGENCY).
+    final distinctCategoryCount = categoryGroups.length;
+    final extraCategories =
+        (distinctCategoryCount - 1).clamp(0, _maxCoOccurrenceBonusCategories);
+    final coOccurrenceBonus =
+        extraCategories * _coOccurrenceBonusPerExtraCategory;
+    final adjustedBestScore = bestScore + coOccurrenceBonus;
+
+    final effectiveCriticalKeywords =
+        criticalKeywords ?? _defaultCriticalKeywords;
+    final hasCriticalKeyword =
+        _containsCriticalKeyword(riskMatches, effectiveCriticalKeywords);
+    final adjustedRiskLevel = switch (adjustedBestScore) {
       _ when hasCriticalKeyword => RiskLevel.red,
       < 1.00 => RiskLevel.yellow,
       < 2.50 => RiskLevel.orange,
@@ -75,7 +120,7 @@ class L1ResultParser {
     final reason = StringBuffer(
       switch (adjustedRiskLevel) {
         RiskLevel.red => 'PHÁT HIỆN TỪ KHÓA NGUY HIỂM',
-        RiskLevel.orange => 'PHÁT HIỆN TỪ KHÓA CÓ NGUY CƠ',
+        RiskLevel.orange => 'PHÁT HIỆN TỪ KHÓA NGUY CƠ',
         RiskLevel.yellow => 'Phát hiện từ khóa cần lưu ý',
         RiskLevel.green => 'Hệ thống L1 phát hiện từ khóa rủi ro.',
       },
@@ -102,11 +147,15 @@ class L1ResultParser {
     );
   }
 
-  static bool _containsCriticalKeyword(Set<KeywordMatch> matches) {
+  static bool _containsCriticalKeyword(
+    Set<KeywordMatch> matches,
+    Set<String> criticalKeywords,
+  ) {
     return matches.any((match) {
       final keyword = match.keyword.toLowerCase();
-      return _criticalKeywords.any((critical) => 
-          RegExp(r'(?:\b|\s|^)' + RegExp.escape(critical) + r'(?:\b|\s|$)').hasMatch(keyword));
+      return criticalKeywords.any((critical) =>
+          RegExp(r'(?:\b|\s|^)' + RegExp.escape(critical) + r'(?:\b|\s|$)')
+              .hasMatch(keyword));
     });
   }
 
