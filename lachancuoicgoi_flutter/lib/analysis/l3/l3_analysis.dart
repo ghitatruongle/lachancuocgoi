@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import '../analysis_level.dart';
 import '../analysis_result.dart';
@@ -71,7 +72,10 @@ class L3Analyzer implements Analyzer {
   RiskLevel _maxRiskLevel = RiskLevel.green;
   int _consecutiveGreenCount = 0;
   DateTime? _lastErrorTime;
+  DateTime? _circuitBreakerUntil;
   int _consecutiveErrors = 0;
+  final List<DateTime> _requestTimestamps = [];
+  final List<DateTime> _errorTimestamps = [];
   AnalysisResult _lastResult = const AnalysisResult(
     overallRiskLevel: RiskLevel.green,
     matches: <KeywordMatch>[],
@@ -110,6 +114,14 @@ class L3Analyzer implements Analyzer {
 
   @override
   AnalysisResult get lastResult => _lastResult;
+
+  /// Đóng Gemini chat session (giữ kết nối HTTP keep-alive + history).
+  /// Trước đây L3Analyzer không có dispose() trong contract Analyzer → session
+  /// bị phụ thuộc hoàn toàn vào GC. Idempotent.
+  @override
+  void dispose() {
+    closeSession();
+  }
 
   @override
   HealthReport healthCheck() {
@@ -165,7 +177,7 @@ class L3Analyzer implements Analyzer {
         status: HealthStatus.degraded,
         component: 'L3',
         message:
-            'Gần đây có lỗi (consecutiveErrors=$_consecutiveErrors). $activeCount/$totalKeys keys ACTIVE.',
+            'Gần đây có lỗi (consecutiveErrors=$_consecutiveErrors, errorRate=${_getErrorRateString()}). $activeCount/$totalKeys keys ACTIVE.',
       );
     }
     return HealthReport(
@@ -182,11 +194,23 @@ class L3Analyzer implements Analyzer {
     // run is in flight, both mutate _lastResult / _maxRiskLevel /
     // _consecutiveGreenCount across awaits → torn state. Reuse the same flag.
     if (_isAnalyzing) {
-      // Return the last known result rather than racing; the in-flight call
-      // will produce the fresh result. (_lastResult is non-nullable — it is
-      // initialized to a green sentinel in the field declaration.)
       return _lastResult;
     }
+    
+    if (_circuitBreakerUntil != null) {
+      if (DateTime.now().isBefore(_circuitBreakerUntil!)) {
+        return const AnalysisResult(
+          overallRiskLevel: RiskLevel.green,
+          matches: <KeywordMatch>[],
+          reason: 'L3 đang tạm ngưng do lỗi mạng (Circuit Breaker)',
+          analysisLevel: AnalysisLevel.l3,
+        );
+      } else {
+        _circuitBreakerUntil = null;
+        _consecutiveErrors = 0;
+      }
+    }
+
     _isAnalyzing = true;
     try {
       final validationError = _validateInput(text);
@@ -195,7 +219,8 @@ class L3Analyzer implements Analyzer {
         return validationError;
       }
 
-      final cached = _cache.get(text);
+      final normalizedKey = _normalizeForCache(text);
+      final cached = _cache.get(normalizedKey);
       if (cached != null) {
         GeminiMetrics.instance.recordCacheHit();
         _lastResult = cached;
@@ -215,17 +240,16 @@ class L3Analyzer implements Analyzer {
       return result.fold(
         onSuccess: (analysisResult) {
           _cache.put(
-            text,
+            normalizedKey,
             analysisResult,
             riskLevel: analysisResult.overallRiskLevel,
           );
-          _consecutiveErrors = 0;
+          _recordRequest(false);
           _lastResult = analysisResult;
           return analysisResult;
         },
         onFailure: (error, _) {
-          _consecutiveErrors++;
-          _lastErrorTime = DateTime.now();
+          _recordRequest(true);
           final analysisResult = AnalysisResult(
             overallRiskLevel: RiskLevel.green,
             matches: const <KeywordMatch>[],
@@ -260,6 +284,16 @@ class L3Analyzer implements Analyzer {
 
   Future<AnalysisResult?> analyzeIncremental(String fullText) async {
     if (_isAnalyzing) return null;
+    
+    if (_circuitBreakerUntil != null) {
+      if (DateTime.now().isBefore(_circuitBreakerUntil!)) {
+        return null;
+      } else {
+        _circuitBreakerUntil = null;
+        _consecutiveErrors = 0;
+      }
+    }
+
     _isAnalyzing = true;
     try {
       final session = _activeSession;
@@ -309,8 +343,11 @@ class L3Analyzer implements Analyzer {
     );
 
     if (isTransient) {
-      // Wait 1 second before retrying
-      await Future<void>.delayed(const Duration(seconds: 1));
+      // Exponential Backoff with Jitter
+      final random = math.Random();
+      final baseDelay = math.pow(2, _consecutiveErrors.clamp(0, 5)).toInt() * 1000;
+      final delayMs = baseDelay + random.nextInt(1000);
+      await Future<void>.delayed(Duration(milliseconds: delayMs));
       result = await session.sendMessage<AnalysisResult>(
         prompt,
         (responseText, modelName) => parseResponse(
@@ -323,13 +360,12 @@ class L3Analyzer implements Analyzer {
     return result.fold(
       onSuccess: (analysisResult) {
         _processedTextLength = fullText.length;
-        _consecutiveErrors = 0;
+        _recordRequest(false);
         _lastResult = analysisResult;
         return analysisResult;
       },
       onFailure: (error, _) {
-        _consecutiveErrors++;
-        _lastErrorTime = DateTime.now();
+        _recordRequest(true);
         final analysisResult = AnalysisResult(
           overallRiskLevel: RiskLevel.green,
           matches: const <KeywordMatch>[],
@@ -440,9 +476,8 @@ class L3Analyzer implements Analyzer {
         .where((part) => part.isNotEmpty)
         .length;
     if (wordCount < _minWords) {
-      // NOTE: cannot be `const` because of the string interpolation — Dart
-      // does not allow interpolation in const expressions.
-      return AnalysisResult(
+      // NOTE: String interpolation with const variables is supported in Dart.
+      return const AnalysisResult(
         overallRiskLevel: RiskLevel.green,
         matches: <KeywordMatch>[],
         reason: 'Nội dung quá ngắn (cần ít nhất $_minWords từ)',
@@ -450,6 +485,10 @@ class L3Analyzer implements Analyzer {
       );
     }
     return null;
+  }
+
+  String _normalizeForCache(String text) {
+    return text.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
   bool _isSentenceBoundary(String text) {
@@ -478,17 +517,18 @@ class L3Analyzer implements Analyzer {
   }
 
   String _extractJson(String responseText) {
+    // Try to find a markdown json block first
+    final markdownRegex = RegExp(r'```json\s*(\{.*?\})\s*```', dotAll: true);
+    final match = markdownRegex.firstMatch(responseText);
+    if (match != null) {
+      return match.group(1) ?? responseText;
+    }
+    
+    // Fallback to finding the first { and last }
     final startIndex = responseText.indexOf('{');
-    if (startIndex == -1) return responseText;
-
-    int braceCount = 0;
-    for (int i = startIndex; i < responseText.length; i++) {
-      if (responseText[i] == '{') braceCount++;
-      else if (responseText[i] == '}') braceCount--;
-
-      if (braceCount == 0) {
-        return responseText.substring(startIndex, i + 1);
-      }
+    final endIndex = responseText.lastIndexOf('}');
+    if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+      return responseText.substring(startIndex, endIndex + 1);
     }
     return responseText;
   }
@@ -549,6 +589,10 @@ class L3Analyzer implements Analyzer {
   }
 
   double _calculateConfidence(AnalysisResponse response) {
+    if (response.confidenceScore != null) {
+      return response.confidenceScore!.clamp(0.0, 1.0);
+    }
+
     var confidence = 0.0;
     final level = response.level?.trim().toLowerCase();
     if (<String>{'green', 'yellow', 'orange', 'red'}.contains(level)) {
@@ -556,12 +600,14 @@ class L3Analyzer implements Analyzer {
     }
     final reason = (response.reason ?? '').trim();
     if (reason.isNotEmpty) {
-      // Base credit for having a reason
       confidence += 0.15;
-      // Additional credit for substantive reasons (>20 chars)
       if (reason.length > 20) {
         confidence += 0.15;
       }
+    } else {
+      // Graceful degradation: L3 response chỉ có level mà không có reason
+      // Chấp nhận nhưng giảm confidence thay vì ném lỗi ở parseResponse
+      confidence -= 0.2; 
     }
     if ((response.label ?? '').trim().isNotEmpty) {
       confidence += 0.15;
@@ -569,7 +615,6 @@ class L3Analyzer implements Analyzer {
     if ((response.recommendation ?? '').trim().isNotEmpty) {
       confidence += 0.15;
     }
-    // Penalize uncertain language in reason
     final lowerReason = reason.toLowerCase();
     final uncertaintyWords = ['có thể', 'không chắc', 'có lẽ', 'hơi', 'tạm thời'];
     final uncertaintyCount = uncertaintyWords.where(lowerReason.contains).length;
@@ -577,5 +622,37 @@ class L3Analyzer implements Analyzer {
       confidence -= 0.1 * uncertaintyCount;
     }
     return confidence.clamp(0.0, 1.0);
+  }
+
+  void _recordRequest(bool isError) {
+    final now = DateTime.now();
+    _requestTimestamps.add(now);
+    if (isError) {
+      _errorTimestamps.add(now);
+      _consecutiveErrors++;
+      _lastErrorTime = now;
+    } else {
+      _consecutiveErrors = 0;
+      _circuitBreakerUntil = null;
+    }
+    
+    // Sliding window: 10 mins
+    final windowStart = now.subtract(const Duration(minutes: 10));
+    _requestTimestamps.removeWhere((t) => t.isBefore(windowStart));
+    _errorTimestamps.removeWhere((t) => t.isBefore(windowStart));
+    
+    // Check circuit breaker: > 60% errors in the last 10 mins (min 5 requests)
+    if (_requestTimestamps.length >= 5) {
+      final errorRate = _errorTimestamps.length / _requestTimestamps.length;
+      if (errorRate > 0.6) {
+        _circuitBreakerUntil = now.add(const Duration(minutes: 2));
+      }
+    }
+  }
+
+  String _getErrorRateString() {
+    if (_requestTimestamps.isEmpty) return '0%';
+    final rate = (_errorTimestamps.length / _requestTimestamps.length) * 100;
+    return '${rate.toStringAsFixed(1)}%';
   }
 }

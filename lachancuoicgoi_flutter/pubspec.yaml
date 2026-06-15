@@ -61,6 +61,7 @@ flutter:
     - assets/situation_test.json
     - assets/slang_config.json
     - assets/tier_config.json
+    - assets/l1_critical_keywords.json
     - assets/model-vn/
     - assets/model-vn/am/
     - assets/model-vn/conf/

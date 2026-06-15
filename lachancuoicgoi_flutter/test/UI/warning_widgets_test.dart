@@ -111,12 +111,12 @@ void main() {
   });
 
   group('OrangeWarning', () {
-    testWidgets('shows CO NGUY CO titleText', (tester) async {
+    testWidgets('shows NGUY CO titleText', (tester) async {
       await tester.pumpWidget(wrap(
         const OrangeWarning(title: 'Nội dung đáng ngờ', onDismiss: _noop),
       ));
 
-      expect(find.text('CÓ NGUY CƠ'), findsOneWidget);
+      expect(find.text('NGUY CƠ'), findsOneWidget);
       expect(find.text('Nội dung đáng ngờ'), findsOneWidget);
     });
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../core/risk_level.dart';
 import 'analysis_level.dart';
 import 'analysis_mode.dart';
@@ -25,11 +27,14 @@ class AnalysisCoordinator {
   final L2Analyzer _l2Analyzer;
   final L3Analyzer _l3Analyzer;
 
+  AnalysisResult? _lastParallelResult;
+
   Analyzer _analyzerFor(AnalysisMode mode) {
     return switch (mode) {
       AnalysisMode.normal => _l1Analyzer,
       AnalysisMode.gDetection => _l2Analyzer,
       AnalysisMode.geminiApi => _l3Analyzer,
+      AnalysisMode.parallel => _l3Analyzer, // Fallback for some properties
     };
   }
 
@@ -42,11 +47,6 @@ class AnalysisCoordinator {
     String fullText,
     AnalysisMode mode,
   ) async {
-    // Mode is passed explicitly to every internal call — there is no
-    // shared "last used mode" field. This eliminates the cross-call
-    // contamination that previously caused `getLastResult()` to return
-    // another analyzer's stale state when concurrent calls used
-    // different modes.
     if (mode == AnalysisMode.gDetection && !_l2Analyzer.isReady) {
       await _l2Analyzer.initialize();
       if (!_l2Analyzer.isReady) {
@@ -67,6 +67,10 @@ class AnalysisCoordinator {
         incrementalText: incrementalText,
         fullText: fullText,
       ),
+      AnalysisMode.parallel => _analyzeParallel(
+        incrementalText: incrementalText,
+        fullText: fullText,
+      ),
     };
   }
 
@@ -74,9 +78,10 @@ class AnalysisCoordinator {
     String fullText,
     AnalysisMode mode,
   ) async {
-    // No shared "last used mode" — mode is read from the parameter for
-    // every sub-call, preventing concurrent calls with different modes
-    // from polluting each other's reads.
+    if (mode == AnalysisMode.parallel) {
+      return _analyzeIncrementalParallel(fullText);
+    }
+
     final processedTextLength = getProcessedTextLength(mode);
     final lastResult = getLastResult(mode);
 
@@ -103,11 +108,134 @@ class AnalysisCoordinator {
     return analyzeWithTranscript(textToAnalyze, fullText, mode);
   }
 
+  Future<AnalysisResult> _analyzeParallel({
+    required String incrementalText,
+    required String fullText,
+  }) async {
+    final l1Future = _l1Analyzer.analyzeStream(fullText);
+    
+    if (!_l2Analyzer.isReady) {
+      await _l2Analyzer.initialize();
+    }
+    final l2Future = _l2Analyzer.isReady 
+        ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
+        : Future.value(_defaultResultFor(AnalysisMode.gDetection));
+
+    final results = await Future.wait([l1Future, l2Future]);
+    final l1Result = results[0];
+    final l2Result = results[1];
+
+    if (l1Result.overallRiskLevel.index >= RiskLevel.orange.index) {
+      return l1Result;
+    }
+    if (l2Result.overallRiskLevel.index >= RiskLevel.orange.index) {
+      return l2Result;
+    }
+
+    final l3Future = _analyzeL3WithFallback(
+      incrementalText: incrementalText,
+      fullText: fullText,
+    );
+    try {
+      final l3Result = await l3Future.timeout(const Duration(milliseconds: 800));
+      return _fuseResults(l1Result, l2Result, l3Result);
+    } on TimeoutException {
+      return _fuseResults(l1Result, l2Result, _defaultResultFor(AnalysisMode.geminiApi));
+    }
+  }
+
+  Future<AnalysisResult> _analyzeIncrementalParallel(String fullText) async {
+    final processedLength = _l1Analyzer.processedTextLength;
+    final lastResult = _lastParallelResult ?? _defaultResultFor(AnalysisMode.parallel);
+
+    if (fullText.length <= processedLength) {
+      return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
+          ? lastResult.copyWith(alertEnabled: false)
+          : lastResult;
+    }
+
+    final deltaLength = fullText.length - processedLength;
+    final minDelta = _adaptiveMinDelta(lastResult.overallRiskLevel, AnalysisMode.parallel);
+    if (deltaLength < minDelta) {
+      return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
+          ? lastResult.copyWith(alertEnabled: false)
+          : lastResult;
+    }
+
+    final incrementalText = fullText.substring(processedLength);
+    final l1Future = _l1Analyzer.analyzeStream(fullText);
+    
+    if (!_l2Analyzer.isReady) await _l2Analyzer.initialize();
+    final l2Future = _l2Analyzer.isReady
+        ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
+        : Future.value(_defaultResultFor(AnalysisMode.gDetection));
+
+    final results = await Future.wait([l1Future, l2Future]);
+    final l1Result = results[0];
+    final l2Result = results[1];
+
+    // Fast-track
+    if (l1Result.overallRiskLevel.index >= RiskLevel.orange.index) {
+      _lastParallelResult = l1Result;
+      return l1Result;
+    }
+    if (l2Result.overallRiskLevel.index >= RiskLevel.orange.index) {
+      _lastParallelResult = l2Result;
+      return l2Result;
+    }
+
+    // L3
+    final l3Future = analyzeIncrementalL3(fullText);
+    AnalysisResult l3Result;
+    try {
+      final result = await l3Future.timeout(const Duration(milliseconds: 800));
+      l3Result = result ?? _defaultResultFor(AnalysisMode.geminiApi);
+    } on TimeoutException {
+      l3Result = _defaultResultFor(AnalysisMode.geminiApi);
+    }
+
+    final fusionResult = _fuseResults(l1Result, l2Result, l3Result);
+    _lastParallelResult = fusionResult;
+    return fusionResult;
+  }
+
+  AnalysisResult _fuseResults(AnalysisResult l1, AnalysisResult l2, AnalysisResult l3) {
+    final combinedMatches = <KeywordMatch>[
+      ...l1.matches,
+      ...l2.matches,
+      ...l3.matches,
+    ];
+    final highestRisk = [l1, l2, l3]
+        .reduce((a, b) => a.overallRiskLevel.index > b.overallRiskLevel.index ? a : b)
+        .overallRiskLevel;
+    
+    String? reason;
+    AnalysisLevel analysisLevel;
+    if (highestRisk == l3.overallRiskLevel && l3.overallRiskLevel != RiskLevel.green) {
+      reason = l3.reason;
+      analysisLevel = AnalysisLevel.l3;
+    } else if (highestRisk == l2.overallRiskLevel && l2.overallRiskLevel != RiskLevel.green) {
+      reason = l2.reason;
+      analysisLevel = AnalysisLevel.l2;
+    } else {
+      reason = l1.reason;
+      analysisLevel = AnalysisLevel.l1;
+    }
+
+    return AnalysisResult(
+      overallRiskLevel: highestRisk,
+      matches: combinedMatches,
+      reason: reason,
+      analysisLevel: analysisLevel,
+    );
+  }
+
   int _adaptiveMinDelta(RiskLevel currentRiskLevel, AnalysisMode mode) {
     final modeMultiplier = switch (mode) {
       AnalysisMode.normal => 0.6,
       AnalysisMode.gDetection => 0.8,
       AnalysisMode.geminiApi => 1.0,
+      AnalysisMode.parallel => 0.6, // Dùng tốc độ cập nhật của L1 cho song song
     };
     final baseDelta = switch (currentRiskLevel) {
       RiskLevel.red => _minDeltaRed,
@@ -134,14 +262,26 @@ class AnalysisCoordinator {
       case AnalysisMode.geminiApi:
         closeL3Session(resetProgress: true);
         break;
+      case AnalysisMode.parallel:
+        _l1Analyzer.resetSession();
+        _l2Analyzer.resetSession();
+        closeL3Session(resetProgress: true);
+        _lastParallelResult = null;
+        break;
     }
   }
 
   int getProcessedTextLength(AnalysisMode mode) {
+    if (mode == AnalysisMode.parallel) {
+      return _l1Analyzer.processedTextLength;
+    }
     return _analyzerFor(mode).processedTextLength;
   }
 
   AnalysisResult getLastResult(AnalysisMode mode) {
+    if (mode == AnalysisMode.parallel) {
+      return _lastParallelResult ?? _defaultResultFor(AnalysisMode.parallel);
+    }
     final result = _analyzerFor(mode).lastResult;
     if (mode == AnalysisMode.geminiApi &&
         result.overallRiskLevel == RiskLevel.green &&
@@ -152,7 +292,13 @@ class AnalysisCoordinator {
   }
 
   void syncProcessedTextLength(int length, AnalysisMode mode) {
-    _analyzerFor(mode).syncProcessedTextLength(length);
+    if (mode == AnalysisMode.parallel) {
+      _l1Analyzer.syncProcessedTextLength(length);
+      _l2Analyzer.syncProcessedTextLength(length);
+      _l3Analyzer.syncProcessedTextLength(length);
+    } else {
+      _analyzerFor(mode).syncProcessedTextLength(length);
+    }
   }
 
   void createL3Session({int initialProcessedTextLength = 0}) {
@@ -253,6 +399,7 @@ class AnalysisCoordinator {
       AnalysisMode.normal => AnalysisLevel.l1,
       AnalysisMode.gDetection => AnalysisLevel.l2,
       AnalysisMode.geminiApi => AnalysisLevel.l3,
+      AnalysisMode.parallel => AnalysisLevel.l3,
     };
     return AnalysisResult(
       overallRiskLevel: RiskLevel.green,

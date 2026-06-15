@@ -844,6 +844,118 @@ class ScamGraphBuilder {
           ], ScamIntent.genericScam),
         ],
       ),
+      _linear(
+        id: 'G_ECOMMERCE_01',
+        name: 'Shop giả/Thanh toán khống',
+        states: <_StateSpec>[
+          _s('START', 'Initial State', ScamStage.stage1Introduction),
+          _s(
+            'PRODUCT_BAIT',
+            'Quảng cáo hàng giá rẻ/sale sốc',
+            ScamStage.stage1Introduction,
+          ),
+          _s(
+            'PAYMENT_URGENCY',
+            'Ép thanh toán gấp, chỉ còn vài suất',
+            ScamStage.stage2BaitingThreat,
+          ),
+          _s(
+            'TRANSFER_REQUEST',
+            'Yêu cầu chuyển khoản trước khi giao hàng',
+            ScamStage.stage3Urgency,
+          ),
+          _s(
+            'EXTRA_FEE',
+            'Phát sinh phí/thuế yêu cầu chuyển thêm',
+            ScamStage.stage4Command,
+          ),
+        ],
+        triggers: <_TriggerSpec>[
+          _tr(<String>[
+            'sale sốc',
+            'giảm giá',
+            'hàng xách tay',
+            'giá gốc',
+            'flash sale',
+          ], ScamIntent.fakeEcommerce),
+          _tr(<String>[
+            'chuyển khoản trước',
+            'thanh toán trước',
+            'cọc trước',
+            'đặt cọc',
+            'giữ đơn',
+          ], ScamIntent.fakeEcommerce),
+          _tr(<String>[
+            'chuyển tiền',
+            'số tài khoản',
+            'nội dung chuyển khoản',
+            'chốt đơn',
+          ], ScamIntent.fakeEcommerce),
+          _tr(<String>[
+            'phí hải quan',
+            'thuế nhập khẩu',
+            'phí phát sinh',
+            'chuyển thêm',
+          ], ScamIntent.fakeEcommerce),
+        ],
+      ),
+      _linear(
+        id: 'G_CRYPTO_01',
+        name: 'Ví crypto/Sàn ảo rút tiền',
+        states: <_StateSpec>[
+          _s('START', 'Initial State', ScamStage.stage1Introduction),
+          _s(
+            'INVESTMENT_BAIT',
+            'Giới thiệu sàn crypto/lợi nhuận cao',
+            ScamStage.stage1Introduction,
+          ),
+          _s(
+            'WALLET_SETUP',
+            'Hướng dẫn cài ví/tạo tài khoản',
+            ScamStage.stage2BaitingThreat,
+          ),
+          _s(
+            'DEPOSIT_PRESSURE',
+            'Ép nạp tiền vào sàn',
+            ScamStage.stage3Urgency,
+          ),
+          _s(
+            'DRAIN_WALLET',
+            'Rút hết tiền/yêu cầu nạp thêm để rút',
+            ScamStage.stage4Command,
+          ),
+        ],
+        triggers: <_TriggerSpec>[
+          _tr(<String>[
+            'sàn crypto',
+            'tiền ảo',
+            'bitcoin',
+            'lợi nhuận',
+            'đầu tư online',
+          ], ScamIntent.cryptoDrain),
+          _tr(<String>[
+            'cài ví',
+            'tạo tài khoản',
+            'đăng ký sàn',
+            'meta mask',
+            'trust wallet',
+          ], ScamIntent.cryptoDrain),
+          _tr(<String>[
+            'nạp tiền',
+            'chuyển vào ví',
+            'mua coin',
+            'nạp usdt',
+            'deposit',
+          ], ScamIntent.cryptoDrain),
+          _tr(<String>[
+            'rút tiền',
+            'phí rút',
+            'nạp thêm để rút',
+            'đóng thuế rút',
+            'unlock ví',
+          ], ScamIntent.cryptoDrain),
+        ],
+      ),
     ];
   }
 

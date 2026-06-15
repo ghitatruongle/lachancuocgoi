@@ -52,7 +52,7 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
     if (widget.isUrgent) {
       // Mức độ nguy hiểm (Đỏ): Chuông báo động + Rung liên tục
       try {
-        FlutterRingtonePlayer().playAlarm(loop: true, volume: 1.0);
+        FlutterRingtonePlayer().playAlarm(looping: true, volume: 1.0);
       } catch (e) {
         // Fallback
       }

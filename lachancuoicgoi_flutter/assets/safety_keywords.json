@@ -18,7 +18,8 @@
     "trả tiền grab", "thanh toán shopee", "chuyển lương",
     "tiền ăn trưa", "tiền xăng", "nạp điện thoại", "thuê phòng",
     "tiền internet", "gửi tiền cho mẹ", "tiền nhà", "tiền bảo hiểm xe",
-    "trả góp hàng tháng", "phí gửi xe", "tiền cà phê", "tiền taxi"
+    "trả góp hàng tháng", "phí gửi xe", "tiền cà phê", "tiền taxi",
+    "đóng tiền học", "nạp thẻ game"
   ],
   "dangerOverrides": [
     "số tài khoản", "mã otp", "chuyển khoản", "mật khẩu",

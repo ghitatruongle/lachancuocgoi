@@ -19,29 +19,44 @@ import 'l3/l3_analysis.dart';
 
 /// Singleton L1Analyzer — keyword trie is built once on first use.
 final l1AnalyzerProvider = Provider<L1Analyzer>((ref) {
-  return L1Analyzer();
+  final analyzer = L1Analyzer();
+  ref.onDispose(analyzer.dispose);
+  return analyzer;
 });
 
 /// Phase 2.4: Singleton GDetectionEngine — loads 8 JSON files once,
 /// survives L2Analyzer recreation.
 final gDetectionEngineProvider = Provider<GDetectionEngine>((ref) {
-  return GDetectionEngine();
+  final engine = GDetectionEngine();
+  ref.onDispose(engine.dispose);
+  return engine;
 });
 
 /// Singleton L2Analyzer — uses the singleton GDetectionEngine.
+/// dispose() đóng TFLite isolate + GDetection internal state.
 final l2AnalyzerProvider = Provider<L2Analyzer>((ref) {
-  return L2Analyzer(
+  final analyzer = L2Analyzer(
     gDetectionEngine: ref.read(gDetectionEngineProvider),
   );
+  // Chỉ dispose intent classifier + wfsa; GDetectionEngine do provider riêng
+  // quản lý (onDispose ở trên). L2Analyzer.dispose() cũng gọi GDetection.dispose
+  // → gấp đôi nhưng idempotent nên an toàn.
+  ref.onDispose(() {
+    analyzer.dispose();
+  });
+  return analyzer;
 });
 
 /// Singleton L3Analyzer — Gemini client & key health tracker are
-/// initialized once.
+/// initialized once. dispose() đóng GeminiChatSession.
 final l3AnalyzerProvider = Provider<L3Analyzer>((ref) {
-  return L3Analyzer();
+  final analyzer = L3Analyzer();
+  ref.onDispose(analyzer.dispose);
+  return analyzer;
 });
 
 /// Singleton AnalysisCoordinator — uses the singleton analyzers above.
+/// Analyzers tự dispose qua provider riêng; coordinator không sở hữu chúng.
 final analysisCoordinatorProvider = Provider<AnalysisCoordinator>((ref) {
   return AnalysisCoordinator(
     l1Analyzer: ref.read(l1AnalyzerProvider),

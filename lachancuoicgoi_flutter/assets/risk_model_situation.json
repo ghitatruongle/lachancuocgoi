@@ -5,7 +5,7 @@
     {
       "level": 0,
       "labelId": "LV0",
-      "vietnameseName": "An Toàn (Giao tiếp Chuẩn mực)",
+      "vietnameseName": "An toàn",
       "scenarios": [
         {
           "id": 1,
@@ -42,7 +42,7 @@
     {
       "level": 1,
       "labelId": "LV1",
-      "vietnameseName": "Biểu Hiện Không Rõ Ràng",
+      "vietnameseName": "Chú ý",
       "scenarios": [
         {
           "id": 6,
@@ -169,7 +169,7 @@
     {
       "level": 2,
       "labelId": "LV2",
-      "vietnameseName": "Có Nguy Cơ",
+      "vietnameseName": "Nguy cơ",
       "scenarios": [
         {
           "id": 26,
@@ -302,7 +302,7 @@
     {
       "level": 3,
       "labelId": "LV3",
-      "vietnameseName": "Rủi Ro Cao (Bạo lực, Lừa đảo)",
+      "vietnameseName": "Nguy hiểm",
       "scenarios": [
         {
           "id": 46,

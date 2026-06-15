@@ -8,7 +8,7 @@
       "description": "Từ khóa chủ đề nhạy cảm — phát hiện → YELLOW (cần chú ý)",
       "categories": {
         "AUTH_POLICE_LAWSUIT": ["công an", "kiểm sát", "viện kiểm sát", "tòa án", "bộ công an", "cán bộ điều tra", "phạt nguội", "lệnh triệu tập", "biên bản", "nhân thân"],
-        "TAX_GOV_APP": ["vneid", "định danh", "định danh điện tử", "cục thuế", "dịch vụ công", "cập nhật sinh trắc", "nâng cấp", "bảo hiểm xã hội"],
+        "TAX_GOV_APP": ["vneid", "định danh", "định danh điện tử", "cục thuế", "dịch vụ công", "cập nhật sinh trắc", "nâng cấp", "bảo hiểm xã hội", "nfc", "sinh trắc", "quét khuôn mặt"],
         "TELECOM_SIM_LOCK": ["khóa sim", "nhà mạng", "viễn thông", "chế độ hai chiều", "thuê bao", "chặn một chiều", "cắt sim", "mạng di động"],
         "TECH_SUPPORT_HIJACK": ["hỗ trợ kỹ thuật", "bộ phận kỹ thuật", "zalo bị hack", "facebook bị hack", "tài khoản bị khóa", "mở khóa tài khoản", "đội ngũ bảo mật"],
         "HOSPITAL_EMERGENCY": ["bệnh viện", "cấp cứu", "tai nạn", "viện phí", "phẫu thuật", "người nhà", "nhập viện"],
@@ -71,7 +71,7 @@
       },
       {
         "flags": ["information_request", "urgency", "threat"],
-        "risk_multiplier": 1.8,
+        "risk_multiplier": 2.2,
         "description": "Yêu cầu thông tin + gấp + đe dọa",
         "typical_scenario": "TAX_GOV_APP"
       },

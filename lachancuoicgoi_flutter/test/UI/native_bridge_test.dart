@@ -92,11 +92,11 @@ void main() {
     });
 
     test('showOrangeAlert sends reason argument', () async {
-      final result = await bridge.showOrangeAlert('Có nguy cơ lừa đảo.');
+      final result = await bridge.showOrangeAlert('Nguy cơ lừa đảo.');
 
       expect(result, isTrue);
       expect(methodCalls.first.method, 'showOrangeAlert');
-      expect(methodCalls.first.arguments, {'reason': 'Có nguy cơ lừa đảo.'});
+      expect(methodCalls.first.arguments, {'reason': 'Nguy cơ lừa đảo.'});
     });
 
     test('dismissAlert calls correct method', () async {

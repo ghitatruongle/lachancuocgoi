@@ -990,6 +990,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       AnalysisMode.normal => 'L1',
       AnalysisMode.gDetection => 'L2',
       AnalysisMode.geminiApi => 'L3',
+      AnalysisMode.parallel => 'Parallel',
     };
   }
 

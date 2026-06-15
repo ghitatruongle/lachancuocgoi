@@ -18,6 +18,12 @@ class ManualMockGDetectionEngine implements GDetectionEngine {
   }
 
   @override
+  void reset() {}
+
+  @override
+  void dispose() {}
+
+  @override
   Future<GResult> performFullAnalysis(String text) async {
     activeAnalyses++;
     if (activeAnalyses > maxConcurrentAnalyses) {
@@ -50,8 +56,10 @@ void main() {
       analyzer.analyze('text 3', 'full text 3'),
     ];
 
-    // Pump 5 seconds to let all sequential analyses finish in fake time
-    await tester.pump(const Duration(seconds: 5));
+    // Pump sequentially to let each analysis's delay complete
+    for (int i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
 
     await Future.wait(futures);
 

@@ -19,7 +19,7 @@ void main() {
 
     test('parses storage names and Vietnamese labels', () {
       expect(RiskLevel.fromString('RED'), RiskLevel.red);
-      expect(RiskLevel.fromString('Có nguy cơ'), RiskLevel.orange);
+      expect(RiskLevel.fromString('Nguy cơ'), RiskLevel.orange);
       expect(RiskLevel.fromString('Chú ý'), RiskLevel.yellow);
       expect(RiskLevel.fromString('An toàn'), RiskLevel.green);
     });

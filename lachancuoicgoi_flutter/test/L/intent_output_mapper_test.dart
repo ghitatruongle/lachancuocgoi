@@ -11,10 +11,13 @@ void main() {
       expect(result, isEmpty);
     });
 
-    test('tensor shorter than intentLabels returns empty list', () {
+    test('tensor shorter than intentLabels fills remaining with zeros', () {
       final shortTensor = List<num>.filled(intentLabels.length - 1, 1.0);
       final result = IntentOutputMapper.decodeFlatOutput(shortTensor);
-      expect(result, isEmpty);
+      // Graceful mismatch: uses min(rawOutput, intentLabels) classes.
+      // Remaining slots filled with 0.
+      expect(result.length, intentLabels.length);
+      expect(result.last, 0.0);
     });
 
     test('tensor exactly intentLabels length returns correct length', () {
@@ -150,10 +153,11 @@ void main() {
       expect(result, isEmpty);
     });
 
-    test('logits shorter than intentLabels returns empty list', () {
+    test('logits shorter than intentLabels uses available logits', () {
       final result =
           IntentOutputMapper.predictionsFromLogits(<double>[1.0, 2.0]);
-      expect(result, isEmpty);
+      // Graceful mismatch: returns predictions for available logits.
+      expect(result.length, 2);
     });
 
     test('all-zero logits produces uniform distribution', () {

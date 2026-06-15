@@ -1,5 +1,19 @@
 import '../../../core/risk_level.dart';
 
+/// High-level grouping of scam intents for fusion logic.
+/// Allows L2 to reason about "this call is Financial + Government"
+/// (compound scam) without tracking individual intents.
+enum IntentSuperCategory {
+  government,
+  financial,
+  social,
+  technical,
+  employment,
+  gambling,
+  other,
+  safe,
+}
+
 enum ScamIntent {
   authPoliceLawsuit,
   taxGovApp,
@@ -22,6 +36,8 @@ enum ScamIntent {
   fakeSubscription,
   blackCreditTerror,
   recoveryScam,
+  fakeEcommerce,
+  cryptoDrain,
   genericScam,
   safe,
 }
@@ -57,6 +73,8 @@ extension ScamIntentExtensions on ScamIntent {
       ScamIntent.fakeSubscription => 'Trừ tiền dịch vụ tự động',
       ScamIntent.blackCreditTerror => 'Tín dụng đen/Đòi nợ thuê',
       ScamIntent.recoveryScam => 'Dịch vụ lấy lại tiền bị lừa',
+      ScamIntent.fakeEcommerce => 'Shop giả/Thanh toán khống',
+      ScamIntent.cryptoDrain => 'Ví crypto/Sàn ảo rút tiền',
       ScamIntent.genericScam => 'Dấu hiệu lừa đảo chung',
       ScamIntent.safe => 'Giao tiếp bình thường',
     };
@@ -106,6 +124,10 @@ extension ScamIntentExtensions on ScamIntent {
         'Đòi nợ với thái độ hung hãn, đe dọa khủng bố tinh thần bạn và người thân.',
       ScamIntent.recoveryScam =>
         'Giả danh luật sư/công an hứa hẹn lấy lại tiền đã bị lừa để lừa thêm lần nữa.',
+      ScamIntent.fakeEcommerce =>
+        'Mạo danh shop online hoặc tạo giao dịch thanh toán khống để chiếm đoạt tiền.',
+      ScamIntent.cryptoDrain =>
+        'Lừa cài ví crypto/sàn ảo rồi ép rút tiền hoặc chiếm quyền kiểm soát tài sản số.',
       ScamIntent.genericScam =>
         'Sử dụng các thủ đoạn kịch bản chưa rõ ràng nhưng có dấu hiệu lừa đảo cao.',
       ScamIntent.safe =>
@@ -128,7 +150,9 @@ extension ScamIntentExtensions on ScamIntent {
       ScamIntent.recoveryScam ||
       ScamIntent.gamblingPrediction ||
       ScamIntent.ceoFraudB2b ||
-      ScamIntent.socialDeepfakeLoan => RiskLevel.orange,
+      ScamIntent.socialDeepfakeLoan ||
+      ScamIntent.fakeEcommerce ||
+      ScamIntent.cryptoDrain => RiskLevel.orange,
       ScamIntent.authPoliceLawsuit ||
       ScamIntent.taxGovApp ||
       ScamIntent.telecomLock ||
@@ -150,6 +174,37 @@ extension ScamIntentExtensions on ScamIntent {
     return twiceDeescalated.index < RiskLevel.yellow.index
         ? RiskLevel.yellow
         : twiceDeescalated;
+  }
+
+  /// High-level category grouping for fusion logic.
+  IntentSuperCategory get superCategory {
+    return switch (this) {
+      ScamIntent.authPoliceLawsuit ||
+      ScamIntent.taxGovApp ||
+      ScamIntent.telecomLock ||
+      ScamIntent.hospitalEmergency ||
+      ScamIntent.immigrationVisaScam ||
+      ScamIntent.blackCreditTerror => IntentSuperCategory.government,
+      ScamIntent.bankCardFraud ||
+      ScamIntent.investmentScam ||
+      ScamIntent.cryptoDrain ||
+      ScamIntent.fakeEcommerce => IntentSuperCategory.financial,
+      ScamIntent.romanceScam ||
+      ScamIntent.sextortionBlackmail ||
+      ScamIntent.charityDonation ||
+      ScamIntent.socialDeepfakeLoan ||
+      ScamIntent.recoveryScam => IntentSuperCategory.social,
+      ScamIntent.techSupportHijack ||
+      ScamIntent.fakeSubscription => IntentSuperCategory.technical,
+      ScamIntent.jobTaskScam ||
+      ScamIntent.ceoFraudB2b => IntentSuperCategory.employment,
+      ScamIntent.gamblingPrediction => IntentSuperCategory.gambling,
+      ScamIntent.deliveryCod ||
+      ScamIntent.giftLottery ||
+      ScamIntent.virtualKidnapping ||
+      ScamIntent.genericScam => IntentSuperCategory.other,
+      ScamIntent.safe => IntentSuperCategory.safe,
+    };
   }
 }
 
@@ -175,6 +230,8 @@ const intentLabels = <ScamIntent>[
   ScamIntent.fakeSubscription,
   ScamIntent.blackCreditTerror,
   ScamIntent.recoveryScam,
+  ScamIntent.fakeEcommerce,
+  ScamIntent.cryptoDrain,
   ScamIntent.genericScam,
   ScamIntent.safe,
 ];

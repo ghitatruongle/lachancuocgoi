@@ -284,6 +284,11 @@
       "from": ["ung", "dung"],
       "to": ["ung", "dung"],
       "note": "ứng dụng (normalize giữ nguyên)"
+    },
+    {
+      "from": ["quet", "ep", "xi"],
+      "to": ["quet", "nfc"],
+      "note": "quét ép xi -> quét nfc (STT)"
     }
   ]
 }

@@ -29,6 +29,8 @@ class SafetyFilter {
   ];
   static double _casualReductionPerMatch = 0.15;
   static double _transactionReductionPerMatch = 0.30;
+  static double _relationshipDiscount = 0.05;
+  static double _smallAmountDiscount = 0.10;
   static double _minMultiplier = 0.4;
 
   // Pre-computed normalized phrase lists — built once at loadConfig time
@@ -36,6 +38,27 @@ class SafetyFilter {
   static List<String> _normDanger = const [];
   static List<String> _normCasual = const [];
   static List<String> _normTransaction = const [];
+
+  // Negation words — if a casual/transaction phrase appears shortly after
+  // a negation word, it's likely not a real safety signal.
+  // e.g. "không phải chuyển tiền học phí" → should NOT reduce discount.
+  static const List<String> _negationWords = [
+    'không', 'khong', 'ko', 'chưa', 'chua',
+    'chẳng', 'chang', 'chả', 'cha',
+  ];
+
+  // Relationship terms — unambiguous family indicators only, NORMALIZED (no diacritics)
+  // since _hasRelationshipContext operates on already-normalized text.
+  // Excludes ambiguous terms: 'ba' (bà/ba/three), 'di' (dì/đi), 'co' (cô/có),
+  // 'ong' (ông), 'ma' (má/mà), 'mo' (mợ/mở).
+  static const List<String> _relationshipTerms = [
+    'me', 'bo', 'vo', 'chong',
+    'chu', 'cau', 'bac', 'duong',
+  ];
+
+  // Amount thresholds for safety discount adjustment.
+  static const double _smallAmountThreshold = 5000000; // 5 triệu VND
+  static const double _largeAmountThreshold = 50000000; // 50 triệu VND
 
   static Future<void> loadConfig({
     AssetBundle? assetBundle,
@@ -100,51 +123,79 @@ class SafetyFilter {
   }
 
   static double calculateSafetyDiscount(String fullTranscript) {
+    // Extract amount bonus from RAW text BEFORE normalization — the phonetic
+    // map converts digits to letters (5→s, 0→o, etc.) which destroys amount
+    // patterns like "500000 vnđ".
+    final rawAmountBonus = _getAmountBonus(fullTranscript.toLowerCase());
+
     final text = TextNormalizer.normalize(
       fullTranscript,
       applySlang: true,
       noiseMode: NoiseMode.space,
     );
+    return calculateSafetyDiscountNormalized(
+      text,
+      rawAmountBonus: rawAmountBonus,
+    );
+  }
+
+  /// Variant nhận text ĐÃ normalize. Dùng cho L2 hot path để tránh normalize
+  /// 2 lần. [rawAmountBonus] is the pre-computed amount bonus from raw text
+  /// (before normalization destroyed digit patterns). If null, _getAmountBonus
+  /// is called on normalized text as fallback (works for "triệu" but not digits).
+  static double calculateSafetyDiscountNormalized(
+    String normalizedText, {
+    double? rawAmountBonus,
+  }) {
+    final text = normalizedText;
     final mainSection = text.length > _openingSectionLength
         ? text.substring(_openingSectionLength)
         : '';
 
-    // Tokenize main section for accurate phrase matching — avoids substring
-    // false positives (e.g. "chuyển khoản" matching inside "không chuyển khoản").
-    // Only applied to danger keywords; casual/transaction phrases use substring
-    // matching (phrases can appear within longer sentences).
+    // Conversation phase detection: split transcript into opening/main.
+    final openingSection = text.length > _openingSectionLength
+        ? text.substring(0, _openingSectionLength)
+        : text;
     final mainTokens = mainSection.isEmpty
         ? <String>{}
         : mainSection.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toSet();
 
-    // Use pre-computed normalized lists — no per-call normalization overhead.
-    // Danger keywords: token-based matching for accuracy.
+    // Danger keywords: token-based matching in main section only.
+    // For short texts (< openingSectionLength), main section is empty → no danger override.
+    // This is intentional: short greetings with "chuyển khoản" in casual context
+    // should not be blocked (e.g. "chuyển khoản tiền trọ cho mẹ").
     final hasDangerInMain = _normDanger.any(
       (phrase) => _phraseTokensAllPresent(phrase, mainTokens),
     );
     if (hasDangerInMain) return 1.0;
 
-    final openingSection = text.length > _openingSectionLength
-        ? text.substring(0, _openingSectionLength)
-        : text;
     var discountMultiplier = 1.0;
 
-    // Casual phrases: substring matching (they appear naturally in longer text).
+    // Casual phrases: substring matching with negation awareness.
+    // Only phrases in the opening section (greeting phase) count.
     final casualMatchCount = _normCasual
-        .where(openingSection.contains)
+        .where((p) => openingSection.contains(p) && !_isNegatedInText(openingSection, p))
         .length;
     if (casualMatchCount > 0) {
       discountMultiplier -= _casualReductionPerMatch * casualMatchCount;
     }
 
-    // Transaction phrases: substring matching on full text.
+    // Transaction phrases: substring matching with negation awareness.
     final safeTransactionMatchCount = _normTransaction
-        .where(text.contains)
+        .where((p) => text.contains(p) && !_isNegatedInText(text, p))
         .length;
     if (safeTransactionMatchCount > 0) {
       discountMultiplier -=
           _transactionReductionPerMatch * safeTransactionMatchCount;
     }
+
+    // Relationship context: conversations with family get extra discount.
+    if (_hasRelationshipContext(text)) {
+      discountMultiplier -= _relationshipDiscount;
+    }
+
+    // Amount awareness: use pre-computed raw bonus if available, else check normalized text.
+    discountMultiplier -= rawAmountBonus ?? _getAmountBonus(text);
 
     return discountMultiplier.clamp(_minMultiplier, 1.0).toDouble();
   }
@@ -159,6 +210,77 @@ class SafetyFilter {
       if (!tokenSet.contains(token)) return false;
     }
     return true;
+  }
+
+  /// Checks if [phrase] in [text] is directly preceded by a negation pattern.
+  /// Uses direct text matching (not token window) to avoid false positives
+  /// where a negation word from a PREVIOUS clause is caught.
+  /// Eats the first occurrence only.
+  static bool _isNegatedInText(String text, String phrase) {
+    final idx = text.indexOf(phrase);
+    if (idx < 0) return false;
+
+    // Only negate if the phrase itself starts with a negation word.
+    // This is conservative but bulletproof — it avoids false positives
+    // where negation words from previous clauses are caught.
+    // The negation word must be at the START of the matched phrase.
+    for (final negWord in _negationWords) {
+      if (phrase.startsWith('$negWord ')) return true;
+    }
+
+    return false;
+  }
+
+  /// Returns true if the text contains a family/relationship term in the
+  /// first 100 characters. Conversations with family are more likely safe.
+  static bool _hasRelationshipContext(String text) {
+    final checkLength = text.length < 100 ? text.length : 100;
+    final opening = text.substring(0, checkLength);
+    final tokens = opening.split(RegExp(r'\s+'));
+    return tokens.any(_relationshipTerms.contains);
+  }
+
+  /// Extracts VND amounts from the text and returns a discount bonus.
+  /// Small amounts (< 5M) → positive bonus (more safety discount).
+  /// Large amounts (> 50M) → negative bonus (less safety discount).
+  static double _getAmountBonus(String text) {
+    final amountPatterns = [
+      // Formatted numbers with VND suffix: "1.234.567 vnd" or "1,234,567đ"
+      RegExp(r'(\d{1,3}(?:[.,]\d{3}){1,3})\s*(?:vnd|đ|dong|vnđ)(?!\w)', caseSensitive: false),
+      RegExp(r'(?:vnd|đ|dong|vnđ)\s*(\d{1,3}(?:[.,]\d{3}){1,3})', caseSensitive: false),
+      // Plain numbers with VND suffix: "500000 vnd", "200000đ"
+      RegExp(r'(\d{4,})\s*(?:vnd|đ|dong|vnđ)(?!\w)', caseSensitive: false),
+      // Million shorthand: "2 trieu", "3tr"
+      RegExp(r'(\d+(?:\.\d+)?)\s*(?:trieu|tr)\b', caseSensitive: false),
+    ];
+
+    for (final pattern in amountPatterns) {
+      final match = pattern.firstMatch(text);
+      if (match != null) {
+        final rawAmount = match.group(1) ?? match.group(2);
+        if (rawAmount != null) {
+          final amount = double.tryParse(rawAmount.replaceAll(RegExp(r'[.,]'), ''));
+          if (amount != null) {
+            if (amount < _smallAmountThreshold) return _smallAmountDiscount;
+            if (amount > _largeAmountThreshold) return -_smallAmountDiscount;
+          }
+        }
+      }
+    }
+    // Also check for "triệu" or "tr" pattern (e.g., "2 triệu", "3tr")
+    final trieuMatch = RegExp(r'(\d+(?:\.\d+)?)\s*(?:triệu|trieu|tr)(?!\w)', caseSensitive: false).firstMatch(text);
+    if (trieuMatch != null) {
+      final numStr = trieuMatch.group(1);
+      if (numStr != null) {
+        final num = double.tryParse(numStr);
+        if (num != null) {
+          final amount = num * 1000000;
+          if (amount < _smallAmountThreshold) return _smallAmountDiscount;
+          if (amount > _largeAmountThreshold) return -_smallAmountDiscount;
+        }
+      }
+    }
+    return 0.0;
   }
 
   /// Resets all fields to hardcoded defaults. For use in unit tests only.
@@ -180,6 +302,8 @@ class SafetyFilter {
     ];
     _casualReductionPerMatch = 0.15;
     _transactionReductionPerMatch = 0.30;
+    _relationshipDiscount = 0.05;
+    _smallAmountDiscount = 0.10;
     _minMultiplier = 0.4;
     _rebuildNormalizedLists();
   }

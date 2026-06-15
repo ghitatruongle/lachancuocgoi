@@ -358,6 +358,123 @@ void main() {
 
   // ─── resetForTesting ───────────────────────────────────────────────────
 
+  group('SafetyFilter — negation-aware safety', () {
+    test('phrase starting with negation word is not counted', () async {
+      // Load a config where a phrase starts with a negation word
+      final json = jsonEncode({
+        'casualPhrases': ['không phải ăn cơm', 'đi chơi'],
+        'standardTransactions': ['tiền cơm'],
+        'dangerOverrides': ['mã otp'],
+      });
+      await SafetyFilter.loadConfig(assetProvider: (_) => json);
+
+      // "không phải ăn cơm" starts with negation → should be SKIPPED
+      // "đi chơi" → counted
+      final result = SafetyFilter.calculateSafetyDiscount('đi chơi nhé, không phải ăn cơm đâu');
+      // 1 casual * 0.15 = 0.15
+      expect(result, closeTo(0.85, 0.001));
+    });
+
+    test('non-negated phrases are counted normally', () async {
+      final json = jsonEncode({
+        'casualPhrases': ['đi chơi', 'ăn cơm'],
+        'standardTransactions': ['tiền cơm'],
+        'dangerOverrides': ['mã otp'],
+      });
+      await SafetyFilter.loadConfig(assetProvider: (_) => json);
+
+      final result = SafetyFilter.calculateSafetyDiscount('đi chơi và ăn cơm nhé');
+      // 2 casual * 0.15 = 0.30
+      expect(result, closeTo(0.70, 0.001));
+    });
+  });
+
+  group('SafetyFilter — small amount awareness', () {
+    setUpAll(() => SafetyFilter.resetForTesting());
+
+    test('small amount with unit suffix gets extra discount', () {
+      // "2 triệu" = 2,000,000 VND < 5,000,000 threshold
+      // "chuyển tiền" is NOT a standard transaction in defaults, so no transaction match.
+      final result = SafetyFilter.calculateSafetyDiscount(
+        'chào bạn, chuyển tiền cho bạn 2 triệu nhé',
+      );
+      // small amount bonus 0.10 only (no transaction match)
+      expect(result, closeTo(0.90, 0.001));
+    });
+
+    test('large amount reduces safety discount', () {
+      // "100 triệu" = 100,000,000 VND > 50,000,000 threshold
+      // Use text > 200 chars so "chuyển khoản" lands in main section → danger override.
+      final prefix = 'x' * 210;
+      final result = SafetyFilter.calculateSafetyDiscount(
+        '${prefix}chuyển khoản 100 triệu nhé',
+      );
+      // Danger: "chuyển khoản" in main section → 1.0 (danger overrides apply first!)
+      expect(result, 1.0);
+    });
+
+    test('no amount → no amount bonus', () {
+      final result = SafetyFilter.calculateSafetyDiscount('tiền cơm tháng này');
+      // 1 transaction * 0.30 = 0.30, no amount bonus
+      expect(result, closeTo(0.70, 0.001));
+    });
+
+    test('small VND amount gets extra discount', () {
+      final result = SafetyFilter.calculateSafetyDiscount(
+        'tiền cơm tháng này hết 500000 vnđ',
+      );
+      // 1 transaction * 0.30 + small amount bonus 0.10
+      expect(result, closeTo(0.60, 0.001));
+    });
+  });
+
+  group('SafetyFilter — relationship context', () {
+    test('family term in opening gets extra discount', () {
+      final result = SafetyFilter.calculateSafetyDiscount(
+        'mẹ ơi, tiền cơm tháng này bao nhiêu?',
+      );
+      // 1 transaction * 0.30 + relationship bonus 0.05 = 0.35
+      expect(result, closeTo(0.65, 0.001));
+    });
+
+    test('family term "bố" gets relationship bonus', () {
+      final result = SafetyFilter.calculateSafetyDiscount(
+        'bố gọi đây, chút nữa gọi lại nhé',
+      );
+      // 1 casual * 0.15 + relationship bonus 0.05
+      expect(result, closeTo(0.80, 0.001));
+    });
+
+    test('no family term → no relationship bonus', () {
+      final result = SafetyFilter.calculateSafetyDiscount('tiền cơm tháng này');
+      // 1 transaction * 0.30 = 0.30, no relationship bonus
+      expect(result, closeTo(0.70, 0.001));
+    });
+  });
+
+  group('SafetyFilter — combined features', () {
+    test('casual + transaction + relationship + small amount', () async {
+      // Reset to defaults first
+      SafetyFilter.resetForTesting();
+      final result = SafetyFilter.calculateSafetyDiscount(
+        'mẹ ơi, ăn cơm chưa? tiền cơm tháng này 2 triệu nhé',
+      );
+      // 1 casual * 0.15 + 1 transaction * 0.30 + relationship 0.05 + amount 0.10
+      // = 0.60 reduction → 0.40 (clamped to min 0.4)
+      expect(result, closeTo(0.40, 0.001));
+    });
+
+    test('amount bonus caps at minMultiplier', () {
+      final result = SafetyFilter.calculateSafetyDiscount(
+        'chuyển tiền học phí 2 triệu, trả tiền điện 1 triệu, tiền xăng 500000 vnđ',
+      );
+      // 3 transactions * 0.30 = 0.90 + small amount 0.10 = 1.00 → clamped to 0.4
+      expect(result, closeTo(0.4, 0.001));
+    });
+  });
+
+  // ─── resetForTesting ───────────────────────────────────────────────────
+
   group('SafetyFilter — resetForTesting', () {
     test('resetForTesting restores defaults after loadConfig', () async {
       // Load custom config

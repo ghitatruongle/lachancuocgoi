@@ -5,10 +5,10 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
 
 import '../../core/risk_level.dart';
+import '../analysis_config.dart';
 import '../analysis_level.dart';
 import '../analysis_result.dart';
 import '../analyzer.dart';
-import '../common/fuzzy_matcher.dart';
 import '../common/text_normalizer.dart';
 import '../health_check.dart';
 import 'l1_result.dart';
@@ -122,33 +122,31 @@ class FlatTrie {
 
 class L1Analyzer implements Analyzer {
   L1Analyzer({
+    this.config = const L1Config(),
     AssetBundle? assetBundle,
     FutureOr<String> Function()? vocabularyProvider,
     FutureOr<String> Function()? bigramCorrectionsProvider,
+    FutureOr<String> Function()? criticalKeywordsProvider,
   }) : _assetBundle = assetBundle ?? rootBundle,
        _vocabularyProvider = vocabularyProvider,
-       _bigramCorrectionsProvider = bigramCorrectionsProvider;
+       _bigramCorrectionsProvider = bigramCorrectionsProvider,
+       _criticalKeywordsProvider = criticalKeywordsProvider;
 
   final AssetBundle _assetBundle;
   FutureOr<String> Function()? _vocabularyProvider;
   FutureOr<String> Function()? _bigramCorrectionsProvider;
+  final FutureOr<String> Function()? _criticalKeywordsProvider;
+
+  /// Critical keywords loaded from JSON asset (or fallback defaults).
+  Set<String> _criticalKeywords = const {};
 
   @override
   AnalysisLevel get level => AnalysisLevel.l1;
 
   FlatTrie _trie = FlatTrie();
-  final List<String> _singleTokenKeywords = [];
   final Map<String, List<_TokenCorrection>> _corrections = {};
 
-  final bool _fuzzyEnabled = true;
-  final int _fuzzyMaxDistance = 1;
-  final int _fuzzyMinLength = 5;
-
-  // Phase 2.2: Cache fuzzy match results to avoid re-computing Levenshtein
-  // for the same token across multiple analysis calls.
-  final Map<String, String?> _fuzzyCache = {};
-  // Phase 2.2: Cap unmatched tokens to prevent O(n*keywords) blowup on long transcripts.
-  static const int _maxFuzzyTokens = 20;
+  final L1Config config;
 
   bool _hasInitialized = false;
   Future<void>? _initializingFuture;
@@ -186,7 +184,7 @@ class L1Analyzer implements Analyzer {
     _stateHistory = [FlatTrie.rootId];
     _lastFullTranscript = '';
     _processedTextLength = 0;
-    _fuzzyCache.clear(); // Phase 2.2: clear fuzzy cache on session reset
+    _processedTextLength = 0;
     _lastResult = const AnalysisResult(
       overallRiskLevel: RiskLevel.green,
       matches: [],
@@ -231,7 +229,7 @@ class L1Analyzer implements Analyzer {
       status: HealthStatus.healthy,
       component: 'L1',
       message:
-          'Trie OK (${_trie.nodesCount} nodes, $correctionCount corrections). Fuzzy=$_fuzzyEnabled',
+          'Trie OK (${_trie.nodesCount} nodes, $correctionCount corrections).',
     );
   }
 
@@ -241,7 +239,8 @@ class L1Analyzer implements Analyzer {
     final tokens = applyBigramCorrections(rawTokens);
     final matches = await _findMatchesLinear(tokens);
     final filteredMatches = _filterSafeMatches(matches, tokens);
-    return L1ResultParser.parse(filteredMatches, tokens.length);
+    final denseMatches = _applyRiskDensity(filteredMatches, tokens.length);
+    return L1ResultParser.parse(denseMatches, tokens.length, _criticalKeywords);
   }
 
   Future<AnalysisResult> analyzeStream(String fullTranscript) async {
@@ -303,51 +302,9 @@ class L1Analyzer implements Analyzer {
     _lastFullTranscript = fullTranscript;
     _processedTextLength = fullTranscript.length;
 
-    if (_fuzzyEnabled &&
-        unmatchedTokens.isNotEmpty &&
-        _singleTokenKeywords.isNotEmpty) {
-      // Phase 2.2: limit fuzzy matching to first N unmatched tokens
-      final tokensToFuzzy = unmatchedTokens.length > _maxFuzzyTokens
-          ? unmatchedTokens.sublist(0, _maxFuzzyTokens)
-          : unmatchedTokens;
-      for (final unmatched in tokensToFuzzy) {
-        if (unmatched.token.length < _fuzzyMinLength) continue;
-        // Phase 2.2: cache lookup. Distinguish "no match found
-        // previously" (key exists, value is null) from "never tried"
-        // (key absent) so we don't re-run Levenshtein for tokens we
-        // already know have no match. Use containsKey for the
-        // negative-cache case; value is null.
-        final String? cached = _fuzzyCache.containsKey(unmatched.token)
-            ? _fuzzyCache[unmatched.token]
-            : () {
-                final result = FuzzyMatcher.findClosest(
-                  unmatched.token,
-                  _singleTokenKeywords,
-                  maxDistance: _fuzzyMaxDistance,
-                );
-                _fuzzyCache[unmatched.token] = result;
-                return result;
-              }();
-        final fuzzyMatch = cached;
-        if (fuzzyMatch == null) continue;
-        final nodeId = _findExactMatchNode(fuzzyMatch);
-        if (nodeId == null || !_trie.isMatchNode(nodeId)) continue;
-
-        matches.add(
-          KeywordMatch(
-            keyword: _trie.nodeOriginalKeywords[nodeId] ?? '',
-            level: RiskLevel.fromInt(_trie.getRiskLevel(nodeId)),
-            category: _trie.getCategoryName(nodeId),
-            startIndex: unmatched.wordIndex,
-            endIndex: unmatched.wordIndex,
-            isFuzzy: true,
-          ),
-        );
-      }
-    }
-
     final filteredMatches = _filterSafeMatches(matches, fullCorrected);
-    _lastResult = L1ResultParser.parse(filteredMatches, fullCorrected.length);
+    final denseMatches = _applyRiskDensity(filteredMatches, fullCorrected.length);
+    _lastResult = L1ResultParser.parse(denseMatches, fullCorrected.length, _criticalKeywords);
     return _lastResult;
   }
 
@@ -388,12 +345,12 @@ class L1Analyzer implements Analyzer {
 
   Future<void> _doInitialize() async {
     _trie = FlatTrie();
-    _singleTokenKeywords.clear();
-    _corrections.clear();
     await _buildTrie();
     // Yield to event loop — prevents 48 skipped frames during first analysis.
     await Future<void>.delayed(Duration.zero);
     await _loadBigramCorrections();
+    await Future<void>.delayed(Duration.zero);
+    await _loadCriticalKeywords();
     await Future<void>.delayed(Duration.zero);
     await _computeAhoCorasickLinks();
     _hasInitialized = true;
@@ -402,7 +359,7 @@ class L1Analyzer implements Analyzer {
   void _resetInitialization() {
     _hasInitialized = false;
     _initializingFuture = null;
-    _fuzzyCache.clear();
+    _questionPatterns = null;
     resetSession();
   }
 
@@ -491,13 +448,35 @@ class L1Analyzer implements Analyzer {
     }
   }
 
+  /// Load critical keywords from JSON asset (config-driven).
+  /// Falls back to [L1ResultParser.defaultCriticalKeywords] on failure.
+  Future<void> _loadCriticalKeywords() async {
+    try {
+      final jsonText = await _loadString(
+        'assets/l1_critical_keywords.json',
+        _criticalKeywordsProvider,
+      );
+      final decoded = jsonDecode(jsonText);
+      if (decoded is! Map<String, dynamic>) return;
+
+      final keywords = decoded['criticalKeywords'];
+      if (keywords is List) {
+        _criticalKeywords = keywords
+            .whereType<String>()
+            .map((k) => k.toLowerCase().trim())
+            .where((k) => k.isNotEmpty)
+            .toSet();
+        debugPrint('[L1Analyzer] Loaded ${_criticalKeywords.length} critical keywords from JSON.');
+      }
+    } catch (e) {
+      debugPrint('[L1Analyzer] Failed to load critical keywords: $e. Using defaults.');
+      _criticalKeywords = L1ResultParser.defaultCriticalKeywords;
+    }
+  }
+
   void _insertKeyword(String keyword, int levelValue, String category) {
     final tokens = _tokenize(keyword);
     if (tokens.isEmpty) return;
-
-    if (tokens.length == 1) {
-      _singleTokenKeywords.add(tokens.first);
-    }
 
     var currentNodeId = FlatTrie.rootId;
     for (final token in tokens) {
@@ -589,45 +568,6 @@ class L1Analyzer implements Analyzer {
       }
     }
 
-    if (_fuzzyEnabled &&
-        unmatchedTokens.isNotEmpty &&
-        _singleTokenKeywords.isNotEmpty) {
-      // Phase 2.2: limit fuzzy matching to first N unmatched tokens
-      final tokensToFuzzy = unmatchedTokens.length > _maxFuzzyTokens
-          ? unmatchedTokens.sublist(0, _maxFuzzyTokens)
-          : unmatchedTokens;
-      for (final unmatched in tokensToFuzzy) {
-        if (unmatched.token.length < _fuzzyMinLength) continue;
-        // Phase 2.2: check cache first
-        final cached = _fuzzyCache[unmatched.token];
-        final fuzzyMatch = cached != null || _fuzzyCache.containsKey(unmatched.token)
-            ? cached
-            : () {
-                final result = FuzzyMatcher.findClosest(
-                  unmatched.token,
-                  _singleTokenKeywords,
-                  maxDistance: _fuzzyMaxDistance,
-                );
-                _fuzzyCache[unmatched.token] = result;
-                return result;
-              }();
-        if (fuzzyMatch == null) continue;
-        final nodeId = _findExactMatchNode(fuzzyMatch);
-        if (nodeId == null || !_trie.isMatchNode(nodeId)) continue;
-
-        matches.add(
-          KeywordMatch(
-            keyword: _trie.nodeOriginalKeywords[nodeId] ?? '',
-            level: RiskLevel.fromInt(_trie.getRiskLevel(nodeId)),
-            category: _trie.getCategoryName(nodeId),
-            startIndex: unmatched.wordIndex,
-            endIndex: unmatched.wordIndex,
-            isFuzzy: true,
-          ),
-        );
-      }
-    }
-
     return matches;
   }
 
@@ -667,11 +607,7 @@ class L1Analyzer implements Analyzer {
     return found;
   }
 
-  int? _findExactMatchNode(String token) {
-    final childId = _trie.getChildId(FlatTrie.rootId, token);
-    if (childId == null) return null;
-    return _trie.isMatchNode(childId) ? childId : null;
-  }
+
 
   bool _matchesCorrection(List<String> tokens, int start, List<String> from) {
     if (start + from.length > tokens.length) return false;
@@ -721,6 +657,7 @@ class L1Analyzer implements Analyzer {
     return _assetBundle.loadString(assetKey);
   }
 
+  @override
   void dispose() {
     // Release session-scoped state first (token history, Aho-Corasick state).
     resetSession();
@@ -730,9 +667,18 @@ class L1Analyzer implements Analyzer {
     // map + initialization future reachable.
     _corrections.clear();
     _trie = FlatTrie();
-    _fuzzyCache.clear();
+    _questionPatterns = null;
     _hasInitialized = false;
     _initializingFuture = null;
+  }
+
+  // ── Cached compiled question patterns (built once per config) ────────
+  List<RegExp>? _questionPatterns;
+
+  List<RegExp> _getQuestionPatterns() {
+    return _questionPatterns ??= config.questionContextPatterns
+        .map((p) => RegExp(p, caseSensitive: false))
+        .toList();
   }
 
   Set<KeywordMatch> _filterSafeMatches(Set<KeywordMatch> matches, List<String> tokens) {
@@ -740,50 +686,31 @@ class L1Analyzer implements Analyzer {
 
     final filtered = <KeywordMatch>{};
 
-    final negationPhrases = const [
-      'khong phai',
-      'dau phai',
-      'chua chac',
-      'khong co',
-      'dau co',
-    ];
+    final negationRegex = RegExp(
+      config.negationRegexPattern,
+      caseSensitive: false,
+    );
 
-    final safeBeneficiaries = const [
-      'cho me',
-      'cho bo',
-      'cho ba',
-      'cho em',
-      'cho anh',
-      'cho chi',
-      'cho con',
-      'cho chau',
-      'cho ong',
-      'cho vo',
-      'cho chong',
-      'cho nguoi nha',
-      'cho nguoi than',
-      'cho ban',
-      'cho dong nghiep',
-    ];
+    final safeBeneficiaries = config.safeBeneficiaries;
+    final financialIndicatorKeywords = config.financialIndicatorKeywords;
+    final generalSafePhrases = config.generalSafePhrases;
+    final windowSize = config.contextWindowSize;
+    final familyTerms = config.familyTerms;
+    final questionPatterns = _getQuestionPatterns();
 
-    final financialIndicatorKeywords = const [
-      'chuyen tien',
-      'chuyen khoan',
-      'gui tien',
-      'nap tien',
-      'rut tien',
-      'ck',
-      'ban tien',
-      'gui ma',
-      'nap the',
-      'mua the',
-      'thanh toan',
-    ];
-
-    final generalSafePhrases = const [
-      'noi dua',
-      'troll',
-    ];
+    // Pre-compute full transcript text for global safe context check (Rule 6).
+    // If safe indicators appear multiple times across the transcript,
+    // the entire conversation is likely safe.
+    final fullText = TextNormalizer.normalize(tokens.join(' '), applySlang: true);
+    var globalSafeCount = 0;
+    for (final safe in generalSafePhrases) {
+      // Count occurrences of each safe phrase in the full transcript.
+      var idx = 0;
+      while ((idx = fullText.indexOf(safe, idx)) != -1) {
+        globalSafeCount++;
+        idx += safe.length;
+      }
+    }
 
     for (final match in matches) {
       if (match.startIndex == -1 || match.endIndex == -1) {
@@ -791,12 +718,12 @@ class L1Analyzer implements Analyzer {
         continue;
       }
 
-      // Get context around the match
-      final startPrefix = (match.startIndex - 4).clamp(0, tokens.length);
+      // Get context around the match (configurable window size)
+      final startPrefix = (match.startIndex - windowSize).clamp(0, tokens.length);
       final prefixTokens = tokens.sublist(startPrefix, match.startIndex);
       final prefixText = prefixTokens.join(' ');
 
-      final endSuffix = (match.endIndex + 4 + 1).clamp(0, tokens.length);
+      final endSuffix = (match.endIndex + windowSize + 1).clamp(0, tokens.length);
       final suffixTokens = tokens.sublist(match.endIndex + 1, endSuffix);
       final suffixText = suffixTokens.join(' ');
 
@@ -804,12 +731,10 @@ class L1Analyzer implements Analyzer {
 
       bool shouldFilter = false;
 
-      // Rule 1: Negation preceding the keyword
-      for (final neg in negationPhrases) {
-        if (prefixText.contains(neg)) {
-          shouldFilter = true;
-          break;
-        }
+      // Rule 1: Negation preceding the keyword using Regex
+      final normalizedPrefix = TextNormalizer.normalize(prefixText, applySlang: true);
+      if (negationRegex.hasMatch(normalizedPrefix)) {
+        shouldFilter = true;
       }
 
       // Rule 2: Safe beneficiary succeeding a financial keyword
@@ -826,7 +751,7 @@ class L1Analyzer implements Analyzer {
         }
       }
 
-      // Rule 3: General safe context (nói đùa, troll) anywhere in the immediate context window
+      // Rule 3: General safe context (nói đùa, troll, ví dụ…) anywhere in the wider context window
       if (!shouldFilter) {
         for (final safe in generalSafePhrases) {
           if (wholeContextText.contains(safe)) {
@@ -834,6 +759,47 @@ class L1Analyzer implements Analyzer {
             break;
           }
         }
+      }
+
+      // Rule 4: Question context — speaker is asking a question, not describing a scam.
+      // E.g. "cho hỏi làm thế nào để chuyển tiền" is informational.
+      // Only check prefix (question words typically precede the keyword).
+      if (!shouldFilter) {
+        final normalizedPrefixCtx = TextNormalizer.normalize(prefixText, applySlang: true);
+        for (final pattern in questionPatterns) {
+          if (pattern.hasMatch(normalizedPrefixCtx)) {
+            shouldFilter = true;
+            break;
+          }
+        }
+      }
+
+      // Rule 5: Family context in suffix — mentioning family terms AFTER a
+      // financial keyword suggests legitimate personal transfer, not scam.
+      // Only checks suffix to avoid false positives from broader context.
+      if (!shouldFilter) {
+        final normalizedKeyword = TextNormalizer.normalize(match.keyword, applySlang: true);
+        final isFinancialKw = financialIndicatorKeywords.any(
+          (fin) => normalizedKeyword.contains(fin),
+        );
+        if (isFinancialKw) {
+          final normalizedSuffix = TextNormalizer.normalize(suffixText, applySlang: true);
+          for (final term in familyTerms) {
+            if (normalizedSuffix.contains(term)) {
+              shouldFilter = true;
+              break;
+            }
+          }
+        }
+      }
+
+      // Rule 6: Repeated safe sender — if safe indicators appear 2+ times
+      // across the full transcript, the conversation is pervasively safe.
+      // This catches cases where safe context is spread across the call
+      // (e.g., "nói đùa thôi" at start + "ví dụ" later) beyond any single
+      // match's local window.
+      if (!shouldFilter && globalSafeCount >= 2) {
+        shouldFilter = true;
       }
 
       if (!shouldFilter) {
@@ -844,6 +810,55 @@ class L1Analyzer implements Analyzer {
     }
 
     return filtered;
+  }
+
+  Set<KeywordMatch> _applyRiskDensity(Set<KeywordMatch> matches, int totalTokens) {
+    if (matches.length < 2) return matches;
+    
+    final sortedMatches = matches.toList()..sort((a, b) => a.startIndex.compareTo(b.startIndex));
+    final result = <KeywordMatch>{};
+    final processedIndices = <int>{};
+    
+    for (int i = 0; i < sortedMatches.length; i++) {
+      if (processedIndices.contains(i)) continue;
+      
+      var match = sortedMatches[i];
+      if (match.level == RiskLevel.yellow || match.level == RiskLevel.orange) {
+        int denseCount = 1;
+        int endIndex = match.endIndex;
+        List<KeywordMatch> cluster = [match];
+        
+        for (int j = i + 1; j < sortedMatches.length; j++) {
+          final nextMatch = sortedMatches[j];
+          if (nextMatch.startIndex - match.startIndex <= 10) {
+            if (nextMatch.level == RiskLevel.yellow || nextMatch.level == RiskLevel.orange) {
+              denseCount++;
+              endIndex = nextMatch.endIndex > endIndex ? nextMatch.endIndex : endIndex;
+              cluster.add(nextMatch);
+            }
+          } else {
+            break; // Since sorted, we can break early
+          }
+        }
+        
+        if (denseCount >= 3) {
+          result.add(KeywordMatch(
+            keyword: cluster.map((m) => m.keyword).join(' + '),
+            level: RiskLevel.red,
+            category: 'Mật độ rủi ro cao (Risk Density)',
+            startIndex: match.startIndex,
+            endIndex: endIndex,
+          ));
+          result.addAll(cluster);
+          for (int j = 0; j < cluster.length; j++) {
+            processedIndices.add(i + j);
+          }
+          continue;
+        }
+      }
+      result.add(match);
+    }
+    return result;
   }
 }
 
