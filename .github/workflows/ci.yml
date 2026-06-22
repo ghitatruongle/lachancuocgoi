@@ -1,0 +1,91 @@
+name: CI
+
+# Continuous Integration cho lachancuoicgoi_flutter (Flutter).
+# Chạy static analysis + fast test suite trên mỗi push/PR tới main.
+# Repo root là monorepo (Kotlin + Flutter + model dirs); workflow này
+# chỉ kiểm tra thư mục con `lachancuoicgoi_flutter`.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 03:00 UTC hàng ngày — chạy thêm perf suite (xem job perf-suite).
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_CHANNEL: "stable"
+
+jobs:
+  analyze-and-test:
+    name: Analyze & test (fast suite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lachancuoicgoi_flutter
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Tạo env.json placeholder để build không lỗi thiếu asset.
+      # CI KHÔNG bao giờ chứa API key thật — chỉ cần file tồn tại
+      # cho rootBundle.loadString. Placeholder detection (api_key_provider)
+      # sẽ loại bỏ các key giả và L3 fail an toàn trong test.
+      - name: Create env.json placeholder
+        run: cp env.example.json env.json || true
+
+      - name: Static analysis
+        run: dart analyze lib/ test/
+
+      - name: Fast test suite (exclude perf)
+        run: flutter test --exclude-tags perf
+
+  perf-suite:
+    name: Performance suite (nightly only)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lachancuoicgoi_flutter
+
+    # Perf suite chỉ chạy theo lịch (đêm) hoặc trigger thủ công — không
+    # chạy trên push/PR vì benchmark chậm và kết quả lệ thuộc phần cứng
+    # runner, dễ tạo false positive.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Create env.json placeholder
+        run: cp env.example.json env.json || true
+
+      - name: Performance suite
+        run: flutter test --tags perf

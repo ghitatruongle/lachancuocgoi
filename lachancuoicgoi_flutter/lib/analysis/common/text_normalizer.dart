@@ -1,7 +1,4 @@
-enum NoiseMode {
-  remove,
-  space,
-}
+enum NoiseMode { remove, space }
 
 class TextNormalizer {
   TextNormalizer._();
@@ -11,12 +8,23 @@ class TextNormalizer {
 
   // ── Number word normalization ──────────────────────────────────────────
   static const Map<String, int> _numberWordValues = {
-    'khong': 0, 'mot': 1, 'hai': 2, 'ba': 3, 'bon': 4,
-    'lam': 5, 'sau': 6, 'bay': 7, 'tam': 8, 'chin': 9,
+    'khong': 0,
+    'mot': 1,
+    'hai': 2,
+    'ba': 3,
+    'bon': 4,
+    'lam': 5,
+    'sau': 6,
+    'bay': 7,
+    'tam': 8,
+    'chin': 9,
     'muoi': 10,
     'tram': 100,
-    'nghin': 1000, 'ngan': 1000,
-    'trieu': 1000000, 'ti': 1000000000, 'ty': 1000000000,
+    'nghin': 1000,
+    'ngan': 1000,
+    'trieu': 1000000,
+    'ti': 1000000000,
+    'ty': 1000000000,
   };
 
   static final RegExp _numberWordPattern = RegExp(
@@ -245,28 +253,23 @@ class TextNormalizer {
     (key, value) => MapEntry(key.codeUnitAt(0), value.codeUnitAt(0)),
   );
 
-
   static final RegExp _combiningMarks = RegExp(r'[\u0300-\u036f]');
-  static final RegExp _noiseChars = RegExp(
-    r'[^\p{L}\p{N}\s]',
-    unicode: true,
-  );
+  static final RegExp _noiseChars = RegExp(r'[^\p{L}\p{N}\s]', unicode: true);
 
   static void loadSlangConfig(Map<String, String> config) {
-    final entries = config.entries
-        .map(
-          (entry) => MapEntry(
-            normalize(entry.key, applySlang: false),
-            normalize(entry.value, applySlang: false),
-          ),
-        )
-        .toList()
-      ..sort((a, b) => b.key.length.compareTo(a.key.length));
+    final entries =
+        config.entries
+            .map(
+              (entry) => MapEntry(
+                normalize(entry.key, applySlang: false),
+                normalize(entry.value, applySlang: false),
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.key.length.compareTo(a.key.length));
     // Build Aho-Corasick automaton for O(n+m) multi-pattern slang replacement.
     // Replaces the old O(n*m) sequential loop over _slangEntries.
-    _slangAutomaton = entries.isEmpty
-        ? null
-        : _SlangAutomaton.build(entries);
+    _slangAutomaton = entries.isEmpty ? null : _SlangAutomaton.build(entries);
   }
 
   static String normalize(
@@ -305,6 +308,14 @@ class TextNormalizer {
     result = _normalizeNumberWords(result);
 
     return result;
+  }
+
+  static String normalizeForCache(String text) {
+    return text
+        .toLowerCase()
+        .replaceAll(_noiseChars, ' ')
+        .trim()
+        .replaceAll(RegExp(r'\s+'), ' ');
   }
 
   static List<String> tokenize(
@@ -365,8 +376,8 @@ class _SlangAutomaton {
   final List<Map<String, int>> _children = [{}];
   final List<int> _failure = [0];
   final List<int> _dictionary = [0];
-  final List<String?> _output = [null];   // replacement value
-  final List<int> _depth = [0];           // pattern token count at this node
+  final List<String?> _output = [null]; // replacement value
+  final List<int> _depth = [0]; // pattern token count at this node
   int _size = 1;
 
   /// Build automaton from pre-sorted (longest-first) slang entries.

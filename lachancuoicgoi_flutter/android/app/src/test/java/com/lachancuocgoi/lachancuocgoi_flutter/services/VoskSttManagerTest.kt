@@ -46,6 +46,21 @@ class VoskSttManagerTest {
         fail("Model did not become ready within ${timeoutMs}ms")
     }
 
+    private fun waitForModelFailed(
+        manager: VoskSttManager,
+        timeoutMs: Long = 2000
+    ): ModelLoadState.Failed {
+        val start = System.currentTimeMillis()
+        while (System.currentTimeMillis() - start < timeoutMs) {
+            shadowOf(Looper.getMainLooper()).idle()
+            val state = manager.modelLoadState.value
+            if (state is ModelLoadState.Failed) return state
+            Thread.sleep(10)
+        }
+        fail("Model did not fail within ${timeoutMs}ms")
+        throw AssertionError("unreachable")
+    }
+
     @Test
     fun `initialization success transitions state to Ready`() {
         val successSlot = slot<StorageService.Callback<Model>>()
@@ -86,10 +101,10 @@ class VoskSttManagerTest {
 
         val manager = VoskSttManager(context, { _, _ -> mockRecognizer })
 
+        val state = waitForModelFailed(manager)
+
         assertFalse(manager.isModelReady)
-        val state = manager.modelLoadState.value
-        assertTrue(state is ModelLoadState.Failed)
-        assertEquals("Failed to unpack", (state as ModelLoadState.Failed).error)
+        assertEquals("Failed to unpack", state.error)
         manager.destroy()
     }
 

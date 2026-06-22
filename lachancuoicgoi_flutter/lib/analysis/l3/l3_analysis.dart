@@ -7,6 +7,8 @@ import '../analysis_result.dart';
 import '../analyzer.dart';
 import '../health_check.dart';
 import '../../core/risk_level.dart';
+import '../../core/asset_loader.dart';
+import '../../core/logger.dart';
 import 'core/api_key_provider.dart';
 import 'core/gemini_chat_session.dart';
 import 'core/gemini_client.dart';
@@ -20,13 +22,15 @@ import 'prompt_builder.dart';
 
 class L3Analyzer implements Analyzer {
   factory L3Analyzer({
+    AssetLoader? assetLoader,
+    AppLogger? logger,
     ApiKeyProvider? apiKeyProvider,
     KeyHealthTracker? keyHealthTracker,
     GeminiClient? geminiClient,
     GeminiChatSession Function()? sessionFactory,
     ResponseCache<AnalysisResult>? cache,
   }) {
-    final provider = apiKeyProvider ?? EnvironmentApiKeyProvider();
+    final provider = apiKeyProvider ?? EnvironmentApiKeyProvider(assetLoader: assetLoader, logger: logger);
     final tracker = keyHealthTracker ?? KeyHealthTracker(provider);
     final client =
         geminiClient ??
@@ -235,6 +239,7 @@ class L3Analyzer implements Analyzer {
         (responseText, modelName) => parseResponse(
           PIIStripper.restorePII(responseText, redaction.tokensMap),
           modelName,
+          text,
         ),
       );
       return result.fold(
@@ -322,6 +327,7 @@ class L3Analyzer implements Analyzer {
       (responseText, modelName) => parseResponse(
         PIIStripper.restorePII(responseText, redaction.tokensMap),
         modelName,
+        newText,
       ),
     );
 
@@ -353,6 +359,7 @@ class L3Analyzer implements Analyzer {
         (responseText, modelName) => parseResponse(
           PIIStripper.restorePII(responseText, redaction.tokensMap),
           modelName,
+          newText,
         ),
       );
     }
@@ -401,7 +408,7 @@ class L3Analyzer implements Analyzer {
   /// (3 consecutive greens de-escalate from yellow only). This is safe because
   /// both [analyze] and [analyzeIncremental] guard entry with [_isAnalyzing],
   /// so only one parse can be in flight at a time per analyzer instance.
-  AnalysisResult parseResponse(String responseText, String modelName) {
+  AnalysisResult parseResponse(String responseText, String modelName, [String? originalText]) {
     if (responseText.trim().isEmpty) {
       throw const FormatException('Response is blank');
     }
@@ -456,7 +463,7 @@ class L3Analyzer implements Analyzer {
       matches: matches,
       reason: reason,
       analysisLevel: AnalysisLevel.l3,
-      confidence: _calculateConfidence(response),
+      confidence: _calculateConfidence(response, originalText),
       modelName: modelName,
     );
   }
@@ -588,9 +595,13 @@ class L3Analyzer implements Analyzer {
     return RiskLevel.green;
   }
 
-  double _calculateConfidence(AnalysisResponse response) {
+  double _calculateConfidence(AnalysisResponse response, [String? originalText]) {
     if (response.confidenceScore != null) {
-      return response.confidenceScore!.clamp(0.0, 1.0);
+      final score = response.confidenceScore!.clamp(0.0, 1.0);
+      if (originalText != null && originalText.trim().length < 30) {
+        return (score * 0.8).clamp(0.0, 1.0);
+      }
+      return score;
     }
 
     var confidence = 0.0;
@@ -615,11 +626,18 @@ class L3Analyzer implements Analyzer {
     if ((response.recommendation ?? '').trim().isNotEmpty) {
       confidence += 0.15;
     }
+    final reasoningSteps = response.reasoningSteps;
+    if (reasoningSteps != null && reasoningSteps.isNotEmpty) {
+      confidence += (0.05 * reasoningSteps.length).clamp(0.0, 0.15);
+    }
     final lowerReason = reason.toLowerCase();
     final uncertaintyWords = ['có thể', 'không chắc', 'có lẽ', 'hơi', 'tạm thời'];
     final uncertaintyCount = uncertaintyWords.where(lowerReason.contains).length;
     if (uncertaintyCount > 0) {
       confidence -= 0.1 * uncertaintyCount;
+    }
+    if (originalText != null && originalText.trim().length < 30) {
+      confidence -= 0.15;
     }
     return confidence.clamp(0.0, 1.0);
   }

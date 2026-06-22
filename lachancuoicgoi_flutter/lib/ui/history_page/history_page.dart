@@ -40,7 +40,8 @@ class _HistoryState {
 
 final _historyProvider =
     AsyncNotifierProvider<_HistoryController, _HistoryState>(
-        _HistoryController.new);
+      _HistoryController.new,
+    );
 
 class _HistoryController extends AsyncNotifier<_HistoryState> {
   /// Kích thước trang — chỉ load 20 bản ghi mỗi lần thay vì toàn bộ bảng
@@ -76,10 +77,9 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
       final items = await db.getAllPaginated(limit: limit, offset: 0);
       final current = state.value;
       if (current == null || current.searchQuery.isNotEmpty) return;
-      state = AsyncData(current.copyWith(
-        items: items,
-        hasMore: items.length == limit,
-      ));
+      state = AsyncData(
+        current.copyWith(items: items, hasMore: items.length == limit),
+      );
     });
   }
 
@@ -95,21 +95,25 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
     if (query.isEmpty) {
       _subscribeToDb(db);
       final items = await db.getAllPaginated(limit: _pageSize, offset: 0);
-      state = AsyncData(_HistoryState(
-        items: items,
-        searchQuery: '',
-        hasMore: items.length == _pageSize,
-      ));
+      state = AsyncData(
+        _HistoryState(
+          items: items,
+          searchQuery: '',
+          hasMore: items.length == _pageSize,
+        ),
+      );
       return;
     }
-    _dbSubscription?.cancel();
+    await _dbSubscription?.cancel();
     _dbSubscription = null;
     final results = await db.search(query, limit: _pageSize);
-    state = AsyncData(_HistoryState(
-      items: results,
-      searchQuery: query,
-      hasMore: results.length == _pageSize,
-    ));
+    state = AsyncData(
+      _HistoryState(
+        items: results,
+        searchQuery: query,
+        hasMore: results.length == _pageSize,
+      ),
+    );
   }
 
   /// Lazy load trang kế tiếp khi người dùng cuộn gần cuối danh sách.
@@ -120,16 +124,20 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
     try {
       final db = await ref.read(appDatabaseFutureProvider.future);
       final next = s.searchQuery.isEmpty
-          ? await db.getAllPaginated(
-              limit: _pageSize, offset: s.items.length)
-          : await db.search(s.searchQuery,
-              limit: _pageSize, offset: s.items.length);
-      state = AsyncData(s.copyWith(
-        items: [...s.items, ...next],
-        hasMore: next.length == _pageSize,
-        isLoadingMore: false,
-      ));
-    } catch (_) {
+          ? await db.getAllPaginated(limit: _pageSize, offset: s.items.length)
+          : await db.search(
+              s.searchQuery,
+              limit: _pageSize,
+              offset: s.items.length,
+            );
+      state = AsyncData(
+        s.copyWith(
+          items: [...s.items, ...next],
+          hasMore: next.length == _pageSize,
+          isLoadingMore: false,
+        ),
+      );
+    } on Exception catch (_) {
       final cur = state.value;
       if (cur != null) {
         state = AsyncData(cur.copyWith(isLoadingMore: false));
@@ -197,7 +205,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Cài đặt',
-            onPressed: () => showDialog(
+            onPressed: () => showDialog<void>(
               context: context,
               builder: (_) => const SettingsDialog(),
             ),
@@ -265,8 +273,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                       if (items.isNotEmpty)
                         TextButton(
                           onPressed: () => _showDeleteAllDialog(context),
-                          child: const Text('Xóa tất cả',
-                              style: TextStyle(color: Colors.red)),
+                          child: const Text(
+                            'Xóa tất cả',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ),
                     ],
                   ),
@@ -300,69 +310,74 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                               // Lazy load: cuộn gần cuối thì tải trang kế.
                               if (n.metrics.pixels >=
                                   n.metrics.maxScrollExtent - 200) {
-                                ref
-                                    .read(_historyProvider.notifier)
-                                    .loadMore();
+                                ref.read(_historyProvider.notifier).loadMore();
                               }
                               return false;
                             },
                             child: ListView.separated(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            itemCount: items.length + 1,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              if (index == items.length) {
-                                return Column(
-                                  children: [
-                                    if (historyState.isLoadingMore)
-                                      const Padding(
-                                        padding: EdgeInsets.symmetric(
-                                            vertical: 12),
-                                        child: SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2),
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: items.length + 1,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                if (index == items.length) {
+                                  return Column(
+                                    children: [
+                                      if (historyState.isLoadingMore)
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          child: SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                        ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
+                                        child: Text(
+                                          '*Lưu ý: Để đảm bảo quyền riêng tư và tối ưu bộ nhớ, file ghi âm sẽ không được lưu trong lịch sử; chỉ lưu văn bản cuộc gọi trên thiết bị này.',
+                                          style: tt.bodySmall?.copyWith(
+                                            color: cs.onSurfaceVariant,
+                                          ),
+                                          textAlign: TextAlign.center,
                                         ),
                                       ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 16),
-                                      child: Text(
-                                        '*Lưu ý: Để đảm bảo quyền riêng tư và tối ưu bộ nhớ, file ghi âm sẽ không được lưu trong lịch sử; chỉ lưu văn bản cuộc gọi trên thiết bị này.',
-                                        style: tt.bodySmall?.copyWith(
-                                            color: cs.onSurfaceVariant),
-                                        textAlign: TextAlign.center,
-                                      ),
+                                    ],
+                                  );
+                                }
+                                final item = items[index];
+                                return Dismissible(
+                                  key: ValueKey(item.id),
+                                  direction: DismissDirection.endToStart,
+                                  confirmDismiss: (_) =>
+                                      _showDeleteItemDialog(context, item),
+                                  background: Container(
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
                                     ),
-                                  ],
-                                );
-                              }
-                              final item = items[index];
-                              return Dismissible(
-                                key: ValueKey(item.id),
-                                direction: DismissDirection.endToStart,
-                                confirmDismiss: (_) =>
-                                    _showDeleteItemDialog(context, item),
-                                background: Container(
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 20),
-                                  decoration: BoxDecoration(
-                                    color: cs.errorContainer,
-                                    borderRadius: BorderRadius.circular(18),
+                                    decoration: BoxDecoration(
+                                      color: cs.errorContainer,
+                                      borderRadius: BorderRadius.circular(18),
+                                    ),
+                                    child: Icon(
+                                      Icons.delete,
+                                      color: cs.onErrorContainer,
+                                    ),
                                   ),
-                                  child: Icon(Icons.delete,
-                                      color: cs.onErrorContainer),
-                                ),
-                                child: HistoryItemCard(
-                                  item: item,
-                                  onTap: () =>
-                                      context.push('/result/${item.id}'),
-                                ),
-                              );
-                            },
+                                  child: HistoryItemCard(
+                                    item: item,
+                                    onTap: () =>
+                                        context.push('/result/${item.id}'),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                   ),
@@ -376,7 +391,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   }
 
   void _showDeleteAllDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Xác nhận xóa'),
@@ -399,7 +414,9 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   }
 
   Future<bool> _showDeleteItemDialog(
-      BuildContext context, CallHistory item) async {
+    BuildContext context,
+    CallHistory item,
+  ) async {
     return await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(

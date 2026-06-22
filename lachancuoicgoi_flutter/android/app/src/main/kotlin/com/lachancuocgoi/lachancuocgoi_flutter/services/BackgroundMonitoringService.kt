@@ -195,6 +195,7 @@ class BackgroundMonitoringService : Service() {
             currentTranscript = ""
         }
         TranscriptionHub.reset()
+        speechToTextManager.clearTranscript()
 
         // Notify Flutter that monitoring started
         NativeBridgeEventSink.sendMonitoringState("STARTED")
@@ -313,10 +314,10 @@ class BackgroundMonitoringService : Service() {
                     }
                     // Compose final display: cumulative + (partial on a new line).
                     // If both are blank we return null and skip the emit.
-                    val composed = if (partial.isNotBlank() && cumulative.isNotBlank()) {
-                        "$cumulative\n$partial"
+                    val composed = if (cumulative.isNotBlank()) {
+                        if (partial.isNotBlank()) "$cumulative\n$partial" else cumulative
                     } else {
-                        cumulative
+                        partial
                     }
                     if (composed.isBlank()) {
                         null

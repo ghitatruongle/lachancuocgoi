@@ -1,0 +1,37 @@
+# Dependabot — tự động tạo PR nâng cấp dependencies.
+# Repo là monorepo; Flutter project nằm ở thư mục con.
+version: 2
+
+updates:
+  # pubspec.yaml dependencies (Flutter/Dart).
+  - package-ecosystem: "pub"
+    directory: "/lachancuoicgoi_flutter"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    # Giữ các group riêng biệt: production deps (cần test kỹ) vs dev deps.
+    groups:
+      production:
+        update-types:
+          - "minor"
+          - "patch"
+      development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "deps(flutter)"
+      include: "scope"
+
+  # Giữ versions của GitHub Actions trong workflow cập nhật.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(ci)"
+      include: "scope"

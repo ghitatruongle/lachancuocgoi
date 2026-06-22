@@ -84,7 +84,7 @@ class ResultPage extends ConsumerWidget {
               IconButton(
                 icon: const Icon(Icons.settings),
                 tooltip: 'Cài đặt',
-                onPressed: () => showDialog(
+                onPressed: () => showDialog<void>(
                   context: context,
                   builder: (_) => const SettingsDialog(),
                 ),

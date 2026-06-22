@@ -85,7 +85,7 @@ class CallHistoryDao {
     final escaped = _escapeLike(query);
     final like = '%$escaped%';
     final result = await _db.rawQuery(
-      r"SELECT COUNT(*) as cnt FROM call_history WHERE "
+      r'SELECT COUNT(*) as cnt FROM call_history WHERE '
       r"transcript LIKE ? ESCAPE '\' OR summary LIKE ? ESCAPE '\' OR riskLevel LIKE ? ESCAPE '\' "
       r"OR dateTime LIKE ? ESCAPE '\' OR analysisType LIKE ? ESCAPE '\'",
       [like, like, like, like, like],

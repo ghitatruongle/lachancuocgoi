@@ -48,7 +48,7 @@ class _AlertHistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
-    final riskColor = entry.getRiskLevelColor();
+    final riskColor = Color(entry.getRiskLevelColor());
 
     return Card(
       color: riskColor.withValues(alpha: 0.08),

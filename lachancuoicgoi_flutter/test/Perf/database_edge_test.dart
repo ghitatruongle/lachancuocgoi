@@ -160,6 +160,78 @@ CREATE TABLE call_history (
           expect(record?.alertHistory, '[{"ts":1,"level":"RED"}]');
         },
       );
+
+      test(
+        'Sprint 4.4: a failing migration rolls back so the schema is not '
+        'left half-migrated',
+        () async {
+          // Schema migration is wrapped in db.transaction (Sprint 4.4). If a
+          // statement inside the migration throws, the whole migration must
+          // roll back — the on-disk schema must be unchanged (still at the
+          // pre-migration column set), not stuck between versions.
+          final rawFactory = databaseFactoryFfi;
+          final tempDir = await Directory.systemTemp.createTemp(
+            'lachan_rollback_test_',
+          );
+          addTearDown(() => tempDir.delete(recursive: true));
+          final dbPath = p.join(tempDir.path, 'rollback.db');
+
+          // Seed a v1 schema and capture the initial column set.
+          final seedDb = await rawFactory.openDatabase(
+            dbPath,
+            options: OpenDatabaseOptions(
+              version: 1,
+              onCreate: (db, _) async {
+                await db.execute('''
+CREATE TABLE call_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  dateTime TEXT NOT NULL,
+  riskLevel TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  duration TEXT NOT NULL,
+  flagCount INTEGER NOT NULL,
+  transcript TEXT NOT NULL
+)
+''');
+              },
+            ),
+          );
+          await seedDb.close();
+
+          // Force the migration to fail: register an onUpgrade callback that
+          // adds a column then throws. With the transaction in place, the
+          // added column must be rolled back, leaving the v1 column set intact.
+          await expectLater(
+            () => rawFactory.openDatabase(
+              dbPath,
+              options: OpenDatabaseOptions(
+                version: 2,
+                onUpgrade: (db, oldVersion, newVersion) async {
+                  await db.transaction((txn) async {
+                    await txn.execute(
+                      'ALTER TABLE call_history ADD COLUMN tmp_col TEXT',
+                    );
+                    // Simulate a mid-migration failure (e.g. disk error on a
+                    // later statement).
+                    throw StateError('simulated migration failure');
+                  });
+                },
+              ),
+            ),
+            throwsA(isA<StateError>()),
+          );
+
+          // Reopen read-only and verify the schema was rolled back: tmp_col
+          // must NOT exist (transaction atomicity).
+          final verifyDb = await rawFactory.openDatabase(dbPath);
+          addTearDown(() => verifyDb.close());
+          final columns = await verifyDb.rawQuery('PRAGMA table_info(call_history)');
+          final columnNames = columns.map((r) => r['name'] as String).toSet();
+          expect(columnNames, isNot(contains('tmp_col')));
+          // The original v1 columns survive.
+          expect(columnNames, containsAll(<String>['transcript', 'riskLevel']));
+        },
+      );
     });
 
     group('Insert edge cases', () {

@@ -7,7 +7,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   const methodChannel = MethodChannel('com.lachancuocgoi/native_bridge');
-  const permissionChannel = MethodChannel('flutter.baseflow.com/permissions/methods');
+  const permissionChannel = MethodChannel(
+    'flutter.baseflow.com/permissions/methods',
+  );
 
   final permissionMap = <String, bool>{
     'recordAudio': false,
@@ -36,26 +38,28 @@ void main() {
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(methodChannel, (call) async {
-      methodCalls.add(call);
-      if (call.method == 'getPermissionSnapshot') {
-        return permissionMap;
-      }
-      if (call.method == 'isMonitoringActive') {
-        return false;
-      }
-      return true;
-    });
+          methodCalls.add(call);
+          if (call.method == 'getPermissionSnapshot') {
+            return permissionMap;
+          }
+          if (call.method == 'isMonitoringActive') {
+            return false;
+          }
+          return true;
+        });
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(permissionChannel, (call) async {
-      if (call.method == 'requestPermissions') {
-        final List<dynamic> permissions = call.arguments;
-        return <int, int>{
-          for (final p in permissions) p as int: 1, // 1 = PermissionStatus.granted
-        };
-      }
-      return null;
-    });
+          if (call.method == 'requestPermissions') {
+            final permissions =
+                (call.arguments as List<dynamic>?) ?? <dynamic>[];
+            return <int, int>{
+              for (final p in permissions)
+                p as int: 1, // 1 = PermissionStatus.granted
+            };
+          }
+          return null;
+        });
   });
 
   tearDown(() {
@@ -79,7 +83,9 @@ void main() {
       expect(controller.state.snapshot.phoneState, isFalse);
     });
 
-    testWidgets('refresh is throttled — second call within 500ms is skipped', (tester) async {
+    testWidgets('refresh is throttled — second call within 500ms is skipped', (
+      tester,
+    ) async {
       final controller = PermissionController(NativeCallShieldBridge.instance);
       await tester.pump();
 
@@ -116,7 +122,9 @@ void main() {
       expect(controller.state.snapshot.recordAudio, isTrue);
     });
 
-    testWidgets('refresh does not update state when snapshot is identical', (tester) async {
+    testWidgets('refresh does not update state when snapshot is identical', (
+      tester,
+    ) async {
       final controller = PermissionController(NativeCallShieldBridge.instance);
       // Wait for initial _refresh() to complete
       await tester.pump(const Duration(milliseconds: 100));
@@ -158,9 +166,16 @@ void main() {
       final result = await controller.requestPhoneAndCallLogPermissions();
 
       expect(result, isTrue);
-      expect(methodCalls, contains(isA<MethodCall>().having(
-        (c) => c.method, 'method', 'requestPhoneAndCallLogPermissions',
-      )));
+      expect(
+        methodCalls,
+        contains(
+          isA<MethodCall>().having(
+            (c) => c.method,
+            'method',
+            'requestPhoneAndCallLogPermissions',
+          ),
+        ),
+      );
     });
   });
 
@@ -256,7 +271,9 @@ void main() {
       expect(controller.state.allGranted, isFalse);
     });
 
-    testWidgets('missingPermissionsProvider lists missing permissions', (tester) async {
+    testWidgets('missingPermissionsProvider lists missing permissions', (
+      tester,
+    ) async {
       permissionMap['recordAudio'] = true;
       final bridge = NativeCallShieldBridge.instance;
       final controller = PermissionController(bridge);
