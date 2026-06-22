@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import '../core/risk_level.dart';
 import 'analysis_level.dart';
@@ -113,11 +114,11 @@ class AnalysisCoordinator {
     required String fullText,
   }) async {
     final l1Future = _l1Analyzer.analyzeStream(fullText);
-    
+
     if (!_l2Analyzer.isReady) {
       await _l2Analyzer.initialize();
     }
-    final l2Future = _l2Analyzer.isReady 
+    final l2Future = _l2Analyzer.isReady
         ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
         : Future.value(_defaultResultFor(AnalysisMode.gDetection));
 
@@ -137,16 +138,23 @@ class AnalysisCoordinator {
       fullText: fullText,
     );
     try {
-      final l3Result = await l3Future.timeout(const Duration(milliseconds: 800));
+      final l3Result = await l3Future.timeout(
+        const Duration(milliseconds: 800),
+      );
       return _fuseResults(l1Result, l2Result, l3Result);
     } on TimeoutException {
-      return _fuseResults(l1Result, l2Result, _defaultResultFor(AnalysisMode.geminiApi));
+      return _fuseResults(
+        l1Result,
+        l2Result,
+        _defaultResultFor(AnalysisMode.geminiApi),
+      );
     }
   }
 
   Future<AnalysisResult> _analyzeIncrementalParallel(String fullText) async {
     final processedLength = _l1Analyzer.processedTextLength;
-    final lastResult = _lastParallelResult ?? _defaultResultFor(AnalysisMode.parallel);
+    final lastResult =
+        _lastParallelResult ?? _defaultResultFor(AnalysisMode.parallel);
 
     if (fullText.length <= processedLength) {
       return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
@@ -155,7 +163,10 @@ class AnalysisCoordinator {
     }
 
     final deltaLength = fullText.length - processedLength;
-    final minDelta = _adaptiveMinDelta(lastResult.overallRiskLevel, AnalysisMode.parallel);
+    final minDelta = _adaptiveMinDelta(
+      lastResult.overallRiskLevel,
+      AnalysisMode.parallel,
+    );
     if (deltaLength < minDelta) {
       return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
           ? lastResult.copyWith(alertEnabled: false)
@@ -164,7 +175,7 @@ class AnalysisCoordinator {
 
     final incrementalText = fullText.substring(processedLength);
     final l1Future = _l1Analyzer.analyzeStream(fullText);
-    
+
     if (!_l2Analyzer.isReady) await _l2Analyzer.initialize();
     final l2Future = _l2Analyzer.isReady
         ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
@@ -199,35 +210,62 @@ class AnalysisCoordinator {
     return fusionResult;
   }
 
-  AnalysisResult _fuseResults(AnalysisResult l1, AnalysisResult l2, AnalysisResult l3) {
-    final combinedMatches = <KeywordMatch>[
+  AnalysisResult fuseResultsForTesting(
+    AnalysisResult l1,
+    AnalysisResult l2,
+    AnalysisResult l3,
+  ) {
+    return _fuseResults(l1, l2, l3);
+  }
+
+  AnalysisResult _fuseResults(
+    AnalysisResult l1,
+    AnalysisResult l2,
+    AnalysisResult l3,
+  ) {
+    final combinedMatches = LinkedHashSet<KeywordMatch>.of(<KeywordMatch>[
       ...l1.matches,
       ...l2.matches,
       ...l3.matches,
-    ];
-    final highestRisk = [l1, l2, l3]
-        .reduce((a, b) => a.overallRiskLevel.index > b.overallRiskLevel.index ? a : b)
-        .overallRiskLevel;
-    
-    String? reason;
-    AnalysisLevel analysisLevel;
-    if (highestRisk == l3.overallRiskLevel && l3.overallRiskLevel != RiskLevel.green) {
-      reason = l3.reason;
-      analysisLevel = AnalysisLevel.l3;
-    } else if (highestRisk == l2.overallRiskLevel && l2.overallRiskLevel != RiskLevel.green) {
-      reason = l2.reason;
-      analysisLevel = AnalysisLevel.l2;
-    } else {
-      reason = l1.reason;
-      analysisLevel = AnalysisLevel.l1;
-    }
+    ]).toList();
+    final selected = _selectFusionSource(l1, l2, l3);
+    final highestRisk = selected.overallRiskLevel;
 
     return AnalysisResult(
       overallRiskLevel: highestRisk,
       matches: combinedMatches,
-      reason: reason,
-      analysisLevel: analysisLevel,
+      reason: selected.reason,
+      analysisLevel: selected.analysisLevel,
+      alertEnabled:
+          highestRisk != RiskLevel.green ||
+          l1.alertEnabled ||
+          l2.alertEnabled ||
+          l3.alertEnabled,
+      confidence: [
+        l1.confidence,
+        l2.confidence,
+        l3.confidence,
+      ].reduce((a, b) => a > b ? a : b),
+      modelName: selected.modelName,
+      isError: l1.isError || l2.isError || l3.isError,
+      isFallback: l1.isFallback || l2.isFallback || l3.isFallback,
     );
+  }
+
+  AnalysisResult _selectFusionSource(
+    AnalysisResult l1,
+    AnalysisResult l2,
+    AnalysisResult l3,
+  ) {
+    final highestRisk = <AnalysisResult>[l1, l2, l3]
+        .map((result) => result.overallRiskLevel)
+        .reduce((a, b) => a.index > b.index ? a : b);
+    if (highestRisk == RiskLevel.green) {
+      return l1;
+    }
+    if (l3.overallRiskLevel == highestRisk) return l3;
+    if (l2.overallRiskLevel == highestRisk) return l2;
+    return l1;
   }
 
   int _adaptiveMinDelta(RiskLevel currentRiskLevel, AnalysisMode mode) {

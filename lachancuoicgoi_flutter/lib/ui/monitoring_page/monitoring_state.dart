@@ -10,6 +10,7 @@ import '../../data/alert_history_entry.dart';
 class MonitoringPageState {
   const MonitoringPageState({
     this.riskLevel = RiskLevel.green,
+    this.peakRiskLevel = RiskLevel.green,
     this.transcript = '',
     this.elapsedSeconds = 0,
     this.networkAvailable = true,
@@ -31,6 +32,7 @@ class MonitoringPageState {
   });
 
   final RiskLevel riskLevel;
+  final RiskLevel peakRiskLevel;
   final String transcript;
   final int elapsedSeconds;
   final bool networkAvailable;
@@ -60,6 +62,7 @@ class MonitoringPageState {
 
   MonitoringPageState copyWith({
     RiskLevel? riskLevel,
+    RiskLevel? peakRiskLevel,
     String? transcript,
     int? elapsedSeconds,
     bool? networkAvailable,
@@ -83,6 +86,7 @@ class MonitoringPageState {
   }) {
     return MonitoringPageState(
       riskLevel: riskLevel ?? this.riskLevel,
+      peakRiskLevel: peakRiskLevel ?? this.peakRiskLevel,
       transcript: transcript ?? this.transcript,
       elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
       networkAvailable: networkAvailable ?? this.networkAvailable,
@@ -114,6 +118,7 @@ class MonitoringPageState {
       identical(this, other) ||
       other is MonitoringPageState &&
           riskLevel == other.riskLevel &&
+          peakRiskLevel == other.peakRiskLevel &&
           transcript == other.transcript &&
           elapsedSeconds == other.elapsedSeconds &&
           networkAvailable == other.networkAvailable &&
@@ -134,6 +139,7 @@ class MonitoringPageState {
   @override
   int get hashCode => Object.hash(
         riskLevel,
+        peakRiskLevel,
         transcript,
         elapsedSeconds,
         networkAvailable,

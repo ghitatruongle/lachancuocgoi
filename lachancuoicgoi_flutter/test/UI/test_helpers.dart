@@ -21,7 +21,7 @@ Widget dialogWrap(Widget dialog) {
         builder: (context) {
           return ElevatedButton(
             onPressed: () {
-              showDialog(context: context, builder: (_) => dialog);
+              showDialog<void>(context: context, builder: (_) => dialog);
             },
             child: const Text('Open'),
           );
@@ -35,9 +35,8 @@ Widget dialogWrap(Widget dialog) {
 class FakeNativeBridge implements NativeBridgeInterface {
   PermissionSnapshot _snapshot;
 
-  FakeNativeBridge({
-    PermissionSnapshot? snapshot,
-  }) : _snapshot = snapshot ?? const PermissionSnapshot();
+  FakeNativeBridge({PermissionSnapshot? snapshot})
+    : _snapshot = snapshot ?? const PermissionSnapshot();
 
   @override
   Future<PermissionSnapshot> getPermissionSnapshot() async => _snapshot;
@@ -45,11 +44,16 @@ class FakeNativeBridge implements NativeBridgeInterface {
   void setSnapshot(PermissionSnapshot snapshot) => _snapshot = snapshot;
 
   @override
-  Future<bool> startMonitoring({String? phoneNumber, bool enableSpeakerphone = false}) async => true;
+  Future<bool> startMonitoring({
+    String? phoneNumber,
+    bool enableSpeakerphone = false,
+  }) async => true;
   @override
   Future<bool> stopMonitoring() async => true;
   @override
-  Future<bool> startCreatorMonitoring({required int devModeExpiresAtMs}) async => true;
+  Future<bool> startCreatorMonitoring({
+    required int devModeExpiresAtMs,
+  }) async => true;
   @override
   Future<bool> stopCreatorMonitoring() async => true;
   @override
@@ -95,10 +99,13 @@ Override bridgeOverride([FakeNativeBridge? bridge]) {
 
 /// Override for settingsControllerProvider with default test state.
 Override settingsOverride() {
-  return settingsControllerProvider.overrideWith(() => _FakeSettingsController());
+  return settingsControllerProvider.overrideWith(
+    () => _FakeSettingsController(),
+  );
 }
 
-class _FakeSettingsController extends Notifier<SettingsState> implements SettingsController {
+class _FakeSettingsController extends Notifier<SettingsState>
+    implements SettingsController {
   @override
   SettingsState build() => const SettingsState(
     isDarkTheme: false,
@@ -126,7 +133,8 @@ Override devModeOverride() {
   return developerModeProvider.overrideWith(() => _FakeDevModeController());
 }
 
-class _FakeDevModeController extends Notifier<DeveloperModeState> implements DeveloperModeController {
+class _FakeDevModeController extends Notifier<DeveloperModeState>
+    implements DeveloperModeController {
   @override
   DeveloperModeState build() => const DeveloperModeState();
 

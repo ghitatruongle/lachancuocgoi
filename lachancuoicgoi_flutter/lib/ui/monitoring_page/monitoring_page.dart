@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../analysis/l1/l1_analysis.dart';
 import '../home_page/settings_dialog.dart';
+import '../theme/risk_level_colors.dart';
 import 'audio_waveform.dart';
 import 'live_conversation.dart';
 import 'alert_history_section.dart';
@@ -39,7 +40,9 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 
     // Deferred init — must not modify provider state during initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(monitoringControllerProvider.notifier).init(
+      ref
+          .read(monitoringControllerProvider.notifier)
+          .init(
             simulatedScenarioTitle: widget.simulatedScenarioTitle,
             simulatedTranscript: widget.simulatedTranscript,
             simulatedScriptLines: widget.simulatedScriptLines,
@@ -49,8 +52,9 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
       // Seed the elapsed-time notifier with the current value now that the
       // controller has been initialized (it was previously assigned inside
       // build() on every rebuild).
-      _elapsedNotifier.value =
-          ref.read(monitoringControllerProvider).elapsedSeconds;
+      _elapsedNotifier.value = ref
+          .read(monitoringControllerProvider)
+          .elapsedSeconds;
     });
   }
 
@@ -70,7 +74,9 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
         widget.l1AnalyzerOverride != oldWidget.l1AnalyzerOverride) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ref.read(monitoringControllerProvider.notifier).init(
+        ref
+            .read(monitoringControllerProvider.notifier)
+            .init(
               simulatedScenarioTitle: widget.simulatedScenarioTitle,
               simulatedTranscript: widget.simulatedTranscript,
               simulatedScriptLines: widget.simulatedScriptLines,
@@ -83,9 +89,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    ref
-        .read(monitoringControllerProvider.notifier)
-        .onLifecycleChanged(state);
+    ref.read(monitoringControllerProvider.notifier).onLifecycleChanged(state);
 
     // On resume, re-check for a pending navigation intent. The ref.listen in
     // build() does not fire while the widget tree is inactive, so an intent
@@ -140,14 +144,11 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
     // since the controller bumps elapsedSeconds once per second the whole
     // page (risk card, status badges, chips) rebuilt every second for no
     // reason — the notifier already has its own ValueListenableBuilder.
-    ref.listen<MonitoringPageState>(
-      monitoringControllerProvider,
-      (prev, next) {
-        if (prev?.elapsedSeconds != next.elapsedSeconds) {
-          _elapsedNotifier.value = next.elapsedSeconds;
-        }
-      },
-    );
+    ref.listen<MonitoringPageState>(monitoringControllerProvider, (prev, next) {
+      if (prev?.elapsedSeconds != next.elapsedSeconds) {
+        _elapsedNotifier.value = next.elapsedSeconds;
+      }
+    });
 
     final state = ref.watch(monitoringControllerProvider);
     final controller = ref.read(monitoringControllerProvider.notifier);
@@ -182,18 +183,19 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                 child: Text(
                   isSimulation
                       ? (hasScenarioTitle
-                          ? 'Mô phỏng: ${widget.simulatedScenarioTitle}'
-                          : 'Mô phỏng')
+                            ? 'Mô phỏng: ${widget.simulatedScenarioTitle}'
+                            : 'Mô phỏng')
                       : 'Lá chắn cuộc gọi',
-                  style:
-                      tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
               if (state.isCreatorMode)
                 Container(
                   margin: const EdgeInsets.only(left: 8),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: cs.tertiary,
                     borderRadius: BorderRadius.circular(10),
@@ -201,8 +203,11 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.developer_mode,
-                          size: 12, color: cs.onTertiary),
+                      Icon(
+                        Icons.developer_mode,
+                        size: 12,
+                        color: cs.onTertiary,
+                      ),
                       const SizedBox(width: 3),
                       Text(
                         'CREATOR',
@@ -228,7 +233,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
           onPressed: () {
             // Import kept in controller for dialog, but we show from page
             // since it needs context.
-            showDialog(
+            showDialog<void>(
               context: context,
               builder: (_) => const SettingsDialog(),
             );
@@ -246,40 +251,43 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
   ) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: ElevatedButton(
-        onPressed:
-            state.isEndingSession ? null : () => controller.endSession(),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: cs.error,
-          foregroundColor: cs.onError,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (state.isEndingSession) ...[
-              SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: cs.onError,
-                ),
-              ),
-              const SizedBox(width: 10),
-            ] else
-              const Icon(Icons.call_end),
-            const SizedBox(width: 8),
-            Text(
-              state.isEndingSession
-                  ? 'Đang lưu kết quả...'
-                  : 'Kết thúc cuộc gọi',
-              style: tt.titleMedium?.copyWith(color: cs.onError),
+      child: Semantics(
+        button: true,
+        label: 'Kết thúc cuộc gọi và lưu kết quả',
+        child: ElevatedButton(
+          onPressed: state.isEndingSession ? null : () => controller.endSession(),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: cs.error,
+            foregroundColor: cs.onError,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (state.isEndingSession) ...[
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: cs.onError,
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ] else
+                const Icon(Icons.call_end),
+              const SizedBox(width: 8),
+              Text(
+                state.isEndingSession
+                    ? 'Đang lưu kết quả...'
+                    : 'Kết thúc cuộc gọi',
+                style: tt.titleMedium?.copyWith(color: cs.onError),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -305,20 +313,23 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                   const SizedBox(height: 4),
 
                   // Waveform card
-                  Card(
-                    elevation: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: RepaintBoundary(
-                        child: AnimatedBuilder(
-                          animation: controller.waveformNotifier,
-                          builder: (context, _) {
-                            return AudioWaveform(
-                              amplitudes: controller.currentAmplitudes,
-                              writeIndex: controller.currentAmplitudeWriteIndex,
-                              elapsedSeconds: _elapsedNotifier,
-                            );
-                          },
+                  Semantics(
+                    label: 'Biểu đồ sóng âm thanh cuộc gọi trực tiếp',
+                    child: Card(
+                      elevation: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: RepaintBoundary(
+                          child: AnimatedBuilder(
+                            animation: controller.waveformNotifier,
+                            builder: (context, _) {
+                              return AudioWaveform(
+                                amplitudes: controller.currentAmplitudes,
+                                writeIndex: controller.currentAmplitudeWriteIndex,
+                                elapsedSeconds: _elapsedNotifier,
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -329,97 +340,111 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                   // Risk level card
                   Card(
                     elevation: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Column(
-                        children: [
-                          RiskLevelIndicator(riskLevel: state.riskLevel),
-                          if (state.isAnalyzing)
-                            const Column(
-                              children: [
-                                SizedBox(height: 8),
-                                LinearProgressIndicator(),
-                              ],
-                            ),
-                          if (state.analysisResult != null) ...[
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                state.analysisResult!.reason ?? '',
-                                style: tt.bodySmall?.copyWith(
-                                  color: cs.onSurfaceVariant,
-                                ),
+                    child: Semantics(
+                      label: 'Mức độ rủi ro cuộc gọi hiện tại: ${state.riskLevel.vietnameseName}',
+                      liveRegion: true,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Column(
+                          children: [
+                            RiskLevelIndicator(riskLevel: state.riskLevel),
+                            if (state.isAnalyzing)
+                              const Column(
+                                children: [
+                                  SizedBox(height: 8),
+                                  LinearProgressIndicator(),
+                                ],
                               ),
-                            ),
-                            if (state.analysisResult!.matches.isNotEmpty) ...[
+                            if (state.analysisResult != null) ...[
                               const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 4,
-                                  children:
-                                      state.analysisResult!.matches.take(5).map((match) {
-                                    return Chip(
-                                      label: Text(
-                                        match.keyword,
-                                        style: TextStyle(
-                                          color: match.level.color.computeLuminance() > 0.5
-                                              ? Colors.black
-                                              : Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      backgroundColor: match.level.color.withValues(alpha: 0.8),
-                                      visualDensity: VisualDensity.compact,
-                                      padding: EdgeInsets.zero,
-                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    );
-                                  }).toList(),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  state.analysisResult!.reason ?? '',
+                                  style: tt.bodySmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
                                 ),
                               ),
-                            ],
-                          ],
-                          const SizedBox(height: 8),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                _StatusBadge(
-                                  label:
-                                      'Đích: ${MonitoringController.modeLabel(state.selectedMode)}',
-                                  backgroundColor: cs.surfaceContainerHighest,
-                                  textColor: cs.onSurfaceVariant,
-                                ),
-                                const SizedBox(width: 8),
-                                _StatusBadge(
-                                  label:
-                                      'Chạy: ${MonitoringController.modeLabel(state.effectiveMode)}',
-                                  backgroundColor: state.isFallbackActive
-                                      ? cs.tertiaryContainer
-                                      : cs.secondaryContainer,
-                                  textColor: state.isFallbackActive
-                                      ? cs.onTertiaryContainer
-                                      : cs.onSecondaryContainer,
-                                ),
-                                const SizedBox(width: 8),
-                                _StatusBadge(
-                                  label: state.networkAvailable
-                                      ? 'Mạng: OK'
-                                      : 'Mạng: Lỗi',
-                                  backgroundColor: state.networkAvailable
-                                      ? cs.surfaceContainerHighest
-                                      : cs.errorContainer,
-                                  textColor: state.networkAvailable
-                                      ? cs.onSurfaceVariant
-                                      : cs.onErrorContainer,
+                              if (state.analysisResult!.matches.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Wrap(
+                                    spacing: 8,
+                                    runSpacing: 4,
+                                    children: state.analysisResult!.matches
+                                        .take(5)
+                                        .map((match) {
+                                          return Chip(
+                                            label: Text(
+                                              match.keyword,
+                                              style: TextStyle(
+                                                color:
+                                                    match.level.color
+                                                            .computeLuminance() >
+                                                        0.5
+                                                    ? Colors.black
+                                                    : Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            backgroundColor: match.level.color
+                                                .withValues(alpha: 0.8),
+                                            visualDensity: VisualDensity.compact,
+                                            padding: EdgeInsets.zero,
+                                            materialTapTargetSize:
+                                                MaterialTapTargetSize.shrinkWrap,
+                                          );
+                                        })
+                                        .toList(),
+                                  ),
                                 ),
                               ],
+                            ],
+                            const SizedBox(height: 8),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _StatusBadge(
+                                    label:
+                                        'Đích: ${MonitoringController.modeLabel(state.selectedMode)}',
+                                    backgroundColor: cs.surfaceContainerHighest,
+                                    textColor: cs.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _StatusBadge(
+                                    label:
+                                        'Chạy: ${MonitoringController.modeLabel(state.effectiveMode)}',
+                                    backgroundColor: state.isFallbackActive
+                                        ? cs.tertiaryContainer
+                                        : cs.secondaryContainer,
+                                    textColor: state.isFallbackActive
+                                        ? cs.onTertiaryContainer
+                                        : cs.onSecondaryContainer,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _StatusBadge(
+                                    label: state.networkAvailable
+                                        ? 'Mạng: OK'
+                                        : 'Mạng: Lỗi',
+                                    backgroundColor: state.networkAvailable
+                                        ? cs.surfaceContainerHighest
+                                        : cs.errorContainer,
+                                    textColor: state.networkAvailable
+                                        ? cs.onSurfaceVariant
+                                        : cs.onErrorContainer,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -508,19 +533,16 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: textColor,
-              fontWeight: FontWeight.w600,
-            ),
+          color: textColor,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
 }
 
 class _SttFallbackBanner extends StatelessWidget {
-  const _SttFallbackBanner({
-    required this.reason,
-    required this.onDismiss,
-  });
+  const _SttFallbackBanner({required this.reason, required this.onDismiss});
 
   final String? reason;
   final VoidCallback onDismiss;
@@ -544,10 +566,7 @@ class _SttFallbackBanner extends StatelessWidget {
                   reason != null && reason!.isNotEmpty
                       ? 'STT offline (Vosk): $reason'
                       : 'STT đã chuyển sang chế độ offline (Vosk)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: cs.onTertiaryContainer,
-                  ),
+                  style: TextStyle(fontSize: 12, color: cs.onTertiaryContainer),
                 ),
               ),
               InkWell(
@@ -555,7 +574,11 @@ class _SttFallbackBanner extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 child: Padding(
                   padding: const EdgeInsets.all(4),
-                  child: Icon(Icons.close, size: 16, color: cs.onTertiaryContainer),
+                  child: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: cs.onTertiaryContainer,
+                  ),
                 ),
               ),
             ],
@@ -565,4 +588,3 @@ class _SttFallbackBanner extends StatelessWidget {
     );
   }
 }
-

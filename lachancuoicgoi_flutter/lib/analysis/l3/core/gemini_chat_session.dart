@@ -120,7 +120,7 @@ class GeminiChatSession {
             final parsed = parser(responseText, modelName);
             
             // L3 Resilience: Cost tracking
-            var historyTextLength = _safeHistory.fold<int>(
+            final historyTextLength = _safeHistory.fold<int>(
                 0, (sum, content) => sum + (content.parts.firstOrNull is TextPart ? (content.parts.first as TextPart).text.length : 0));
             final estimatedTokens = (historyTextLength + text.length + responseText.length) ~/ 4;
             keyHealthTracker?.recordTokenUsage(_currentKeyIndex, estimatedTokens);

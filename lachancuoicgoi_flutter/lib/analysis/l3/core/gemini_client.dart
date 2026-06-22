@@ -25,6 +25,8 @@ GeminiErrorType classifyGeminiError(Object? error) {
     return GeminiErrorType.quota;
   }
   if (message.contains('403') ||
+      message.contains('401') ||
+      message.contains('unauthorized') ||
       message.contains('api key') ||
       message.contains('api_key')) {
     return GeminiErrorType.auth;
@@ -119,62 +121,64 @@ class GeminiClient {
 
     for (final keyIndex in activeIndices) {
       final apiKey = keys[keyIndex];
-      for (final modelName in _fallbackModels) {
-        int modelRetries = 0;
-        bool shouldMoveToNextModel = false;
+      var quotaBackoffAttempt = 0;
 
-        while (modelRetries < 2 && !shouldMoveToNextModel) {
-          if (modelRetries > 0) {
-            await Future<void>.delayed(const Duration(milliseconds: 1000));
+      for (
+        var modelIndex = 0;
+        modelIndex < _fallbackModels.length;
+        modelIndex++
+      ) {
+        final modelName = _fallbackModels[modelIndex];
+        try {
+          final responseText = await _requestExecutor(
+            apiKey: apiKey,
+            config: config,
+            modelName: modelName,
+            prompt: prompt,
+          );
+          final parsed = parser(responseText, modelName);
+          keyHealthTracker?.markSuccess(keyIndex);
+
+          // L3 Resilience: Cost tracking
+          final estimatedTokens = (prompt.length + responseText.length) ~/ 4;
+          keyHealthTracker?.recordTokenUsage(keyIndex, estimatedTokens);
+
+          _recordSuccess();
+          GeminiMetrics.instance.recordCall(
+            success: true,
+            latencyMs: DateTime.now().difference(startTime).inMilliseconds,
+            keyIndex: keyIndex,
+          );
+          return Result.success(parsed);
+        } catch (error, stackTrace) {
+          lastError = error;
+          lastStackTrace = stackTrace;
+          _recordFailure();
+
+          final errorType = _classifyError(error);
+          if (errorType == GeminiErrorType.auth) {
+            keyHealthTracker?.markInvalid(keyIndex, error.toString());
+            break;
           }
-          
-          try {
-            final responseText = await _requestExecutor(
-              apiKey: apiKey,
-              config: config,
-              modelName: modelName,
-              prompt: prompt,
-            );
-            final parsed = parser(responseText, modelName);
-            keyHealthTracker?.markSuccess(keyIndex);
-            
-            // L3 Resilience: Cost tracking
-            final estimatedTokens = (prompt.length + responseText.length) ~/ 4;
-            keyHealthTracker?.recordTokenUsage(keyIndex, estimatedTokens);
-            
-            _recordSuccess();
-            GeminiMetrics.instance.recordCall(
-              success: true,
-              latencyMs: DateTime.now().difference(startTime).inMilliseconds,
-              keyIndex: keyIndex,
-            );
-            return Result.success(parsed);
-          } catch (error, stackTrace) {
-            lastError = error;
-            lastStackTrace = stackTrace;
-            _recordFailure();
-            
-            final errorType = _classifyError(error);
-            if (errorType == GeminiErrorType.auth) {
-              keyHealthTracker?.markInvalid(keyIndex, error.toString());
-              shouldMoveToNextModel = true;
-              break;
-            }
-            if (errorType == GeminiErrorType.modelNotFound) {
-              shouldMoveToNextModel = true;
-              continue;
-            }
-            if (errorType == GeminiErrorType.quota) {
-              shouldMoveToNextModel = true;
-              continue;
-            }
-            
-            modelRetries++;
+          if (errorType == GeminiErrorType.quota) {
             keyHealthTracker?.markError(keyIndex, error.toString());
+            if (modelIndex < _fallbackModels.length - 1) {
+              quotaBackoffAttempt++;
+              await Future<void>.delayed(
+                Duration(seconds: quotaBackoffAttempt),
+              );
+              continue;
+            }
+            break;
           }
-        }
-        
-        if (_classifyError(lastError) == GeminiErrorType.auth) {
+          if (errorType == GeminiErrorType.modelNotFound) {
+            if (modelIndex < _fallbackModels.length - 1) {
+              continue;
+            }
+            break;
+          }
+
+          keyHealthTracker?.markError(keyIndex, error.toString());
           break;
         }
       }

@@ -339,7 +339,7 @@ void main() {
         ),
       );
 
-      final result = await analyzer.analyze('this is a test sentence here');
+      final result = await analyzer.analyze('this is a test sentence here with enough characters');
       // Confidence = 0.3 (level) + 0.15 (reason) + 0.15 (label) + 0.15 (recommendation) = 0.75
       expect(result.confidence, greaterThanOrEqualTo(0.75));
     });

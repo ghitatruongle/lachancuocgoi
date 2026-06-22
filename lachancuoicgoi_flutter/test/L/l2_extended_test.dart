@@ -275,7 +275,7 @@ void main() {
 
   group('L2Analyzer — concurrency limiter', () {
     test('concurrent analyze calls are serialized', () async {
-      int callCount = 0;
+      const int callCount = 0;
       final analyzer = L2Analyzer(
         gDetectionEngine: _FakeSlowGDetectionEngine(() => callCount),
         intentClassifier: const DisabledIntentClassifier(),

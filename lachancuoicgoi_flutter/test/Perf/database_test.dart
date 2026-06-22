@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 import 'package:lachancuocgoi_flutter/data/alert_history_entry.dart';
 import 'package:lachancuocgoi_flutter/data/app_database.dart';
 import 'package:lachancuocgoi_flutter/data/call_history.dart';
@@ -47,8 +48,8 @@ void main() {
         '11:22:33',
       );
       expect(
-        restored.getAlertHistoryList().single.getRiskLevelColor().toARGB32(),
-        0xFFD32F2F,
+        restored.getAlertHistoryList().single.getRiskLevelColor(),
+        RiskLevel.red.colorValue,
       );
     });
 

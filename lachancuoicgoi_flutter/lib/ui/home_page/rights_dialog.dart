@@ -104,7 +104,7 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                           ? null
                           : () => _requestPermission(
                                 'microphone',
-                                () => controller.requestMicrophonePermission(),
+                                () => controller.requestMicrophonePermission(context),
                               ),
                     ),
                     _PermissionItem(
@@ -120,7 +120,7 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                           : () => _requestPermission(
                                 'phoneAndCallLog',
                                 () => controller
-                                    .requestPhoneAndCallLogPermissions(),
+                                    .requestPhoneAndCallLogPermissions(context),
                               ),
                     ),
                     _PermissionItem(
@@ -135,7 +135,7 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                           : () => _requestPermission(
                                 'phoneAndCallLog',
                                 () => controller
-                                    .requestPhoneAndCallLogPermissions(),
+                                    .requestPhoneAndCallLogPermissions(context),
                               ),
                     ),
                     _PermissionItem(
@@ -150,7 +150,7 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                           ? null
                           : () => _requestPermission(
                                 'overlay',
-                                () => controller.requestOverlayPermission(),
+                                () => controller.requestOverlayPermission(context),
                               ),
                     ),
                     _PermissionItem(
@@ -166,7 +166,7 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                           : () => _requestPermission(
                                 'notification',
                                 () =>
-                                    controller.requestNotificationPermission(),
+                                    controller.requestNotificationPermission(context),
                               ),
                     ),
                     _PermissionItem(
@@ -182,7 +182,7 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                           : () => _requestPermission(
                                 'callScreening',
                                 () =>
-                                    controller.requestCallScreeningPermission(),
+                                    controller.requestCallScreeningPermission(context),
                               ),
                     ),
                     _PermissionItem(
@@ -198,7 +198,7 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                           : () => _requestPermission(
                                 'accessibility',
                                 () =>
-                                    controller.requestAccessibilityPermission(),
+                                    controller.requestAccessibilityPermission(context),
                               ),
                     ),
                   ],
@@ -251,7 +251,7 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
   Future<void> _requestAll() async {
     setState(() => _isRequestingAll = true);
     try {
-      await ref.read(permissionControllerProvider.notifier).requestAllPermissions();
+      await ref.read(permissionControllerProvider.notifier).requestAllPermissions(context);
     } finally {
       if (mounted) {
         setState(() => _isRequestingAll = false);

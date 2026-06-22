@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
+import '../../../core/asset_loader.dart';
 
 import '../../common/text_normalizer.dart';
 
@@ -61,7 +60,7 @@ class SafetyFilter {
   static const double _largeAmountThreshold = 50000000; // 50 triệu VND
 
   static Future<void> loadConfig({
-    AssetBundle? assetBundle,
+    AssetLoader? assetLoader,
     SafetyAssetProvider? assetProvider,
   }) async {
     try {
@@ -73,9 +72,10 @@ class SafetyFilter {
       if (assetProvider != null) {
         text = await assetProvider(configFile);
       } else {
-        text = await (assetBundle ?? rootBundle).loadString(
-          'assets/$configFile',
-        );
+        if (assetLoader == null) {
+          throw StateError('AssetLoader is null. Phải cung cấp AssetLoader để load config.');
+        }
+        text = await assetLoader.loadString('assets/$configFile');
       }
       final decoded = jsonDecode(text);
       if (decoded is! Map) return;
@@ -104,7 +104,7 @@ class SafetyFilter {
       // Previously this was `catch (_) { /* ignore */ }` — a malformed asset
       // or missing file would silently leave stale defaults with no clue why.
       // Log so config load failures are diagnosable.
-      debugPrint('[SafetyFilter] Failed to load $configFile: $e\n$st');
+      print('[SafetyFilter] Failed to load $configFile: $e\n$st');
     }
     // Pre-compute normalized phrase lists once after config is loaded.
     _rebuildNormalizedLists();
@@ -283,8 +283,7 @@ class SafetyFilter {
     return 0.0;
   }
 
-  /// Resets all fields to hardcoded defaults. For use in unit tests only.
-  @visibleForTesting
+  // For use in unit tests only.
   static void resetForTesting() {
     _openingSectionLength = 200;
     _casualPhrases = <String>[

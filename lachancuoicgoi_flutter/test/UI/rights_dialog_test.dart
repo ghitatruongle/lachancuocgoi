@@ -8,21 +8,17 @@ import 'package:lachancuocgoi_flutter/ui/home_page/rights_dialog.dart';
 import 'test_helpers.dart';
 
 void main() {
-  Widget wrapWithDialog({
-    PermissionSnapshot? snapshot,
-  }) {
+  Widget wrapWithDialog({PermissionSnapshot? snapshot}) {
     final bridge = FakeNativeBridge(snapshot: snapshot);
     return ProviderScope(
-      overrides: [
-        bridgeOverride(bridge),
-      ],
+      overrides: [bridgeOverride(bridge)],
       child: MaterialApp(
         home: Scaffold(
           body: Builder(
             builder: (context) {
               return ElevatedButton(
                 onPressed: () {
-                  showDialog(
+                  showDialog<void>(
                     context: context,
                     builder: (_) => const RightsDialog(),
                   );
@@ -102,13 +98,17 @@ void main() {
       expect(find.textContaining('/7 quyền đã cấp'), findsOneWidget);
     });
 
-    testWidgets('shows granted count when some permissions granted', (tester) async {
-      await tester.pumpWidget(wrapWithDialog(
-        snapshot: const PermissionSnapshot(
-          recordAudio: true,
-          phoneState: true,
+    testWidgets('shows granted count when some permissions granted', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrapWithDialog(
+          snapshot: const PermissionSnapshot(
+            recordAudio: true,
+            phoneState: true,
+          ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Open'));
@@ -140,7 +140,9 @@ void main() {
       expect(find.text('Quyền ứng dụng'), findsNothing);
     });
 
-    testWidgets('shows "Cấp tất cả" button when not all granted', (tester) async {
+    testWidgets('shows "Cấp tất cả" button when not all granted', (
+      tester,
+    ) async {
       await tester.pumpWidget(wrapWithDialog());
       await tester.pumpAndSettle();
 
@@ -151,9 +153,9 @@ void main() {
     });
 
     testWidgets('shows check icons for granted permissions', (tester) async {
-      await tester.pumpWidget(wrapWithDialog(
-        snapshot: const PermissionSnapshot(recordAudio: true),
-      ));
+      await tester.pumpWidget(
+        wrapWithDialog(snapshot: const PermissionSnapshot(recordAudio: true)),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Open'));
@@ -174,10 +176,7 @@ void main() {
         find.textContaining('Thu âm thanh cuộc gọi qua microphone'),
         findsOneWidget,
       );
-      expect(
-        find.textContaining('Phát hiện cuộc gọi đến'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Phát hiện cuộc gọi đến'), findsOneWidget);
     });
   });
 }

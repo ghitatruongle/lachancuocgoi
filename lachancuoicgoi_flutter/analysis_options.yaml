@@ -5,24 +5,54 @@
 # IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
 # invoked from the command line by running `flutter analyze`.
 
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
+# `flutter_lints` includes a baseline of recommended rules (via
+# package:lints/core.yaml + recommended.yaml + flutter.yaml). Notable rules
+# already provided: prefer_const_constructors, use_super_parameters,
+# annotate_overrides, prefer_collection_literals, use_build_context_synchronously.
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    # Enforce strict-casts and strict-inference to catch type-related bugs
+    # early. The codebase already passes with these (baseline clean), so we
+    # lock in the stricter posture to prevent regressions.
+    strict-casts: true
+    strict-inference: true
+  errors:
+    # Treat missing return statements as errors.
+    missing_return: error
+    todo: ignore
 
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
+  # included above or to enable additional lints. A list of all available lints
   # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # ── Style consistency ────────────────────────────────────────────────
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    # Prefer const constructors where the arguments are constant — lets the
+    # framework canonicalize widgets and avoids redundant rebuilds.
+    prefer_const_constructors: true
+    # Pass parameters through `super.param` in constructor declarations
+    # instead of duplicating the field assignment.
+    use_super_parameters: true
+
+    # ── Correctness & safety ────────────────────────────────────────────
+    # Catch fire-and-forget futures that may silently drop errors — important
+    # in this app where analysis/IO must not fail silently.
+    unawaited_futures: true
+    # Encourage typed catch clauses (`on Exception`) over bare `catch` so
+    # errors are categorized instead of swallowed.
+    avoid_catches_without_on_clauses: true
+    # Prefer immutable locals where possible — reduces accidental mutation.
+    prefer_final_locals: true
+    # Warn when a Future/Stream is created but never awaited/listened.
+    cancel_subscriptions: true
+    close_sinks: true
+    # Catch common collection-mistake bugs.
+    prefer_iterable_whereType: true
 
 # Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+# https://dart.dev/guides/language/analysis

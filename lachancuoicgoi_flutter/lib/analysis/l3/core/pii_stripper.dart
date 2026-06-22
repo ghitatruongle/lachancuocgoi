@@ -41,6 +41,9 @@ class _Replacement {
 }
 
 class PIIStripper {
+  static const String _vietnameseCaps = 'A-ZĐÀÁẢÃẠÂẤẦẨẪẬĂẮẰẲẴẶÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ';
+  static const String _vietnameseLowers = 'a-zđàáảãạâấẩẫậăắằẳẵặéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ';
+
   static final List<String> _roleKeywords = <String>[
     'công an',
     'cong an',
@@ -120,12 +123,12 @@ class PIIStripper {
   );
 
   static final RegExp _personNameRegex = RegExp(
-    r'\b(?:tôi tên là|toi ten la|em tên là|em ten la|anh tên là|anh ten la|chị tên là|chi ten la|cháu tên là|chau ten la|tên tôi là|ten toi la|tên em là|ten em la|người nhận là|nguoi nhan la|tôi là|toi la|em là|em la|anh là|anh la|chị là|chi la|cháu là|chau la)\s+([a-zà-ỹ]{2,}(?:\s+[a-zà-ỹ]{2,}){0,4})',
+    r'\b(?:tôi tên là|toi ten la|em tên là|em ten la|anh tên là|anh ten la|chị tên là|chi ten la|cháu tên là|chau ten la|tên tôi là|ten toi la|tên em là|ten em la|người nhận là|nguoi nhan la|tôi là|toi la|em là|em la|anh là|anh la|chị là|chi la|cháu là|chau la)\s+([a-zđà-ỹ]{2,}(?:\s+[a-zđà-ỹ]+){0,4})',
     caseSensitive: false,
   );
 
   static final RegExp _genericNameRegex = RegExp(
-    r'\b([A-ZĐ][a-zà-ỹ]+(?:\s+[A-ZĐ][a-zà-ỹ]+){1,4})\b',
+    '(?<![$_vietnameseCaps$_vietnameseLowers])([$_vietnameseCaps][$_vietnameseLowers]+(?:\\s+[$_vietnameseCaps][$_vietnameseLowers]*){1,4})(?![$_vietnameseCaps$_vietnameseLowers])',
   );
 
   static final RegExp _addressRegex = RegExp(
@@ -473,6 +476,13 @@ class PIIStripper {
       return;
     }
     final originalValue = text.substring(start, end).trim();
+    if (RegExp(r'\d').hasMatch(originalValue)) {
+      final hasDigitBefore = start > 0 && RegExp(r'\d').hasMatch(text[start - 1]);
+      final hasDigitAfter = end < text.length && RegExp(r'\d').hasMatch(text[end]);
+      if (hasDigitBefore || hasDigitAfter) {
+        return;
+      }
+    }
     if (!validator(originalValue)) {
       return;
     }

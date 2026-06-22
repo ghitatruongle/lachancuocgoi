@@ -11,10 +11,7 @@ void main() {
           builder: (context) {
             return ElevatedButton(
               onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => child,
-                );
+                showDialog<void>(context: context, builder: (_) => child);
               },
               child: const Text('Open'),
             );
@@ -49,18 +46,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Use textContaining with broader substrings for robustness
-      expect(
-        find.textContaining('loa ngoài'),
-        findsWidgets,
-      );
-      expect(
-        find.textContaining('lắng nghe'),
-        findsWidgets,
-      );
-      expect(
-        find.textContaining('phát hiện'),
-        findsWidgets,
-      );
+      expect(find.textContaining('loa ngoài'), findsWidgets);
+      expect(find.textContaining('lắng nghe'), findsWidgets);
+      expect(find.textContaining('phát hiện'), findsWidgets);
     });
 
     testWidgets('close button dismisses dialog', (tester) async {

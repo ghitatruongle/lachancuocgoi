@@ -11,6 +11,8 @@ import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/monitoring_page.dart';
 
+import 'package:lachancuocgoi_flutter/services/flutter_services_impl.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -143,7 +145,7 @@ void main() {
     );
 
     test('loads bundled JSON assets and runs real L1 vocabulary', () async {
-      final analyzer = L1Analyzer();
+      final analyzer = L1Analyzer(assetLoader: const FlutterAssetLoader());
       await analyzer.initialize();
 
       final health = analyzer.healthCheck();

@@ -149,11 +149,11 @@ void main() {
       final successResult = Result.success(10);
       final failureResult = Result.failure<int>('err');
 
-      int successFold = successResult.fold(
+      final int successFold = successResult.fold(
         onSuccess: (v) => v,
         onFailure: (e, st) => -1,
       );
-      int failureFold = failureResult.fold(
+      final int failureFold = failureResult.fold(
         onSuccess: (v) => v,
         onFailure: (e, st) => -1,
       );

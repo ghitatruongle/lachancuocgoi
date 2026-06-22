@@ -1,8 +1,6 @@
 import 'dart:async' show Completer;
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
-
 import '../analysis_config.dart';
 import '../analysis_level.dart';
 import '../analysis_result.dart';
@@ -10,7 +8,10 @@ import '../analyzer.dart';
 import '../common/text_normalizer.dart';
 import '../health_check.dart';
 import '../../core/risk_level.dart';
+import '../../core/logger.dart';
+import '../../core/asset_loader.dart';
 import 'g_detection/g_detection_engine.dart';
+import 'intent/tflite_intent_classifier.dart';
 
 import 'intent/intent_classifier.dart';
 import 'intent/intent_output_mapper.dart';
@@ -24,18 +25,24 @@ import 'wfsa/wfsa_engine.dart';
 class L2Analyzer implements Analyzer {
   L2Analyzer({
     this.config = const L2Config(),
+    AssetLoader? assetLoader,
+    AppLogger? logger,
     GDetectionEngine? gDetectionEngine,
     IntentClassifier? intentClassifier,
     WfsaEngine? wfsaEngine,
     ResponseCache<AnalysisResult>? cache,
-  }) : _gDetectionEngine = gDetectionEngine ?? GDetectionEngine(),
-       _intentClassifier = intentClassifier ?? const DisabledIntentClassifier(),
+  }) : _assetLoader = assetLoader,
+       _logger = logger,
+       _gDetectionEngine = gDetectionEngine ?? GDetectionEngine(assetLoader: assetLoader, logger: logger),
+       _intentClassifier = intentClassifier ?? TFLiteIntentClassifier(assetLoader: assetLoader, logger: logger),
        _wfsaEngine =
            wfsaEngine ?? WfsaEngine(ScamGraphBuilder.buildDefaultGraphs()),
        _cache = cache ?? ResponseCache<AnalysisResult>();
 
   final L2Config config;
   final ResponseCache<AnalysisResult> _cache;
+  final AssetLoader? _assetLoader;
+  final AppLogger? _logger;
 
   double get aiHighConfidenceThreshold => config.aiHighConfidenceThreshold;
   double get aiDirectConfidence => config.aiDirectConfidence;
@@ -82,7 +89,7 @@ class L2Analyzer implements Analyzer {
     await Future.wait(<Future<void>>[
       _gDetectionEngine.initialize(),
       _intentClassifier.initialize(),
-      SafetyFilter.loadConfig(),
+      SafetyFilter.loadConfig(assetLoader: _assetLoader),
     ]);
   }
 
@@ -182,7 +189,7 @@ class L2Analyzer implements Analyzer {
     await prevMutex.timeout(
       const Duration(seconds: 5),
       onTimeout: () {
-        debugPrint('[L2Analyzer] Timeout waiting for previous analysis lock — force continuing');
+        _logger?.warning('Timeout waiting for previous analysis lock — force continuing');
       },
     );
 
@@ -312,7 +319,7 @@ class L2Analyzer implements Analyzer {
       // Trước đây `catch (_)` nuốt exception không log → khó debug production.
       // Giờ log đầy đủ để intent-flow failure có thể truy vết (key TFLite
       // isolate, lỗi vocab, v.v.) mà vẫn fallback an toàn.
-      debugPrint('[L2Analyzer] Intent flow failed, falling back: $e\n$st');
+      _logger?.warning('Intent flow failed, falling back: $e', e, st);
       return const _Luong1Fallback();
     }
   }

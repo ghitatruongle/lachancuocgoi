@@ -1,17 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:flutter/services.dart';
-
 import '../../core/risk_level.dart';
+import '../../core/logger.dart';
+import '../../core/asset_loader.dart';
 import '../analysis_config.dart';
 import '../analysis_level.dart';
 import '../analysis_result.dart';
 import '../analyzer.dart';
+import '../common/fuzzy_matcher.dart';
 import '../common/text_normalizer.dart';
 import '../health_check.dart';
 import 'l1_result.dart';
+
 
 class FlatTrie {
   FlatTrie({int initialCapacity = 2000})
@@ -123,16 +124,19 @@ class FlatTrie {
 class L1Analyzer implements Analyzer {
   L1Analyzer({
     this.config = const L1Config(),
-    AssetBundle? assetBundle,
+    AssetLoader? assetLoader,
+    AppLogger? logger,
     FutureOr<String> Function()? vocabularyProvider,
     FutureOr<String> Function()? bigramCorrectionsProvider,
     FutureOr<String> Function()? criticalKeywordsProvider,
-  }) : _assetBundle = assetBundle ?? rootBundle,
+  }) : _assetLoader = assetLoader,
+       _logger = logger,
        _vocabularyProvider = vocabularyProvider,
        _bigramCorrectionsProvider = bigramCorrectionsProvider,
        _criticalKeywordsProvider = criticalKeywordsProvider;
 
-  final AssetBundle _assetBundle;
+  final AssetLoader? _assetLoader;
+  final AppLogger? _logger;
   FutureOr<String> Function()? _vocabularyProvider;
   FutureOr<String> Function()? _bigramCorrectionsProvider;
   final FutureOr<String> Function()? _criticalKeywordsProvider;
@@ -145,6 +149,7 @@ class L1Analyzer implements Analyzer {
 
   FlatTrie _trie = FlatTrie();
   final Map<String, List<_TokenCorrection>> _corrections = {};
+  final Map<String, KeywordMatch> _singleTokenFuzzyCandidates = {};
 
   final L1Config config;
 
@@ -183,7 +188,6 @@ class L1Analyzer implements Analyzer {
     _cachedCorrectedTokens.clear();
     _stateHistory = [FlatTrie.rootId];
     _lastFullTranscript = '';
-    _processedTextLength = 0;
     _processedTextLength = 0;
     _lastResult = const AnalysisResult(
       overallRiskLevel: RiskLevel.green,
@@ -224,7 +228,10 @@ class L1Analyzer implements Analyzer {
             'Trie OK (${_trie.nodesCount} nodes) nhưng không có bigram corrections.',
       );
     }
-    final correctionCount = _corrections.values.fold<int>(0, (sum, list) => sum + list.length);
+    final correctionCount = _corrections.values.fold<int>(
+      0,
+      (sum, list) => sum + list.length,
+    );
     return HealthReport(
       status: HealthStatus.healthy,
       component: 'L1',
@@ -258,19 +265,23 @@ class L1Analyzer implements Analyzer {
 
     int commonLen = 0;
     while (commonLen < _cachedCorrectedTokens.length &&
-           commonLen < fullCorrected.length &&
-           _cachedCorrectedTokens[commonLen] == fullCorrected[commonLen]) {
+        commonLen < fullCorrected.length &&
+        _cachedCorrectedTokens[commonLen] == fullCorrected[commonLen]) {
       commonLen++;
     }
 
-    if (commonLen == fullCorrected.length && commonLen == _cachedCorrectedTokens.length) {
+    if (commonLen == fullCorrected.length &&
+        commonLen == _cachedCorrectedTokens.length) {
       _lastFullTranscript = fullTranscript;
       _processedTextLength = fullTranscript.length;
       return _lastResult;
     }
 
     if (commonLen < _cachedCorrectedTokens.length) {
-      _cachedCorrectedTokens.removeRange(commonLen, _cachedCorrectedTokens.length);
+      _cachedCorrectedTokens.removeRange(
+        commonLen,
+        _cachedCorrectedTokens.length,
+      );
       _stateHistory.removeRange(commonLen + 1, _stateHistory.length);
     }
 
@@ -280,7 +291,7 @@ class L1Analyzer implements Analyzer {
 
     for (var index = commonLen; index < fullCorrected.length; index++) {
       final token = fullCorrected[index];
-      
+
       while (currentState != FlatTrie.rootId &&
           _trie.getChildId(currentState, token) == null) {
         currentState = _trie.failureLinks[currentState];
@@ -302,9 +313,17 @@ class L1Analyzer implements Analyzer {
     _lastFullTranscript = fullTranscript;
     _processedTextLength = fullTranscript.length;
 
+    _addFuzzyMatches(unmatchedTokens, matches);
     final filteredMatches = _filterSafeMatches(matches, fullCorrected);
-    final denseMatches = _applyRiskDensity(filteredMatches, fullCorrected.length);
-    _lastResult = L1ResultParser.parse(denseMatches, fullCorrected.length, _criticalKeywords);
+    final denseMatches = _applyRiskDensity(
+      filteredMatches,
+      fullCorrected.length,
+    );
+    _lastResult = L1ResultParser.parse(
+      denseMatches,
+      fullCorrected.length,
+      _criticalKeywords,
+    );
     return _lastResult;
   }
 
@@ -364,6 +383,7 @@ class L1Analyzer implements Analyzer {
   }
 
   Future<void> _buildTrie() async {
+    _singleTokenFuzzyCandidates.clear();
     try {
       final jsonText = await _loadString(
         'assets/risk_model_vocabulary.json',
@@ -406,7 +426,7 @@ class L1Analyzer implements Analyzer {
         }
       }
     } catch (e) {
-      debugPrint('[L1Analyzer] Failed to build trie: $e. Using fallback keywords.');
+      _logger?.warning('Failed to build trie: $e. Using fallback keywords.');
       _buildFallbackTrie();
     }
   }
@@ -435,15 +455,17 @@ class L1Analyzer implements Analyzer {
         final from = _readTokenList(rawEntry['from']);
         final to = _readTokenList(rawEntry['to']);
         if (from.isEmpty || to.isEmpty) continue;
-        
+
         final firstWord = from.first;
-        _corrections.putIfAbsent(firstWord, () => []).add(_TokenCorrection(from, to));
+        _corrections
+            .putIfAbsent(firstWord, () => [])
+            .add(_TokenCorrection(from, to));
       }
       for (final list in _corrections.values) {
         list.sort((a, b) => b.from.length.compareTo(a.from.length));
       }
     } catch (e) {
-      debugPrint('[L1Analyzer] Failed to load bigram corrections: $e');
+      _logger?.warning('Failed to load bigram corrections: $e');
       _corrections.clear();
     }
   }
@@ -466,10 +488,10 @@ class L1Analyzer implements Analyzer {
             .map((k) => k.toLowerCase().trim())
             .where((k) => k.isNotEmpty)
             .toSet();
-        debugPrint('[L1Analyzer] Loaded ${_criticalKeywords.length} critical keywords from JSON.');
+        _logger?.info('Loaded ${_criticalKeywords.length} critical keywords from JSON.');
       }
     } catch (e) {
-      debugPrint('[L1Analyzer] Failed to load critical keywords: $e. Using defaults.');
+      _logger?.warning('Failed to load critical keywords: $e. Using defaults.');
       _criticalKeywords = L1ResultParser.defaultCriticalKeywords;
     }
   }
@@ -477,6 +499,13 @@ class L1Analyzer implements Analyzer {
   void _insertKeyword(String keyword, int levelValue, String category) {
     final tokens = _tokenize(keyword);
     if (tokens.isEmpty) return;
+    if (tokens.length == 1 && tokens.single.length >= config.fuzzyMinLength) {
+      _singleTokenFuzzyCandidates[tokens.single] = KeywordMatch(
+        keyword: keyword,
+        level: RiskLevel.fromInt(levelValue),
+        category: category,
+      );
+    }
 
     var currentNodeId = FlatTrie.rootId;
     for (final token in tokens) {
@@ -568,7 +597,34 @@ class L1Analyzer implements Analyzer {
       }
     }
 
+    _addFuzzyMatches(unmatchedTokens, matches);
     return matches;
+  }
+
+  void _addFuzzyMatches(
+    List<_UnmatchedToken> unmatchedTokens,
+    Set<KeywordMatch> matches,
+  ) {
+    if (!config.fuzzyEnabled || _singleTokenFuzzyCandidates.isEmpty) return;
+
+    for (final unmatched in unmatchedTokens) {
+      if (unmatched.token.length < config.fuzzyMinLength) continue;
+      final closest = FuzzyMatcher.findClosest(
+        unmatched.token,
+        _singleTokenFuzzyCandidates.keys,
+        maxDistance: config.fuzzyMaxDistance,
+      );
+      if (closest == null) continue;
+      final candidate = _singleTokenFuzzyCandidates[closest];
+      if (candidate == null || candidate.level == RiskLevel.green) continue;
+      matches.add(
+        candidate.copyWith(
+          startIndex: unmatched.wordIndex,
+          endIndex: unmatched.wordIndex,
+          isFuzzy: true,
+        ),
+      );
+    }
   }
 
   bool _collectMatchesAtState({
@@ -606,8 +662,6 @@ class L1Analyzer implements Analyzer {
 
     return found;
   }
-
-
 
   bool _matchesCorrection(List<String> tokens, int start, List<String> from) {
     if (start + from.length > tokens.length) return false;
@@ -654,7 +708,10 @@ class L1Analyzer implements Analyzer {
       final result = await provider();
       return result;
     }
-    return _assetBundle.loadString(assetKey);
+    if (_assetLoader == null) {
+      throw StateError('AssetLoader is null. Phải cung cấp AssetLoader hoặc provider cho $assetKey.');
+    }
+    return _assetLoader.loadString(assetKey);
   }
 
   @override
@@ -666,6 +723,7 @@ class L1Analyzer implements Analyzer {
     // leaving the trie (potentially thousands of nodes) + bigram corrections
     // map + initialization future reachable.
     _corrections.clear();
+    _singleTokenFuzzyCandidates.clear();
     _trie = FlatTrie();
     _questionPatterns = null;
     _hasInitialized = false;
@@ -681,7 +739,10 @@ class L1Analyzer implements Analyzer {
         .toList();
   }
 
-  Set<KeywordMatch> _filterSafeMatches(Set<KeywordMatch> matches, List<String> tokens) {
+  Set<KeywordMatch> _filterSafeMatches(
+    Set<KeywordMatch> matches,
+    List<String> tokens,
+  ) {
     if (matches.isEmpty) return matches;
 
     final filtered = <KeywordMatch>{};
@@ -701,7 +762,10 @@ class L1Analyzer implements Analyzer {
     // Pre-compute full transcript text for global safe context check (Rule 6).
     // If safe indicators appear multiple times across the transcript,
     // the entire conversation is likely safe.
-    final fullText = TextNormalizer.normalize(tokens.join(' '), applySlang: true);
+    final fullText = TextNormalizer.normalize(
+      tokens.join(' '),
+      applySlang: true,
+    );
     var globalSafeCount = 0;
     for (final safe in generalSafePhrases) {
       // Count occurrences of each safe phrase in the full transcript.
@@ -719,11 +783,17 @@ class L1Analyzer implements Analyzer {
       }
 
       // Get context around the match (configurable window size)
-      final startPrefix = (match.startIndex - windowSize).clamp(0, tokens.length);
+      final startPrefix = (match.startIndex - windowSize).clamp(
+        0,
+        tokens.length,
+      );
       final prefixTokens = tokens.sublist(startPrefix, match.startIndex);
       final prefixText = prefixTokens.join(' ');
 
-      final endSuffix = (match.endIndex + windowSize + 1).clamp(0, tokens.length);
+      final endSuffix = (match.endIndex + windowSize + 1).clamp(
+        0,
+        tokens.length,
+      );
       final suffixTokens = tokens.sublist(match.endIndex + 1, endSuffix);
       final suffixText = suffixTokens.join(' ');
 
@@ -732,15 +802,23 @@ class L1Analyzer implements Analyzer {
       bool shouldFilter = false;
 
       // Rule 1: Negation preceding the keyword using Regex
-      final normalizedPrefix = TextNormalizer.normalize(prefixText, applySlang: true);
+      final normalizedPrefix = TextNormalizer.normalize(
+        prefixText,
+        applySlang: true,
+      );
       if (negationRegex.hasMatch(normalizedPrefix)) {
         shouldFilter = true;
       }
 
       // Rule 2: Safe beneficiary succeeding a financial keyword
       if (!shouldFilter) {
-        final normalizedKeyword = TextNormalizer.normalize(match.keyword, applySlang: true);
-        final isFinancial = financialIndicatorKeywords.any((fin) => normalizedKeyword.contains(fin));
+        final normalizedKeyword = TextNormalizer.normalize(
+          match.keyword,
+          applySlang: true,
+        );
+        final isFinancial = financialIndicatorKeywords.any(
+          (fin) => normalizedKeyword.contains(fin),
+        );
         if (isFinancial) {
           for (final ben in safeBeneficiaries) {
             if (suffixText.contains(ben)) {
@@ -765,7 +843,10 @@ class L1Analyzer implements Analyzer {
       // E.g. "cho hỏi làm thế nào để chuyển tiền" is informational.
       // Only check prefix (question words typically precede the keyword).
       if (!shouldFilter) {
-        final normalizedPrefixCtx = TextNormalizer.normalize(prefixText, applySlang: true);
+        final normalizedPrefixCtx = TextNormalizer.normalize(
+          prefixText,
+          applySlang: true,
+        );
         for (final pattern in questionPatterns) {
           if (pattern.hasMatch(normalizedPrefixCtx)) {
             shouldFilter = true;
@@ -778,12 +859,18 @@ class L1Analyzer implements Analyzer {
       // financial keyword suggests legitimate personal transfer, not scam.
       // Only checks suffix to avoid false positives from broader context.
       if (!shouldFilter) {
-        final normalizedKeyword = TextNormalizer.normalize(match.keyword, applySlang: true);
+        final normalizedKeyword = TextNormalizer.normalize(
+          match.keyword,
+          applySlang: true,
+        );
         final isFinancialKw = financialIndicatorKeywords.any(
           (fin) => normalizedKeyword.contains(fin),
         );
         if (isFinancialKw) {
-          final normalizedSuffix = TextNormalizer.normalize(suffixText, applySlang: true);
+          final normalizedSuffix = TextNormalizer.normalize(
+            suffixText,
+            applySlang: true,
+          );
           for (final term in familyTerms) {
             if (normalizedSuffix.contains(term)) {
               shouldFilter = true;
@@ -805,60 +892,77 @@ class L1Analyzer implements Analyzer {
       if (!shouldFilter) {
         filtered.add(match);
       } else {
-        debugPrint('[L1Analyzer] Negative lookahead filtered match: "${match.keyword}" at [${match.startIndex}, ${match.endIndex}]');
+        _logger?.debug(
+          'Negative lookahead filtered match: "${match.keyword}" at [${match.startIndex}, ${match.endIndex}]',
+        );
       }
     }
 
     return filtered;
   }
 
-  Set<KeywordMatch> _applyRiskDensity(Set<KeywordMatch> matches, int totalTokens) {
+  Set<KeywordMatch> _applyRiskDensity(
+    Set<KeywordMatch> matches,
+    int totalTokens,
+  ) {
     if (matches.length < 2) return matches;
-    
-    final sortedMatches = matches.toList()..sort((a, b) => a.startIndex.compareTo(b.startIndex));
+
+    final sortedMatches = matches.toList()
+      ..sort((a, b) => a.startIndex.compareTo(b.startIndex));
     final result = <KeywordMatch>{};
     final processedIndices = <int>{};
-    
+
     for (int i = 0; i < sortedMatches.length; i++) {
       if (processedIndices.contains(i)) continue;
-      
-      var match = sortedMatches[i];
+
+      final match = sortedMatches[i];
       if (match.level == RiskLevel.yellow || match.level == RiskLevel.orange) {
-        int denseCount = 1;
-        int endIndex = match.endIndex;
-        List<KeywordMatch> cluster = [match];
-        
+        var denseCount = 1;
+        var endIndex = match.endIndex;
+        final cluster = <KeywordMatch>[match];
+        final clusterIndices = <int>[i];
+
         for (int j = i + 1; j < sortedMatches.length; j++) {
           final nextMatch = sortedMatches[j];
           if (nextMatch.startIndex - match.startIndex <= 10) {
-            if (nextMatch.level == RiskLevel.yellow || nextMatch.level == RiskLevel.orange) {
+            if (nextMatch.level == RiskLevel.yellow ||
+                nextMatch.level == RiskLevel.orange) {
               denseCount++;
-              endIndex = nextMatch.endIndex > endIndex ? nextMatch.endIndex : endIndex;
+              endIndex = nextMatch.endIndex > endIndex
+                  ? nextMatch.endIndex
+                  : endIndex;
               cluster.add(nextMatch);
+              clusterIndices.add(j);
             }
           } else {
             break; // Since sorted, we can break early
           }
         }
-        
+
         if (denseCount >= 3) {
-          result.add(KeywordMatch(
-            keyword: cluster.map((m) => m.keyword).join(' + '),
-            level: RiskLevel.red,
-            category: 'Mật độ rủi ro cao (Risk Density)',
-            startIndex: match.startIndex,
-            endIndex: endIndex,
-          ));
-          result.addAll(cluster);
-          for (int j = 0; j < cluster.length; j++) {
-            processedIndices.add(i + j);
-          }
+          result.add(
+            KeywordMatch(
+              keyword: cluster.map((m) => m.keyword).join(' + '),
+              level: RiskLevel.red,
+              category: 'Mật độ rủi ro cao (Risk Density)',
+              startIndex: match.startIndex,
+              endIndex: endIndex,
+            ),
+          );
+          processedIndices.addAll(clusterIndices);
           continue;
         }
       }
       result.add(match);
     }
     return result;
+  }
+
+  Set<KeywordMatch> applyRiskDensityForTesting(
+    Set<KeywordMatch> matches,
+    int totalTokens,
+  ) {
+    return _applyRiskDensity(matches, totalTokens);
   }
 }
 

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import '../core/risk_level.dart';
 
 class AlertHistoryEntry {
   const AlertHistoryEntry({
@@ -44,18 +44,18 @@ class AlertHistoryEntry {
     return '${_pad(time.hour)}:${_pad(time.minute)}:${_pad(time.second)}';
   }
 
-  Color getRiskLevelColor() {
-    return switch (riskLevel.toUpperCase()) {
-      'RED' => const Color(0xFFD32F2F),
-      'ORANGE' => const Color(0xFFFF9800),
-      _ => const Color(0xFF9E9E9E),
-    };
-  }
+  /// ARGB color int for this entry's risk level, sourced from
+  /// [RiskLevel.colorValue] (the canonical palette). The UI layer converts
+  /// this to a Flutter `Color` — this data model stays Flutter-free.
+  int getRiskLevelColor() => RiskLevel.fromString(riskLevel).colorValue;
 
+  /// Stable icon key derived from the parsed [RiskLevel] level so the
+  /// mapping logic lives in a single place.
   String getRiskLevelIcon() {
-    return switch (riskLevel.toUpperCase()) {
-      'RED' => 'red',
-      'ORANGE' => 'orange',
+    final level = RiskLevel.fromString(riskLevel);
+    return switch (level) {
+      RiskLevel.red => 'red',
+      RiskLevel.orange => 'orange',
       _ => 'neutral',
     };
   }

@@ -52,14 +52,14 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
     if (widget.isUrgent) {
       // Mức độ nguy hiểm (Đỏ): Chuông báo động + Rung liên tục
       try {
-        FlutterRingtonePlayer().playAlarm(looping: true, volume: 1.0);
-      } catch (e) {
+        unawaited(FlutterRingtonePlayer().playAlarm(looping: true, volume: 1.0));
+      } on Exception catch (_) {
         // Fallback
       }
       
-      bool? hasVibrator = await Vibration.hasVibrator();
+      final bool hasVibrator = await Vibration.hasVibrator();
       if (hasVibrator == true) {
-        Vibration.vibrate(pattern: [0, 500, 200, 500, 200, 500], intensities: [0, 255, 0, 255, 0, 255], repeat: 1);
+        unawaited(Vibration.vibrate(pattern: [0, 500, 200, 500, 200, 500], intensities: [0, 255, 0, 255, 0, 255], repeat: 1));
       } else {
         _playHapticOnce();
         _hapticTimer = Timer.periodic(
@@ -70,22 +70,22 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
     } else {
       // Mức độ cảnh báo (Cam): Âm thanh thông báo + Rung 1 lần
       try {
-        FlutterRingtonePlayer().playNotification(volume: 1.0);
-      } catch (e) {
+        unawaited(FlutterRingtonePlayer().playNotification(volume: 1.0));
+      } on Exception catch (_) {
         // Fallback
       }
       
-      bool? hasVibrator = await Vibration.hasVibrator();
+      final bool hasVibrator = await Vibration.hasVibrator();
       if (hasVibrator == true) {
-        Vibration.vibrate(duration: 500);
+        unawaited(Vibration.vibrate(duration: 500));
       } else {
-        HapticFeedback.mediumImpact();
+        unawaited(HapticFeedback.mediumImpact());
       }
     }
   }
 
   void _playHapticOnce() {
-    HapticFeedback.heavyImpact();
+    unawaited(HapticFeedback.heavyImpact());
   }
 
   @override
@@ -93,11 +93,11 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
     _hapticTimer?.cancel();
     _hapticTimer = null;
     try {
-      FlutterRingtonePlayer().stop();
-    } catch (_) {}
+      unawaited(FlutterRingtonePlayer().stop());
+    } on Exception catch (_) {}
     try {
-      Vibration.cancel();
-    } catch (_) {}
+      unawaited(Vibration.cancel());
+    } on Exception catch (_) {}
     super.dispose();
   }
 

@@ -227,12 +227,12 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
 
   // Preset script for simulating a scam call to show risk detection in action
   static const List<String> _iosScamScript = [
-    "Xin chào ông, tôi là cán bộ điều tra thuộc Cơ quan Cảnh sát điều tra Bộ Công an.",
-    "Hiện tại số điện thoại và tài khoản ngân hàng của ông đang bị nghi ngờ liên quan đến một đường dây rửa tiền và buôn bán ma túy quy mô lớn xuyên quốc gia.",
-    "Để phục vụ công tác điều tra, yêu cầu ông không được tiết lộ thông tin này cho bất kỳ ai khác.",
-    "Bây giờ ông cần phải chuyển toàn bộ số tiền hiện có sang một tài khoản tạm giữ an toàn của Bộ Công an để chúng tôi xác minh nguồn gốc.",
-    "Tôi sẽ gửi thông tin tài khoản cho ông. Hãy nhanh chóng thực hiện giao dịch này trong vòng 15 phút, nếu không chúng tôi sẽ tiến hành phong tỏa toàn bộ tài sản của ông và gửi lệnh bắt tạm giam hình sự.",
-    "Hãy đọc lại cho tôi mã xác thực OTP vừa được gửi đến điện thoại của ông để chúng tôi hoàn tất thủ tục mở hồ sơ bảo lãnh tư pháp.",
+    'Xin chào ông, tôi là cán bộ điều tra thuộc Cơ quan Cảnh sát điều tra Bộ Công an.',
+    'Hiện tại số điện thoại và tài khoản ngân hàng của ông đang bị nghi ngờ liên quan đến một đường dây rửa tiền và buôn bán ma túy quy mô lớn xuyên quốc gia.',
+    'Để phục vụ công tác điều tra, yêu cầu ông không được tiết lộ thông tin này cho bất kỳ ai khác.',
+    'Bây giờ ông cần phải chuyển toàn bộ số tiền hiện có sang một tài khoản tạm giữ an toàn của Bộ Công an để chúng tôi xác minh nguồn gốc.',
+    'Tôi sẽ gửi thông tin tài khoản cho ông. Hãy nhanh chóng thực hiện giao dịch này trong vòng 15 phút, nếu không chúng tôi sẽ tiến hành phong tỏa toàn bộ tài sản của ông và gửi lệnh bắt tạm giam hình sự.',
+    'Hãy đọc lại cho tôi mã xác thực OTP vừa được gửi đến điện thoại của ông để chúng tôi hoàn tất thủ tục mở hồ sơ bảo lãnh tư pháp.',
   ];
 
   void _startSimulation() {
@@ -364,7 +364,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       final duration = _iosStartTime != null 
           ? DateTime.now().difference(_iosStartTime!).inSeconds 
           : 0;
-      final fullTranscript = _iosScamScript.take((_iosTimerTicks ~/ 100)).join(" ");
+      final fullTranscript = _iosScamScript.take((_iosTimerTicks ~/ 100)).join(' ');
       _iosMonitoringStateController.add((MonitoringState.stopped, duration, fullTranscript));
       return true;
     }
@@ -405,7 +405,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       final duration = _iosStartTime != null 
           ? DateTime.now().difference(_iosStartTime!).inSeconds 
           : 0;
-      final fullTranscript = _iosScamScript.take((_iosTimerTicks ~/ 100)).join(" ");
+      final fullTranscript = _iosScamScript.take((_iosTimerTicks ~/ 100)).join(' ');
       _iosMonitoringStateController.add((MonitoringState.stopped, duration, fullTranscript));
       return true;
     }
@@ -423,7 +423,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<bool> showRedAlert(String reason) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      debugPrint("iOS Simulation: RED ALERT displayed - $reason");
+      debugPrint('iOS Simulation: RED ALERT displayed - $reason');
       return true;
     }
     try {
@@ -440,7 +440,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<bool> showOrangeAlert(String reason) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      debugPrint("iOS Simulation: ORANGE ALERT displayed - $reason");
+      debugPrint('iOS Simulation: ORANGE ALERT displayed - $reason');
       return true;
     }
     try {
@@ -458,7 +458,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<bool> dismissAlert() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      debugPrint("iOS Simulation: Alert dismissed");
+      debugPrint('iOS Simulation: Alert dismissed');
       return true;
     }
     try {
@@ -628,7 +628,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<void> showIncomingCallOverlay(String callerInfo) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      debugPrint("iOS Simulation: Incoming Call Overlay shown - $callerInfo");
+      debugPrint('iOS Simulation: Incoming Call Overlay shown - $callerInfo');
       return;
     }
     try {
@@ -644,7 +644,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<void> dismissIncomingCallOverlay() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      debugPrint("iOS Simulation: Incoming Call Overlay dismissed");
+      debugPrint('iOS Simulation: Incoming Call Overlay dismissed');
       return;
     }
     try {

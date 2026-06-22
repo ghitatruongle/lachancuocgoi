@@ -321,6 +321,7 @@ void main() {
         final sub = dao.watchAll().listen((items) {
           emissions.add(items);
         });
+        addTearDown(sub.cancel);
 
         // Wait for initial emission
         await Future<void>.delayed(const Duration(milliseconds: 100));

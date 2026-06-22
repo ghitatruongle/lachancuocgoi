@@ -1,8 +1,6 @@
 import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-
+import '../../../core/asset_loader.dart';
+import '../../../core/logger.dart';
 import 'api_key_obfuscator.dart';
 
 abstract interface class ApiKeyProvider {
@@ -16,16 +14,24 @@ abstract interface class ApiKeyProvider {
 }
 
 class EnvironmentApiKeyProvider implements ApiKeyProvider {
-  EnvironmentApiKeyProvider({String? commaSeparatedKeys, String? singleKey})
-    : _commaSeparatedKeys =
-          commaSeparatedKeys ?? const String.fromEnvironment('GEMINI_API_KEYS'),
-      _singleKey = singleKey ?? const String.fromEnvironment('GEMINI_API_KEY') {
+  EnvironmentApiKeyProvider({
+    String? commaSeparatedKeys,
+    String? singleKey,
+    AssetLoader? assetLoader,
+    AppLogger? logger,
+  }) : _commaSeparatedKeys =
+            commaSeparatedKeys ?? const String.fromEnvironment('GEMINI_API_KEYS'),
+       _singleKey = singleKey ?? const String.fromEnvironment('GEMINI_API_KEY'),
+       _assetLoader = assetLoader,
+       _logger = logger {
     // Parse dart-define keys eagerly so getApiKeys() works without ensureLoaded().
     _keys = _parseKeys();
   }
 
   final String _commaSeparatedKeys;
   final String _singleKey;
+  final AssetLoader? _assetLoader;
+  final AppLogger? _logger;
 
   /// Mutable list — populated eagerly from dart-define in constructor,
   /// and optionally extended by [ensureLoaded] from  asset.
@@ -75,16 +81,19 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
     if (_keys.isNotEmpty) return;
 
     try {
-      final raw = await rootBundle.loadString('');
+      if (_assetLoader == null) {
+        throw StateError('AssetLoader is null. Phải cung cấp AssetLoader để load .');
+      }
+      final raw = await _assetLoader.loadString('');
       _loadedFromAssets = true;
       _warnAboutBundledKeys();
       _parseAndIngestEnvJson(raw);
-      debugPrint(
+      _logger?.info(
         'Loaded ${_keys.length} API keys from  asset '
         '(SECURITY WARNING: keys are bundled in APK).',
       );
-    } catch (e) {
-      debugPrint('Failed to load : $e');
+    } on Object catch (e) {
+      _logger?.warning('Failed to load : $e');
     }
   }
 
@@ -109,7 +118,7 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
       }
     }
     if (placeholderCount > 0) {
-      debugPrint(
+      _logger?.warning(
         'SECURITY: Bỏ qua $placeholderCount placeholder key(s) trong . '
         'Có thể bạn đang dùng env.example.json thay vì  thật. '
         'Hãy tạo  với key thật rồi mới chạy app.',
@@ -119,15 +128,16 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
 
   /// Log warning nếu keys đang load từ assets (không an toàn).
   void _warnAboutBundledKeys() {
-    if (kReleaseMode) {
-      debugPrint(
+    const isRelease = const bool.fromEnvironment('dart.vm.product');
+    if (isRelease) {
+      _logger?.warning(
         '🚨 SECURITY WARNING:  đang được bundle trong APK release. '
         'Bất kỳ ai cài app đều có thể extract API keys. '
         'Hãy move  ra app documents directory và rotate keys. '
         'Xem SECURITY.md.',
       );
     } else {
-      debugPrint(
+      _logger?.info(
         '⚠️ [DEBUG]  load từ assets. Trong production, '
         'hãy dùng app documents dir để keys không bị ship cùng APK.',
       );
