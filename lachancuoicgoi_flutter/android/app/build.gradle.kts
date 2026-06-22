@@ -1,6 +1,15 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use(::load)
+    }
 }
 
 android {
@@ -26,13 +35,22 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Replace debug signing with your release keystore.
-            // Create a key.properties file in android/ and configure:
-            //   storePassword, keyPassword, keyAlias, storeFile
-            // See: https://docs.flutter.dev/deployment/android#signing-the-app
-            signingConfig = signingConfigs.getByName("debug")
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -78,4 +96,16 @@ dependencies {
 
 flutter {
     source = "../.."
+}
+
+gradle.taskGraph.whenReady {
+    val requiresReleaseSigning = allTasks.any {
+        it.name.contains("Release", ignoreCase = true)
+    }
+    if (requiresReleaseSigning && !keystorePropertiesFile.exists()) {
+        throw GradleException(
+            "Missing android/key.properties for release signing. " +
+                "Create it with storePassword, keyPassword, keyAlias, and storeFile.",
+        )
+    }
 }

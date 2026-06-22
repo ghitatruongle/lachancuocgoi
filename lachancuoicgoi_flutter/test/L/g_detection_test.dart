@@ -7,6 +7,8 @@ import 'package:lachancuocgoi_flutter/analysis/l2/g_detection/g_flash.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/l2_result.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 
+import 'package:lachancuocgoi_flutter/services/flutter_services_impl.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -82,7 +84,7 @@ void main() {
     test(
       'loads bundled assets and returns a non-green fraud benchmark',
       () async {
-        final engine = GDetectionEngine();
+        final engine = GDetectionEngine(assetLoader: const FlutterAssetLoader());
         await engine.initialize();
 
         final result = await engine.performFullAnalysis(
@@ -110,7 +112,7 @@ GDetectionEngine _newTestEngine() {
     GDetectionEngine.sentencesFile: _testSentences,
     GDetectionEngine.slangFile: _testSlang,
     GDetectionEngine.tierConfigFile: _testTierConfig,
-    GDetectionEngine.aiCheckFile: {'situations': []},
+    GDetectionEngine.aiCheckFile: {'situations': <Object?>[]},
   };
 
   return GDetectionEngine(

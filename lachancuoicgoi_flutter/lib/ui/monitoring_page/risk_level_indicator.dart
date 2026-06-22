@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/risk_level.dart';
+import '../theme/risk_level_colors.dart';
 
 /// Animated risk level progress bar with color transitions.
 class RiskLevelIndicator extends StatelessWidget {
@@ -20,23 +21,28 @@ class RiskLevelIndicator extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Mức độ rủi ro',
-              style:
-                  tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            Expanded(
+              child: Text(
+                'Mức độ rủi ro',
+                style:
+                    tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
             ),
-            TweenAnimationBuilder<Color?>(
-              tween: ColorTween(end: riskLevel.color),
-              duration: const Duration(milliseconds: 800),
-              builder: (context, color, _) {
-                return Text(
-                  riskLevel.vietnameseName,
-                  style: tt.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                );
-              },
+            const SizedBox(width: 8),
+            Flexible(
+              child: TweenAnimationBuilder<Color?>(
+                tween: ColorTween(end: riskLevel.color),
+                duration: const Duration(milliseconds: 800),
+                builder: (context, color, _) {
+                  return Text(
+                    riskLevel.vietnameseName,
+                    style: tt.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),

@@ -55,8 +55,10 @@ void main() {
 
       expect(predictions.first.intent, ScamIntent.bankCardFraud);
       expect(predictions.first.confidence, greaterThan(0.60));
-      expect(IntentOutputMapper.decodeFlatOutput(<num>[1, 2, 3]).length,
-          intentLabels.length);
+      expect(
+        IntentOutputMapper.decodeFlatOutput(<num>[1, 2, 3]).length,
+        intentLabels.length,
+      );
     });
   });
 
@@ -180,12 +182,15 @@ GDetectionEngine _newTestEngine() {
 const Map<String, Object> _testAssets = {
   'vocabulary.json': {
     'riskLevels': [
-      {'level': 0, 'keywords': ['xin chào', 'ăn cơm']},
+      {
+        'level': 0,
+        'keywords': ['xin chào', 'ăn cơm'],
+      },
       {
         'level': 2,
         'threats': {
           'URGENCY': ['gấp', 'lệnh bắt'],
-        }
+        },
       },
       {
         'level': 3,
@@ -194,7 +199,7 @@ const Map<String, Object> _testAssets = {
           'MONEY': ['chuyển tiền'],
           'ACCOUNT': ['tài khoản ngân hàng'],
           'PII': ['mã otp'],
-        }
+        },
       },
     ],
   },
@@ -265,5 +270,5 @@ const Map<String, Object> _testAssets = {
     'tier2_urgency': ['gấp', 'ngay lập tức', 'lệnh bắt'],
     'tier3_pii': ['mã otp', 'tài khoản ngân hàng'],
   },
-  'ai_check_config.json': {'situations': []},
+  'ai_check_config.json': {'situations': <Object?>[]},
 };

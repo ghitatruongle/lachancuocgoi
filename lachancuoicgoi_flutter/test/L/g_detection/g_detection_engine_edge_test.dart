@@ -10,9 +10,7 @@ void main() {
 
   group('GDetectionEngine - edge cases and error paths', () {
     test('initialize with empty JSON object does not crash', () async {
-      final engine = GDetectionEngine(
-        assetProvider: (fileName) => '{}',
-      );
+      final engine = GDetectionEngine(assetProvider: (fileName) => '{}');
       await engine.initialize();
 
       // Trie is empty so engine should NOT be ready
@@ -34,7 +32,7 @@ void main() {
         assetProvider: (fileName) => jsonEncode(<String, Object?>{
           'riskLevels': [],
           'slang_map': <String, Object?>{},
-          'patterns': [],
+          'patterns': <Object?>[],
           'riskLevelThresholds': {},
           'weights': {},
         }),
@@ -48,9 +46,8 @@ void main() {
     test('initialize with null/missing lists uses empty defaults', () async {
       // JSON with no riskLevels, no slang_map, etc.
       final engine = GDetectionEngine(
-        assetProvider: (fileName) => jsonEncode(<String, Object?>{
-          'someUnknownKey': 'someValue',
-        }),
+        assetProvider: (fileName) =>
+            jsonEncode(<String, Object?>{'someUnknownKey': 'someValue'}),
       );
       await engine.initialize();
 
@@ -88,16 +85,19 @@ void main() {
       expect(result.reason, isNotEmpty);
     });
 
-    test('performFullAnalysis with special characters does not crash', () async {
-      final engine = _newMinimalEngine();
-      await engine.initialize();
+    test(
+      'performFullAnalysis with special characters does not crash',
+      () async {
+        final engine = _newMinimalEngine();
+        await engine.initialize();
 
-      final result = await engine.performFullAnalysis(
-        '!@#\$%^&*()_+-={}[]|\\:;"<>,.?/~`',
-      );
-      expect(result.riskLevel, RiskLevel.green);
-      expect(result.reason, isNotEmpty);
-    });
+        final result = await engine.performFullAnalysis(
+          '!@#\$%^&*()_+-={}[]|\\:;"<>,.?/~`',
+        );
+        expect(result.riskLevel, RiskLevel.green);
+        expect(result.reason, isNotEmpty);
+      },
+    );
 
     test('performFullAnalysis with pure numbers returns green', () async {
       final engine = _newMinimalEngine();
@@ -133,48 +133,52 @@ void main() {
       expect(result.reason, isNotEmpty);
     });
 
-    test('initialize returns immediately on second call (idempotent)', () async {
-      final engine = _newMinimalEngine();
-      await engine.initialize();
-      expect(engine.isReady, isTrue);
-
-      // Second initialize should be a no-op
-      await engine.initialize();
-      expect(engine.isReady, isTrue);
-    });
-
     test(
-      'performFullAnalysis when not initialized auto-initializes',
+      'initialize returns immediately on second call (idempotent)',
       () async {
         final engine = _newMinimalEngine();
-        // Do NOT call initialize() explicitly
-        expect(engine.isReady, isFalse);
+        await engine.initialize();
+        expect(engine.isReady, isTrue);
 
-        final result = await engine.performFullAnalysis('xin chao');
-        // Should auto-initialize and process
-        expect(result.riskLevel, isA<RiskLevel>());
+        // Second initialize should be a no-op
+        await engine.initialize();
         expect(engine.isReady, isTrue);
       },
     );
 
-    test('calculateContextScore with zero totalTokens returns valid score',
-        () async {
+    test('performFullAnalysis when not initialized auto-initializes', () async {
       final engine = _newMinimalEngine();
-      await engine.initialize();
+      // Do NOT call initialize() explicitly
+      expect(engine.isReady, isFalse);
 
-      final score = engine.calculateContextScore(<KeywordMatch>{}, 0);
-      expect(score, isA<double>());
-      expect(score, greaterThanOrEqualTo(0));
+      final result = await engine.performFullAnalysis('xin chao');
+      // Should auto-initialize and process
+      expect(result.riskLevel, isA<RiskLevel>());
+      expect(engine.isReady, isTrue);
     });
 
-    test('calculateContextScore with empty matches returns valid score',
-        () async {
-      final engine = _newMinimalEngine();
-      await engine.initialize();
+    test(
+      'calculateContextScore with zero totalTokens returns valid score',
+      () async {
+        final engine = _newMinimalEngine();
+        await engine.initialize();
 
-      final score = engine.calculateContextScore(<KeywordMatch>{}, 10);
-      expect(score, isA<double>());
-    });
+        final score = engine.calculateContextScore(<KeywordMatch>{}, 0);
+        expect(score, isA<double>());
+        expect(score, greaterThanOrEqualTo(0));
+      },
+    );
+
+    test(
+      'calculateContextScore with empty matches returns valid score',
+      () async {
+        final engine = _newMinimalEngine();
+        await engine.initialize();
+
+        final score = engine.calculateContextScore(<KeywordMatch>{}, 10);
+        expect(score, isA<double>());
+      },
+    );
 
     test('setAssetProvider resets readiness', () async {
       final engine = _newMinimalEngine();
@@ -189,9 +193,7 @@ void main() {
       'engine returns green result when not ready after failed init',
       () async {
         // Engine with no valid assets
-        final engine = GDetectionEngine(
-          assetProvider: (fileName) => '{}',
-        );
+        final engine = GDetectionEngine(assetProvider: (fileName) => '{}');
         await engine.initialize();
         expect(engine.isReady, isFalse);
 
@@ -215,12 +217,12 @@ GDetectionEngine _newMinimalEngine() {
       ],
     },
     GDetectionEngine.scoringConfigFile: <String, Object?>{},
-    GDetectionEngine.patternsFile: {'patterns': []},
+    GDetectionEngine.patternsFile: {'patterns': <Object?>[]},
     GDetectionEngine.situationFile: {
       'title': 'Test',
       'version': '1.0',
       'total_scenarios': 0,
-      'scenarios': [],
+      'scenarios': <Object?>[],
     },
     GDetectionEngine.sentencesFile: {
       'riskLevels': [
@@ -232,7 +234,7 @@ GDetectionEngine _newMinimalEngine() {
     },
     GDetectionEngine.slangFile: {'slang_map': <String, Object?>{}},
     GDetectionEngine.tierConfigFile: <String, Object?>{},
-    GDetectionEngine.aiCheckFile: {'situations': []},
+    GDetectionEngine.aiCheckFile: {'situations': <Object?>[]},
   };
 
   return GDetectionEngine(

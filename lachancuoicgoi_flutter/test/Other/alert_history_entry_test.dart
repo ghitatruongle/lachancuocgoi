@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 import 'package:lachancuocgoi_flutter/data/alert_history_entry.dart';
 
 void main() {
@@ -83,7 +84,8 @@ void main() {
         displayedReason: '',
       );
 
-      expect(entry.getRiskLevelColor().toARGB32(), 0xFFD32F2F);
+      // Sourced from the canonical RiskLevel palette (single source of truth).
+      expect(entry.getRiskLevelColor(), RiskLevel.red.colorValue);
     });
 
     test('ORANGE returns correct ARGB color', () {
@@ -95,10 +97,10 @@ void main() {
         displayedReason: '',
       );
 
-      expect(entry.getRiskLevelColor().toARGB32(), 0xFFFF9800);
+      expect(entry.getRiskLevelColor(), RiskLevel.orange.colorValue);
     });
 
-    test('GREEN falls back to grey', () {
+    test('GREEN returns the canonical green value', () {
       const entry = AlertHistoryEntry(
         timestamp: 0,
         analysisLevel: 'L1',
@@ -107,7 +109,7 @@ void main() {
         displayedReason: '',
       );
 
-      expect(entry.getRiskLevelColor().toARGB32(), 0xFF9E9E9E);
+      expect(entry.getRiskLevelColor(), RiskLevel.green.colorValue);
     });
 
     test('case insensitive riskLevel for color', () {
@@ -119,7 +121,7 @@ void main() {
         displayedReason: '',
       );
 
-      expect(entry.getRiskLevelColor().toARGB32(), 0xFFD32F2F);
+      expect(entry.getRiskLevelColor(), RiskLevel.red.colorValue);
     });
   });
 

@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
+import 'dart:isolate';
 
 import '../../../core/risk_level.dart';
+import '../../../core/asset_loader.dart';
+import '../../../core/logger.dart';
 import '../../analysis_result.dart';
 import 'g_flash.dart';
 import 'g_models.dart';
@@ -17,9 +17,11 @@ typedef GDetectionAssetProvider = FutureOr<String> Function(String fileName);
 
 class GDetectionEngine {
   GDetectionEngine({
-    AssetBundle? assetBundle,
+    AssetLoader? assetLoader,
+    AppLogger? logger,
     GDetectionAssetProvider? assetProvider,
-  }) : _assetBundle = assetBundle ?? rootBundle,
+  }) : _assetLoader = assetLoader,
+       _logger = logger,
        _assetProvider = assetProvider;
 
   static const String vocabularyFile = 'risk_model_vocabulary.json';
@@ -33,7 +35,8 @@ class GDetectionEngine {
 
   static const int _topicConfirmationThreshold = 3;
 
-  final AssetBundle _assetBundle;
+  final AssetLoader? _assetLoader;
+  final AppLogger? _logger;
   GDetectionAssetProvider? _assetProvider;
 
   // Phase 6: instance pattern matcher (trước đây static facade). Mỗi engine
@@ -118,7 +121,7 @@ class GDetectionEngine {
     if (_riskKeywordTrie.children.isNotEmpty) {
       _isReady = true;
     } else {
-      debugPrint('[GDetectionEngine] Initialization complete but trie is empty — engine NOT ready.');
+      _logger?.warning('[GDetectionEngine] Initialization complete but trie is empty — engine NOT ready.');
       _initializingFuture = null; // Allow retry on next initialize() call.
     }
   }
@@ -195,7 +198,7 @@ class GDetectionEngine {
         );
       }
     } catch (e) {
-      debugPrint('[GDetectionEngine] Failed to load $slangFile: $e');
+      _logger?.warning('[GDetectionEngine] Failed to load $slangFile: $e');
       GFlash.loadSlangConfig(const <String, String>{});
     }
   }
@@ -206,7 +209,7 @@ class GDetectionEngine {
         await _loadJsonMap(scoringConfigFile),
       );
     } catch (e) {
-      debugPrint('[GDetectionEngine] Failed to load $scoringConfigFile: $e');
+      _logger?.warning('[GDetectionEngine] Failed to load $scoringConfigFile: $e');
       _scoringConfig = const ScoringConfig();
     }
   }
@@ -220,7 +223,7 @@ class GDetectionEngine {
         tier3: (config.tier3Pii ?? const <String>[]).toSet(),
       );
     } catch (e) {
-      debugPrint('[GDetectionEngine] Failed to load $tierConfigFile: $e');
+      _logger?.warning('[GDetectionEngine] Failed to load $tierConfigFile: $e');
       GThinking.loadTierConfig(
         tier1: const <String>{},
         tier2: const <String>{},
@@ -259,7 +262,7 @@ class GDetectionEngine {
         }
       }
     } catch (e) {
-      debugPrint('[GDetectionEngine] Failed to build trie from $vocabularyFile: $e');
+      _logger?.warning('[GDetectionEngine] Failed to build trie from $vocabularyFile: $e');
       return root;
     }
     // Phase 7: build Aho-Corasick failure/dictionary links ONCE → enables
@@ -325,7 +328,7 @@ class GDetectionEngine {
         }
       }
     } catch (e) {
-      debugPrint('[GDetectionEngine] Failed to load $aiCheckFile: $e');
+      _logger?.warning('[GDetectionEngine] Failed to load $aiCheckFile: $e');
       return;
     }
   }
@@ -339,7 +342,7 @@ class GDetectionEngine {
           config.patterns?.map((pattern) => pattern.toDomain()).toList() ??
           const <ScamPattern>[];
     } catch (e) {
-      debugPrint('[GDetectionEngine] Failed to load $patternsFile: $e');
+      _logger?.warning('[GDetectionEngine] Failed to load $patternsFile: $e');
       _scamPatterns = const <ScamPattern>[];
     }
   }
@@ -351,7 +354,7 @@ class GDetectionEngine {
       );
       _scenarioMatcher = ScenarioMatcher(masterModel);
     } catch (e) {
-      debugPrint('[GDetectionEngine] Failed to load $situationFile: $e');
+      _logger?.warning('[GDetectionEngine] Failed to load $situationFile: $e');
       _scenarioMatcher = null;
     }
   }
@@ -363,7 +366,7 @@ class GDetectionEngine {
       );
       _sentenceMatcher = SentenceMatcher(sentencesModel);
     } catch (e) {
-      debugPrint('[GDetectionEngine] Failed to load $sentencesFile: $e');
+      _logger?.warning('[GDetectionEngine] Failed to load $sentencesFile: $e');
       _sentenceMatcher = null;
     }
   }
@@ -526,10 +529,10 @@ class GDetectionEngine {
     final text = await _loadString(fileName);
     // Perf: file lớn (risk_scenarios_master, risk_model_sentences...) decode
     // trên main thread sẽ chặn frame gây giật khi khởi tạo L2 — đẩy sang
-    // isolate riêng qua compute(). File nhỏ (< 10KB) decode tại chỗ để
+    // isolate riêng qua Isolate.run(). File nhỏ (< 10KB) decode tại chỗ để
     // tránh overhead spawn isolate.
     final decoded = text.length > 10 * 1024
-        ? await compute(_decodeJsonString, text)
+        ? await Isolate.run(() => _decodeJsonString(text))
         : _decodeJsonString(text);
     if (decoded is! Map) {
       throw const FormatException('Expected JSON object');
@@ -546,9 +549,12 @@ class GDetectionEngine {
       final result = await provider(fileName);
       return result;
     }
-    return _assetBundle.loadString('assets/$fileName');
+    if (_assetLoader == null) {
+      throw StateError('AssetLoader is null. Phải cung cấp AssetLoader hoặc provider cho $fileName.');
+    }
+    return _assetLoader.loadString('assets/$fileName');
   }
 }
 
-/// Top-level để dùng được với [compute] — decode JSON trên isolate riêng.
+/// Top-level để dùng được với [Isolate.run] — decode JSON trên isolate riêng.
 Object? _decodeJsonString(String text) => jsonDecode(text);

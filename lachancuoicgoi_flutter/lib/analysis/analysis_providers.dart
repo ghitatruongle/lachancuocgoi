@@ -11,15 +11,25 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/asset_loader.dart';
+import '../core/logger.dart';
+import '../services/flutter_services_impl.dart';
 import 'analysis_coordinator.dart';
 import 'l1/l1_analysis.dart';
 import 'l2/g_detection/g_detection_engine.dart';
 import 'l2/l2_analysis.dart';
 import 'l3/l3_analysis.dart';
 
+/// Providers for core abstraction services
+final assetLoaderProvider = Provider<AssetLoader>((ref) => const FlutterAssetLoader());
+final loggerProvider = Provider<AppLogger>((ref) => const FlutterLogger());
+
 /// Singleton L1Analyzer — keyword trie is built once on first use.
 final l1AnalyzerProvider = Provider<L1Analyzer>((ref) {
-  final analyzer = L1Analyzer();
+  final analyzer = L1Analyzer(
+    assetLoader: ref.read(assetLoaderProvider),
+    logger: ref.read(loggerProvider),
+  );
   ref.onDispose(analyzer.dispose);
   return analyzer;
 });
@@ -27,7 +37,10 @@ final l1AnalyzerProvider = Provider<L1Analyzer>((ref) {
 /// Phase 2.4: Singleton GDetectionEngine — loads 8 JSON files once,
 /// survives L2Analyzer recreation.
 final gDetectionEngineProvider = Provider<GDetectionEngine>((ref) {
-  final engine = GDetectionEngine();
+  final engine = GDetectionEngine(
+    assetLoader: ref.read(assetLoaderProvider),
+    logger: ref.read(loggerProvider),
+  );
   ref.onDispose(engine.dispose);
   return engine;
 });
@@ -36,6 +49,8 @@ final gDetectionEngineProvider = Provider<GDetectionEngine>((ref) {
 /// dispose() đóng TFLite isolate + GDetection internal state.
 final l2AnalyzerProvider = Provider<L2Analyzer>((ref) {
   final analyzer = L2Analyzer(
+    assetLoader: ref.read(assetLoaderProvider),
+    logger: ref.read(loggerProvider),
     gDetectionEngine: ref.read(gDetectionEngineProvider),
   );
   // Chỉ dispose intent classifier + wfsa; GDetectionEngine do provider riêng
@@ -50,7 +65,10 @@ final l2AnalyzerProvider = Provider<L2Analyzer>((ref) {
 /// Singleton L3Analyzer — Gemini client & key health tracker are
 /// initialized once. dispose() đóng GeminiChatSession.
 final l3AnalyzerProvider = Provider<L3Analyzer>((ref) {
-  final analyzer = L3Analyzer();
+  final analyzer = L3Analyzer(
+    assetLoader: ref.read(assetLoaderProvider),
+    logger: ref.read(loggerProvider),
+  );
   ref.onDispose(analyzer.dispose);
   return analyzer;
 });

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,11 +37,11 @@ Future<void> main() async {
   // frame isn't blocked on disk I/O. SettingsController.build() also
   // calls SharedPreferences.getInstance() — when the singleton is
   // already warm, that returns instantly.
-  Future.microtask(() async {
+  unawaited(Future.microtask(() async {
     try {
       await SharedPreferences.getInstance();
-    } on Object {
-      // Non-fatal — SettingsController will lazy-load on its own.
+    } on Exception catch (e) {
+      debugPrint('Pre-warm SharedPreferences failed: $e');
     }
-  });
+  }));
 }

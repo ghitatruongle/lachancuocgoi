@@ -5,14 +5,15 @@ class PromptBuilder {
   /// Cắt bớt transcript nếu quá dài, giữ lại phần đầu (greeting) và phần cuối (hiện tại)
   static String buildContextWindow(String text) {
     if (text.length <= _maxTranscriptLength) return text;
-    
+
     // Giữ lại 2000 ký tự đầu và phần còn lại ở cuối
     const int keepStart = 2000;
-    const int keepEnd = _maxTranscriptLength - keepStart - 50; // Trừ hao chuỗi nối
-    
+    const int keepEnd =
+        _maxTranscriptLength - keepStart - 50; // Trừ hao chuỗi nối
+
     final start = text.substring(0, keepStart);
     final end = text.substring(text.length - keepEnd);
-    
+
     return '$start\n\n...[ĐÃ LƯỢC BỎ PHẦN GIỮA DO QUÁ DÀI]...\n\n$end';
   }
 
@@ -53,10 +54,10 @@ Bạn PHẢI trả về duy nhất một chuỗi JSON hợp lệ theo đúng c�
 }
 
 QUY TẮC CẤP ĐỘ (LEVEL):
-- green: Cuộc gọi giao tiếp xã hội bình thường, công việc hợp pháp, shipper giao hàng thật sự.
+- green: Cuộc gọi bình thường, an toàn. Giao tiếp xã hội bình thường, công việc hợp pháp, shipper giao hàng thật sự.
 - yellow: Có dấu hiệu hỏi thông tin cá nhân nhưng chưa rõ ràng lừa đảo. Cần lưu ý.
 - orange: Nguy cơ lừa đảo cao. Có yêu cầu cài app, quét mã QR, hoặc lôi kéo đầu tư lợi nhuận cao.
-- red: Chắc chắn là lừa đảo. Đe dọa pháp lý, yêu cầu chuyển tiền ngay, đòi mã OTP/Mật khẩu.
+- red: Nguy hiểm, rõ ràng là lừa đảo. Đe dọa pháp lý, yêu cầu chuyển tiền ngay, đòi mã OTP/Mật khẩu.
 
 VÍ DỤ (FEW-SHOT EXAMPLES):
 
@@ -85,7 +86,8 @@ Chào chị, em bên cục thuế. Hiện nay đang có chính sách hoàn thu�
 {"reasoning_steps":["Người gọi tự xưng bên Cục Thuế.","Yêu cầu quét mã QR qua Zalo để cài ứng dụng ngoài luồng.","Đây là thủ đoạn phát tán mã độc để chiếm quyền điều khiển điện thoại và tài khoản ngân hàng."],"level":"red","label":"Lừa đảo cài app mã độc","reason":"Giả danh cơ quan nhà nước yêu cầu quét mã QR cài ứng dụng độc hại.","recommendation":"Tuyệt đối không quét mã QR hoặc cài đặt ứng dụng từ nguồn không xác định.","confidence_score":0.97}
 
 Bây giờ, hãy phân tích TRÍCH ĐOẠN CUỘC GỌI CẦN PHÂN TÍCH và chỉ trả về chuỗi JSON hợp lệ.
-'''.trim();
+'''
+        .trim();
   }
 
   static String buildSummarizationPrompt(String text) {
@@ -105,7 +107,8 @@ NỘI DUNG CUỘC GỌI:
 "$contextText"
 
 Tóm tắt tiếng Việt:
-'''.trim();
+'''
+        .trim();
   }
 
   static String buildIncrementalPrompt(String newText, bool isFirstMessage) {
@@ -128,7 +131,8 @@ BẮT BUỘC TRẢ VỀ CHUỖI JSON HỢP LỆ THEO CẤU TRÚC SAU (không có
   "recommendation": "Khuyến cáo ngắn gọn",
   "confidence_score": Từ 0.0 đến 1.0
 }
-'''.trim();
+'''
+          .trim();
     }
     return '''
 [TIẾP TỤC CUỘC GỌI ĐANG PHÂN TÍCH] Văn bản mới: "$newText"
@@ -144,6 +148,13 @@ Giữ level = "green" nếu vẫn an toàn, nhưng tăng level nếu phát hiệ
   "recommendation": "Khuyến cáo",
   "confidence_score": 0.0
 }
-'''.trim();
+
+Ví dụ ngắn:
+{"level": "green", "label": "", "reason": "Cuộc gọi bình thường.", "recommendation": "Tiếp tục cảnh giác.", "confidence_score": 0.90}
+{"level": "yellow", "label": "Hỏi thông tin cá nhân", "reason": "Có hỏi thông tin nhưng chưa có yêu cầu nguy hiểm.", "recommendation": "Không cung cấp dữ liệu nhạy cảm.", "confidence_score": 0.70}
+{"level": "orange", "label": "Nguy cơ lừa đảo", "reason": "Có dấu hiệu thúc ép hoặc yêu cầu thao tác đáng ngờ.", "recommendation": "Xác minh lại qua kênh chính thức.", "confidence_score": 0.82}
+{"level": "red", "label": "Lừa đảo rõ ràng", "reason": "Có yêu cầu OTP, mật khẩu hoặc chuyển tiền khẩn cấp.", "recommendation": "Dừng cuộc gọi ngay.", "confidence_score": 0.95}
+'''
+        .trim();
   }
 }

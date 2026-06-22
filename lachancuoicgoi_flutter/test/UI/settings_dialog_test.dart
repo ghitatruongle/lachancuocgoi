@@ -20,7 +20,7 @@ void main() {
           home: Builder(
             builder: (context) {
               return ElevatedButton(
-                onPressed: () => showDialog(
+                onPressed: () => showDialog<void>(
                   context: context,
                   builder: (_) => const SettingsDialog(),
                 ),
@@ -99,7 +99,9 @@ void main() {
 
   // ─── Analysis mode selection ──────────────────────────────────────────
   group('SettingsDialog — analysis mode', () {
-    testWidgets('radio buttons reflect default GDetection mode', (tester) async {
+    testWidgets('radio buttons reflect default GDetection mode', (
+      tester,
+    ) async {
       await pumpDialog(tester);
 
       // GDetection is default, should have radio_button_checked
@@ -117,8 +119,9 @@ void main() {
       expect(find.byIcon(Icons.radio_button_checked), findsOneWidget);
     });
 
-    testWidgets('tapping all three modes cycles through correctly',
-        (tester) async {
+    testWidgets('tapping all three modes cycles through correctly', (
+      tester,
+    ) async {
       await pumpDialog(tester);
 
       // Tap Normal
@@ -164,7 +167,9 @@ void main() {
 
   // ─── Developer mode section ───────────────────────────────────────────
   group('SettingsDialog — developer mode', () {
-    testWidgets('shows creator section when dev mode is active', (tester) async {
+    testWidgets('shows creator section when dev mode is active', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -176,7 +181,7 @@ void main() {
             home: Builder(
               builder: (context) {
                 return ElevatedButton(
-                  onPressed: () => showDialog(
+                  onPressed: () => showDialog<void>(
                     context: context,
                     builder: (_) => const SettingsDialog(),
                   ),
@@ -209,7 +214,7 @@ void main() {
             home: Builder(
               builder: (context) {
                 return ElevatedButton(
-                  onPressed: () => showDialog(
+                  onPressed: () => showDialog<void>(
                     context: context,
                     builder: (_) => const SettingsDialog(),
                   ),
@@ -246,8 +251,7 @@ void main() {
 
   // ─── Title tap (developer mode easter egg) ────────────────────────────
   group('SettingsDialog — title tap', () {
-    testWidgets('tapping title 10 times shows password dialog',
-        (tester) async {
+    testWidgets('tapping title 10 times shows password dialog', (tester) async {
       await pumpDialog(tester);
 
       // Tap the "Cài đặt" title 10 times
@@ -281,8 +285,9 @@ void main() {
       expect(find.text('Chế độ Nhà phát triển'), findsNothing);
     });
 
-    testWidgets('password dialog shows error on wrong password',
-        (tester) async {
+    testWidgets('password dialog shows error on wrong password', (
+      tester,
+    ) async {
       await pumpDialog(tester);
 
       for (var i = 0; i < 10; i++) {
@@ -324,8 +329,9 @@ void main() {
       expect(textField2.obscureText, isFalse);
     });
 
-    testWidgets('activate button is disabled when text field is empty',
-        (tester) async {
+    testWidgets('activate button is disabled when text field is empty', (
+      tester,
+    ) async {
       await pumpDialog(tester);
 
       for (var i = 0; i < 10; i++) {

@@ -61,7 +61,7 @@ class SimulationController extends Notifier<SimulationUiState> {
                 iconEmoji: s.iconEmoji,
               ))
           .toList();
-    } catch (e) {
+    } on Object catch (_) {
       _allScenarios = [];
     }
     _recompute();

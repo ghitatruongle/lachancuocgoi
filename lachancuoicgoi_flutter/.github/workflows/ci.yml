@@ -1,0 +1,151 @@
+name: CI
+
+# Safety net for the codebase: every push / PR to `main` runs static
+# analysis + the fast test suite (perf benchmarks excluded). A scheduled
+# nightly job runs the full perf suite so benchmarks don't slow down PRs.
+#
+# Mirrors the local `tool/run_tests.sh` script so local results match CI.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Nightly at 03:00 UTC — runs the perf suite.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    # Allow manual runs from the Actions tab (incl. perf via input).
+    inputs:
+      run_perf:
+        description: 'Run the perf suite'
+        type: boolean
+        default: false
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_CHANNEL: stable
+
+jobs:
+  analyze-and-test:
+    name: Analyze + Test (fast suite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter (${{ env.FLUTTER_CHANNEL }})
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Show versions
+        run: |
+          flutter --version
+          dart --version
+
+      # CI environments have no real API key. Tests use fakes, but the app
+      # bundles `` as a Flutter asset — provide an empty stub so
+      # asset loading doesn't fail. The file is gitignored locally.
+      - name: Provide  stub for asset bundling
+        run: |
+          if [ ! -f  ]; then
+            printf '{\n  "gemini_api_keys": [],\n  "model": "gemini-1.5-flash"\n}\n' > 
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        # Fail fast on formatting issues — cheap and catches common drift.
+        run: dart format --output=none --set-exit-if-changed lib/ test/
+
+      - name: Analyze
+        run: dart analyze lib/ test/
+
+      - name: Test (exclude perf)
+        run: flutter test --coverage --exclude-tags perf
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: coverage/lcov.info
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage-report
+          path: coverage/lcov.info
+
+  perf:
+    name: Perf suite
+    # Runs nightly, on manual dispatch (with the perf flag), or when the
+    # commit message / branch is explicitly perf-related. Kept separate so
+    # it never blocks a PR.
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_perf == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RUN_PERF: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter (${{ env.FLUTTER_CHANNEL }})
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Provide  stub for asset bundling
+        run: |
+          if [ ! -f  ]; then
+            printf '{\n  "gemini_api_keys": [],\n  "model": "gemini-1.5-flash"\n}\n' > 
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run perf suite
+        run: ./tool/run_tests.sh
+
+  build-apk:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter (${{ env.FLUTTER_CHANNEL }})
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Provide  stub for asset bundling
+        run: |
+          if [ ! -f  ]; then
+            printf '{\n  "gemini_api_keys": [],\n  "model": "gemini-1.5-flash"\n}\n' > 
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Debug APK
+        run: flutter build apk --debug

@@ -221,7 +221,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     try {
       await ref
           .read(permissionControllerProvider.notifier)
-          .requestAllPermissions();
+          .requestAllPermissions(context);
     } finally {
       if (mounted) {
         setState(() => _isRequesting = false);

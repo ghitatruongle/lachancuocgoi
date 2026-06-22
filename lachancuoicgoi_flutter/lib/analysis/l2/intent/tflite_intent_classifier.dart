@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 
+import '../../../core/asset_loader.dart';
+import '../../../core/logger.dart';
 import 'bert_intent_tokenizer.dart';
 import 'intent_classifier.dart';
 import 'intent_output_mapper.dart';
@@ -13,12 +14,15 @@ import 'scam_intent.dart';
 
 class TFLiteIntentClassifier implements IntentClassifier {
   TFLiteIntentClassifier({
-    AssetBundle? assetBundle,
+    AssetLoader? assetLoader,
+    AppLogger? logger,
     this.modelAsset = 'assets/ghitav3.tflite',
     this.vocabAsset = 'assets/vocab.txt',
-  }) : _assetBundle = assetBundle ?? rootBundle;
+  }) : _assetLoader = assetLoader,
+       _logger = logger;
 
-  final AssetBundle _assetBundle;
+  final AssetLoader? _assetLoader;
+  final AppLogger? _logger;
   final String modelAsset;
   final String vocabAsset;
 
@@ -46,7 +50,10 @@ class TFLiteIntentClassifier implements IntentClassifier {
 
     try {
       final vocab = await _loadVocab();
-      final ByteData modelData = await _assetBundle.load(modelAsset);
+      if (_assetLoader == null) {
+        throw StateError('AssetLoader is null. Phải cung cấp AssetLoader để load model $modelAsset.');
+      }
+      final ByteData modelData = await _assetLoader.load(modelAsset);
       final Uint8List modelBytes = modelData.buffer.asUint8List(
         modelData.offsetInBytes,
         modelData.lengthInBytes,
@@ -90,7 +97,7 @@ class TFLiteIntentClassifier implements IntentClassifier {
         throw StateError('Invalid init response from background Isolate.');
       }
     } catch (e) {
-      debugPrint('[TFLiteIntentClassifier] Initialization failed: $e');
+      _logger?.warning('[TFLiteIntentClassifier] Initialization failed: $e');
       close();
       _isReady = false;
     }
@@ -176,7 +183,10 @@ class TFLiteIntentClassifier implements IntentClassifier {
   }
 
   Future<Map<String, int>> _loadVocab() async {
-    final vocabText = await _assetBundle.loadString(vocabAsset);
+    if (_assetLoader == null) {
+      throw StateError('AssetLoader is null. Phải cung cấp AssetLoader để load vocab $vocabAsset.');
+    }
+    final vocabText = await _assetLoader.loadString(vocabAsset);
     final vocab = <String, int>{};
     var index = 0;
     for (final line in vocabText.split(RegExp(r'\r?\n'))) {
@@ -198,6 +208,7 @@ void _isolateMain(SendPort mainSendPort) async {
   IntentOutputType outputType = IntentOutputType.float32;
   double outputScale = 1;
   int outputZeroPoint = 0;
+  int numClasses = 0;
 
   await for (final dynamic message in isolateReceivePort) {
     if (message is _IsolateInitRequest) {
@@ -210,12 +221,12 @@ void _isolateMain(SendPort mainSendPort) async {
         );
 
         final outputTensor = interpreter.getOutputTensor(0);
-        final numClasses = outputTensor.shape.isEmpty
+        numClasses = outputTensor.shape.isEmpty
             ? 0
             : outputTensor.shape.last;
 
         if (numClasses != intentLabels.length) {
-          debugPrint(
+          print(
             '[TFLiteIntent] Model output classes ($numClasses) != app intents (${intentLabels.length}). '
             'Using min($numClasses, ${intentLabels.length}) classes.',
           );
@@ -259,10 +270,10 @@ void _isolateMain(SendPort mainSendPort) async {
 
         final Object output = switch (outputType) {
           IntentOutputType.uint8 || IntentOutputType.int8 => <List<int>>[
-            List<int>.filled(intentLabels.length, 0),
+            List<int>.filled(numClasses, 0),
           ],
           IntentOutputType.float32 => <List<double>>[
-            List<double>.filled(intentLabels.length, 0),
+            List<double>.filled(numClasses, 0),
           ],
         };
 

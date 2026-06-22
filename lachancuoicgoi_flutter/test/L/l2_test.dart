@@ -11,6 +11,8 @@ import 'package:lachancuocgoi_flutter/analysis/l2/l2_result.dart';
 import 'package:lachancuocgoi_flutter/analysis/health_check.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 
+import 'package:lachancuocgoi_flutter/services/flutter_services_impl.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -86,7 +88,7 @@ void main() {
     test(
       'loads bundled assets and returns a non-green fraud benchmark',
       () async {
-        final engine = GDetectionEngine();
+        final engine = GDetectionEngine(assetLoader: const FlutterAssetLoader());
         await engine.initialize();
 
         final result = await engine.performFullAnalysis(
@@ -108,7 +110,10 @@ void main() {
     test(
       'falls back to GDetection and WFSA when intent classifier is disabled',
       () async {
-        final analyzer = L2Analyzer(gDetectionEngine: _newTestEngine());
+        final analyzer = L2Analyzer(
+          assetLoader: const FlutterAssetLoader(),
+          gDetectionEngine: _newTestEngine(),
+        );
         await analyzer.initialize();
 
         final result = await analyzer.analyze(
@@ -126,6 +131,7 @@ void main() {
 
     test('GDetection overrides SAFE AI when context is red', () async {
       final analyzer = L2Analyzer(
+        assetLoader: const FlutterAssetLoader(),
         gDetectionEngine: _newTestEngine(),
         intentClassifier: _FakeIntentClassifier(<IntentPrediction>[
           const IntentPrediction(intent: ScamIntent.safe, confidence: 0.90),
