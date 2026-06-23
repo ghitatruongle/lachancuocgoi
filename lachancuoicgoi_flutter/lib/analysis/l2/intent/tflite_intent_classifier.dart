@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
 import '../../../core/asset_loader.dart';
@@ -96,7 +97,7 @@ class TFLiteIntentClassifier implements IntentClassifier {
       } else {
         throw StateError('Invalid init response from background Isolate.');
       }
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('[TFLiteIntentClassifier] Initialization failed: $e');
       close();
       _isReady = false;
@@ -226,7 +227,7 @@ void _isolateMain(SendPort mainSendPort) async {
             : outputTensor.shape.last;
 
         if (numClasses != intentLabels.length) {
-          print(
+          debugPrint(
             '[TFLiteIntent] Model output classes ($numClasses) != app intents (${intentLabels.length}). '
             'Using min($numClasses, ${intentLabels.length}) classes.',
           );
@@ -246,7 +247,7 @@ void _isolateMain(SendPort mainSendPort) async {
         tokenizer = BertIntentTokenizer(message.vocab);
 
         message.replyPort.send(const _IsolateInitResponse(isReady: true));
-      } catch (e) {
+      } on Object catch (e) {
         interpreter?.close();
         interpreter = null;
         tokenizer = null;
@@ -311,7 +312,7 @@ void _isolateMain(SendPort mainSendPort) async {
         message.replyPort.send(
           _IsolateInferenceResponse(predictions: predictions),
         );
-      } catch (e) {
+      } on Object catch (e) {
         message.replyPort.send(
           _IsolateInferenceResponse(
             predictions: const <IntentPrediction>[],

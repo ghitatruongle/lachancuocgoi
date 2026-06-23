@@ -323,10 +323,10 @@ class _TestPermissionController extends PermissionController {
   }
 }
 
-Override _permissionOverride(PermissionState initial) {
+Override _permissionOverride(PermissionState initial, NativeBridgeInterface bridge) {
   return permissionControllerProvider.overrideWith(
-    (ref) => _TestPermissionController(
-      ref.watch(nativeBridgeProvider),
+    () => _TestPermissionController(
+      bridge,
       initial,
     ),
   );
@@ -390,7 +390,7 @@ class IntegrationTestHarness {
       appDatabaseFutureProvider.overrideWith((ref) async => db.database),
       _settingsOverride(analysisMode),
       _devModeOverride(),
-      _permissionOverride(permissionState),
+      _permissionOverride(permissionState, fake),
       if (initialRoute != null) _customRouterOverride(initialRoute),
     ];
 

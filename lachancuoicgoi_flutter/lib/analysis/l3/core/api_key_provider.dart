@@ -128,7 +128,7 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
 
   /// Log warning nếu keys đang load từ assets (không an toàn).
   void _warnAboutBundledKeys() {
-    const isRelease = const bool.fromEnvironment('dart.vm.product');
+    const isRelease = bool.fromEnvironment('dart.vm.product');
     if (isRelease) {
       _logger?.warning(
         '🚨 SECURITY WARNING:  đang được bundle trong APK release. '

@@ -12,6 +12,7 @@ import '../common/fuzzy_matcher.dart';
 import '../common/text_normalizer.dart';
 import '../health_check.dart';
 import 'l1_result.dart';
+import 'l1_safety_filter.dart';
 
 
 class FlatTrie {
@@ -425,7 +426,7 @@ class L1Analyzer implements Analyzer {
           }
         }
       }
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('Failed to build trie: $e. Using fallback keywords.');
       _buildFallbackTrie();
     }
@@ -464,7 +465,7 @@ class L1Analyzer implements Analyzer {
       for (final list in _corrections.values) {
         list.sort((a, b) => b.from.length.compareTo(a.from.length));
       }
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('Failed to load bigram corrections: $e');
       _corrections.clear();
     }
@@ -490,7 +491,7 @@ class L1Analyzer implements Analyzer {
             .toSet();
         _logger?.info('Loaded ${_criticalKeywords.length} critical keywords from JSON.');
       }
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('Failed to load critical keywords: $e. Using defaults.');
       _criticalKeywords = L1ResultParser.defaultCriticalKeywords;
     }
@@ -743,219 +744,20 @@ class L1Analyzer implements Analyzer {
     Set<KeywordMatch> matches,
     List<String> tokens,
   ) {
-    if (matches.isEmpty) return matches;
-
-    final filtered = <KeywordMatch>{};
-
-    final negationRegex = RegExp(
-      config.negationRegexPattern,
-      caseSensitive: false,
+    return L1SafetyFilter.filterSafeMatches(
+      matches: matches,
+      tokens: tokens,
+      config: config,
+      logger: _logger,
+      getQuestionPatterns: _getQuestionPatterns,
     );
-
-    final safeBeneficiaries = config.safeBeneficiaries;
-    final financialIndicatorKeywords = config.financialIndicatorKeywords;
-    final generalSafePhrases = config.generalSafePhrases;
-    final windowSize = config.contextWindowSize;
-    final familyTerms = config.familyTerms;
-    final questionPatterns = _getQuestionPatterns();
-
-    // Pre-compute full transcript text for global safe context check (Rule 6).
-    // If safe indicators appear multiple times across the transcript,
-    // the entire conversation is likely safe.
-    final fullText = TextNormalizer.normalize(
-      tokens.join(' '),
-      applySlang: true,
-    );
-    var globalSafeCount = 0;
-    for (final safe in generalSafePhrases) {
-      // Count occurrences of each safe phrase in the full transcript.
-      var idx = 0;
-      while ((idx = fullText.indexOf(safe, idx)) != -1) {
-        globalSafeCount++;
-        idx += safe.length;
-      }
-    }
-
-    for (final match in matches) {
-      if (match.startIndex == -1 || match.endIndex == -1) {
-        filtered.add(match);
-        continue;
-      }
-
-      // Get context around the match (configurable window size)
-      final startPrefix = (match.startIndex - windowSize).clamp(
-        0,
-        tokens.length,
-      );
-      final prefixTokens = tokens.sublist(startPrefix, match.startIndex);
-      final prefixText = prefixTokens.join(' ');
-
-      final endSuffix = (match.endIndex + windowSize + 1).clamp(
-        0,
-        tokens.length,
-      );
-      final suffixTokens = tokens.sublist(match.endIndex + 1, endSuffix);
-      final suffixText = suffixTokens.join(' ');
-
-      final wholeContextText = tokens.sublist(startPrefix, endSuffix).join(' ');
-
-      bool shouldFilter = false;
-
-      // Rule 1: Negation preceding the keyword using Regex
-      final normalizedPrefix = TextNormalizer.normalize(
-        prefixText,
-        applySlang: true,
-      );
-      if (negationRegex.hasMatch(normalizedPrefix)) {
-        shouldFilter = true;
-      }
-
-      // Rule 2: Safe beneficiary succeeding a financial keyword
-      if (!shouldFilter) {
-        final normalizedKeyword = TextNormalizer.normalize(
-          match.keyword,
-          applySlang: true,
-        );
-        final isFinancial = financialIndicatorKeywords.any(
-          (fin) => normalizedKeyword.contains(fin),
-        );
-        if (isFinancial) {
-          for (final ben in safeBeneficiaries) {
-            if (suffixText.contains(ben)) {
-              shouldFilter = true;
-              break;
-            }
-          }
-        }
-      }
-
-      // Rule 3: General safe context (nói đùa, troll, ví dụ…) anywhere in the wider context window
-      if (!shouldFilter) {
-        for (final safe in generalSafePhrases) {
-          if (wholeContextText.contains(safe)) {
-            shouldFilter = true;
-            break;
-          }
-        }
-      }
-
-      // Rule 4: Question context — speaker is asking a question, not describing a scam.
-      // E.g. "cho hỏi làm thế nào để chuyển tiền" is informational.
-      // Only check prefix (question words typically precede the keyword).
-      if (!shouldFilter) {
-        final normalizedPrefixCtx = TextNormalizer.normalize(
-          prefixText,
-          applySlang: true,
-        );
-        for (final pattern in questionPatterns) {
-          if (pattern.hasMatch(normalizedPrefixCtx)) {
-            shouldFilter = true;
-            break;
-          }
-        }
-      }
-
-      // Rule 5: Family context in suffix — mentioning family terms AFTER a
-      // financial keyword suggests legitimate personal transfer, not scam.
-      // Only checks suffix to avoid false positives from broader context.
-      if (!shouldFilter) {
-        final normalizedKeyword = TextNormalizer.normalize(
-          match.keyword,
-          applySlang: true,
-        );
-        final isFinancialKw = financialIndicatorKeywords.any(
-          (fin) => normalizedKeyword.contains(fin),
-        );
-        if (isFinancialKw) {
-          final normalizedSuffix = TextNormalizer.normalize(
-            suffixText,
-            applySlang: true,
-          );
-          for (final term in familyTerms) {
-            if (normalizedSuffix.contains(term)) {
-              shouldFilter = true;
-              break;
-            }
-          }
-        }
-      }
-
-      // Rule 6: Repeated safe sender — if safe indicators appear 2+ times
-      // across the full transcript, the conversation is pervasively safe.
-      // This catches cases where safe context is spread across the call
-      // (e.g., "nói đùa thôi" at start + "ví dụ" later) beyond any single
-      // match's local window.
-      if (!shouldFilter && globalSafeCount >= 2) {
-        shouldFilter = true;
-      }
-
-      if (!shouldFilter) {
-        filtered.add(match);
-      } else {
-        _logger?.debug(
-          'Negative lookahead filtered match: "${match.keyword}" at [${match.startIndex}, ${match.endIndex}]',
-        );
-      }
-    }
-
-    return filtered;
   }
 
   Set<KeywordMatch> _applyRiskDensity(
     Set<KeywordMatch> matches,
     int totalTokens,
   ) {
-    if (matches.length < 2) return matches;
-
-    final sortedMatches = matches.toList()
-      ..sort((a, b) => a.startIndex.compareTo(b.startIndex));
-    final result = <KeywordMatch>{};
-    final processedIndices = <int>{};
-
-    for (int i = 0; i < sortedMatches.length; i++) {
-      if (processedIndices.contains(i)) continue;
-
-      final match = sortedMatches[i];
-      if (match.level == RiskLevel.yellow || match.level == RiskLevel.orange) {
-        var denseCount = 1;
-        var endIndex = match.endIndex;
-        final cluster = <KeywordMatch>[match];
-        final clusterIndices = <int>[i];
-
-        for (int j = i + 1; j < sortedMatches.length; j++) {
-          final nextMatch = sortedMatches[j];
-          if (nextMatch.startIndex - match.startIndex <= 10) {
-            if (nextMatch.level == RiskLevel.yellow ||
-                nextMatch.level == RiskLevel.orange) {
-              denseCount++;
-              endIndex = nextMatch.endIndex > endIndex
-                  ? nextMatch.endIndex
-                  : endIndex;
-              cluster.add(nextMatch);
-              clusterIndices.add(j);
-            }
-          } else {
-            break; // Since sorted, we can break early
-          }
-        }
-
-        if (denseCount >= 3) {
-          result.add(
-            KeywordMatch(
-              keyword: cluster.map((m) => m.keyword).join(' + '),
-              level: RiskLevel.red,
-              category: 'Mật độ rủi ro cao (Risk Density)',
-              startIndex: match.startIndex,
-              endIndex: endIndex,
-            ),
-          );
-          processedIndices.addAll(clusterIndices);
-          continue;
-        }
-      }
-      result.add(match);
-    }
-    return result;
+    return L1SafetyFilter.applyRiskDensity(matches, totalTokens);
   }
 
   Set<KeywordMatch> applyRiskDensityForTesting(

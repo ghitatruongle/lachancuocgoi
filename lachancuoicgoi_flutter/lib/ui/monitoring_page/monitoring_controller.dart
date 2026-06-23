@@ -1,10 +1,9 @@
 import 'dart:async' show Completer, Timer, unawaited;
 import 'dart:convert' show jsonEncode;
-import 'dart:math';
 
-import 'package:flutter/foundation.dart' show ChangeNotifier, debugPrint, visibleForTesting;
+import 'package:flutter/foundation.dart'
+    show ChangeNotifier, debugPrint, visibleForTesting;
 import 'package:flutter/widgets.dart' show AppLifecycleState;
-import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../analysis/analysis_coordinator.dart';
@@ -16,15 +15,18 @@ import '../../analysis/analysis_result.dart';
 import '../../analysis/l1/l1_analysis.dart';
 import '../../app/settings_controller.dart';
 import '../../core/risk_level.dart';
-import '../../data/alert_history_entry.dart';
 import '../../data/app_database.dart';
 import '../../data/call_history.dart';
 import '../../data/session_recovery_store.dart';
 import '../../services/developer_mode_manager.dart';
 import '../../services/native_call_shield_bridge.dart';
-import 'monitoring_state.dart';
+import 'alert_manager.dart';
+import 'analysis_orchestrator.dart';
+import 'audio_amplitude_handler.dart';
+import 'health_check_service.dart';
 import 'monitoring_session_manager.dart';
 import 'monitoring_simulation_helper.dart';
+import 'monitoring_state.dart';
 import 'monitoring_stream_handler.dart';
 
 export 'monitoring_state.dart';
@@ -44,7 +46,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   bool get disposed => _disposed;
   MonitoringPageState get currentState => state;
 
-  // Nullable — initialized in postFrameCallback to avoid blocking first frame.
+  // Coordinator — resolved lazily in initAfterFrame.
   AnalysisCoordinator? _coordinatorInstance;
   AnalysisCoordinator get coordinator => _coordinatorInstance!;
 
@@ -56,56 +58,52 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   List<Map<String, dynamic>>? _simulatedScriptLines;
   L1Analyzer? _l1AnalyzerOverride;
 
-  // Timers and helpers
-  Timer? _timer;
-  Timer? _analysisDebounce;
-  String? _pendingReanalysisText;
-  Timer? _healthCheckTimer;
-  final Map<RiskLevel, int> _lastNativeAlertTime = {};
-  Completer<void>? _analysisCompleter;
-  int _analysisGeneration = 0;
-  Completer<void>? _restartLock;
-  int _healthCheckRetryCount = 0;
-
-  // Helpers
+  // Sub-services (delegated responsibilities)
+  late final AudioAmplitudeHandler _audioHandler;
+  AnalysisOrchestrator? _orchInstance;
+  late final AlertManager _alertManager;
+  late final HealthCheckService _healthCheckService;
   late final MonitoringSessionManager sessionManager;
   late final MonitoringSimulationHelper simulationHelper;
   late final MonitoringStreamHandler streamHandler;
 
+  // Navigation
+  Timer? _timer;
+  bool _endSessionInProgress = false;
+  bool _stoppedEventReceived = false;
+  Completer<void>? _stoppedCompleter;
+
+  // Settings listener
   ProviderSubscription<SettingsState>? _settingsSub;
   String? phoneNumber;
 
-  Completer<void>? _stoppedCompleter;
-  bool _stoppedEventReceived = false;
-
-  // Circular buffer for RMS amplitudes
-  static const int amplitudeBufferSize = 30;
-  final List<double> _amplitudes = List<double>.filled(amplitudeBufferSize, 0.1);
-  int _amplitudeWriteIndex = 0;
-  DateTime? _lastAmplitudeUpdate;
-  double _peakAmplitude = 0.0;
-  bool _hasReceivedAnyAudio = false;
-
-  _WaveformNotifier? _waveformNotifier;
-
-  /// Exposed for waveform widget & helpers.
-  ChangeNotifier get waveformNotifier => _waveformNotifier!;
-  List<double> get amplitudes => _amplitudes;
-  int get amplitudeWriteIndex => _amplitudeWriteIndex;
-
-  // Backward compatibility getters
-  List<double> get currentAmplitudes => _amplitudes;
-  int get currentAmplitudeWriteIndex => _amplitudeWriteIndex;
-
-  NativeBridgeInterface get nativeBridge => ref.read(nativeBridgeProvider);
-  Future<AppDatabase> get appDatabase => ref.read(appDatabaseFutureProvider.future);
+  // ─── Build ─────────────────────────────────────────────────────────
 
   @override
   MonitoringPageState build() {
-    _waveformNotifier ??= _WaveformNotifier();
+    _audioHandler = AudioAmplitudeHandler();
+    _alertManager = AlertManager(
+      getBridge: () => ref.read(nativeBridgeProvider),
+    );
+    _healthCheckService = HealthCheckService(
+      getBridge: () => ref.read(nativeBridgeProvider),
+      isCreatorMode: () => _isCreatorMode,
+      onServiceDown: () {
+        if (!_disposed) {
+          state = state.copyWith(
+            transcript:
+                '${state.transcript}\n[Hệ thống giám sát đã được khôi phục]',
+          );
+        }
+      },
+      onRestart: () => _runRestartSequence(),
+    );
     sessionManager = MonitoringSessionManager(this);
     simulationHelper = MonitoringSimulationHelper(this);
     streamHandler = MonitoringStreamHandler(this);
+
+    // Analysis orchestrator is created lazily after coordinator is available
+    // (see initAfterFrame).
 
     ref.onDispose(() {
       _disposeInternal();
@@ -113,9 +111,21 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     return const MonitoringPageState();
   }
 
-  void notifyWaveform() {
-    _waveformNotifier?.notify();
-  }
+  // ─── Public API ────────────────────────────────────────────────────
+
+  AudioAmplitudeHandler get audioHandler => _audioHandler;
+  AnalysisOrchestrator get analysisOrchestrator => _orch;
+  AlertManager get alertManager => _alertManager;
+  HealthCheckService get healthCheckService => _healthCheckService;
+
+  // Backward-compatible getters for existing callers
+  ChangeNotifier get waveformNotifier => _audioHandler.waveformNotifier;
+  List<double> get currentAmplitudes => _audioHandler.amplitudes;
+  int get currentAmplitudeWriteIndex => _audioHandler.writeIndex;
+
+  NativeBridgeInterface get nativeBridge => ref.read(nativeBridgeProvider);
+  Future<AppDatabase> get appDatabase =>
+      ref.read(appDatabaseFutureProvider.future);
 
   /// Initialize the controller with widget parameters.
   void init({
@@ -171,8 +181,8 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     }
 
     final initialTranscript = _simulatedTranscript?.trim() ?? '';
-    final hasStructuredScript = _simulatedScriptLines != null &&
-        _simulatedScriptLines!.isNotEmpty;
+    final hasStructuredScript =
+        _simulatedScriptLines != null && _simulatedScriptLines!.isNotEmpty;
     final isSimulation = hasStructuredScript ||
         initialTranscript.isNotEmpty ||
         (_simulatedScenarioTitle?.trim().isNotEmpty ?? false);
@@ -209,58 +219,28 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     sessionManager.sessionStartEpochSeconds =
         DateTime.now().millisecondsSinceEpoch ~/ 1000;
     _startTimer();
-    _startHealthCheckTimer();
+    if (!hasTestAnalyzerOverride && !isSimulation) {
+      _healthCheckService.start();
+    }
     sessionManager.startSnapshotTimer();
 
-    if (initialTranscript.isNotEmpty &&
-        !hasTestAnalyzerOverride &&
-        !hasStructuredScript) {
-      _analysisDebounce = Timer(const Duration(milliseconds: 1), () {
-        unawaited(_ensureAnalysisComplete());
-      });
-    }
-  }
-
-  void _resetForNewSession() {
-    _timer?.cancel();
-    _healthCheckTimer?.cancel();
-    sessionManager.stopSnapshotTimer();
-    sessionManager.recoveryAttempted = false;
-    sessionManager.sessionStartEpochSeconds = 0;
-    simulationHelper.stopSimulationPlayback();
-    simulationHelper.currentScriptLineIndex = 0;
-    streamHandler.cancelStreams();
-    streamHandler.streamsDead = false;
-    _settingsSub?.close();
-    _settingsSub = null;
-    phoneNumber = null;
-    _simulatedScenarioTitle = null;
-    _simulatedTranscript = null;
-    _simulatedScriptLines = null;
-    _l1AnalyzerOverride = null;
-    _coordinatorInstance = null;
-    _hasAttemptedStart = false;
-    _endSessionInProgress = false;
-    _analysisCompleter = null;
-    _pendingReanalysisText = null;
-    for (var i = 0; i < amplitudeBufferSize; i++) {
-      _amplitudes[i] = 0.1;
-    }
-    _amplitudeWriteIndex = 0;
-    _lastAmplitudeUpdate = null;
-    _peakAmplitude = 0.0;
-    _hasReceivedAnyAudio = false;
-    _stoppedEventReceived = false;
-    _stoppedCompleter = null;
-    state = const MonitoringPageState();
+	    if (initialTranscript.isNotEmpty &&
+	        !hasTestAnalyzerOverride &&
+	        !hasStructuredScript &&
+	        _coordinatorInstance != null) {
+	      _orch.scheduleRealTimeAnalysis(initialTranscript);
+	    }
   }
 
   void initAfterFrame() {
     if (_disposed || hasTestAnalyzerOverride) return;
     _coordinatorInstance = ref.read(analysisCoordinatorProvider);
 
-    final hasStructuredScript = _simulatedScriptLines != null &&
-        _simulatedScriptLines!.isNotEmpty;
+    // Create orchestrator now that coordinator is available.
+    _ensureOrchestratorCreated();
+
+    final hasStructuredScript =
+        _simulatedScriptLines != null && _simulatedScriptLines!.isNotEmpty;
     if (!hasStructuredScript && !hasTestAnalyzerOverride) {
       streamHandler.initStreams();
     }
@@ -272,190 +252,25 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     }
   }
 
-  Future<void> _recoverAndStartMonitoring() async {
-    await sessionManager.recoverFromKillIfAny();
-    if (_disposed) return;
-    await _startLiveMonitoringIfNeeded();
-  }
-
-  void _disposeInternal() {
-    _disposed = true;
-    _timer?.cancel();
-    _healthCheckTimer?.cancel();
-    sessionManager.stopSnapshotTimer();
-    _analysisDebounce?.cancel();
-    simulationHelper.stopSimulationPlayback();
-    streamHandler.cancelStreams();
-    _settingsSub?.close();
-    _settingsSub = null;
-    _waveformNotifier?.dispose();
-  }
-
-  void _startTimer() {
-    if (hasTestAnalyzerOverride) return;
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_disposed) return;
-      state = state.copyWith(elapsedSeconds: state.elapsedSeconds + 1);
-    });
-  }
-
-  static String formatElapsedTime(int seconds) {
-    final m = seconds ~/ 60;
-    final s = seconds % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-
-  String formatElapsedTimeHelper(int seconds) => formatElapsedTime(seconds);
-
-  String formatDateTime(DateTime value) => _formatDateTime(value);
-
-  static String _formatDateTime(DateTime value) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(value.hour)}:${two(value.minute)}:${two(value.second)} '
-        '${two(value.day)}/${two(value.month)}/${value.year}';
-  }
-
-  bool isSimulationSession() {
-    final title = _simulatedScenarioTitle?.trim() ?? '';
-    final script = _simulatedTranscript?.trim() ?? '';
-    final hasStructured = _simulatedScriptLines != null &&
-        _simulatedScriptLines!.isNotEmpty;
-    return hasStructured || title.isNotEmpty || script.isNotEmpty;
-  }
-
-  bool _hasAttemptedStart = false;
-
-  Future<void> _startLiveMonitoringIfNeeded() async {
-    if (isSimulationSession() || _hasAttemptedStart || _disposed || hasTestAnalyzerOverride) return;
-    _hasAttemptedStart = true;
-
-    final bridge = nativeBridge;
-    final settings = ref.read(settingsControllerProvider);
-    final devMode = ref.read(developerModeProvider);
-
-    final shouldUseCreatorMode =
-        devMode.isActive && settings.creatorAudioCapture;
-
-    if (shouldUseCreatorMode) {
-      state = state.copyWith(isCreatorMode: true);
-      final alreadyRunning = await bridge.isCreatorMonitoringActive();
-      if (alreadyRunning) return;
-      final started = await bridge.startCreatorMonitoring(
-        devModeExpiresAtMs: devMode.expiresAtEpochMs,
-      );
-      if (started) return;
-      state = state.copyWith(isCreatorMode: false);
-    }
-
-    final alreadyRunning = await bridge.isMonitoringActive();
-    if (!alreadyRunning) {
-      await bridge.startMonitoring(
-        enableSpeakerphone: settings.autoEnableSpeakerphone,
-      );
-    }
-  }
-
-  void _startHealthCheckTimer() {
-    if (hasTestAnalyzerOverride || isSimulationSession()) return;
-    _healthCheckTimer?.cancel();
-    _healthCheckRetryCount = 0;
-    _scheduleHealthCheck(const Duration(seconds: 60));
-  }
-
-  void _scheduleHealthCheck(Duration interval) {
-    if (_disposed) return;
-    _healthCheckTimer?.cancel();
-    _healthCheckTimer = Timer(interval, () async {
-      if (_disposed || state.isEndingSession) return;
-      final bridge = nativeBridge;
-      final running = state.isCreatorMode
-          ? await bridge.isCreatorMonitoringActive()
-          : await bridge.isMonitoringActive();
-      if (_disposed) return;
-      if (running) {
-        if (_healthCheckRetryCount > 0) {
-          debugPrint('Health check recovered after $_healthCheckRetryCount retries.');
-          _healthCheckRetryCount = 0;
-        }
-        _scheduleHealthCheck(const Duration(seconds: 60));
-        return;
-      }
-      _healthCheckRetryCount++;
-      if (_healthCheckRetryCount == 1) {
-        debugPrint('Health check: service not running — auto-restarting...');
-        state = state.copyWith(
-          transcript: '${state.transcript}\n[Hệ thống giám sát đã được khôi phục]',
-        );
-        _analysisCompleter = null;
-        _hasAttemptedStart = false;
-        await _runRestartSequence();
-      } else {
-        debugPrint('Health check: backoff attempt $_healthCheckRetryCount (still down)');
-      }
-      final nextIntervalSec = (60 * (1 << (_healthCheckRetryCount - 1))).clamp(60, 300);
-      _scheduleHealthCheck(Duration(seconds: nextIntervalSec));
-    });
-  }
-
-  Future<void> _runRestartSequence() async {
-    if (_disposed) return;
-    final existing = _restartLock;
-    if (existing != null) {
-      await existing.future;
-      return;
-    }
-    final completer = Completer<void>();
-    _restartLock = completer;
-    try {
-      await _startLiveMonitoringIfNeeded();
-      if (!_disposed) streamHandler.initStreams();
-    } finally {
-      _restartLock = null;
-      completer.complete();
-    }
-  }
-
-  void onLifecycleChanged(AppLifecycleState lifecycle) {
-    if (lifecycle == AppLifecycleState.resumed && !state.isEndingSession) {
-      if (!isSimulationSession() && !hasTestAnalyzerOverride) {
-        unawaited(_runRestartSequence());
-      }
-    }
-  }
-
   void updateTranscriptFromSimulation(String newTranscript) {
     state = state.copyWith(transcript: newTranscript);
-    _analysisCompleter = null;
-    _runRealTimeAnalysis(state.transcript);
+    _orch.scheduleRealTimeAnalysis(state.transcript);
   }
 
   void updateTranscriptFromStream(String newTranscript) {
     state = state.copyWith(transcript: newTranscript);
-    _analysisCompleter = null;
-    _runRealTimeAnalysis(newTranscript);
+    _orch.scheduleRealTimeAnalysis(newTranscript);
   }
 
-  void handleRmsEvent(double rms) {
-    final now = DateTime.now();
-    if (_lastAmplitudeUpdate != null &&
-        now.difference(_lastAmplitudeUpdate!).inMilliseconds < 100) {
-      return;
-    }
-    _lastAmplitudeUpdate = now;
-    if (rms > _peakAmplitude) _peakAmplitude = rms;
-    _hasReceivedAnyAudio = true;
-    final normalized = ((rms + 2.0) / 12.0).clamp(0.0, 1.0);
-    _amplitudes[_amplitudeWriteIndex] = max(0.1, normalized);
-    _amplitudeWriteIndex = (_amplitudeWriteIndex + 1) % amplitudeBufferSize;
-    _waveformNotifier?.notify();
-  }
+  void handleRmsEvent(double rms) => _audioHandler.handleRmsEvent(rms);
 
-  void handleMonitoringStateEvent((MonitoringState, int?, String?) stateData) {
+  void handleMonitoringStateEvent(
+      (MonitoringState, int?, String?) stateData) {
     final monitoringState = stateData.$1;
     if (monitoringState == MonitoringState.networkAvailable ||
         monitoringState == MonitoringState.networkLost) {
-      final isAvailable = monitoringState == MonitoringState.networkAvailable;
+      final isAvailable =
+          monitoringState == MonitoringState.networkAvailable;
       final runtime = AnalysisModePolicy.createRuntimeState(
         state.selectedMode,
         isAvailable,
@@ -475,7 +290,6 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       final finalTranscript = stateData.$3?.trim();
       if (finalTranscript != null && finalTranscript.isNotEmpty) {
         state = state.copyWith(transcript: finalTranscript);
-        _analysisCompleter = null;
       }
       _stoppedEventReceived = true;
       _stoppedCompleter?.complete();
@@ -486,43 +300,12 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     }
   }
 
-  Future<void> _ensureAnalysisComplete() async {
-    if (state.transcript.trim().isEmpty) return;
-    if (_coordinatorInstance == null) return;
-    _analysisDebounce?.cancel();
-
-    final existing = _analysisCompleter;
-    if (existing != null && !existing.isCompleted) {
-      try {
-        await existing.future;
-      } on Exception {
-        // Swallow
-      }
-      return;
-    }
-    final completer = Completer<void>();
-    _analysisCompleter = completer;
-    try {
-      await _runAnalysis();
-      if (!completer.isCompleted) completer.complete();
-    } catch (e, st) {
-      if (!completer.isCompleted) completer.completeError(e, st);
-    } finally {
-      if (identical(_analysisCompleter, completer)) {
-        _analysisCompleter = null;
+  void onLifecycleChanged(AppLifecycleState lifecycle) {
+    if (lifecycle == AppLifecycleState.resumed && !state.isEndingSession) {
+      if (!isSimulationSession() && !hasTestAnalyzerOverride) {
+        unawaited(_startLiveMonitoringIfNeeded());
       }
     }
-  }
-
-  bool _endSessionInProgress = false;
-
-  @visibleForTesting
-  void debugSetAudioState({
-    required double peakAmplitude,
-    required bool hasReceivedAnyAudio,
-  }) {
-    _peakAmplitude = peakAmplitude;
-    _hasReceivedAnyAudio = hasReceivedAnyAudio;
   }
 
   Future<void> endSession() async {
@@ -537,7 +320,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     unawaited(SessionRecoveryStore.clear());
     try {
       final bridge = nativeBridge;
-      if (state.isCreatorMode) {
+      if (_isCreatorMode) {
         await bridge.stopCreatorMonitoring();
       } else {
         await bridge.stopMonitoring();
@@ -551,7 +334,11 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       }
 
       if (_disposed) return;
-      await _ensureAnalysisComplete();
+      // Guard: orchestrator may not be ready if initAfterFrame wasn't called
+      // (e.g. test with overridden analyzer). Proceed without analysis if so.
+      if (_coordinatorInstance != null) {
+        await _orch.ensureAnalysisComplete();
+      }
       if (_disposed) return;
 
       final risk = state.peakRiskLevel.index > state.riskLevel.index
@@ -566,11 +353,13 @@ class MonitoringController extends Notifier<MonitoringPageState> {
 
       RecordingError? recordingError;
       if (state.transcript.trim().isEmpty) {
-        recordingError =
-            _hasReceivedAnyAudio ? RecordingError.sttFailed : RecordingError.noAudio;
+        recordingError = _audioHandler.hasReceivedAnyAudio
+            ? RecordingError.sttFailed
+            : RecordingError.noAudio;
       }
       if (recordingError == RecordingError.noAudio) {
-        summaryParts.add('Không thu được âm thanh — kiểm tra quyền micro hoặc nguồn âm thanh');
+        summaryParts.add(
+            'Không thu được âm thanh — kiểm tra quyền micro hoặc nguồn âm thanh');
       } else if (recordingError == RecordingError.sttFailed) {
         summaryParts.add('Không nhận diện được giọng nói (STT không khả dụng)');
       } else if (reason != null && reason.isNotEmpty) {
@@ -589,7 +378,8 @@ class MonitoringController extends Notifier<MonitoringPageState> {
         flagCount: flagCount,
         transcript: state.transcript,
         audioPath: null,
-        analysisResult: result != null ? jsonEncode(result.toJson()) : null,
+        analysisResult:
+            result != null ? jsonEncode(result.toJson()) : null,
         analysisType: state.effectiveMode.name,
         alertHistory: CallHistory.alertHistoryToJson(state.alertHistory),
         recordingError: recordingError,
@@ -620,7 +410,18 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   }
 
   void dismissSttFallbackBanner() {
-    state = state.copyWith(isSttFallback: false, clearSttFallbackReason: true);
+    state =
+        state.copyWith(isSttFallback: false, clearSttFallbackReason: true);
+  }
+
+  // ─── Helpers ────────────────────────────────────────────────────────
+
+  bool isSimulationSession() {
+    final title = _simulatedScenarioTitle?.trim() ?? '';
+    final script = _simulatedTranscript?.trim() ?? '';
+    final hasStructured =
+        _simulatedScriptLines != null && _simulatedScriptLines!.isNotEmpty;
+    return hasStructured || title.isNotEmpty || script.isNotEmpty;
   }
 
   static String modeLabel(AnalysisMode mode) {
@@ -639,165 +440,192 @@ class MonitoringController extends Notifier<MonitoringPageState> {
         '${two(now.day)}/${two(now.month)}/${now.year}';
   }
 
-  Future<void> _runAnalysis() async {
-    final myGeneration = ++_analysisGeneration;
-    state = state.copyWith(isAnalyzing: true);
-    try {
-      final result =
-          await coordinator.analyze(state.transcript, state.effectiveMode);
-      if (_disposed) return;
-      if (myGeneration != _analysisGeneration) return;
-      final newPeak = result.overallRiskLevel.index > state.peakRiskLevel.index
-          ? result.overallRiskLevel
-          : state.peakRiskLevel;
-      state = state.copyWith(
-        analysisResult: result,
-        riskLevel: result.overallRiskLevel,
-        peakRiskLevel: newPeak,
-        isAnalyzing: false,
+  static String formatElapsedTime(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  String formatElapsedTimeHelper(int seconds) => formatElapsedTime(seconds);
+
+  /// Formats a [DateTime] as "HH:mm:ss DD/MM/YYYY".
+  String formatDateTime(DateTime value) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(value.hour)}:${two(value.minute)}:${two(value.second)} '
+        '${two(value.day)}/${two(value.month)}/${value.year}';
+  }
+
+  // ─── Private ────────────────────────────────────────────────────────
+
+  void _ensureOrchestratorCreated() {
+    if (_orchInstance != null) return;
+    if (_coordinatorInstance == null) return; // coordinator not ready yet
+    _orchInstance = AnalysisOrchestrator(
+      coordinator: coordinator,
+      getEffectiveMode: () => state.effectiveMode,
+      getTranscript: () => state.transcript,
+      onResult: _onAnalysisResult,
+      onError: _onAnalysisError,
+    );
+  }
+
+  AnalysisOrchestrator get _orch {
+    _ensureOrchestratorCreated();
+    // Should not happen in normal flow, but guard against it.
+    assert(_orchInstance != null,
+        'AnalysisOrchestrator accessed before coordinator is ready');
+    return _orchInstance!;
+  }
+
+  bool _hasAttemptedStart = false;
+
+  bool get _isCreatorMode => state.isCreatorMode;
+
+  Future<void> _recoverAndStartMonitoring() async {
+    await sessionManager.recoverFromKillIfAny();
+    if (_disposed) return;
+    await _startLiveMonitoringIfNeeded();
+  }
+
+  Future<void> _startLiveMonitoringIfNeeded() async {
+    if (isSimulationSession() || _hasAttemptedStart || _disposed ||
+        hasTestAnalyzerOverride) {
+      return;
+    }
+    _hasAttemptedStart = true;
+
+    final bridge = nativeBridge;
+    final settings = ref.read(settingsControllerProvider);
+    final devMode = ref.read(developerModeProvider);
+
+    final shouldUseCreatorMode =
+        devMode.isActive && settings.creatorAudioCapture;
+
+    if (shouldUseCreatorMode) {
+      state = state.copyWith(isCreatorMode: true);
+      final alreadyRunning = await bridge.isCreatorMonitoringActive();
+      if (alreadyRunning) return;
+      final started = await bridge.startCreatorMonitoring(
+        devModeExpiresAtMs: devMode.expiresAtEpochMs,
       );
-    } on Object catch (e) {
-      debugPrint('_runAnalysis failed: $e');
-      if (_disposed) return;
-      if (myGeneration != _analysisGeneration) return;
-      state = state.copyWith(
-        analysisResult: const AnalysisResult(
-          overallRiskLevel: RiskLevel.green,
-          matches: [],
-          reason: 'Lỗi khi chạy phân tích trên kịch bản mô phỏng.',
-          analysisLevel: AnalysisLevel.l1,
-          alertEnabled: false,
-          isError: true,
-        ),
-        riskLevel: RiskLevel.green,
-        isAnalyzing: false,
+      if (started) return;
+      state = state.copyWith(isCreatorMode: false);
+    }
+
+    final alreadyRunning = await bridge.isMonitoringActive();
+    if (!alreadyRunning) {
+      await bridge.startMonitoring(
+        enableSpeakerphone: settings.autoEnableSpeakerphone,
       );
     }
   }
 
-  void _runRealTimeAnalysis(String text) {
-    if (_coordinatorInstance == null) return;
-    _analysisDebounce?.cancel();
-    _analysisDebounce = Timer(const Duration(milliseconds: 1200), () async {
-      final textForRun = text;
-      if (_disposed || textForRun.trim().isEmpty || state.isEndingSession) return;
-      if (state.isAnalyzing) {
-        _pendingReanalysisText = textForRun;
-        return;
-      }
-      _pendingReanalysisText = null;
-      final myGeneration = ++_analysisGeneration;
-      state = state.copyWith(isAnalyzing: true);
-      try {
-        final AnalysisResult result =
-            await coordinator.analyzeIncremental(textForRun, state.effectiveMode);
-        if (_disposed) return;
-        if (myGeneration != _analysisGeneration) return;
-        if (state.isEndingSession) return;
+  Future<void> _runRestartSequence() async {
+    if (_disposed) return;
+    _hasAttemptedStart = false;
+    await _startLiveMonitoringIfNeeded();
+    if (!_disposed) streamHandler.initStreams();
+  }
 
-        final resultLevel = result.analysisLevel;
-        if (resultLevel == AnalysisLevel.l2 &&
-            state.effectiveMode == AnalysisMode.geminiApi) {
-          state = state.copyWith(
-            effectiveMode: AnalysisMode.gDetection,
-            isFallbackActive: true,
-          );
-        }
+  void _onAnalysisResult(AnalysisResult result, AnalysisMode effectiveMode) {
+    if (_disposed) return;
+    if (state.isEndingSession) return;
 
-        final newPeak = result.overallRiskLevel.index > state.peakRiskLevel.index
+    final resultLevel = result.analysisLevel;
+    if (resultLevel == AnalysisLevel.l2 &&
+        effectiveMode == AnalysisMode.geminiApi) {
+      state = state.copyWith(
+        effectiveMode: AnalysisMode.gDetection,
+        isFallbackActive: true,
+      );
+    }
+
+    final newPeak =
+        result.overallRiskLevel.index > state.peakRiskLevel.index
             ? result.overallRiskLevel
             : state.peakRiskLevel;
-        state = state.copyWith(
-          analysisResult: result,
-          riskLevel: result.overallRiskLevel,
-          peakRiskLevel: newPeak,
-          isAnalyzing: false,
-        );
+    state = state.copyWith(
+      analysisResult: result,
+      riskLevel: result.overallRiskLevel,
+      peakRiskLevel: newPeak,
+      isAnalyzing: false,
+    );
 
-        if (result.alertEnabled) {
-          _updateAlertHistory(result);
-          final level = result.overallRiskLevel;
-          final nowMs = DateTime.now().millisecondsSinceEpoch;
-          final lastTime = _lastNativeAlertTime[level];
-          const suppressionWindowMs = 15000;
-          if (lastTime == null || (nowMs - lastTime) >= suppressionWindowMs) {
-            _lastNativeAlertTime[level] = nowMs;
-            final bridge = nativeBridge;
-             if (level == RiskLevel.red) {
-              unawaited(HapticFeedback.heavyImpact());
-              unawaited(bridge.showRedAlert(result.reason ?? 'Cảnh báo lừa đảo!'));
-            } else if (level == RiskLevel.orange) {
-              unawaited(HapticFeedback.vibrate());
-              unawaited(bridge.showOrangeAlert(result.reason ?? 'Nội dung đáng ngờ!'));
-            }
-          }
-        }
+    if (result.alertEnabled) {
+      _alertManager.processResult(result);
+      _alertManager.triggerNativeAlert(result);
+      // Sync alert history from AlertManager to state for persistence.
+      state = state.copyWith(alertHistory: _alertManager.alertHistory);
+    }
+  }
 
-        final pendingText = _pendingReanalysisText;
-        _pendingReanalysisText = null;
-        if (pendingText != null && !state.isEndingSession) {
-          _runRealTimeAnalysis(pendingText);
-        }
-      } on Object catch (e) {
-        debugPrint('_runRealTimeAnalysis failed: $e');
-        if (!_disposed) {
-          state = state.copyWith(isAnalyzing: false);
-        }
-        final pendingText = _pendingReanalysisText;
-        _pendingReanalysisText = null;
-        if (pendingText != null && !_disposed && !state.isEndingSession) {
-          _runRealTimeAnalysis(pendingText);
-        }
-      }
+  void _onAnalysisError(AnalysisResult fallback) {
+    if (_disposed) return;
+    state = state.copyWith(
+      analysisResult: fallback,
+      riskLevel: RiskLevel.green,
+      isAnalyzing: false,
+    );
+  }
+
+  void _startTimer() {
+    if (hasTestAnalyzerOverride) return;
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_disposed) return;
+      state = state.copyWith(elapsedSeconds: state.elapsedSeconds + 1);
     });
   }
 
-  void _updateAlertHistory(AnalysisResult result) {
-    if (!result.alertEnabled) return;
-
-    const int maxAlerts = 100;
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final riskLevel = result.overallRiskLevel.storageName;
-    final reason = result.reason ?? 'Cảnh báo rủi ro';
-
-    final currentHistory = List<AlertHistoryEntry>.from(state.alertHistory);
-
-    if (currentHistory.isNotEmpty) {
-      final last = currentHistory.last;
-      if (last.riskLevel == riskLevel && (timestamp - last.timestamp) < 10000) {
-        final allReasons = List<String>.from(last.allReasons ?? []);
-        if (!allReasons.contains(reason)) {
-          allReasons.add(reason);
-        }
-
-        currentHistory[currentHistory.length - 1] = AlertHistoryEntry(
-          timestamp: last.timestamp,
-          analysisLevel: result.analysisLevel.id,
-          riskLevel: riskLevel,
-          alertCount: last.alertCount + 1,
-          displayedReason: reason,
-          allReasons: allReasons,
-        );
-        state = state.copyWith(alertHistory: currentHistory);
-        return;
-      }
-    }
-
-    currentHistory.add(AlertHistoryEntry(
-      timestamp: timestamp,
-      analysisLevel: result.analysisLevel.id,
-      riskLevel: riskLevel,
-      alertCount: 1,
-      displayedReason: reason,
-      allReasons: [reason],
-    ));
-    if (currentHistory.length > maxAlerts) {
-      currentHistory.removeRange(0, currentHistory.length - maxAlerts);
-    }
-    state = state.copyWith(alertHistory: currentHistory);
+  void _resetForNewSession() {
+    _timer?.cancel();
+    _healthCheckService.stop();
+    sessionManager.stopSnapshotTimer();
+    sessionManager.recoveryAttempted = false;
+    sessionManager.sessionStartEpochSeconds = 0;
+    simulationHelper.stopSimulationPlayback();
+    simulationHelper.currentScriptLineIndex = 0;
+    streamHandler.cancelStreams();
+    streamHandler.streamsDead = false;
+    _settingsSub?.close();
+    _settingsSub = null;
+    phoneNumber = null;
+    _simulatedScenarioTitle = null;
+    _simulatedTranscript = null;
+    _simulatedScriptLines = null;
+    _l1AnalyzerOverride = null;
+	    _coordinatorInstance = null;
+	    _orchInstance?.cancelDebounce();
+	    _orchInstance = null;
+    _hasAttemptedStart = false;
+    _endSessionInProgress = false;
+    _stoppedEventReceived = false;
+    _stoppedCompleter = null;
+    _audioHandler.reset();
+    _alertManager.reset();
+    state = const MonitoringPageState();
   }
-}
 
-class _WaveformNotifier extends ChangeNotifier {
-  void notify() => notifyListeners();
+  void _disposeInternal() {
+    _disposed = true;
+    _timer?.cancel();
+    _healthCheckService.stop();
+    sessionManager.stopSnapshotTimer();
+    _orchInstance?.cancelDebounce();
+    simulationHelper.stopSimulationPlayback();
+    streamHandler.cancelStreams();
+    _settingsSub?.close();
+    _settingsSub = null;
+  }
+
+  @visibleForTesting
+  void debugSetAudioState({
+    required double peakAmplitude,
+    required bool hasReceivedAnyAudio,
+  }) {
+    _audioHandler.debugSetAudioState(
+      peakAmplitude: peakAmplitude,
+      hasReceivedAnyAudio: hasReceivedAnyAudio,
+    );
+  }
 }

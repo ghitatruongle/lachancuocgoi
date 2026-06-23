@@ -112,7 +112,7 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_prefsKeyActivatedAt, _activatedAtMs);
-    } catch (e) {
+    } on Object catch (e) {
       // If persist fails, revert in-memory state to avoid contradiction
       // between isActive (reads _activatedAtMs) and persisted state.
       _activatedAtMs = 0;
@@ -130,7 +130,7 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_prefsKeyActivatedAt);
-    } catch (e) {
+    } on Object catch (e) {
       // Non-fatal — in-memory state is already cleared. On next restart
       // the restore will see an expired activation and deactivate.
       debugPrint('DeveloperMode.deactivate() persist failed: $e');

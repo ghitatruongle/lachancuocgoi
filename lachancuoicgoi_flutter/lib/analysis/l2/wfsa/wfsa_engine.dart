@@ -81,6 +81,10 @@ class WfsaEngine {
     resetSession();
   }
 
+  /// Maximum number of transition records kept in history before trimming.
+  /// Prevents unbounded memory growth during long monitoring sessions.
+  static const int maxTransitionHistory = 500;
+
   final List<ScenarioGraph> graphs;
   final Map<String, double> _graphScores = <String, double>{};
   final Map<String, String> _currentSessionStates = <String, String>{};
@@ -116,6 +120,14 @@ class WfsaEngine {
     }
     activeScenarioName = null;
     activeScenarioStage = null;
+  }
+
+  /// Called on system memory pressure — keeps session state but trims
+  /// non-critical history.
+  void onMemoryPressure() {
+    if (_transitionHistory.length > 100) {
+      _transitionHistory.removeRange(0, _transitionHistory.length - 100);
+    }
   }
 
   /// Incremental analysis: only tokenize the delta portion of [fullText]
@@ -208,6 +220,13 @@ class WfsaEngine {
               stage: targetState.stage,
               segmentIndex: _segmentIndex,
             ));
+            // Prevent unbounded history growth: trim oldest 20% when over cap.
+            if (_transitionHistory.length > maxTransitionHistory) {
+              _transitionHistory.removeRange(
+                0,
+                (_transitionHistory.length - maxTransitionHistory + 10),
+              );
+            }
           }
           break;
         }

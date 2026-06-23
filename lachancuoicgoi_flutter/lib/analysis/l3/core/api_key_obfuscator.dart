@@ -17,7 +17,7 @@ class ApiKeyObfuscator {
     List<int> decodedBytes;
     try {
       decodedBytes = base64.decode(obfuscated);
-    } catch (_) {
+    } on Object catch (_) {
       return null;
     }
 
@@ -29,7 +29,7 @@ class ApiKeyObfuscator {
     try {
       final primaryResult = utf8.decode(primary);
       if (primaryResult.startsWith('AIza')) return primaryResult;
-    } catch (_) {
+    } on Object catch (_) {
       // Invalid UTF-8 from multi-byte — fall through to legacy
     }
 
@@ -41,7 +41,7 @@ class ApiKeyObfuscator {
     try {
       final legacyResult = utf8.decode(legacy);
       if (legacyResult.startsWith('AIza')) return legacyResult;
-    } catch (_) {
+    } on Object catch (_) {
       // Invalid UTF-8 from legacy — not a valid key
     }
 

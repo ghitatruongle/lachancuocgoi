@@ -71,7 +71,7 @@ class AppDatabase {
   static DatabaseFactory? get databaseFactoryOrNull {
     try {
       return databaseFactory;
-    } catch (_) {
+    } on Object catch (_) {
       return null;
     }
   }
@@ -79,7 +79,7 @@ class AppDatabase {
   static DatabaseFactory databaseFactoryFfiSafe() {
     try {
       return databaseFactory;
-    } catch (_) {
+    } on Object catch (_) {
       // Global databaseFactory not set — on mobile the plugin always sets
       // it, so this only happens on desktop/FFI. Re-throw with context.
       throw StateError(

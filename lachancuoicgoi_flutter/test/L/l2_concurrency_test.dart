@@ -21,6 +21,9 @@ class ManualMockGDetectionEngine implements GDetectionEngine {
   void reset() {}
 
   @override
+  void onMemoryPressure() {}
+
+  @override
   void dispose() {}
 
   @override

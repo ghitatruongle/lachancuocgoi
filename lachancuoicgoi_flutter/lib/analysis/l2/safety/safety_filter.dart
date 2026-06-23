@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../../../core/asset_loader.dart';
+import '../../../core/logger.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../../common/text_normalizer.dart';
 
@@ -62,6 +64,7 @@ class SafetyFilter {
   static Future<void> loadConfig({
     AssetLoader? assetLoader,
     SafetyAssetProvider? assetProvider,
+    AppLogger? logger,
   }) async {
     try {
       // Must await directly — assetProvider returns FutureOr<String>, and
@@ -100,11 +103,15 @@ class SafetyFilter {
           _transactionReductionPerMatch;
       _minMultiplier =
           (json['minMultiplier'] as num?)?.toDouble() ?? _minMultiplier;
-    } catch (e, st) {
+    } on Object catch (e, st) {
       // Previously this was `catch (_) { /* ignore */ }` — a malformed asset
       // or missing file would silently leave stale defaults with no clue why.
       // Log so config load failures are diagnosable.
-      print('[SafetyFilter] Failed to load $configFile: $e\n$st');
+      if (logger != null) {
+        logger.warning('[SafetyFilter] Failed to load $configFile: $e', e, st);
+      } else {
+        debugPrint('[WARN] [SafetyFilter] Failed to load $configFile: $e | Error: $e\n$st');
+      }
     }
     // Pre-compute normalized phrase lists once after config is loaded.
     _rebuildNormalizedLists();
