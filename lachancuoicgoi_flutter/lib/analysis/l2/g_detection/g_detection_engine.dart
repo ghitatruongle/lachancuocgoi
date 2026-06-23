@@ -5,6 +5,7 @@ import 'dart:isolate';
 import '../../../core/risk_level.dart';
 import '../../../core/asset_loader.dart';
 import '../../../core/logger.dart';
+import '../../../core/lru_cache.dart';
 import '../../analysis_result.dart';
 import 'g_flash.dart';
 import 'g_models.dart';
@@ -54,7 +55,10 @@ class GDetectionEngine {
   /// Trie transition cache: maps (nodeIdentity, token) → next node.
   /// Avoids redundant failure-link walks when the same token is seen
   /// from the same state across multiple analysis calls.
-  final Map<int, Map<String, TrieNode>> _trieTransitionCache = {};
+  /// LRU-bounded to prevent unbounded memory growth during long sessions.
+  static const int maxTransitionCacheSize = 1000;
+  final LruCache<int, Map<String, TrieNode>> _trieTransitionCache =
+      LruCache<int, Map<String, TrieNode>>(maxSize: maxTransitionCacheSize);
 
   bool _isReady = false;
   Future<void>? _initializingFuture;
@@ -85,6 +89,12 @@ class GDetectionEngine {
     _sentenceMatcher = null;
     _isReady = false;
     _initializingFuture = null;
+  }
+
+  /// Called on system memory pressure — evicts non-critical caches.
+  void onMemoryPressure() {
+    _trieTransitionCache.clear();
+    _patternMatcher.clearCacheInstance();
   }
 
   Future<void> initialize() {
@@ -197,7 +207,7 @@ class GDetectionEngine {
           ),
         );
       }
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('[GDetectionEngine] Failed to load $slangFile: $e');
       GFlash.loadSlangConfig(const <String, String>{});
     }
@@ -208,7 +218,7 @@ class GDetectionEngine {
       _scoringConfig = ScoringConfig.fromJson(
         await _loadJsonMap(scoringConfigFile),
       );
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('[GDetectionEngine] Failed to load $scoringConfigFile: $e');
       _scoringConfig = const ScoringConfig();
     }
@@ -222,7 +232,7 @@ class GDetectionEngine {
         tier2: (config.tier2Urgency ?? const <String>[]).toSet(),
         tier3: (config.tier3Pii ?? const <String>[]).toSet(),
       );
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('[GDetectionEngine] Failed to load $tierConfigFile: $e');
       GThinking.loadTierConfig(
         tier1: const <String>{},
@@ -261,7 +271,7 @@ class GDetectionEngine {
           );
         }
       }
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('[GDetectionEngine] Failed to build trie from $vocabularyFile: $e');
       return root;
     }
@@ -327,7 +337,7 @@ class GDetectionEngine {
               .add(situation.name);
         }
       }
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('[GDetectionEngine] Failed to load $aiCheckFile: $e');
       return;
     }
@@ -341,7 +351,7 @@ class GDetectionEngine {
       _scamPatterns =
           config.patterns?.map((pattern) => pattern.toDomain()).toList() ??
           const <ScamPattern>[];
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('[GDetectionEngine] Failed to load $patternsFile: $e');
       _scamPatterns = const <ScamPattern>[];
     }
@@ -353,7 +363,7 @@ class GDetectionEngine {
         await _loadJsonMap(situationFile),
       );
       _scenarioMatcher = ScenarioMatcher(masterModel);
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('[GDetectionEngine] Failed to load $situationFile: $e');
       _scenarioMatcher = null;
     }
@@ -365,7 +375,7 @@ class GDetectionEngine {
         await _loadJsonMap(sentencesFile),
       );
       _sentenceMatcher = SentenceMatcher(sentencesModel);
-    } catch (e) {
+    } on Object catch (e) {
       _logger?.warning('[GDetectionEngine] Failed to load $sentencesFile: $e');
       _sentenceMatcher = null;
     }
@@ -418,26 +428,28 @@ class GDetectionEngine {
     for (var i = 0; i < tokens.length; i++) {
       final token = tokens[i];
 
-      // Trie transition cache: avoid re-walking failure links for
-      // the same (state, token) pair.
-      final nodeId = identityHashCode(current);
-      final cachedTransitions = _trieTransitionCache[nodeId];
-      if (cachedTransitions != null && cachedTransitions.containsKey(token)) {
-        current = cachedTransitions[token]!;
-      } else {
-        // Walk failure links to find next state.
-        final prevState = current;
-        while (current != _riskKeywordTrie &&
-            !current.children.containsKey(token)) {
-          current = current.failureLink ?? _riskKeywordTrie;
-        }
-        final child = current.children[token];
-        current = child ?? _riskKeywordTrie;
+	      // Trie transition cache: avoid re-walking failure links for
+	      // the same (state, token) pair.
+	      final nodeId = identityHashCode(current);
+	      var cachedTransitions = _trieTransitionCache.get(nodeId);
+	      if (cachedTransitions != null && cachedTransitions.containsKey(token)) {
+	        current = cachedTransitions[token]!;
+	      } else {
+	        // Walk failure links to find next state.
+	        while (current != _riskKeywordTrie &&
+	            !current.children.containsKey(token)) {
+	          current = current.failureLink ?? _riskKeywordTrie;
+	        }
+	        final child = current.children[token];
+	        current = child ?? _riskKeywordTrie;
 
-        // Cache the transition for future use.
-        _trieTransitionCache
-            .putIfAbsent(identityHashCode(prevState), () => {})[token] = current;
-      }
+	        // Cache the transition for future use (LRU-bounded).
+	        if (cachedTransitions == null) {
+	          cachedTransitions = <String, TrieNode>{};
+	          _trieTransitionCache.put(nodeId, cachedTransitions);
+	        }
+	        cachedTransitions[token] = current;
+	      }
 
       // Emit all keywords ending at position i (via dictionary-link chain).
       final child = current;

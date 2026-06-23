@@ -109,7 +109,7 @@ void main() {
       try {
         result.getOrThrow();
         fail('Should have thrown');
-      } catch (e) {
+      } on Object catch (e) {
         expect(e, 'err');
       }
     });

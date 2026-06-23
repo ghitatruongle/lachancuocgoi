@@ -137,7 +137,7 @@ class GeminiChatSession {
               keyIndex: _currentKeyIndex,
             );
             return Result.success(parsed);
-          } catch (error, stackTrace) {
+          } on Object catch (error, stackTrace) {
             lastError = error;
             lastStackTrace = stackTrace;
             final errorType = _classifyError(error);

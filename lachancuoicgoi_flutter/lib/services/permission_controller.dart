@@ -46,14 +46,26 @@ class PermissionState {
 }
 
 /// Controller for managing Android permissions via native bridge.
-class PermissionController extends StateNotifier<PermissionState>
+class PermissionController extends Notifier<PermissionState>
     with WidgetsBindingObserver {
-  PermissionController(this._bridge) : super(const PermissionState()) {
+  /// Backward-compatible constructor for tests that instantiate directly.
+  /// In production, use [ProviderContainer] / [NotifierProvider] which calls [build].
+  PermissionController([NativeBridgeInterface? bridge]) : _storedBridge = bridge;
+
+  final NativeBridgeInterface? _storedBridge;
+
+  NativeBridgeInterface get _bridge => _storedBridge ?? ref.read(nativeBridgeProvider);
+
+  @override
+  PermissionState build() {
     WidgetsBinding.instance.addObserver(this);
+    ref.onDispose(() {
+      WidgetsBinding.instance.removeObserver(this);
+    });
     _refresh();
+    return const PermissionState();
   }
 
-  final NativeBridgeInterface _bridge;
   DateTime? _lastRefreshTime;
 
   static bool get _canUseRuntimePermissionUi =>
@@ -170,8 +182,8 @@ class PermissionController extends StateNotifier<PermissionState>
     _lastRefreshTime = now;
     try {
       final snapshot = await _bridge.getPermissionSnapshot();
-      if (!mounted) return;
-      // Only update state if snapshot actually changed to avoid rebuilds
+      // Riverpod's Notifier doesn't have mounted; the provider is disposed
+      // via ref.onDispose (set in build()), so we just update state.
       if (snapshot != state.snapshot) {
         state = state.copyWith(
           snapshot: snapshot,
@@ -303,20 +315,14 @@ class PermissionController extends StateNotifier<PermissionState>
 
     return results;
   }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
 }
 
 // ─── Riverpod Providers ───────────────────────────────────────────────────────
 
-final permissionControllerProvider = StateNotifierProvider<PermissionController, PermissionState>((ref) {
-  final bridge = ref.watch(nativeBridgeProvider);
-  return PermissionController(bridge);
-});
+final permissionControllerProvider =
+    NotifierProvider<PermissionController, PermissionState>(
+  PermissionController.new,
+);
 
 /// Provider that returns true when all permissions are granted.
 final allPermissionsGrantedProvider = Provider<bool>((ref) {

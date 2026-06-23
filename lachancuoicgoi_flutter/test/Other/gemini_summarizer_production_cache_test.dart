@@ -36,7 +36,7 @@ void main() {
           await summarizer.summarize(
             'Test transcript với nhiều từ để pass min-words check.',
           );
-        } catch (_) {
+        } on Object catch (_) {
           // Ignore — chỉ test lazy init
         }
       }
@@ -59,10 +59,10 @@ void main() {
       // (không thể verify trực tiếp, nhưng đảm bảo không có shared state)
       try {
         await summarizer1.summarize('test one two three four five');
-      } catch (_) {}
+      } on Object catch (_) {}
       try {
         await summarizer2.summarize('test one two three four five');
-      } catch (_) {}
+      } on Object catch (_) {}
 
       // Smoke test — không crash
       expect(summarizer1, isNotNull);

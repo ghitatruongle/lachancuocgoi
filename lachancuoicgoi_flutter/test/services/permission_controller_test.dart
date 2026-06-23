@@ -1,7 +1,19 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lachancuocgoi_flutter/services/permission_controller.dart';
+
+/// Creates a [ProviderContainer] and returns the [PermissionController] notifier.
+/// This is the correct way to create a [Notifier]-based controller in tests.
+ProviderContainer createContainer() {
+  return ProviderContainer(
+    overrides: [],
+  );
+}
+
+PermissionController createController(ProviderContainer container) {
+  return container.read(permissionControllerProvider.notifier);
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +35,10 @@ void main() {
 
   final methodCalls = <MethodCall>[];
 
+  ProviderContainer? container;
+
   setUp(() {
+    container = createContainer();
     methodCalls.clear();
     permissionMap.clear();
     permissionMap.addAll({
@@ -63,6 +78,7 @@ void main() {
   });
 
   tearDown(() {
+    container?.dispose();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(methodChannel, null);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -74,7 +90,7 @@ void main() {
       permissionMap['recordAudio'] = true;
       permissionMap['notification'] = true;
 
-      final controller = PermissionController(NativeCallShieldBridge.instance);
+      final controller = createController(container!);
       // Wait for the initial _refresh() to complete
       await tester.pump();
 
@@ -86,7 +102,7 @@ void main() {
     testWidgets('refresh is throttled — second call within 500ms is skipped', (
       tester,
     ) async {
-      final controller = PermissionController(NativeCallShieldBridge.instance);
+      final controller = createController(container!);
       await tester.pump();
 
       final callCountBefore = methodCalls
@@ -108,7 +124,7 @@ void main() {
     });
 
     testWidgets('refresh updates state when snapshot changes', (tester) async {
-      final controller = PermissionController(NativeCallShieldBridge.instance);
+      final controller = createController(container!);
       await tester.pump();
       expect(controller.state.snapshot.recordAudio, isFalse);
 
@@ -125,7 +141,7 @@ void main() {
     testWidgets('refresh does not update state when snapshot is identical', (
       tester,
     ) async {
-      final controller = PermissionController(NativeCallShieldBridge.instance);
+      final controller = createController(container!);
       // Wait for initial _refresh() to complete
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -143,7 +159,7 @@ void main() {
   group('PermissionController — requestMicrophonePermission', () {
     testWidgets('returns current snapshot value after refresh', (tester) async {
       permissionMap['recordAudio'] = true;
-      final controller = PermissionController(NativeCallShieldBridge.instance);
+      final controller = createController(container!);
       await tester.pump();
 
       // Wait for throttle
@@ -159,7 +175,7 @@ void main() {
     testWidgets('calls bridge and refreshes snapshot', (tester) async {
       permissionMap['phoneState'] = true;
       permissionMap['callLog'] = true;
-      final controller = PermissionController(NativeCallShieldBridge.instance);
+      final controller = createController(container!);
       await tester.pump();
 
       await tester.pump(const Duration(milliseconds: 600));
@@ -182,7 +198,7 @@ void main() {
   group('PermissionController — requestOverlayPermission', () {
     testWidgets('calls bridge and returns result', (tester) async {
       permissionMap['overlay'] = true;
-      final controller = PermissionController(NativeCallShieldBridge.instance);
+      final controller = createController(container!);
       await tester.pump();
 
       final result = await controller.requestOverlayPermission();
@@ -198,7 +214,7 @@ void main() {
   group('PermissionController — requestCallScreeningPermission', () {
     testWidgets('calls bridge and returns result', (tester) async {
       permissionMap['callScreening'] = true;
-      final controller = PermissionController(NativeCallShieldBridge.instance);
+      final controller = createController(container!);
       await tester.pump();
 
       final result = await controller.requestCallScreeningPermission();
@@ -212,7 +228,7 @@ void main() {
 
   group('PermissionController — requestAllPermissions', () {
     testWidgets('requests all missing permissions in sequence', (tester) async {
-      final controller = PermissionController(NativeCallShieldBridge.instance);
+      final controller = createController(container!);
       await tester.pump();
 
       // Set all to true after requests
@@ -241,7 +257,7 @@ void main() {
       permissionMap['accessibility'] = true;
       permissionMap['callScreening'] = true;
 
-      final controller = PermissionController(NativeCallShieldBridge.instance);
+      final controller = createController(container!);
       await tester.pump();
 
       await tester.pump(const Duration(milliseconds: 600));
@@ -254,7 +270,7 @@ void main() {
 
   group('PermissionController — checkMonitoringActive', () {
     testWidgets('delegates to bridge', (tester) async {
-      final controller = PermissionController(NativeCallShieldBridge.instance);
+      final controller = createController(container!);
       await tester.pump();
 
       final result = await controller.checkMonitoringActive();
@@ -264,8 +280,7 @@ void main() {
 
   group('PermissionController — providers', () {
     testWidgets('allPermissionsGrantedProvider reflects state', (tester) async {
-      final bridge = NativeCallShieldBridge.instance;
-      final controller = PermissionController(bridge);
+      final controller = createController(container!);
       await tester.pump();
 
       expect(controller.state.allGranted, isFalse);
@@ -275,8 +290,7 @@ void main() {
       tester,
     ) async {
       permissionMap['recordAudio'] = true;
-      final bridge = NativeCallShieldBridge.instance;
-      final controller = PermissionController(bridge);
+      final controller = createController(container!);
       await tester.pump();
 
       expect(controller.state.snapshot.recordAudio, isTrue);

@@ -72,7 +72,7 @@ void main() {
           await summarizer.summarize(
             'Test with enough words to trigger summarization API call',
           );
-        } catch (_) {}
+        } on Object catch (_) {}
       }
 
       // 6th call blocked by circuit breaker
@@ -81,7 +81,7 @@ void main() {
         await summarizer.summarize(
           'Test with enough words to trigger summarization API call',
         );
-      } catch (_) {}
+      } on Object catch (_) {}
 
       expect(executorCallCount, equals(0),
           reason: 'Circuit breaker should block calls after 5 failures');

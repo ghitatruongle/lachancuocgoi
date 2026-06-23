@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../../../core/risk_level.dart';
+import '../../../core/lru_cache.dart';
 import '../../analysis_result.dart';
 import 'g_flash.dart';
 import 'g_models.dart';
@@ -23,8 +24,12 @@ class RiskKeywordTrie {
   final Map<String, List<String>> _keywordToTopicsMap =
       <String, List<String>>{};
 
-  /// Trie transition cache: maps (nodeIdentity, token) → next node.
-  final Map<int, Map<String, TrieNode>> _trieTransitionCache = {};
+	/// Trie transition cache: maps (nodeIdentity, token) → next node.
+  /// LRU-bounded to [maxTransitionCacheSize] entries per session to prevent
+  /// unbounded memory growth during long monitoring sessions.
+  static const int maxTransitionCacheSize = 1000;
+  final LruCache<int, Map<String, TrieNode>> _trieTransitionCache =
+      LruCache<int, Map<String, TrieNode>>(maxSize: maxTransitionCacheSize);
 
   bool _isBuilt = false;
 
@@ -64,27 +69,28 @@ class RiskKeywordTrie {
     for (var i = 0; i < tokens.length; i++) {
       final token = tokens[i];
 
-      // Trie transition cache: avoid re-walking failure links for
-      // the same (state, token) pair.
-      final nodeId = identityHashCode(current);
-      final cachedTransitions = _trieTransitionCache[nodeId];
-      if (cachedTransitions != null && cachedTransitions.containsKey(token)) {
-        current = cachedTransitions[token]!;
-      } else {
-        // Walk failure links to find next state.
-        final prevState = current;
-        while (current != _root && !current.children.containsKey(token)) {
-          current = current.failureLink ?? _root;
-        }
-        final child = current.children[token];
-        current = child ?? _root;
+	      // Trie transition cache: avoid re-walking failure links for
+	      // the same (state, token) pair.
+	      // LRU-bounded: old entries auto-evict when cache exceeds 1000 entries.
+	      final nodeId = identityHashCode(current);
+	      var cachedTransitions = _trieTransitionCache.get(nodeId);
+	      if (cachedTransitions != null && cachedTransitions.containsKey(token)) {
+	        current = cachedTransitions[token]!;
+	      } else {
+	        // Walk failure links to find next state.
+	        while (current != _root && !current.children.containsKey(token)) {
+	          current = current.failureLink ?? _root;
+	        }
+	        final child = current.children[token];
+	        current = child ?? _root;
 
-        // Cache the transition for future use.
-        _trieTransitionCache.putIfAbsent(
-          identityHashCode(prevState),
-          () => {},
-        )[token] = current;
-      }
+	        // Cache the transition for future use.
+	        if (cachedTransitions == null) {
+	          cachedTransitions = <String, TrieNode>{};
+	          _trieTransitionCache.put(nodeId, cachedTransitions);
+	        }
+	        cachedTransitions[token] = current;
+	      }
 
       // Emit all keywords ending at position i (via dictionary-link chain).
       final child = current;
@@ -145,7 +151,7 @@ class RiskKeywordTrie {
     return bestEntry?.key;
   }
 
-  /// Resets the transition cache (but keeps the built trie and topic map).
+	/// Resets the transition cache (but keeps the built trie and topic map).
   void resetCache() {
     _trieTransitionCache.clear();
   }
@@ -156,6 +162,11 @@ class RiskKeywordTrie {
     _keywordToTopicsMap.clear();
     _trieTransitionCache.clear();
     _isBuilt = false;
+  }
+
+  /// Called on memory pressure — evicts non-critical cached data.
+  void onMemoryPressure() {
+    _trieTransitionCache.clear();
   }
 
   // ─── Private: trie construction ─────────────────────────────────────

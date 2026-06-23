@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:math';
+
+import 'audio_amplitude_handler.dart';
 import 'monitoring_controller.dart';
 
 class MonitoringSimulationHelper {
@@ -31,7 +33,7 @@ class MonitoringSimulationHelper {
           controller.updateTranscriptFromSimulation(
             current.isEmpty ? lineText : '$current\n$lineText',
           );
-          updateSimulationWaveform();
+          _updateSimulationWaveform();
           currentScriptLineIndex++;
           scheduleNext();
         },
@@ -46,10 +48,11 @@ class MonitoringSimulationHelper {
     _simulationPlaybackTimer = null;
   }
 
-  void updateSimulationWaveform() {
-    for (var i = 0; i < MonitoringController.amplitudeBufferSize; i++) {
-      controller.amplitudes[i] = simRandom.nextDouble() * 0.6 + 0.2;
+  void _updateSimulationWaveform() {
+    final audioHandler = controller.audioHandler;
+    for (var i = 0; i < AudioAmplitudeHandler.amplitudeBufferSize; i++) {
+      audioHandler.amplitudes[i] = simRandom.nextDouble() * 0.6 + 0.2;
     }
-    controller.notifyWaveform();
+    audioHandler.notifyWaveform();
   }
 }

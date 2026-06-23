@@ -89,7 +89,7 @@ class L2Analyzer implements Analyzer {
     await Future.wait(<Future<void>>[
       _gDetectionEngine.initialize(),
       _intentClassifier.initialize(),
-      SafetyFilter.loadConfig(assetLoader: _assetLoader),
+      SafetyFilter.loadConfig(assetLoader: _assetLoader, logger: _logger),
     ]);
   }
 
@@ -315,7 +315,7 @@ class L2Analyzer implements Analyzer {
         return _Luong1Success(topIntent, confidenceMargin);
       }
       return const _Luong1Fallback();
-    } catch (e, st) {
+    } on Object catch (e, st) {
       // Trước đây `catch (_)` nuốt exception không log → khó debug production.
       // Giờ log đầy đủ để intent-flow failure có thể truy vết (key TFLite
       // isolate, lỗi vocab, v.v.) mà vẫn fallback an toàn.

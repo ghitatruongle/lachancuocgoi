@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'dart:collection';
 
 import '../core/risk_level.dart';
+import 'analysis_fallback.dart';
+import 'analysis_fusion.dart';
 import 'analysis_level.dart';
 import 'analysis_mode.dart';
 import 'analysis_result.dart';
@@ -35,7 +36,7 @@ class AnalysisCoordinator {
       AnalysisMode.normal => _l1Analyzer,
       AnalysisMode.gDetection => _l2Analyzer,
       AnalysisMode.geminiApi => _l3Analyzer,
-      AnalysisMode.parallel => _l3Analyzer, // Fallback for some properties
+      AnalysisMode.parallel => _l3Analyzer,
     };
   }
 
@@ -93,7 +94,15 @@ class AnalysisCoordinator {
     }
 
     final deltaLength = fullText.length - processedTextLength;
-    final minDelta = _adaptiveMinDelta(lastResult.overallRiskLevel, mode);
+    final minDelta = _adaptiveMinDelta(
+      lastResult.overallRiskLevel,
+      mode,
+      // Context parameters for adaptive calculation (default: no adjustment)
+      transcriptLength: fullText.length,
+      matchCount: lastResult.matches.length,
+      lastConfidence: lastResult.confidence,
+      speechRate: 0,
+    );
     if (deltaLength < minDelta) {
       return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
           ? lastResult.copyWith(alertEnabled: false)
@@ -102,7 +111,7 @@ class AnalysisCoordinator {
 
     if (mode == AnalysisMode.geminiApi) {
       final result = await analyzeIncrementalL3(fullText);
-      return result ?? _defaultResultFor(mode);
+      return result ?? AnalysisFallback.defaultForMode(mode);
     }
 
     final textToAnalyze = fullText.substring(processedTextLength);
@@ -120,7 +129,7 @@ class AnalysisCoordinator {
     }
     final l2Future = _l2Analyzer.isReady
         ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
-        : Future.value(_defaultResultFor(AnalysisMode.gDetection));
+        : Future.value(AnalysisFallback.defaultForMode(AnalysisMode.gDetection));
 
     final results = await Future.wait([l1Future, l2Future]);
     final l1Result = results[0];
@@ -141,12 +150,12 @@ class AnalysisCoordinator {
       final l3Result = await l3Future.timeout(
         const Duration(milliseconds: 800),
       );
-      return _fuseResults(l1Result, l2Result, l3Result);
+      return AnalysisFusion.fuse(l1Result, l2Result, l3Result);
     } on TimeoutException {
-      return _fuseResults(
+      return AnalysisFusion.fuse(
         l1Result,
         l2Result,
-        _defaultResultFor(AnalysisMode.geminiApi),
+        AnalysisFallback.defaultForMode(AnalysisMode.geminiApi),
       );
     }
   }
@@ -154,7 +163,7 @@ class AnalysisCoordinator {
   Future<AnalysisResult> _analyzeIncrementalParallel(String fullText) async {
     final processedLength = _l1Analyzer.processedTextLength;
     final lastResult =
-        _lastParallelResult ?? _defaultResultFor(AnalysisMode.parallel);
+        _lastParallelResult ?? AnalysisFallback.defaultForMode(AnalysisMode.parallel);
 
     if (fullText.length <= processedLength) {
       return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
@@ -166,6 +175,10 @@ class AnalysisCoordinator {
     final minDelta = _adaptiveMinDelta(
       lastResult.overallRiskLevel,
       AnalysisMode.parallel,
+	      transcriptLength: lastResult.matches.isNotEmpty ? fullText.length : 0,
+      matchCount: lastResult.matches.length,
+      lastConfidence: lastResult.confidence,
+      speechRate: 0,
     );
     if (deltaLength < minDelta) {
       return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
@@ -179,7 +192,7 @@ class AnalysisCoordinator {
     if (!_l2Analyzer.isReady) await _l2Analyzer.initialize();
     final l2Future = _l2Analyzer.isReady
         ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
-        : Future.value(_defaultResultFor(AnalysisMode.gDetection));
+        : Future.value(AnalysisFallback.defaultForMode(AnalysisMode.gDetection));
 
     final results = await Future.wait([l1Future, l2Future]);
     final l1Result = results[0];
@@ -200,12 +213,12 @@ class AnalysisCoordinator {
     AnalysisResult l3Result;
     try {
       final result = await l3Future.timeout(const Duration(milliseconds: 800));
-      l3Result = result ?? _defaultResultFor(AnalysisMode.geminiApi);
+      l3Result = result ?? AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
     } on TimeoutException {
-      l3Result = _defaultResultFor(AnalysisMode.geminiApi);
+      l3Result = AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
     }
 
-    final fusionResult = _fuseResults(l1Result, l2Result, l3Result);
+    final fusionResult = AnalysisFusion.fuse(l1Result, l2Result, l3Result);
     _lastParallelResult = fusionResult;
     return fusionResult;
   }
@@ -215,72 +228,7 @@ class AnalysisCoordinator {
     AnalysisResult l2,
     AnalysisResult l3,
   ) {
-    return _fuseResults(l1, l2, l3);
-  }
-
-  AnalysisResult _fuseResults(
-    AnalysisResult l1,
-    AnalysisResult l2,
-    AnalysisResult l3,
-  ) {
-    final combinedMatches = LinkedHashSet<KeywordMatch>.of(<KeywordMatch>[
-      ...l1.matches,
-      ...l2.matches,
-      ...l3.matches,
-    ]).toList();
-    final selected = _selectFusionSource(l1, l2, l3);
-    final highestRisk = selected.overallRiskLevel;
-
-    return AnalysisResult(
-      overallRiskLevel: highestRisk,
-      matches: combinedMatches,
-      reason: selected.reason,
-      analysisLevel: selected.analysisLevel,
-      alertEnabled:
-          highestRisk != RiskLevel.green ||
-          l1.alertEnabled ||
-          l2.alertEnabled ||
-          l3.alertEnabled,
-      confidence: [
-        l1.confidence,
-        l2.confidence,
-        l3.confidence,
-      ].reduce((a, b) => a > b ? a : b),
-      modelName: selected.modelName,
-      isError: l1.isError || l2.isError || l3.isError,
-      isFallback: l1.isFallback || l2.isFallback || l3.isFallback,
-    );
-  }
-
-  AnalysisResult _selectFusionSource(
-    AnalysisResult l1,
-    AnalysisResult l2,
-    AnalysisResult l3,
-  ) {
-    final highestRisk = <AnalysisResult>[l1, l2, l3]
-        .map((result) => result.overallRiskLevel)
-        .reduce((a, b) => a.index > b.index ? a : b);
-    if (highestRisk == RiskLevel.green) {
-      return l1;
-    }
-    if (l3.overallRiskLevel == highestRisk) return l3;
-    if (l2.overallRiskLevel == highestRisk) return l2;
-    return l1;
-  }
-
-  int _adaptiveMinDelta(RiskLevel currentRiskLevel, AnalysisMode mode) {
-    final modeMultiplier = switch (mode) {
-      AnalysisMode.normal => 0.6,
-      AnalysisMode.gDetection => 0.8,
-      AnalysisMode.geminiApi => 1.0,
-      AnalysisMode.parallel => 0.6, // Dùng tốc độ cập nhật của L1 cho song song
-    };
-    final baseDelta = switch (currentRiskLevel) {
-      RiskLevel.red => _minDeltaRed,
-      RiskLevel.orange => _minDeltaOrange,
-      _ => _minDeltaDefault,
-    };
-    return (baseDelta * modeMultiplier).round();
+    return AnalysisFusion.fuse(l1, l2, l3);
   }
 
   void reset() {
@@ -318,13 +266,13 @@ class AnalysisCoordinator {
 
   AnalysisResult getLastResult(AnalysisMode mode) {
     if (mode == AnalysisMode.parallel) {
-      return _lastParallelResult ?? _defaultResultFor(AnalysisMode.parallel);
+      return _lastParallelResult ?? AnalysisFallback.defaultForMode(AnalysisMode.parallel);
     }
     final result = _analyzerFor(mode).lastResult;
     if (mode == AnalysisMode.geminiApi &&
         result.overallRiskLevel == RiskLevel.green &&
         result.matches.isEmpty) {
-      return _defaultResultFor(mode);
+      return AnalysisFallback.defaultForMode(mode);
     }
     return result;
   }
@@ -361,12 +309,15 @@ class AnalysisCoordinator {
     if (!result.isError) {
       return result;
     }
-    return _fallbackToL2(
+    return AnalysisFallback.fallbackToL2(
       incrementalText: fullText.substring(
         _l3Analyzer.processedTextLength.clamp(0, fullText.length),
       ),
       fullText: fullText,
       fallbackReason: result.reason ?? 'L3 lỗi, chuyển sang L2.',
+      isL2Ready: () => _l2Analyzer.isReady,
+      initializeL2: () => _l2Analyzer.initialize(),
+      runL2Analysis: _l2Analyzer.analyze,
     );
   }
 
@@ -390,59 +341,86 @@ class AnalysisCoordinator {
       await _l3Analyzer.initialize();
     }
     if (!_l3Analyzer.isReady) {
-      return _fallbackToL2(
+      return AnalysisFallback.fallbackToL2(
         incrementalText: incrementalText,
         fullText: fullText,
         fallbackReason: 'L3 không sẵn sàng, chuyển sang L2.',
+        isL2Ready: () => _l2Analyzer.isReady,
+        initializeL2: () => _l2Analyzer.initialize(),
+        runL2Analysis: _l2Analyzer.analyze,
       );
     }
     final result = await _l3Analyzer.analyze(fullText);
     if (!result.isError) {
       return result;
     }
-    return _fallbackToL2(
+    return AnalysisFallback.fallbackToL2(
       incrementalText: incrementalText,
       fullText: fullText,
       fallbackReason: result.reason ?? 'L3 lỗi, chuyển sang L2.',
+      isL2Ready: () => _l2Analyzer.isReady,
+      initializeL2: () => _l2Analyzer.initialize(),
+      runL2Analysis: _l2Analyzer.analyze,
     );
   }
 
-  Future<AnalysisResult> _fallbackToL2({
-    required String incrementalText,
-    required String fullText,
-    required String fallbackReason,
-  }) async {
-    if (!_l2Analyzer.isReady) {
-      await _l2Analyzer.initialize();
-    }
-    if (!_l2Analyzer.isReady) {
-      return AnalysisResult(
-        overallRiskLevel: RiskLevel.green,
-        matches: const <KeywordMatch>[],
-        reason: fallbackReason,
-        analysisLevel: AnalysisLevel.l2,
-        isError: true,
-        isFallback: true,
-      );
-    }
-    final l2Result = await _l2Analyzer.analyze(incrementalText, fullText);
-    return l2Result.copyWith(
-      reason: '$fallbackReason ${l2Result.reason ?? ''}'.trim(),
-      isFallback: true,
-    );
-  }
-
-  AnalysisResult _defaultResultFor(AnalysisMode mode) {
-    final level = switch (mode) {
-      AnalysisMode.normal => AnalysisLevel.l1,
-      AnalysisMode.gDetection => AnalysisLevel.l2,
-      AnalysisMode.geminiApi => AnalysisLevel.l3,
-      AnalysisMode.parallel => AnalysisLevel.l3,
+  /// Computes the minimum character delta required before re-analysis triggers.
+  ///
+  /// The delta adapts to:
+  /// - [riskLevel]: higher risk → smaller delta (faster reaction)
+  /// - [mode]: different modes have different cost/reward trade-offs
+  /// - [matchCount]/[transcriptLength]: match density — dense matches → smaller delta
+  /// - [lastConfidence]: high confidence in scam → smaller delta
+  /// - [speechRate]: faster speech → smaller delta
+  int _adaptiveMinDelta(
+    RiskLevel riskLevel,
+    AnalysisMode mode, {
+    int transcriptLength = 0,
+    int matchCount = 0,
+    double lastConfidence = 0.0,
+    double speechRate = 0.0,
+  }) {
+    final baseDelta = switch (riskLevel) {
+      RiskLevel.red => _minDeltaRed,
+      RiskLevel.orange => _minDeltaOrange,
+      _ => _minDeltaDefault,
     };
-    return AnalysisResult(
-      overallRiskLevel: RiskLevel.green,
-      matches: const <KeywordMatch>[],
-      analysisLevel: level,
-    );
+
+    final modeMultiplier = switch (mode) {
+      AnalysisMode.normal => 0.6,
+      AnalysisMode.gDetection => 0.8,
+      AnalysisMode.geminiApi => 1.0,
+      AnalysisMode.parallel => 0.6,
+    };
+
+    // Match density factor: dense matches → analyze more frequently.
+    // If match count is high relative to transcript length, we likely have
+    // active scam signals needing quick reaction.
+    double densityFactor = 1.0;
+    if (transcriptLength > 0 && matchCount > 0) {
+      final density = matchCount / transcriptLength;
+      densityFactor = 1.0 - (density * 10.0).clamp(0.0, 0.3);
+    }
+
+    // Confidence factor: high scam confidence → smaller delta.
+    // Low confidence → wait for more evidence.
+    double confidenceFactor = 1.0;
+    if (riskLevel.index >= RiskLevel.orange.index && lastConfidence > 0) {
+      confidenceFactor = 1.0 - (lastConfidence * 0.2).clamp(0.0, 0.2);
+    }
+
+    // Speech rate factor: faster speech → smaller delta.
+    // Prevents missed signals when scammer speaks quickly.
+    double rateFactor = 1.0;
+    if (speechRate > 5.0) {
+      rateFactor = 0.7;
+    } else if (speechRate > 2.0) {
+      rateFactor = 0.85;
+    }
+
+    final delta = (baseDelta * modeMultiplier * densityFactor * confidenceFactor * rateFactor)
+        .round()
+        .clamp(5, 100);
+    return delta;
   }
 }

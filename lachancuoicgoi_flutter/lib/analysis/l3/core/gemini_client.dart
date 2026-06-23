@@ -150,7 +150,7 @@ class GeminiClient {
             keyIndex: keyIndex,
           );
           return Result.success(parsed);
-        } catch (error, stackTrace) {
+        } on Object catch (error, stackTrace) {
           lastError = error;
           lastStackTrace = stackTrace;
           _recordFailure();
