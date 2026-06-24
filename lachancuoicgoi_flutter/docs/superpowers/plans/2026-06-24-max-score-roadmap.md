@@ -13,7 +13,7 @@
 | **Phase 0** — Baseline Lock & Format Fix | ✅ HOÀN THÀNH | `1a3bffc9`, `5d2743d4`, `94b3608e` | 152 file formatted, tag `baseline-87k`, 6 curly_braces lints fixed. `dart analyze` 0 issues, `flutter test` 1331/1331. |
 | **Phase 1** — Security: Rotate Keys + BFG History Rewrite | ✅ HOÀN THÀNH | (force-pushed rewrite) | 21 keys rotated (manual), BFG scrubbed AIza + env.json từ toàn bộ history, `git gc --aggressive`, force-push origin. Verified: 0 real keys in history, 1331 tests pass. |
 | **Phase 2** — Commit Hygiene + Pre-commit Hook | ✅ HOÀN THÀNH | `6b01739a` | Pre-commit hook (chặn env.json + AIza), `tool/install-hooks.sh`, `tool/pre-commit.template`, Conventional Commits trong `CONTRIBUTING.md`. |
-| **Phase 3** — Dependency Upgrades | ⏳ TIẾP THEO | — | riverpod 2→3, go_router 14→17, permission_handler 11→12 |
+| **Phase 3** — Dependency Upgrades | ✅ HOÀN THÀNH | `41fdcadb`, `76a04842`, `3398f2ed`, `ae3a41b6` | riverpod 2.6→3.3 (Override import + ref.mounted fix), go_router 14.8→17.3 (clean), permission_handler 11.4→12.0 (clean), dropped path_provider_android override. 0 issues, 1331/1331. |
 | **Phase 4** — Refactor File Lớn | ⬜ CHỜ | — | |
 | **Phase 5** — Simulator Bridge Expansion | ⬜ CHỜ | — | |
 | **Phase 6** — Docs + Final Verification | ⬜ CHỜ | — | |
