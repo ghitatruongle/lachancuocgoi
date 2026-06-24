@@ -90,17 +90,44 @@ Chúng tôi đòi hỏi tỷ lệ bao phủ kiểm thử cao để duy trì sự
 ## 4. Quy Trình Đóng Góp (Git & PR Process)
 
 1. **Fork** kho lưu trữ này về tài khoản cá nhân của bạn.
-2. Tạo một **nhánh mới (branch)** chứa tính năng hoặc bản sửa lỗi của bạn:
+2. **Cài đặt Git Hooks bảo mật (Bắt buộc):**
+   Để bảo vệ an toàn cho các API key và tránh commit nhầm cấu hình cá nhân, vui lòng cài đặt pre-commit hook trước khi bắt đầu commit:
+   ```bash
+   # Chạy từ thư mục lachancuoicgoi_flutter
+   bash tool/install-hooks.sh
+   ```
+   Hook này sẽ tự động chặn commit nếu phát hiện file `env.json` bị stage hoặc có chuỗi API key `AIza...` thật trong diff.
+
+3. Tạo một **nhánh mới (branch)** chứa tính năng hoặc bản sửa lỗi của bạn:
    ```bash
    git checkout -b feature/ten-tinh-nang-moi
    # Hoặc
    git checkout -b fix/ten-loi-can-sua
    ```
-3. Thực hiện sửa đổi và **viết test tương ứng** cho tính năng/bug sửa đổi đó.
-4. Chạy `flutter analyze` và `flutter test --exclude-tags perf` tại máy local để kiểm tra.
-5. Thực hiện commit code với thông điệp rõ ràng:
-   ```bash
-   git commit -m "feat: thêm tính năng X và viết unit test"
+4. Thực hiện sửa đổi và **viết test tương ứng** cho tính năng/bug sửa đổi đó.
+5. Chạy `flutter analyze` và `flutter test --exclude-tags perf` tại máy local để kiểm tra.
+6. Thực hiện commit code theo chuẩn **Conventional Commits**:
+   Chúng tôi bắt buộc sử dụng định dạng commit tin nhắn chuẩn để tự động hóa phát hành và giữ lịch sử git sạch đẹp:
    ```
-6. **Push** nhánh code của bạn lên GitHub và gửi **Pull Request (PR)** đến nhánh `main` của dự án gốc.
-7. Đội ngũ phát triển chính sẽ kiểm tra, chạy CI Pipeline và phê duyệt PR của bạn!
+   <type>(<scope>): <mô tả ngắn bằng tiếng Anh hoặc tiếng Việt>
+
+   [mô tả chi tiết lý do tại sao thay đổi (tùy chọn)]
+   ```
+   **Các types được chấp nhận:**
+   - `feat`: Tính năng mới (ví dụ: `feat(l3): tích hợp Gemini API key rotation`)
+   - `fix`: Sửa lỗi (ví dụ: `fix(ui): sửa lỗi tràn viền nút Home`)
+   - `refactor`: Tái cấu trúc mã nguồn không đổi hành vi (ví dụ: `refactor(l1): tách bộ lọc từ khóa`)
+   - `test`: Thêm hoặc sửa test cases (ví dụ: `test(services): bổ sung unit test cho simulator`)
+   - `docs`: Cập nhật tài liệu (ví dụ: `docs: thêm hướng dẫn commit trong CONTRIBUTING`)
+   - `style`: Định dạng code, dấu phẩy, khoảng trắng (ví dụ: `style: chạy dart format`)
+   - `chore`: Thay đổi quy trình build, công cụ phụ trợ (ví dụ: `chore: cập nhật gitignore`)
+
+   Ví dụ cụ thể:
+   ```bash
+   git commit -m "feat(services): thêm creator mode và permission gate cho simulator
+
+- Cho phép non-Android simulator chạy với kịch bản thoại tùy chỉnh.
+- Thêm no-op permission gate giữ giao diện đồng bộ."
+   ```
+7. **Push** nhánh code của bạn lên GitHub và gửi **Pull Request (PR)** đến nhánh `main` của dự án gốc.
+8. Đội ngũ phát triển chính sẽ kiểm tra, chạy CI Pipeline và phê duyệt PR của bạn!
