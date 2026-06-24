@@ -11,7 +11,10 @@ class AudioAmplitudeHandler {
 
   /// Circular buffer for RMS amplitudes.
   static const int amplitudeBufferSize = 30;
-  final List<double> _amplitudes = List<double>.filled(amplitudeBufferSize, 0.1);
+  final List<double> _amplitudes = List<double>.filled(
+    amplitudeBufferSize,
+    0.1,
+  );
   int _amplitudeWriteIndex = 0;
   DateTime? _lastAmplitudeUpdate;
   double _peakAmplitude = 0.0;

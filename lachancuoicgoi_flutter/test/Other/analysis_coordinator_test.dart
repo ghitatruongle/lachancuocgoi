@@ -58,14 +58,15 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            return '{"level":"orange","label":"Canh bao","reason":"Co dau hieu","recommendation":"Can than"}';
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return '{"level":"orange","label":"Canh bao","reason":"Co dau hieu","recommendation":"Can than"}';
+              },
         ),
       );
       final coordinator = AnalysisCoordinator(l3Analyzer: l3);
@@ -113,7 +114,10 @@ void main() {
 
       const text = 'Vui lòng gửi mã OTP để xác minh.';
       await coordinator.analyzeIncremental(text, AnalysisMode.normal);
-      final second = await coordinator.analyzeIncremental(text, AnalysisMode.normal);
+      final second = await coordinator.analyzeIncremental(
+        text,
+        AnalysisMode.normal,
+      );
 
       expect(second.overallRiskLevel, isNotNull);
     });
@@ -172,14 +176,15 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            throw Exception('Network error');
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                throw Exception('Network error');
+              },
         ),
       );
       final l2 = L2Analyzer(
@@ -201,10 +206,7 @@ void main() {
         wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
       );
 
-      final coordinator = AnalysisCoordinator(
-        l2Analyzer: l2,
-        l3Analyzer: l3,
-      );
+      final coordinator = AnalysisCoordinator(l2Analyzer: l2, l3Analyzer: l3);
 
       final result = await coordinator.analyze(
         'Anh phải chuyển tiền ngay.',
@@ -213,7 +215,12 @@ void main() {
 
       expect(result.isFallback, isTrue);
       expect(result.matches.length, 2);
-      expect(result.matches.any((m) => m.keyword == 'Sử dụng Luồng 2 (GDetection & WFSA)'), isTrue);
+      expect(
+        result.matches.any(
+          (m) => m.keyword == 'Sử dụng Luồng 2 (GDetection & WFSA)',
+        ),
+        isTrue,
+      );
       expect(result.matches.any((m) => m.keyword == 'chuyển tiền'), isTrue);
       expect(result.reason, contains('API Error'));
     });
@@ -224,14 +231,15 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            throw Exception('Timeout');
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                throw Exception('Timeout');
+              },
         ),
       );
       final l2 = L2Analyzer(
@@ -253,10 +261,7 @@ void main() {
         wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
       );
 
-      final coordinator = AnalysisCoordinator(
-        l2Analyzer: l2,
-        l3Analyzer: l3,
-      );
+      final coordinator = AnalysisCoordinator(l2Analyzer: l2, l3Analyzer: l3);
 
       final result = await coordinator.analyze(
         'Tôi là công an điều tra.',
@@ -266,7 +271,12 @@ void main() {
       // Should preserve original L2 match and have isFallback = true
       expect(result.isFallback, isTrue);
       expect(result.matches.length, 2);
-      expect(result.matches.any((m) => m.keyword == 'Sử dụng Luồng 2 (GDetection & WFSA)'), isTrue);
+      expect(
+        result.matches.any(
+          (m) => m.keyword == 'Sử dụng Luồng 2 (GDetection & WFSA)',
+        ),
+        isTrue,
+      );
       expect(result.matches.any((m) => m.keyword == 'công an'), isTrue);
     });
   });
@@ -280,23 +290,26 @@ void main() {
   });
 
   group('AnalysisCoordinator — analyzeIncremental L1 (normal)', () {
-    test('skips analysis when deltaLength < adaptiveMinDelta (30 chars for green L1)', () async {
-      final l1 = _newTestL1();
-      await l1.initialize();
-      final coordinator = AnalysisCoordinator(l1Analyzer: l1);
+    test(
+      'skips analysis when deltaLength < adaptiveMinDelta (30 chars for green L1)',
+      () async {
+        final l1 = _newTestL1();
+        await l1.initialize();
+        final coordinator = AnalysisCoordinator(l1Analyzer: l1);
 
-      coordinator.syncProcessedTextLength(100, AnalysisMode.normal);
-      // delta = 110 - 100 = 10 < 30 (green L1 minDelta = 50*0.6 = 30)
-      final result = await coordinator.analyzeIncremental(
-        'x' * 110,
-        AnalysisMode.normal,
-      );
+        coordinator.syncProcessedTextLength(100, AnalysisMode.normal);
+        // delta = 110 - 100 = 10 < 30 (green L1 minDelta = 50*0.6 = 30)
+        final result = await coordinator.analyzeIncremental(
+          'x' * 110,
+          AnalysisMode.normal,
+        );
 
-      expect(result.overallRiskLevel, RiskLevel.green);
-      expect(result.analysisLevel, AnalysisLevel.l1);
-      // processedTextLength unchanged because analysis was skipped
-      expect(coordinator.getProcessedTextLength(AnalysisMode.normal), 100);
-    });
+        expect(result.overallRiskLevel, RiskLevel.green);
+        expect(result.analysisLevel, AnalysisLevel.l1);
+        // processedTextLength unchanged because analysis was skipped
+        expect(coordinator.getProcessedTextLength(AnalysisMode.normal), 100);
+      },
+    );
 
     test('processes analysis when deltaLength >= adaptiveMinDelta', () async {
       final l1 = _newTestL1();
@@ -305,8 +318,11 @@ void main() {
 
       coordinator.syncProcessedTextLength(0, AnalysisMode.normal);
       const text = 'Vui lòng gửi mã OTP để xác minh.';
-      expect(text.length, greaterThanOrEqualTo(30),
-          reason: 'Text must be >= 30 chars to pass L1 minDelta');
+      expect(
+        text.length,
+        greaterThanOrEqualTo(30),
+        reason: 'Text must be >= 30 chars to pass L1 minDelta',
+      );
 
       final result = await coordinator.analyzeIncremental(
         text,
@@ -318,58 +334,73 @@ void main() {
       expect(result.matches.any((m) => m.keyword.contains('mã otp')), isTrue);
     });
 
-    test('second call with same text returns last result to prevent flickering to green', () async {
-      final l1 = _newTestL1();
-      await l1.initialize();
-      final coordinator = AnalysisCoordinator(l1Analyzer: l1);
+    test(
+      'second call with same text returns last result to prevent flickering to green',
+      () async {
+        final l1 = _newTestL1();
+        await l1.initialize();
+        final coordinator = AnalysisCoordinator(l1Analyzer: l1);
 
-      coordinator.syncProcessedTextLength(0, AnalysisMode.normal);
-      const text = 'Vui lòng gửi mã OTP để xác minh.';
+        coordinator.syncProcessedTextLength(0, AnalysisMode.normal);
+        const text = 'Vui lòng gửi mã OTP để xác minh.';
 
-      final first = await coordinator.analyzeIncremental(text, AnalysisMode.normal);
-      expect(first.overallRiskLevel, RiskLevel.red);
+        final first = await coordinator.analyzeIncremental(
+          text,
+          AnalysisMode.normal,
+        );
+        expect(first.overallRiskLevel, RiskLevel.red);
 
-      // Second call: length hasn't changed, returns lastResult
-      final second = await coordinator.analyzeIncremental(text, AnalysisMode.normal);
-      expect(second.overallRiskLevel, RiskLevel.red);
-      expect(second.alertEnabled, isFalse);
-    });
+        // Second call: length hasn't changed, returns lastResult
+        final second = await coordinator.analyzeIncremental(
+          text,
+          AnalysisMode.normal,
+        );
+        expect(second.overallRiskLevel, RiskLevel.red);
+        expect(second.alertEnabled, isFalse);
+      },
+    );
   });
 
   group('AnalysisCoordinator — analyzeIncremental L2 (gDetection)', () {
-    test('skips analysis when deltaLength < adaptiveMinDelta (40 chars for green L2)', () async {
-      final l2 = L2Analyzer(
-        gDetectionEngine: _FakeGDetectionEngine(
-          GResult(
-            riskLevel: RiskLevel.red,
-            reason: 'Test reason',
-            allMatchedKeywords: <KeywordMatch>{
-              const KeywordMatch(
-                keyword: 'test',
-                level: RiskLevel.red,
-                category: 'Test',
-              ),
-            },
-            alertEnabled: true,
+    test(
+      'skips analysis when deltaLength < adaptiveMinDelta (40 chars for green L2)',
+      () async {
+        final l2 = L2Analyzer(
+          gDetectionEngine: _FakeGDetectionEngine(
+            GResult(
+              riskLevel: RiskLevel.red,
+              reason: 'Test reason',
+              allMatchedKeywords: <KeywordMatch>{
+                const KeywordMatch(
+                  keyword: 'test',
+                  level: RiskLevel.red,
+                  category: 'Test',
+                ),
+              },
+              alertEnabled: true,
+            ),
           ),
-        ),
-        intentClassifier: const DisabledIntentClassifier(),
-        wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
-      );
-      await l2.initialize();
-      final coordinator = AnalysisCoordinator(l2Analyzer: l2);
+          intentClassifier: const DisabledIntentClassifier(),
+          wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
+        );
+        await l2.initialize();
+        final coordinator = AnalysisCoordinator(l2Analyzer: l2);
 
-      coordinator.syncProcessedTextLength(100, AnalysisMode.gDetection);
-      // delta = 120 - 100 = 20 < 40 (green L2 minDelta = 50*0.8 = 40)
-      final result = await coordinator.analyzeIncremental(
-        'x' * 120,
-        AnalysisMode.gDetection,
-      );
+        coordinator.syncProcessedTextLength(100, AnalysisMode.gDetection);
+        // delta = 120 - 100 = 20 < 40 (green L2 minDelta = 50*0.8 = 40)
+        final result = await coordinator.analyzeIncremental(
+          'x' * 120,
+          AnalysisMode.gDetection,
+        );
 
-      expect(result.analysisLevel, AnalysisLevel.l2);
-      // processedTextLength unchanged
-      expect(coordinator.getProcessedTextLength(AnalysisMode.gDetection), 100);
-    });
+        expect(result.analysisLevel, AnalysisLevel.l2);
+        // processedTextLength unchanged
+        expect(
+          coordinator.getProcessedTextLength(AnalysisMode.gDetection),
+          100,
+        );
+      },
+    );
 
     test('processes analysis when deltaLength >= adaptiveMinDelta', () async {
       final l2 = L2Analyzer(
@@ -395,8 +426,11 @@ void main() {
 
       coordinator.syncProcessedTextLength(0, AnalysisMode.gDetection);
       const text = 'Anh phải chuyển tiền vào tài khoản này ngay.';
-      expect(text.length, greaterThanOrEqualTo(40),
-          reason: 'Text must be >= 40 chars to pass L2 minDelta');
+      expect(
+        text.length,
+        greaterThanOrEqualTo(40),
+        reason: 'Text must be >= 40 chars to pass L2 minDelta',
+      );
 
       final result = await coordinator.analyzeIncremental(
         text,
@@ -413,71 +447,74 @@ void main() {
   });
 
   group('AnalysisCoordinator — analyzeIncremental L3 (geminiApi)', () {
-    test(
-      'auto-creates session and processes incremental text',
-      () async {
-        final session = GeminiChatSession(
-          apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
-          config: GeminiConfig.forAnalysis(),
-          chatExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required List<Content> history,
-            required String prompt,
-          }) async {
-            return '{"level":"orange","label":"Canh bao","reason":"Co dau hieu lua dao","recommendation":"Can than"}';
-          },
-        );
-        final l3 = L3Analyzer(
-          apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
-          geminiClient: GeminiClient(
-            apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
-            config: GeminiConfig.forAnalysis(),
-            requestExecutor: ({
+    test('auto-creates session and processes incremental text', () async {
+      final session = GeminiChatSession(
+        apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
+        config: GeminiConfig.forAnalysis(),
+        chatExecutor:
+            ({
               required String apiKey,
               required GeminiConfig config,
               required String modelName,
+              required List<Content> history,
               required String prompt,
             }) async {
-              return '{"level":"green","label":"","reason":"","recommendation":""}';
+              return '{"level":"orange","label":"Canh bao","reason":"Co dau hieu lua dao","recommendation":"Can than"}';
             },
-          ),
-          sessionFactory: () => session,
-        );
-        final coordinator = AnalysisCoordinator(l3Analyzer: l3);
+      );
+      final l3 = L3Analyzer(
+        apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
+        geminiClient: GeminiClient(
+          apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
+          config: GeminiConfig.forAnalysis(),
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return '{"level":"green","label":"","reason":"","recommendation":""}';
+              },
+        ),
+        sessionFactory: () => session,
+      );
+      final coordinator = AnalysisCoordinator(l3Analyzer: l3);
 
-        // Text >= 50 chars (L3 green minDelta) AND >= 40 chars (minIncrementalChars)
-        // AND ends with sentence boundary '.'
-        const text =
-            'Xin chào, tôi là công an đến từ cơ quan điều tra. Anh phải chuyển tiền ngay nhé.';
-        expect(text.length, greaterThanOrEqualTo(50),
-            reason: 'Text must be >= 50 to pass L3 minDelta');
+      // Text >= 50 chars (L3 green minDelta) AND >= 40 chars (minIncrementalChars)
+      // AND ends with sentence boundary '.'
+      const text =
+          'Xin chào, tôi là công an đến từ cơ quan điều tra. Anh phải chuyển tiền ngay nhé.';
+      expect(
+        text.length,
+        greaterThanOrEqualTo(50),
+        reason: 'Text must be >= 50 to pass L3 minDelta',
+      );
 
-        final result = await coordinator.analyzeIncremental(
-          text,
-          AnalysisMode.geminiApi,
-        );
+      final result = await coordinator.analyzeIncremental(
+        text,
+        AnalysisMode.geminiApi,
+      );
 
-        expect(result.analysisLevel, AnalysisLevel.l3);
-        expect(result.isError, false);
-        expect(result.overallRiskLevel, RiskLevel.orange);
-      },
-    );
+      expect(result.analysisLevel, AnalysisLevel.l3);
+      expect(result.isError, false);
+      expect(result.overallRiskLevel, RiskLevel.orange);
+    });
 
     test('falls back to L2 when L3 incremental analysis errors', () async {
       final session = GeminiChatSession(
         apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
         config: GeminiConfig.forAnalysis(),
-        chatExecutor: ({
-          required String apiKey,
-          required GeminiConfig config,
-          required String modelName,
-          required List<Content> history,
-          required String prompt,
-        }) async {
-          throw Exception('Gemini API error: test failure');
-        },
+        chatExecutor:
+            ({
+              required String apiKey,
+              required GeminiConfig config,
+              required String modelName,
+              required List<Content> history,
+              required String prompt,
+            }) async {
+              throw Exception('Gemini API error: test failure');
+            },
       );
       final l2 = L2Analyzer(
         gDetectionEngine: _FakeGDetectionEngine(
@@ -502,10 +539,7 @@ void main() {
         apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
         sessionFactory: () => session,
       );
-      final coordinator = AnalysisCoordinator(
-        l2Analyzer: l2,
-        l3Analyzer: l3,
-      );
+      final coordinator = AnalysisCoordinator(l2Analyzer: l2, l3Analyzer: l3);
 
       const text =
           'Xin chào, tôi là công an đến từ cơ quan điều tra. Anh phải chuyển tiền ngay nhé.';
@@ -519,7 +553,12 @@ void main() {
       // Should fall back to L2 with isFallback = true
       expect(result.isFallback, isTrue);
       expect(result.matches.length, 2);
-      expect(result.matches.any((m) => m.keyword == 'Sử dụng Luồng 2 (GDetection & WFSA)'), isTrue);
+      expect(
+        result.matches.any(
+          (m) => m.keyword == 'Sử dụng Luồng 2 (GDetection & WFSA)',
+        ),
+        isTrue,
+      );
       expect(result.matches.any((m) => m.keyword == 'chuyển tiền'), isTrue);
       expect(result.reason, contains('Gemini API error'));
     });
@@ -611,9 +650,7 @@ const Map<String, Object?> _testVocabulary = {
   ],
 };
 
-const Map<String, Object?> _testCorrections = {
-  'corrections': <Object?>[],
-};
+const Map<String, Object?> _testCorrections = {'corrections': <Object?>[]};
 
 const Map<String, Object?> _testGVocabulary = <String, Object?>{
   'riskLevels': <Object?>[

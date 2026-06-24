@@ -52,14 +52,22 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
     if (widget.isUrgent) {
       // Mức độ nguy hiểm (Đỏ): Chuông báo động + Rung liên tục
       try {
-        unawaited(FlutterRingtonePlayer().playAlarm(looping: true, volume: 1.0));
+        unawaited(
+          FlutterRingtonePlayer().playAlarm(looping: true, volume: 1.0),
+        );
       } on Exception catch (_) {
         // Fallback
       }
-      
+
       final bool hasVibrator = await Vibration.hasVibrator();
       if (hasVibrator == true) {
-        unawaited(Vibration.vibrate(pattern: [0, 500, 200, 500, 200, 500], intensities: [0, 255, 0, 255, 0, 255], repeat: 1));
+        unawaited(
+          Vibration.vibrate(
+            pattern: [0, 500, 200, 500, 200, 500],
+            intensities: [0, 255, 0, 255, 0, 255],
+            repeat: 1,
+          ),
+        );
       } else {
         _playHapticOnce();
         _hapticTimer = Timer.periodic(
@@ -74,7 +82,7 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
       } on Exception catch (_) {
         // Fallback
       }
-      
+
       final bool hasVibrator = await Vibration.hasVibrator();
       if (hasVibrator == true) {
         unawaited(Vibration.vibrate(duration: 500));
@@ -120,19 +128,18 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
                   Text(
                     widget.titleText,
                     style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Text(
                       widget.subtitle,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(color: Colors.white),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineSmall?.copyWith(color: Colors.white),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -143,14 +150,16 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
                       backgroundColor: Colors.white,
                       foregroundColor: widget.buttonColor,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 12),
+                        horizontal: 32,
+                        vertical: 12,
+                      ),
                     ),
                     child: Text(
                       'ĐÃ HIỂU',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: widget.buttonColor,
-                          ),
+                        fontWeight: FontWeight.bold,
+                        color: widget.buttonColor,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 40),

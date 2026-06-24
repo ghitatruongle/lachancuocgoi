@@ -70,14 +70,8 @@ class KeywordMatch {
   }
 
   @override
-  int get hashCode => Object.hash(
-        keyword,
-        level,
-        category,
-        startIndex,
-        endIndex,
-        isFuzzy,
-      );
+  int get hashCode =>
+      Object.hash(keyword, level, category, startIndex, endIndex, isFuzzy);
 }
 
 class AnalysisResult {
@@ -149,14 +143,17 @@ class AnalysisResult {
   factory AnalysisResult.fromJson(Map<String, Object?> json) {
     final rawMatches = json['matches'];
     return AnalysisResult(
-      overallRiskLevel:
-          RiskLevel.fromString(json['overallRiskLevel'] as String?),
+      overallRiskLevel: RiskLevel.fromString(
+        json['overallRiskLevel'] as String?,
+      ),
       matches: rawMatches is List
           ? rawMatches
-              .whereType<Map>()
-              .map((match) =>
-                  KeywordMatch.fromJson(match.cast<String, Object?>()))
-              .toList()
+                .whereType<Map>()
+                .map(
+                  (match) =>
+                      KeywordMatch.fromJson(match.cast<String, Object?>()),
+                )
+                .toList()
           : const [],
       reason: json['reason'] as String?,
       analysisLevel: AnalysisLevel.fromId(json['analysisLevel'] as String?),

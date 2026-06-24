@@ -88,7 +88,9 @@ void main() {
     test(
       'loads bundled assets and returns a non-green fraud benchmark',
       () async {
-        final engine = GDetectionEngine(assetLoader: const FlutterAssetLoader());
+        final engine = GDetectionEngine(
+          assetLoader: const FlutterAssetLoader(),
+        );
         await engine.initialize();
 
         final result = await engine.performFullAnalysis(
@@ -286,10 +288,7 @@ const Map<String, Object?> _testSentences = <String, Object?>{
 };
 
 const Map<String, Object?> _testSlang = <String, Object?>{
-  'slang_map': <String, String>{
-    'ck': 'chuyển khoản',
-    'stk': 'số tài khoản',
-  },
+  'slang_map': <String, String>{'ck': 'chuyển khoản', 'stk': 'số tài khoản'},
 };
 
 const Map<String, Object?> _testTierConfig = <String, Object?>{

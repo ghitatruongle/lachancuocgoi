@@ -36,14 +36,15 @@ class AnalysisRuntimeState {
 
   @override
   int get hashCode => Object.hash(
-        selectedMode,
-        effectiveMode,
-        networkAvailable,
-        isFallbackActive,
-      );
+    selectedMode,
+    effectiveMode,
+    networkAvailable,
+    isFallbackActive,
+  );
 
   @override
-  String toString() => 'AnalysisRuntimeState('
+  String toString() =>
+      'AnalysisRuntimeState('
       'selectedMode: $selectedMode, '
       'effectiveMode: $effectiveMode, '
       'networkAvailable: $networkAvailable, '
@@ -89,7 +90,8 @@ abstract final class AnalysisModePolicy {
       selectedMode: selectedMode,
       effectiveMode: effectiveMode,
       networkAvailable: networkAvailable,
-      isFallbackActive: selectedMode == AnalysisMode.geminiApi &&
+      isFallbackActive:
+          selectedMode == AnalysisMode.geminiApi &&
           effectiveMode != AnalysisMode.geminiApi,
     );
   }

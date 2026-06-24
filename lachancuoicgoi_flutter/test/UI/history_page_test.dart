@@ -31,10 +31,7 @@ void main() {
               path: '/',
               builder: (_, __) => const Scaffold(body: Text('Home')),
             ),
-            GoRoute(
-              path: '/history',
-              builder: (_, __) => const HistoryPage(),
-            ),
+            GoRoute(path: '/history', builder: (_, __) => const HistoryPage()),
             GoRoute(
               path: '/result/:id',
               builder: (_, __) => const Scaffold(body: Text('Result')),

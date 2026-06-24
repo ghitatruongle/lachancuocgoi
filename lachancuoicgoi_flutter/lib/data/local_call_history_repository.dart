@@ -28,8 +28,11 @@ class LocalCallHistoryRepository implements CallHistoryRepository {
   Future<int> count() => _dao.count();
 
   @override
-  Future<List<CallHistory>> search(String query, {int limit = 20, int offset = 0}) =>
-      _dao.search(query, limit: limit, offset: offset);
+  Future<List<CallHistory>> search(
+    String query, {
+    int limit = 20,
+    int offset = 0,
+  }) => _dao.search(query, limit: limit, offset: offset);
 
   @override
   Future<int> searchCount(String query) => _dao.searchCount(query);

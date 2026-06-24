@@ -59,8 +59,11 @@ void main() {
       final results = GPatternMatcher.matchPatterns(tokens, patterns, {});
       // Với bug cũ (chỉ check token đầu), sẽ match ở index 0 vì token "chuyen" == "chuyen".
       // Với fix, KHÔNG match vì "tien" != "khoan" ở index+1.
-      expect(results, isEmpty,
-          reason: 'Should not match when second token differs');
+      expect(
+        results,
+        isEmpty,
+        reason: 'Should not match when second token differs',
+      );
     });
 
     test('does NOT match when keyword tokens are not contiguous', () {
@@ -76,8 +79,11 @@ void main() {
         ),
       ];
       final results = GPatternMatcher.matchPatterns(tokens, patterns, {});
-      expect(results, isEmpty,
-          reason: 'Tokens must be contiguous when maxGap=1');
+      expect(
+        results,
+        isEmpty,
+        reason: 'Tokens must be contiguous when maxGap=1',
+      );
     });
 
     test('matches within maxGap when multi-token keyword spans gap', () {
@@ -101,8 +107,11 @@ void main() {
       // nên "chuyen khoan ngan hang" như 1 keyword sẽ check contiguous.
       // Trong tokens: "chuyen a b c khoan ngan hang" — không có "chuyen khoan ngan hang" contiguous.
       // → Không match.
-      expect(results, isEmpty,
-          reason: 'Multi-token keyword requires contiguous match');
+      expect(
+        results,
+        isEmpty,
+        reason: 'Multi-token keyword requires contiguous match',
+      );
     });
 
     test('single-token keyword still works (regression check)', () {
@@ -171,8 +180,11 @@ void main() {
           ),
         ];
         final results = GPatternMatcher.matchPatterns(tokens, patterns, {});
-        expect(results, hasLength(1),
-            reason: 'Keyword "$keyword" phải match với tokens $tokens');
+        expect(
+          results,
+          hasLength(1),
+          reason: 'Keyword "$keyword" phải match với tokens $tokens',
+        );
         expect(results[0].patternId, 'kw_$keyword');
       }
     });
@@ -180,10 +192,9 @@ void main() {
 
   // RiskLevel reference để tránh unused import warning
   test('RiskLevel enum has expected values', () {
-    expect(RiskLevel.values, containsAll([
-      RiskLevel.green,
-      RiskLevel.orange,
-      RiskLevel.red,
-    ]));
+    expect(
+      RiskLevel.values,
+      containsAll([RiskLevel.green, RiskLevel.orange, RiskLevel.red]),
+    );
   });
 }

@@ -122,16 +122,15 @@ class GDetectionEngine {
     // Yield to event loop between heavy batches — prevents frame skips.
     await Future<void>.delayed(Duration.zero);
 
-    await Future.wait<void>([
-      _loadSituationMatcher(),
-      _loadSentenceMatcher(),
-    ]);
+    await Future.wait<void>([_loadSituationMatcher(), _loadSentenceMatcher()]);
 
     // Only mark ready if the trie has at least some keywords loaded.
     if (_riskKeywordTrie.children.isNotEmpty) {
       _isReady = true;
     } else {
-      _logger?.warning('[GDetectionEngine] Initialization complete but trie is empty — engine NOT ready.');
+      _logger?.warning(
+        '[GDetectionEngine] Initialization complete but trie is empty — engine NOT ready.',
+      );
       _initializingFuture = null; // Allow retry on next initialize() call.
     }
   }
@@ -219,7 +218,9 @@ class GDetectionEngine {
         await _loadJsonMap(scoringConfigFile),
       );
     } on Object catch (e) {
-      _logger?.warning('[GDetectionEngine] Failed to load $scoringConfigFile: $e');
+      _logger?.warning(
+        '[GDetectionEngine] Failed to load $scoringConfigFile: $e',
+      );
       _scoringConfig = const ScoringConfig();
     }
   }
@@ -272,7 +273,9 @@ class GDetectionEngine {
         }
       }
     } on Object catch (e) {
-      _logger?.warning('[GDetectionEngine] Failed to build trie from $vocabularyFile: $e');
+      _logger?.warning(
+        '[GDetectionEngine] Failed to build trie from $vocabularyFile: $e',
+      );
       return root;
     }
     // Phase 7: build Aho-Corasick failure/dictionary links ONCE → enables
@@ -428,28 +431,28 @@ class GDetectionEngine {
     for (var i = 0; i < tokens.length; i++) {
       final token = tokens[i];
 
-	      // Trie transition cache: avoid re-walking failure links for
-	      // the same (state, token) pair.
-	      final nodeId = identityHashCode(current);
-	      var cachedTransitions = _trieTransitionCache.get(nodeId);
-	      if (cachedTransitions != null && cachedTransitions.containsKey(token)) {
-	        current = cachedTransitions[token]!;
-	      } else {
-	        // Walk failure links to find next state.
-	        while (current != _riskKeywordTrie &&
-	            !current.children.containsKey(token)) {
-	          current = current.failureLink ?? _riskKeywordTrie;
-	        }
-	        final child = current.children[token];
-	        current = child ?? _riskKeywordTrie;
+      // Trie transition cache: avoid re-walking failure links for
+      // the same (state, token) pair.
+      final nodeId = identityHashCode(current);
+      var cachedTransitions = _trieTransitionCache.get(nodeId);
+      if (cachedTransitions != null && cachedTransitions.containsKey(token)) {
+        current = cachedTransitions[token]!;
+      } else {
+        // Walk failure links to find next state.
+        while (current != _riskKeywordTrie &&
+            !current.children.containsKey(token)) {
+          current = current.failureLink ?? _riskKeywordTrie;
+        }
+        final child = current.children[token];
+        current = child ?? _riskKeywordTrie;
 
-	        // Cache the transition for future use (LRU-bounded).
-	        if (cachedTransitions == null) {
-	          cachedTransitions = <String, TrieNode>{};
-	          _trieTransitionCache.put(nodeId, cachedTransitions);
-	        }
-	        cachedTransitions[token] = current;
-	      }
+        // Cache the transition for future use (LRU-bounded).
+        if (cachedTransitions == null) {
+          cachedTransitions = <String, TrieNode>{};
+          _trieTransitionCache.put(nodeId, cachedTransitions);
+        }
+        cachedTransitions[token] = current;
+      }
 
       // Emit all keywords ending at position i (via dictionary-link chain).
       final child = current;
@@ -562,7 +565,9 @@ class GDetectionEngine {
       return result;
     }
     if (_assetLoader == null) {
-      throw StateError('AssetLoader is null. Phải cung cấp AssetLoader hoặc provider cho $fileName.');
+      throw StateError(
+        'AssetLoader is null. Phải cung cấp AssetLoader hoặc provider cho $fileName.',
+      );
     }
     return _assetLoader.loadString('assets/$fileName');
   }

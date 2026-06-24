@@ -122,10 +122,7 @@ void main() {
     });
 
     test('no keywords and no matches returns green', () {
-      final result = GThinking.analyze(
-        allMatchedKeywords: {},
-        topTopic: null,
-      );
+      final result = GThinking.analyze(allMatchedKeywords: {}, topTopic: null);
       expect(result.riskLevel, RiskLevel.green);
       expect(result.alertEnabled, isFalse);
       expect(result.reason, contains('Không phát hiện'));
@@ -172,10 +169,7 @@ void main() {
         ),
         config: const ScoringConfig(scenarioAlertThreshold: 0.6),
       );
-      expect(
-        result.riskLevel.index,
-        greaterThanOrEqualTo(RiskLevel.red.index),
-      );
+      expect(result.riskLevel.index, greaterThanOrEqualTo(RiskLevel.red.index));
     });
 
     test('charity scenario with tier1 still escalates due to safety net', () {

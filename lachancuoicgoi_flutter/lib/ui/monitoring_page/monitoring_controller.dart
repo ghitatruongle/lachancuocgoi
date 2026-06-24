@@ -35,7 +35,8 @@ export 'monitoring_state.dart';
 
 final monitoringControllerProvider =
     NotifierProvider<MonitoringController, MonitoringPageState>(
-        MonitoringController.new);
+      MonitoringController.new,
+    );
 
 // ─── Controller ────────────────────────────────────────────────────────
 
@@ -163,27 +164,28 @@ class MonitoringController extends Notifier<MonitoringPageState> {
 
     if (!hasTestAnalyzerOverride) {
       _settingsSub?.close();
-      _settingsSub = ref.listen<SettingsState>(
-        settingsControllerProvider,
-        (previous, next) {
-          if (_disposed) return;
-          final runtime = AnalysisModePolicy.createRuntimeState(
-            next.analysisMode,
-            state.networkAvailable,
-          );
-          state = state.copyWith(
-            selectedMode: runtime.selectedMode,
-            effectiveMode: runtime.effectiveMode,
-            isFallbackActive: runtime.isFallbackActive,
-          );
-        },
-      );
+      _settingsSub = ref.listen<SettingsState>(settingsControllerProvider, (
+        previous,
+        next,
+      ) {
+        if (_disposed) return;
+        final runtime = AnalysisModePolicy.createRuntimeState(
+          next.analysisMode,
+          state.networkAvailable,
+        );
+        state = state.copyWith(
+          selectedMode: runtime.selectedMode,
+          effectiveMode: runtime.effectiveMode,
+          isFallbackActive: runtime.isFallbackActive,
+        );
+      });
     }
 
     final initialTranscript = _simulatedTranscript?.trim() ?? '';
     final hasStructuredScript =
         _simulatedScriptLines != null && _simulatedScriptLines!.isNotEmpty;
-    final isSimulation = hasStructuredScript ||
+    final isSimulation =
+        hasStructuredScript ||
         initialTranscript.isNotEmpty ||
         (_simulatedScenarioTitle?.trim().isNotEmpty ?? false);
 
@@ -224,12 +226,12 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     }
     sessionManager.startSnapshotTimer();
 
-	    if (initialTranscript.isNotEmpty &&
-	        !hasTestAnalyzerOverride &&
-	        !hasStructuredScript &&
-	        _coordinatorInstance != null) {
-	      _orch.scheduleRealTimeAnalysis(initialTranscript);
-	    }
+    if (initialTranscript.isNotEmpty &&
+        !hasTestAnalyzerOverride &&
+        !hasStructuredScript &&
+        _coordinatorInstance != null) {
+      _orch.scheduleRealTimeAnalysis(initialTranscript);
+    }
   }
 
   void initAfterFrame() {
@@ -264,13 +266,11 @@ class MonitoringController extends Notifier<MonitoringPageState> {
 
   void handleRmsEvent(double rms) => _audioHandler.handleRmsEvent(rms);
 
-  void handleMonitoringStateEvent(
-      (MonitoringState, int?, String?) stateData) {
+  void handleMonitoringStateEvent((MonitoringState, int?, String?) stateData) {
     final monitoringState = stateData.$1;
     if (monitoringState == MonitoringState.networkAvailable ||
         monitoringState == MonitoringState.networkLost) {
-      final isAvailable =
-          monitoringState == MonitoringState.networkAvailable;
+      final isAvailable = monitoringState == MonitoringState.networkAvailable;
       final runtime = AnalysisModePolicy.createRuntimeState(
         state.selectedMode,
         isAvailable,
@@ -359,7 +359,8 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       }
       if (recordingError == RecordingError.noAudio) {
         summaryParts.add(
-            'Không thu được âm thanh — kiểm tra quyền micro hoặc nguồn âm thanh');
+          'Không thu được âm thanh — kiểm tra quyền micro hoặc nguồn âm thanh',
+        );
       } else if (recordingError == RecordingError.sttFailed) {
         summaryParts.add('Không nhận diện được giọng nói (STT không khả dụng)');
       } else if (reason != null && reason.isNotEmpty) {
@@ -378,8 +379,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
         flagCount: flagCount,
         transcript: state.transcript,
         audioPath: null,
-        analysisResult:
-            result != null ? jsonEncode(result.toJson()) : null,
+        analysisResult: result != null ? jsonEncode(result.toJson()) : null,
         analysisType: state.effectiveMode.name,
         alertHistory: CallHistory.alertHistoryToJson(state.alertHistory),
         recordingError: recordingError,
@@ -390,9 +390,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       final id = await db.insert(history);
       if (_disposed) return;
       _endSessionInProgress = false;
-      state = state.copyWith(
-        navigationIntent: NavigateToResult(id),
-      );
+      state = state.copyWith(navigationIntent: NavigateToResult(id));
     } on Object catch (e, st) {
       debugPrint('End monitoring / save result failed: $e\n$st');
       _endSessionInProgress = false;
@@ -410,8 +408,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   }
 
   void dismissSttFallbackBanner() {
-    state =
-        state.copyWith(isSttFallback: false, clearSttFallbackReason: true);
+    state = state.copyWith(isSttFallback: false, clearSttFallbackReason: true);
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────
@@ -472,8 +469,10 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   AnalysisOrchestrator get _orch {
     _ensureOrchestratorCreated();
     // Should not happen in normal flow, but guard against it.
-    assert(_orchInstance != null,
-        'AnalysisOrchestrator accessed before coordinator is ready');
+    assert(
+      _orchInstance != null,
+      'AnalysisOrchestrator accessed before coordinator is ready',
+    );
     return _orchInstance!;
   }
 
@@ -488,7 +487,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   }
 
   Future<void> _startLiveMonitoringIfNeeded() async {
-    if (isSimulationSession() || _hasAttemptedStart || _disposed ||
+    if (isSimulationSession() ||
+        _hasAttemptedStart ||
+        _disposed ||
         hasTestAnalyzerOverride) {
       return;
     }
@@ -540,10 +541,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       );
     }
 
-    final newPeak =
-        result.overallRiskLevel.index > state.peakRiskLevel.index
-            ? result.overallRiskLevel
-            : state.peakRiskLevel;
+    final newPeak = result.overallRiskLevel.index > state.peakRiskLevel.index
+        ? result.overallRiskLevel
+        : state.peakRiskLevel;
     state = state.copyWith(
       analysisResult: result,
       riskLevel: result.overallRiskLevel,
@@ -594,9 +594,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _simulatedTranscript = null;
     _simulatedScriptLines = null;
     _l1AnalyzerOverride = null;
-	    _coordinatorInstance = null;
-	    _orchInstance?.cancelDebounce();
-	    _orchInstance = null;
+    _coordinatorInstance = null;
+    _orchInstance?.cancelDebounce();
+    _orchInstance = null;
     _hasAttemptedStart = false;
     _endSessionInProgress = false;
     _stoppedEventReceived = false;

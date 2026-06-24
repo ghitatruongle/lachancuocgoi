@@ -34,7 +34,8 @@ class SettingsState {
       isDarkTheme: isDarkTheme ?? this.isDarkTheme,
       analysisMode: analysisMode ?? this.analysisMode,
       audioBoost: audioBoost ?? this.audioBoost,
-      autoEnableSpeakerphone: autoEnableSpeakerphone ?? this.autoEnableSpeakerphone,
+      autoEnableSpeakerphone:
+          autoEnableSpeakerphone ?? this.autoEnableSpeakerphone,
       creatorAudioCapture: creatorAudioCapture ?? this.creatorAudioCapture,
       isLoaded: isLoaded ?? this.isLoaded,
     );
@@ -78,7 +79,8 @@ class SettingsController extends Notifier<SettingsState> {
         fallback: AnalysisMode.gDetection,
       ),
       audioBoost: prefs.getBool('AUDIO_BOOST') ?? false,
-      autoEnableSpeakerphone: prefs.getBool('AUTO_ENABLE_SPEAKERPHONE') ?? false,
+      autoEnableSpeakerphone:
+          prefs.getBool('AUTO_ENABLE_SPEAKERPHONE') ?? false,
       creatorAudioCapture: prefs.getBool('CREATOR_AUDIO_CAPTURE') ?? false,
     );
     _loaded = true;

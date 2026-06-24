@@ -18,8 +18,7 @@ void main() {
         AnalysisMode.gDetection,
       );
       expect(
-        AnalysisModePolicy.resolveEffectiveMode(
-            AnalysisMode.gDetection, false),
+        AnalysisModePolicy.resolveEffectiveMode(AnalysisMode.gDetection, false),
         AnalysisMode.gDetection,
       );
     });
@@ -31,8 +30,7 @@ void main() {
       );
     });
 
-    test(
-        'returns gDetection when geminiApi selected but network unavailable '
+    test('returns gDetection when geminiApi selected but network unavailable '
         '(fallback)', () {
       expect(
         AnalysisModePolicy.resolveEffectiveMode(AnalysisMode.geminiApi, false),
@@ -161,24 +159,27 @@ void main() {
   });
 
   group('fallback consistency invariant', () {
-    test('isFallbackActive is true iff selected is geminiApi and effective is not',
-        () {
-      // Test all 9 combinations of 3 modes x {network on, off}
-      for (final selected in AnalysisMode.values) {
-        for (final network in [true, false]) {
-          final state = AnalysisModePolicy.createRuntimeState(
-            selected,
-            network,
-          );
-          final expectedFallback = selected == AnalysisMode.geminiApi &&
-              state.effectiveMode != AnalysisMode.geminiApi;
-          expect(
-            state.isFallbackActive,
-            expectedFallback,
-            reason: 'selected=$selected, network=$network',
-          );
+    test(
+      'isFallbackActive is true iff selected is geminiApi and effective is not',
+      () {
+        // Test all 9 combinations of 3 modes x {network on, off}
+        for (final selected in AnalysisMode.values) {
+          for (final network in [true, false]) {
+            final state = AnalysisModePolicy.createRuntimeState(
+              selected,
+              network,
+            );
+            final expectedFallback =
+                selected == AnalysisMode.geminiApi &&
+                state.effectiveMode != AnalysisMode.geminiApi;
+            expect(
+              state.isFallbackActive,
+              expectedFallback,
+              reason: 'selected=$selected, network=$network',
+            );
+          }
         }
-      }
-    });
+      },
+    );
   });
 }

@@ -54,11 +54,7 @@ class GThinking {
     required Set<String> tier2,
     required Set<String> tier3,
   }) {
-    _instance = GThinking.withConfig(
-      tier1: tier1,
-      tier2: tier2,
-      tier3: tier3,
-    );
+    _instance = GThinking.withConfig(tier1: tier1, tier2: tier2, tier3: tier3);
   }
 
   static bool get isTierConfigLoaded =>
@@ -237,11 +233,7 @@ class GThinking {
 
     // Cluster detection: check if tier keywords appear close together
     // (within 5 tokens) — indicates concentrated scam pattern.
-    final allTierMatches = [
-      ...tier1Matches,
-      ...tier2Matches,
-      ...tier3Matches,
-    ];
+    final allTierMatches = [...tier1Matches, ...tier2Matches, ...tier3Matches];
     final hasCluster = _detectKeywordCluster(allTierMatches);
 
     return TierClassification(
@@ -291,9 +283,7 @@ class GThinking {
   static bool _detectKeywordCluster(List<KeywordMatch> matches) {
     if (matches.length < 2) return false;
 
-    final positioned = matches
-        .where((m) => m.startIndex >= 0)
-        .toList()
+    final positioned = matches.where((m) => m.startIndex >= 0).toList()
       ..sort((a, b) => a.startIndex.compareTo(b.startIndex));
 
     if (positioned.length < 2) return false;
@@ -407,7 +397,10 @@ class GThinking {
       );
     }
 
-    if (tier.hasTier1 && tier.hasTier2 && tier.tier1Count >= 2 && tier.tier2Count >= 2) {
+    if (tier.hasTier1 &&
+        tier.hasTier2 &&
+        tier.tier1Count >= 2 &&
+        tier.tier2Count >= 2) {
       // Chỉ leo thang RED khi có by chứng xác nhận (pattern/scenario/số lượng)
       // để tránh false positive từ hội thoại thông thường.
       if (_hasCorroboratingEvidence(
@@ -441,7 +434,10 @@ class GThinking {
     }
 
     if (tier.hasTier1) {
-      return (RiskLevel.yellow, 'Chú ý: Đang nhắc đến chủ đề nhạy cảm (Tầng 1)');
+      return (
+        RiskLevel.yellow,
+        'Chú ý: Đang nhắc đến chủ đề nhạy cảm (Tầng 1)',
+      );
     }
 
     return (RiskLevel.green, '');

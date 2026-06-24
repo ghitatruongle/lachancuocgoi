@@ -164,8 +164,10 @@ class CallHistory {
       if (raw is! List) return const [];
       return raw
           .whereType<Map>()
-          .map((entry) =>
-              AlertHistoryEntry.fromJson(entry.cast<String, Object?>()))
+          .map(
+            (entry) =>
+                AlertHistoryEntry.fromJson(entry.cast<String, Object?>()),
+          )
           .toList();
     } on FormatException {
       return const [];

@@ -30,7 +30,9 @@ class L3Analyzer implements Analyzer {
     GeminiChatSession Function()? sessionFactory,
     ResponseCache<AnalysisResult>? cache,
   }) {
-    final provider = apiKeyProvider ?? EnvironmentApiKeyProvider(assetLoader: assetLoader, logger: logger);
+    final provider =
+        apiKeyProvider ??
+        EnvironmentApiKeyProvider(assetLoader: assetLoader, logger: logger);
     final tracker = keyHealthTracker ?? KeyHealthTracker(provider);
     final client =
         geminiClient ??
@@ -200,7 +202,7 @@ class L3Analyzer implements Analyzer {
     if (_isAnalyzing) {
       return _lastResult;
     }
-    
+
     if (_circuitBreakerUntil != null) {
       if (DateTime.now().isBefore(_circuitBreakerUntil!)) {
         return const AnalysisResult(
@@ -289,7 +291,7 @@ class L3Analyzer implements Analyzer {
 
   Future<AnalysisResult?> analyzeIncremental(String fullText) async {
     if (_isAnalyzing) return null;
-    
+
     if (_circuitBreakerUntil != null) {
       if (DateTime.now().isBefore(_circuitBreakerUntil!)) {
         return null;
@@ -302,59 +304,28 @@ class L3Analyzer implements Analyzer {
     _isAnalyzing = true;
     try {
       final session = _activeSession;
-    if (session == null) {
-      return null;
-    }
-    final newTextLength = fullText.length - _processedTextLength;
-    if (newTextLength <= 0) {
-      return _lastResult;
-    }
-    final newText = fullText.substring(_processedTextLength);
-    if (newTextLength < _minIncrementalChars) {
-      return null;
-    }
-    if (!_isSentenceBoundary(newText) && newTextLength < _maxIncrementalChars) {
-      return null;
-    }
+      if (session == null) {
+        return null;
+      }
+      final newTextLength = fullText.length - _processedTextLength;
+      if (newTextLength <= 0) {
+        return _lastResult;
+      }
+      final newText = fullText.substring(_processedTextLength);
+      if (newTextLength < _minIncrementalChars) {
+        return null;
+      }
+      if (!_isSentenceBoundary(newText) &&
+          newTextLength < _maxIncrementalChars) {
+        return null;
+      }
 
-    final redaction = PIIStripper.redactPII(newText);
-    final prompt = PromptBuilder.buildIncrementalPrompt(
-      redaction.redactedText,
-      _processedTextLength == 0,
-    );
-    var result = await session.sendMessage<AnalysisResult>(
-      prompt,
-      (responseText, modelName) => parseResponse(
-        PIIStripper.restorePII(responseText, redaction.tokensMap),
-        modelName,
-        newText,
-      ),
-    );
-
-    // Local retry once for transient network or timeout errors
-    bool isTransient = false;
-    result.fold(
-      onSuccess: (_) {},
-      onFailure: (error, _) {
-        final errStr = error.toString().toLowerCase();
-        if (error is TimeoutException ||
-            errStr.contains('timeout') ||
-            errStr.contains('socket') ||
-            errStr.contains('network') ||
-            errStr.contains('connection') ||
-            errStr.contains('host')) {
-          isTransient = true;
-        }
-      },
-    );
-
-    if (isTransient) {
-      // Exponential Backoff with Jitter
-      final random = math.Random();
-      final baseDelay = math.pow(2, _consecutiveErrors.clamp(0, 5)).toInt() * 1000;
-      final delayMs = baseDelay + random.nextInt(1000);
-      await Future<void>.delayed(Duration(milliseconds: delayMs));
-      result = await session.sendMessage<AnalysisResult>(
+      final redaction = PIIStripper.redactPII(newText);
+      final prompt = PromptBuilder.buildIncrementalPrompt(
+        redaction.redactedText,
+        _processedTextLength == 0,
+      );
+      var result = await session.sendMessage<AnalysisResult>(
         prompt,
         (responseText, modelName) => parseResponse(
           PIIStripper.restorePII(responseText, redaction.tokensMap),
@@ -362,28 +333,61 @@ class L3Analyzer implements Analyzer {
           newText,
         ),
       );
-    }
 
-    return result.fold(
-      onSuccess: (analysisResult) {
-        _processedTextLength = fullText.length;
-        _recordRequest(false);
-        _lastResult = analysisResult;
-        return analysisResult;
-      },
-      onFailure: (error, _) {
-        _recordRequest(true);
-        final analysisResult = AnalysisResult(
-          overallRiskLevel: RiskLevel.green,
-          matches: const <KeywordMatch>[],
-          reason: 'Lỗi phân tích L3: $error',
-          analysisLevel: AnalysisLevel.l3,
-          isError: true,
+      // Local retry once for transient network or timeout errors
+      bool isTransient = false;
+      result.fold(
+        onSuccess: (_) {},
+        onFailure: (error, _) {
+          final errStr = error.toString().toLowerCase();
+          if (error is TimeoutException ||
+              errStr.contains('timeout') ||
+              errStr.contains('socket') ||
+              errStr.contains('network') ||
+              errStr.contains('connection') ||
+              errStr.contains('host')) {
+            isTransient = true;
+          }
+        },
+      );
+
+      if (isTransient) {
+        // Exponential Backoff with Jitter
+        final random = math.Random();
+        final baseDelay =
+            math.pow(2, _consecutiveErrors.clamp(0, 5)).toInt() * 1000;
+        final delayMs = baseDelay + random.nextInt(1000);
+        await Future<void>.delayed(Duration(milliseconds: delayMs));
+        result = await session.sendMessage<AnalysisResult>(
+          prompt,
+          (responseText, modelName) => parseResponse(
+            PIIStripper.restorePII(responseText, redaction.tokensMap),
+            modelName,
+            newText,
+          ),
         );
-        _lastResult = analysisResult;
-        return analysisResult;
-      },
-    );
+      }
+
+      return result.fold(
+        onSuccess: (analysisResult) {
+          _processedTextLength = fullText.length;
+          _recordRequest(false);
+          _lastResult = analysisResult;
+          return analysisResult;
+        },
+        onFailure: (error, _) {
+          _recordRequest(true);
+          final analysisResult = AnalysisResult(
+            overallRiskLevel: RiskLevel.green,
+            matches: const <KeywordMatch>[],
+            reason: 'Lỗi phân tích L3: $error',
+            analysisLevel: AnalysisLevel.l3,
+            isError: true,
+          );
+          _lastResult = analysisResult;
+          return analysisResult;
+        },
+      );
     } finally {
       _isAnalyzing = false;
     }
@@ -408,7 +412,11 @@ class L3Analyzer implements Analyzer {
   /// (3 consecutive greens de-escalate from yellow only). This is safe because
   /// both [analyze] and [analyzeIncremental] guard entry with [_isAnalyzing],
   /// so only one parse can be in flight at a time per analyzer instance.
-  AnalysisResult parseResponse(String responseText, String modelName, [String? originalText]) {
+  AnalysisResult parseResponse(
+    String responseText,
+    String modelName, [
+    String? originalText,
+  ]) {
     if (responseText.trim().isEmpty) {
       throw const FormatException('Response is blank');
     }
@@ -495,7 +503,11 @@ class L3Analyzer implements Analyzer {
   }
 
   String _normalizeForCache(String text) {
-    return text.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    return text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
   bool _isSentenceBoundary(String text) {
@@ -530,7 +542,7 @@ class L3Analyzer implements Analyzer {
     if (match != null) {
       return match.group(1) ?? responseText;
     }
-    
+
     // Fallback to finding the first { and last }
     final startIndex = responseText.indexOf('{');
     final endIndex = responseText.lastIndexOf('}');
@@ -595,7 +607,10 @@ class L3Analyzer implements Analyzer {
     return RiskLevel.green;
   }
 
-  double _calculateConfidence(AnalysisResponse response, [String? originalText]) {
+  double _calculateConfidence(
+    AnalysisResponse response, [
+    String? originalText,
+  ]) {
     if (response.confidenceScore != null) {
       final score = response.confidenceScore!.clamp(0.0, 1.0);
       if (originalText != null && originalText.trim().length < 30) {
@@ -618,7 +633,7 @@ class L3Analyzer implements Analyzer {
     } else {
       // Graceful degradation: L3 response chỉ có level mà không có reason
       // Chấp nhận nhưng giảm confidence thay vì ném lỗi ở parseResponse
-      confidence -= 0.2; 
+      confidence -= 0.2;
     }
     if ((response.label ?? '').trim().isNotEmpty) {
       confidence += 0.15;
@@ -631,8 +646,16 @@ class L3Analyzer implements Analyzer {
       confidence += (0.05 * reasoningSteps.length).clamp(0.0, 0.15);
     }
     final lowerReason = reason.toLowerCase();
-    final uncertaintyWords = ['có thể', 'không chắc', 'có lẽ', 'hơi', 'tạm thời'];
-    final uncertaintyCount = uncertaintyWords.where(lowerReason.contains).length;
+    final uncertaintyWords = [
+      'có thể',
+      'không chắc',
+      'có lẽ',
+      'hơi',
+      'tạm thời',
+    ];
+    final uncertaintyCount = uncertaintyWords
+        .where(lowerReason.contains)
+        .length;
     if (uncertaintyCount > 0) {
       confidence -= 0.1 * uncertaintyCount;
     }
@@ -653,12 +676,12 @@ class L3Analyzer implements Analyzer {
       _consecutiveErrors = 0;
       _circuitBreakerUntil = null;
     }
-    
+
     // Sliding window: 10 mins
     final windowStart = now.subtract(const Duration(minutes: 10));
     _requestTimestamps.removeWhere((t) => t.isBefore(windowStart));
     _errorTimestamps.removeWhere((t) => t.isBefore(windowStart));
-    
+
     // Check circuit breaker: > 60% errors in the last 10 mins (min 5 requests)
     if (_requestTimestamps.length >= 5) {
       final errorRate = _errorTimestamps.length / _requestTimestamps.length;

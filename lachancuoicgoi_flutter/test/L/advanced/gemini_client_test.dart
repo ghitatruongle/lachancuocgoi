@@ -12,9 +12,15 @@ void main() {
       final client = GeminiClient(
         apiKeyProvider: StaticApiKeyProvider(const ['AIzaKey1']),
         config: GeminiConfig.forAnalysis(),
-        requestExecutor: ({required String apiKey, required GeminiConfig config, required String modelName, required String prompt}) async {
-          return '{"level":"green","label":"","reason":"ok","recommendation":""}';
-        },
+        requestExecutor:
+            ({
+              required String apiKey,
+              required GeminiConfig config,
+              required String modelName,
+              required String prompt,
+            }) async {
+              return '{"level":"green","label":"","reason":"ok","recommendation":""}';
+            },
       );
 
       final result = await client.query<String>('safe', (text, _) => text);
@@ -26,10 +32,16 @@ void main() {
       final client = GeminiClient(
         apiKeyProvider: StaticApiKeyProvider(const ['AIzaKey1']),
         config: GeminiConfig.forAnalysis(),
-        requestExecutor: ({required String apiKey, required GeminiConfig config, required String modelName, required String prompt}) async {
-          callCount++;
-          throw Exception('Server error');
-        },
+        requestExecutor:
+            ({
+              required String apiKey,
+              required GeminiConfig config,
+              required String modelName,
+              required String prompt,
+            }) async {
+              callCount++;
+              throw Exception('Server error');
+            },
       );
 
       for (var i = 0; i < 5; i++) {
@@ -43,26 +55,35 @@ void main() {
       expect(callCount, 5);
     });
 
-    test('successful call after 4 failures resets counter (stays below threshold)', () async {
-      var failCount = 0;
-      final client = GeminiClient(
-        apiKeyProvider: StaticApiKeyProvider(const ['AIzaKey1']),
-        config: GeminiConfig.forAnalysis(),
-        requestExecutor: ({required String apiKey, required GeminiConfig config, required String modelName, required String prompt}) async {
-          failCount++;
-          if (failCount <= 4) throw Exception('Error');
-          return '{"level":"green","label":"","reason":"ok","recommendation":""}';
-        },
-      );
+    test(
+      'successful call after 4 failures resets counter (stays below threshold)',
+      () async {
+        var failCount = 0;
+        final client = GeminiClient(
+          apiKeyProvider: StaticApiKeyProvider(const ['AIzaKey1']),
+          config: GeminiConfig.forAnalysis(),
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                failCount++;
+                if (failCount <= 4) throw Exception('Error');
+                return '{"level":"green","label":"","reason":"ok","recommendation":""}';
+              },
+        );
 
-      await client.query<String>('fail', (text, _) => text);
-      await client.query<String>('fail', (text, _) => text);
-      await client.query<String>('fail', (text, _) => text);
-      await client.query<String>('fail', (text, _) => text);
+        await client.query<String>('fail', (text, _) => text);
+        await client.query<String>('fail', (text, _) => text);
+        await client.query<String>('fail', (text, _) => text);
+        await client.query<String>('fail', (text, _) => text);
 
-      final result = await client.query<String>('success', (text, _) => text);
-      expect(result.isSuccess, isTrue);
-    });
+        final result = await client.query<String>('success', (text, _) => text);
+        expect(result.isSuccess, isTrue);
+      },
+    );
   });
 
   group('GeminiClient — model fallback chain', () {
@@ -71,10 +92,16 @@ void main() {
       final client = GeminiClient(
         apiKeyProvider: StaticApiKeyProvider(const ['AIzaKey1']),
         config: GeminiConfig.forAnalysis(),
-        requestExecutor: ({required String apiKey, required GeminiConfig config, required String modelName, required String prompt}) async {
-          attemptedModels.add(modelName);
-          throw Exception('404 model not found');
-        },
+        requestExecutor:
+            ({
+              required String apiKey,
+              required GeminiConfig config,
+              required String modelName,
+              required String prompt,
+            }) async {
+              attemptedModels.add(modelName);
+              throw Exception('404 model not found');
+            },
       );
 
       final result = await client.query<String>('prompt', (text, _) => text);
@@ -92,14 +119,23 @@ void main() {
       final client = GeminiClient(
         apiKeyProvider: StaticApiKeyProvider(const ['AIzaKey1']),
         config: GeminiConfig.forAnalysis(),
-        requestExecutor: ({required String apiKey, required GeminiConfig config, required String modelName, required String prompt}) async {
-          attempts++;
-          if (attempts < 3) throw Exception('404 model not found');
-          return '{"level":"green","label":"","reason":"ok","recommendation":""}';
-        },
+        requestExecutor:
+            ({
+              required String apiKey,
+              required GeminiConfig config,
+              required String modelName,
+              required String prompt,
+            }) async {
+              attempts++;
+              if (attempts < 3) throw Exception('404 model not found');
+              return '{"level":"green","label":"","reason":"ok","recommendation":""}';
+            },
       );
 
-      final result = await client.query<String>('prompt', (text, modelName) => modelName);
+      final result = await client.query<String>(
+        'prompt',
+        (text, modelName) => modelName,
+      );
 
       expect(result.isSuccess, isTrue);
       expect(result.getOrThrow(), 'gemini-2.0-flash');
@@ -108,39 +144,52 @@ void main() {
   });
 
   group('GeminiClient — key fallback', () {
-    test('falls back to second key when first key fails with auth error', () async {
-      // Pre-exhaust key 0 so only key 1 is active — this ensures deterministic
-      // behavior regardless of shuffle order in getActiveKeyIndices().
-      final provider = StaticApiKeyProvider(const ['AIzaExhaustedKey', 'AIzaWorkingKey']);
-      final tracker = KeyHealthTracker(provider);
-      tracker.markInvalid(0, 'pre-exhausted for test');
+    test(
+      'falls back to second key when first key fails with auth error',
+      () async {
+        // Pre-exhaust key 0 so only key 1 is active — this ensures deterministic
+        // behavior regardless of shuffle order in getActiveKeyIndices().
+        final provider = StaticApiKeyProvider(const [
+          'AIzaExhaustedKey',
+          'AIzaWorkingKey',
+        ]);
+        final tracker = KeyHealthTracker(provider);
+        tracker.markInvalid(0, 'pre-exhausted for test');
 
-      final attemptedKeys = <String>{};
-      final client = GeminiClient(
-        apiKeyProvider: provider,
-        config: GeminiConfig.forAnalysis(),
-        keyHealthTracker: tracker,
-        requestExecutor: ({required String apiKey, required GeminiConfig config, required String modelName, required String prompt}) async {
-          attemptedKeys.add(apiKey);
-          return '{"level":"green","label":"","reason":"ok","recommendation":""}';
-        },
-      );
+        final attemptedKeys = <String>{};
+        final client = GeminiClient(
+          apiKeyProvider: provider,
+          config: GeminiConfig.forAnalysis(),
+          keyHealthTracker: tracker,
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                attemptedKeys.add(apiKey);
+                return '{"level":"green","label":"","reason":"ok","recommendation":""}';
+              },
+        );
 
-      final result = await client.query<String>('prompt', (text, _) => text);
+        final result = await client.query<String>('prompt', (text, _) => text);
 
-      expect(result.isSuccess, isTrue);
-      expect(attemptedKeys, contains('AIzaWorkingKey'));
-      expect(attemptedKeys, isNot(contains('AIzaExhaustedKey')));
-      // Exhausted key stays exhausted, working key stays active
-      final summary = tracker.getHealthSummary();
-      expect(summary[0].status, KeyStatus.exhausted);
-      expect(summary[1].status, KeyStatus.active);
-    });
+        expect(result.isSuccess, isTrue);
+        expect(attemptedKeys, contains('AIzaWorkingKey'));
+        expect(attemptedKeys, isNot(contains('AIzaExhaustedKey')));
+        // Exhausted key stays exhausted, working key stays active
+        final summary = tracker.getHealthSummary();
+        expect(summary[0].status, KeyStatus.exhausted);
+        expect(summary[1].status, KeyStatus.active);
+      },
+    );
 
     test('fails when all keys are exhausted', () async {
-      final tracker = KeyHealthTracker(
-        StaticApiKeyProvider(const ['AIzaKey1', 'AIzaKey2']),
-      )..markInvalid(0)..markInvalid(1);
+      final tracker =
+          KeyHealthTracker(StaticApiKeyProvider(const ['AIzaKey1', 'AIzaKey2']))
+            ..markInvalid(0)
+            ..markInvalid(1);
       final client = GeminiClient(
         apiKeyProvider: StaticApiKeyProvider(const ['AIzaKey1', 'AIzaKey2']),
         config: GeminiConfig.forAnalysis(),
@@ -162,7 +211,9 @@ void main() {
         apiKeyProvider: provider,
         config: GeminiConfig.forAnalysis(),
         keyHealthTracker: tracker,
-        onAllKeysExhausted: () { notifyCount++; },
+        onAllKeysExhausted: () {
+          notifyCount++;
+        },
       );
 
       await client.query<String>('p1', (text, _) => text);
@@ -181,9 +232,15 @@ void main() {
         apiKeyProvider: StaticApiKeyProvider(const ['AIzaKey1']),
         config: GeminiConfig.forAnalysis(),
         keyHealthTracker: tracker,
-        requestExecutor: ({required String apiKey, required GeminiConfig config, required String modelName, required String prompt}) async {
-          throw Exception('429 Too Many Requests');
-        },
+        requestExecutor:
+            ({
+              required String apiKey,
+              required GeminiConfig config,
+              required String modelName,
+              required String prompt,
+            }) async {
+              throw Exception('429 Too Many Requests');
+            },
       );
 
       await client.query<String>('prompt', (text, _) => text);
@@ -200,9 +257,15 @@ void main() {
         apiKeyProvider: StaticApiKeyProvider(const ['AIzaKey1']),
         config: GeminiConfig.forAnalysis(),
         keyHealthTracker: tracker,
-        requestExecutor: ({required String apiKey, required GeminiConfig config, required String modelName, required String prompt}) async {
-          throw Exception('403 API key not valid');
-        },
+        requestExecutor:
+            ({
+              required String apiKey,
+              required GeminiConfig config,
+              required String modelName,
+              required String prompt,
+            }) async {
+              throw Exception('403 API key not valid');
+            },
       );
 
       await client.query<String>('prompt', (text, _) => text);
@@ -229,9 +292,15 @@ void main() {
       final client = GeminiClient(
         apiKeyProvider: StaticApiKeyProvider(const ['AIzaKey1']),
         config: GeminiConfig.forAnalysis(),
-        requestExecutor: ({required String apiKey, required GeminiConfig config, required String modelName, required String prompt}) async {
-          throw TimeoutException('Request timed out');
-        },
+        requestExecutor:
+            ({
+              required String apiKey,
+              required GeminiConfig config,
+              required String modelName,
+              required String prompt,
+            }) async {
+              throw TimeoutException('Request timed out');
+            },
       );
 
       final result = await client.query<String>('prompt', (text, _) => text);
@@ -242,9 +311,15 @@ void main() {
       final client = GeminiClient(
         apiKeyProvider: StaticApiKeyProvider(const ['AIzaKey1']),
         config: GeminiConfig.forAnalysis(),
-        requestExecutor: ({required String apiKey, required GeminiConfig config, required String modelName, required String prompt}) async {
-          throw Exception('SocketException: Connection refused');
-        },
+        requestExecutor:
+            ({
+              required String apiKey,
+              required GeminiConfig config,
+              required String modelName,
+              required String prompt,
+            }) async {
+              throw Exception('SocketException: Connection refused');
+            },
       );
 
       final result = await client.query<String>('prompt', (text, _) => text);

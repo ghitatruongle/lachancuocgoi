@@ -86,10 +86,7 @@ class _LiveConversationState extends State<LiveConversation> {
           if (line.length > 200) {
             return line
                 .replaceAll('+', ' ')
-                .replaceAllMapped(
-                  RegExp(r'([.!?]+)\s+'),
-                  (m) => '${m[1]}\n',
-                )
+                .replaceAllMapped(RegExp(r'([.!?]+)\s+'), (m) => '${m[1]}\n')
                 .split('\n');
           }
           return [line.replaceAll('+', ' ')];
@@ -126,13 +123,9 @@ class _LiveConversationState extends State<LiveConversation> {
         itemCount: _lines.length,
         separatorBuilder: (context, index) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
-          return Text(
-            _lines[index],
-            style: const TextStyle(height: 1.4),
-          );
+          return Text(_lines[index], style: const TextStyle(height: 1.4));
         },
       ),
     );
   }
 }
-

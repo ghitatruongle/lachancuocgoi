@@ -5,7 +5,6 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/data/call_history.dart';
 
-
 /// Sprint 1 (A7) + Sprint 2 (B5): the `monitoring_controller.endSession()`
 /// method derives a `recordingError` value from the live `transcript` +
 /// `amplitudes` of the session. The logic is currently inlined inside
@@ -140,7 +139,8 @@ void main() {
   // pins the contract: any refactor MUST keep these semantic results.
   group('Sprint 1 (A7) summary text for blank-transcript rows', () {
     test('noAudio summary uses the explanatory micro-permission text', () {
-      const summary = 'Không thu được âm thanh — kiểm tra quyền micro hoặc nguồn âm thanh';
+      const summary =
+          'Không thu được âm thanh — kiểm tra quyền micro hoặc nguồn âm thanh';
       expect(summary, contains('micro'));
       expect(summary, contains('Không thu được âm thanh'));
     });
@@ -172,7 +172,13 @@ void main() {
   // Verifies that the recordingError value reaches the persisted row
   // untouched (i.e. nothing strips it out and the column exists in v6).
   group('CallHistory recordingError round-trips through toMap/fromMap', () {
-    for (final value in const [null, 'noAudio', 'sttFailed', 'partial', 'killed']) {
+    for (final value in const [
+      null,
+      'noAudio',
+      'sttFailed',
+      'partial',
+      'killed',
+    ]) {
       test('recordingError=$value survives toMap → fromMap', () {
         final history = CallHistory(
           dateTime: 'now',
@@ -201,13 +207,7 @@ void main() {
         final n2 = ((seed * 22695477 + i * 7919) % 100000) / 100000.0;
         final n3 = ((seed * 1664525 + i * 1013904223) % 100000) / 100000.0;
         final transcript = (i % 7 == 0) ? 'x' : ''; // 1 in 7 non-empty
-        final amplitudes = [
-          n,
-          n2,
-          n3,
-          (n + n2) / 2,
-          (n2 + n3) / 2,
-        ];
+        final amplitudes = [n, n2, n3, (n + n2) / 2, (n2 + n3) / 2];
         final result = deriveRecordingError(
           transcript: transcript,
           amplitudes: amplitudes,

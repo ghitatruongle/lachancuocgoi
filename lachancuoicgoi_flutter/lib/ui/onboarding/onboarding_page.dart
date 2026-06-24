@@ -98,13 +98,17 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     errorBuilder: (context, error, stackTrace) => Icon(
                       Icons.security_outlined,
                       size: 80,
-                      color: state.allGranted ? const Color(0xFF4CAF50) : cs.primary,
+                      color: state.allGranted
+                          ? const Color(0xFF4CAF50)
+                          : cs.primary,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
                     'Bảo vệ cuộc gọi của bạn',
-                    style: tt.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    style: tt.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -175,7 +179,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                             )
                           : const Icon(Icons.auto_fix_high),
                       label: Text(
-                        _isRequesting ? 'Đang cấp quyền...' : 'Bắt đầu cấp quyền',
+                        _isRequesting
+                            ? 'Đang cấp quyền...'
+                            : 'Bắt đầu cấp quyền',
                         style: tt.titleMedium?.copyWith(color: cs.onPrimary),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -202,7 +208,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     },
                     child: Text(
                       'Bỏ qua (không khuyến khích)',
-                      style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                      style: tt.bodyMedium?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
                   ),
 

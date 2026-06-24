@@ -13,8 +13,7 @@ void main() {
       await tester.pump();
 
       // Activate developer mode via tap + password + activate
-      final controller =
-          container.read(developerModeProvider.notifier);
+      final controller = container.read(developerModeProvider.notifier);
       for (var i = 0; i < 10; i++) {
         controller.onTitleTap();
       }
@@ -48,8 +47,7 @@ void main() {
       await tester.pump();
 
       // Activate
-      final controller =
-          container.read(developerModeProvider.notifier);
+      final controller = container.read(developerModeProvider.notifier);
       for (var i = 0; i < 10; i++) {
         controller.onTitleTap();
       }
@@ -74,22 +72,23 @@ void main() {
       await tester.pump();
 
       // Activate
-      final controller =
-          container.read(developerModeProvider.notifier);
+      final controller = container.read(developerModeProvider.notifier);
       for (var i = 0; i < 10; i++) {
         controller.onTitleTap();
       }
       expect(controller.verifyPassword('110210'), isTrue);
       await controller.activate();
 
-      final initialRemaining =
-          container.read(developerModeProvider).remainingSeconds;
+      final initialRemaining = container
+          .read(developerModeProvider)
+          .remainingSeconds;
 
       // Wait for one timer tick (10s)
       await tester.pump(const Duration(seconds: 11));
 
-      final newRemaining =
-          container.read(developerModeProvider).remainingSeconds;
+      final newRemaining = container
+          .read(developerModeProvider)
+          .remainingSeconds;
 
       // Should decrease by approximately 10 seconds
       final diff = initialRemaining - newRemaining;
@@ -109,7 +108,9 @@ void main() {
       expect(lastResult, DeveloperTapResult.showPassword);
     });
 
-    testWidgets('onTitleTap returns deactivated on 3 taps when active', (tester) async {
+    testWidgets('onTitleTap returns deactivated on 3 taps when active', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -117,8 +118,7 @@ void main() {
       await tester.pump();
 
       // Activate via container
-      final controller =
-          container.read(developerModeProvider.notifier);
+      final controller = container.read(developerModeProvider.notifier);
       for (var i = 0; i < 10; i++) {
         controller.onTitleTap();
       }

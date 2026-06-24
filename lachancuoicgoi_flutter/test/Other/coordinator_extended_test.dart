@@ -84,10 +84,7 @@ void main() {
         wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
       );
 
-      final coordinator = AnalysisCoordinator(
-        l2Analyzer: l2,
-        l3Analyzer: l3,
-      );
+      final coordinator = AnalysisCoordinator(l2Analyzer: l2, l3Analyzer: l3);
 
       final result = await coordinator.analyze(
         'Test text for L3 fallback',
@@ -102,27 +99,29 @@ void main() {
   });
 
   group('AnalysisCoordinator — analyzeWithTranscript L2 init failure', () {
-    test('returns "L2 initializing" result when L2 fails to initialize twice',
-        () async {
-      // L2 with engine that never becomes ready
-      final l2 = L2Analyzer(
-        gDetectionEngine: _FakeNotReadyGDetectionEngine(),
-        intentClassifier: const DisabledIntentClassifier(),
-        wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
-      );
+    test(
+      'returns "L2 initializing" result when L2 fails to initialize twice',
+      () async {
+        // L2 with engine that never becomes ready
+        final l2 = L2Analyzer(
+          gDetectionEngine: _FakeNotReadyGDetectionEngine(),
+          intentClassifier: const DisabledIntentClassifier(),
+          wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
+        );
 
-      final coordinator = AnalysisCoordinator(l2Analyzer: l2);
+        final coordinator = AnalysisCoordinator(l2Analyzer: l2);
 
-      final result = await coordinator.analyzeWithTranscript(
-        'test text',
-        'test text',
-        AnalysisMode.gDetection,
-      );
+        final result = await coordinator.analyzeWithTranscript(
+          'test text',
+          'test text',
+          AnalysisMode.gDetection,
+        );
 
-      expect(result.overallRiskLevel, RiskLevel.green);
-      expect(result.reason, contains('khởi tạo'));
-      expect(result.analysisLevel, AnalysisLevel.l2);
-    });
+        expect(result.overallRiskLevel, RiskLevel.green);
+        expect(result.reason, contains('khởi tạo'));
+        expect(result.analysisLevel, AnalysisLevel.l2);
+      },
+    );
   });
 
   group('AnalysisCoordinator — analyzeIncremental with adaptive minDelta', () {
@@ -167,47 +166,49 @@ void main() {
       expect(result.analysisLevel, AnalysisLevel.l2);
     });
 
-    test('returns lastResult with alertEnabled=false for orange incremental skip',
-        () async {
-      final l2 = L2Analyzer(
-        gDetectionEngine: _FakeGDetectionEngine(
-          GResult(
-            riskLevel: RiskLevel.orange,
-            reason: 'Test',
-            allMatchedKeywords: <KeywordMatch>{
-              const KeywordMatch(
-                keyword: 'test',
-                level: RiskLevel.orange,
-                category: 'Test',
-              ),
-            },
-            alertEnabled: true,
+    test(
+      'returns lastResult with alertEnabled=false for orange incremental skip',
+      () async {
+        final l2 = L2Analyzer(
+          gDetectionEngine: _FakeGDetectionEngine(
+            GResult(
+              riskLevel: RiskLevel.orange,
+              reason: 'Test',
+              allMatchedKeywords: <KeywordMatch>{
+                const KeywordMatch(
+                  keyword: 'test',
+                  level: RiskLevel.orange,
+                  category: 'Test',
+                ),
+              },
+              alertEnabled: true,
+            ),
           ),
-        ),
-        intentClassifier: const DisabledIntentClassifier(),
-        wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
-      );
-      await l2.initialize();
-      final coordinator = AnalysisCoordinator(l2Analyzer: l2);
+          intentClassifier: const DisabledIntentClassifier(),
+          wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
+        );
+        await l2.initialize();
+        final coordinator = AnalysisCoordinator(l2Analyzer: l2);
 
-      // First analysis
-      coordinator.syncProcessedTextLength(0, AnalysisMode.gDetection);
-      await coordinator.analyze(
-        'Anh phải chuyển tiền vào tài khoản ngay.',
-        AnalysisMode.gDetection,
-      );
+        // First analysis
+        coordinator.syncProcessedTextLength(0, AnalysisMode.gDetection);
+        await coordinator.analyze(
+          'Anh phải chuyển tiền vào tài khoản ngay.',
+          AnalysisMode.gDetection,
+        );
 
-      // Small delta — should skip
-      final result = await coordinator.analyzeIncremental(
-        'Anh phải chuyển tiền vào tài khoản ngay. xy', // +3 chars
-        AnalysisMode.gDetection,
-      );
+        // Small delta — should skip
+        final result = await coordinator.analyzeIncremental(
+          'Anh phải chuyển tiền vào tài khoản ngay. xy', // +3 chars
+          AnalysisMode.gDetection,
+        );
 
-      // Orange result should have alertEnabled=false when skipped
-      if (result.overallRiskLevel.index >= RiskLevel.orange.index) {
-        expect(result.alertEnabled, isFalse);
-      }
-    });
+        // Orange result should have alertEnabled=false when skipped
+        if (result.overallRiskLevel.index >= RiskLevel.orange.index) {
+          expect(result.alertEnabled, isFalse);
+        }
+      },
+    );
   });
 
   group('AnalysisCoordinator — resetMode', () {
@@ -267,11 +268,11 @@ class _FakeNotReadyGDetectionEngine extends GDetectionEngine {
 
   @override
   Future<GResult> performFullAnalysis(String text) async => const GResult(
-        riskLevel: RiskLevel.green,
-        reason: '',
-        allMatchedKeywords: <KeywordMatch>{},
-        alertEnabled: false,
-      );
+    riskLevel: RiskLevel.green,
+    reason: '',
+    allMatchedKeywords: <KeywordMatch>{},
+    alertEnabled: false,
+  );
 }
 
 const Map<String, Object?> _testVocabulary = {
@@ -290,6 +291,4 @@ const Map<String, Object?> _testVocabulary = {
   ],
 };
 
-const Map<String, Object?> _testCorrections = {
-  'corrections': <Object?>[],
-};
+const Map<String, Object?> _testCorrections = {'corrections': <Object?>[]};

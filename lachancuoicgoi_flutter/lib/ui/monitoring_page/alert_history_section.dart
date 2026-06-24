@@ -4,10 +4,7 @@ import '../../data/alert_history_entry.dart';
 
 /// Alert history section used in both MonitoringPage and ResultPage.
 class AlertHistorySection extends StatelessWidget {
-  const AlertHistorySection({
-    super.key,
-    required this.alertHistory,
-  });
+  const AlertHistorySection({super.key, required this.alertHistory});
 
   final List<AlertHistoryEntry> alertHistory;
 
@@ -29,9 +26,7 @@ class AlertHistorySection extends StatelessWidget {
         Divider(color: cs.outlineVariant),
         const SizedBox(height: 12),
         for (var i = 0; i < alertHistory.length; i++) ...[
-          _AlertHistoryCard(
-            entry: alertHistory[alertHistory.length - 1 - i],
-          ),
+          _AlertHistoryCard(entry: alertHistory[alertHistory.length - 1 - i]),
           if (i < alertHistory.length - 1) const SizedBox(height: 8),
         ],
       ],
@@ -52,9 +47,7 @@ class _AlertHistoryCard extends StatelessWidget {
 
     return Card(
       color: riskColor.withValues(alpha: 0.08),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(

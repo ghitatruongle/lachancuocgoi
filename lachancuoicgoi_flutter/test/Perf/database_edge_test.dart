@@ -52,74 +52,66 @@ void main() {
     }
 
     group('Migration edge cases', () {
-      test(
-        'migration from version 0 to latest creates schema',
-        () async {
-          // Open a fresh database (version 0 -> latest)
-          final freshDb = await AppDatabase.open(
-            databaseFactory: databaseFactoryFfi,
-            inMemory: true,
-          );
-          addTearDown(() => freshDb.close());
+      test('migration from version 0 to latest creates schema', () async {
+        // Open a fresh database (version 0 -> latest)
+        final freshDb = await AppDatabase.open(
+          databaseFactory: databaseFactoryFfi,
+          inMemory: true,
+        );
+        addTearDown(() => freshDb.close());
 
-          // Should be able to insert after fresh creation
-          final id = await freshDb.callHistoryDao.insert(
-            makeEntry(transcript: 'Fresh DB entry'),
-          );
-          expect(id, greaterThan(0));
+        // Should be able to insert after fresh creation
+        final id = await freshDb.callHistoryDao.insert(
+          makeEntry(transcript: 'Fresh DB entry'),
+        );
+        expect(id, greaterThan(0));
 
-          final all = await freshDb.callHistoryDao.getAll();
-          expect(all, hasLength(1));
-        },
-      );
+        final all = await freshDb.callHistoryDao.getAll();
+        expect(all, hasLength(1));
+      });
 
-      test(
-        'adding already-existing column does not crash',
-        () async {
-          // The schema already has all columns up to version 5.
-          // Opening again simulates idempotent column creation.
-          final db2 = await AppDatabase.open(
-            databaseFactory: databaseFactoryFfi,
-            inMemory: true,
-          );
-          addTearDown(() => db2.close());
+      test('adding already-existing column does not crash', () async {
+        // The schema already has all columns up to version 5.
+        // Opening again simulates idempotent column creation.
+        final db2 = await AppDatabase.open(
+          databaseFactory: databaseFactoryFfi,
+          inMemory: true,
+        );
+        addTearDown(() => db2.close());
 
-          // Insert with all fields including alert_history
-          final id = await db2.callHistoryDao.insert(
-            makeEntry(alertHistory: '[{"ts":1}]'),
-          );
-          expect(id, greaterThan(0));
+        // Insert with all fields including alert_history
+        final id = await db2.callHistoryDao.insert(
+          makeEntry(alertHistory: '[{"ts":1}]'),
+        );
+        expect(id, greaterThan(0));
 
-          final record = await db2.callHistoryDao.getById(id);
-          expect(record?.alertHistory, '[{"ts":1}]');
-        },
-      );
+        final record = await db2.callHistoryDao.getById(id);
+        expect(record?.alertHistory, '[{"ts":1}]');
+      });
 
-      test(
-        'regression: upgrade from a v1 schema (missing core columns) '
-        'adds all current columns so inserts do not throw',
-        () async {
-          // Simulate a v1-era install: only the original columns exist. This
-          // is the case the old migration code mishandled (it had no branch
-          // for oldVersion < 5 to add audioPath/analysisResult/analysisType).
-          //
-          // We use a real temp file (not inMemoryDatabasePath) so the same
-          // database file is reopened and the onUpgrade path actually runs —
-          // in-memory databases are per-connection, so a second open would
-          // start from scratch and never exercise the migration.
-          final rawFactory = databaseFactoryFfi;
-          final tempDir = await Directory.systemTemp.createTemp(
-            'lachan_migration_test_',
-          );
-          addTearDown(() => tempDir.delete(recursive: true));
-          final dbPath = p.join(tempDir.path, 'migration.db');
+      test('regression: upgrade from a v1 schema (missing core columns) '
+          'adds all current columns so inserts do not throw', () async {
+        // Simulate a v1-era install: only the original columns exist. This
+        // is the case the old migration code mishandled (it had no branch
+        // for oldVersion < 5 to add audioPath/analysisResult/analysisType).
+        //
+        // We use a real temp file (not inMemoryDatabasePath) so the same
+        // database file is reopened and the onUpgrade path actually runs —
+        // in-memory databases are per-connection, so a second open would
+        // start from scratch and never exercise the migration.
+        final rawFactory = databaseFactoryFfi;
+        final tempDir = await Directory.systemTemp.createTemp(
+          'lachan_migration_test_',
+        );
+        addTearDown(() => tempDir.delete(recursive: true));
+        final dbPath = p.join(tempDir.path, 'migration.db');
 
-          final seedDb = await rawFactory.openDatabase(
-            dbPath,
-            options: OpenDatabaseOptions(
-              version: 1,
-              onCreate: (db, _) async {
-                await db.execute('''
+        final seedDb = await rawFactory.openDatabase(
+          dbPath,
+          options: OpenDatabaseOptions(
+            version: 1,
+            onCreate: (db, _) async {
+              await db.execute('''
 CREATE TABLE call_history (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   dateTime TEXT NOT NULL,
@@ -130,59 +122,56 @@ CREATE TABLE call_history (
   transcript TEXT NOT NULL
 )
 ''');
-              },
-            ),
-          );
-          await seedDb.close();
+            },
+          ),
+        );
+        await seedDb.close();
 
-          // Reopen through AppDatabase — this runs _upgradeSchema(1 -> 6).
-          final upgraded = await AppDatabase.open(
-            databaseFactory: rawFactory,
-            databasePath: dbPath,
-          );
-          addTearDown(() => upgraded.close());
+        // Reopen through AppDatabase — this runs _upgradeSchema(1 -> 6).
+        final upgraded = await AppDatabase.open(
+          databaseFactory: rawFactory,
+          databasePath: dbPath,
+        );
+        addTearDown(() => upgraded.close());
 
-          // Inserting a row that uses post-v1 columns must succeed.
-          final id = await upgraded.callHistoryDao.insert(
-            makeEntry(
-              audioPath: '/tmp/x.m4a',
-              analysisResult: '{"risk":"RED"}',
-              analysisType: 'L3',
-              alertHistory: '[{"ts":1,"level":"RED"}]',
-            ),
-          );
-          expect(id, greaterThan(0));
+        // Inserting a row that uses post-v1 columns must succeed.
+        final id = await upgraded.callHistoryDao.insert(
+          makeEntry(
+            audioPath: '/tmp/x.m4a',
+            analysisResult: '{"risk":"RED"}',
+            analysisType: 'L3',
+            alertHistory: '[{"ts":1,"level":"RED"}]',
+          ),
+        );
+        expect(id, greaterThan(0));
 
-          final record = await upgraded.callHistoryDao.getById(id);
-          expect(record, isNotNull);
-          expect(record?.audioPath, '/tmp/x.m4a');
-          expect(record?.analysisType, 'L3');
-          expect(record?.alertHistory, '[{"ts":1,"level":"RED"}]');
-        },
-      );
+        final record = await upgraded.callHistoryDao.getById(id);
+        expect(record, isNotNull);
+        expect(record?.audioPath, '/tmp/x.m4a');
+        expect(record?.analysisType, 'L3');
+        expect(record?.alertHistory, '[{"ts":1,"level":"RED"}]');
+      });
 
-      test(
-        'Sprint 4.4: a failing migration rolls back so the schema is not '
-        'left half-migrated',
-        () async {
-          // Schema migration is wrapped in db.transaction (Sprint 4.4). If a
-          // statement inside the migration throws, the whole migration must
-          // roll back — the on-disk schema must be unchanged (still at the
-          // pre-migration column set), not stuck between versions.
-          final rawFactory = databaseFactoryFfi;
-          final tempDir = await Directory.systemTemp.createTemp(
-            'lachan_rollback_test_',
-          );
-          addTearDown(() => tempDir.delete(recursive: true));
-          final dbPath = p.join(tempDir.path, 'rollback.db');
+      test('Sprint 4.4: a failing migration rolls back so the schema is not '
+          'left half-migrated', () async {
+        // Schema migration is wrapped in db.transaction (Sprint 4.4). If a
+        // statement inside the migration throws, the whole migration must
+        // roll back — the on-disk schema must be unchanged (still at the
+        // pre-migration column set), not stuck between versions.
+        final rawFactory = databaseFactoryFfi;
+        final tempDir = await Directory.systemTemp.createTemp(
+          'lachan_rollback_test_',
+        );
+        addTearDown(() => tempDir.delete(recursive: true));
+        final dbPath = p.join(tempDir.path, 'rollback.db');
 
-          // Seed a v1 schema and capture the initial column set.
-          final seedDb = await rawFactory.openDatabase(
-            dbPath,
-            options: OpenDatabaseOptions(
-              version: 1,
-              onCreate: (db, _) async {
-                await db.execute('''
+        // Seed a v1 schema and capture the initial column set.
+        final seedDb = await rawFactory.openDatabase(
+          dbPath,
+          options: OpenDatabaseOptions(
+            version: 1,
+            onCreate: (db, _) async {
+              await db.execute('''
 CREATE TABLE call_history (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   dateTime TEXT NOT NULL,
@@ -193,45 +182,46 @@ CREATE TABLE call_history (
   transcript TEXT NOT NULL
 )
 ''');
+            },
+          ),
+        );
+        await seedDb.close();
+
+        // Force the migration to fail: register an onUpgrade callback that
+        // adds a column then throws. With the transaction in place, the
+        // added column must be rolled back, leaving the v1 column set intact.
+        await expectLater(
+          () => rawFactory.openDatabase(
+            dbPath,
+            options: OpenDatabaseOptions(
+              version: 2,
+              onUpgrade: (db, oldVersion, newVersion) async {
+                await db.transaction((txn) async {
+                  await txn.execute(
+                    'ALTER TABLE call_history ADD COLUMN tmp_col TEXT',
+                  );
+                  // Simulate a mid-migration failure (e.g. disk error on a
+                  // later statement).
+                  throw StateError('simulated migration failure');
+                });
               },
             ),
-          );
-          await seedDb.close();
+          ),
+          throwsA(isA<StateError>()),
+        );
 
-          // Force the migration to fail: register an onUpgrade callback that
-          // adds a column then throws. With the transaction in place, the
-          // added column must be rolled back, leaving the v1 column set intact.
-          await expectLater(
-            () => rawFactory.openDatabase(
-              dbPath,
-              options: OpenDatabaseOptions(
-                version: 2,
-                onUpgrade: (db, oldVersion, newVersion) async {
-                  await db.transaction((txn) async {
-                    await txn.execute(
-                      'ALTER TABLE call_history ADD COLUMN tmp_col TEXT',
-                    );
-                    // Simulate a mid-migration failure (e.g. disk error on a
-                    // later statement).
-                    throw StateError('simulated migration failure');
-                  });
-                },
-              ),
-            ),
-            throwsA(isA<StateError>()),
-          );
-
-          // Reopen read-only and verify the schema was rolled back: tmp_col
-          // must NOT exist (transaction atomicity).
-          final verifyDb = await rawFactory.openDatabase(dbPath);
-          addTearDown(() => verifyDb.close());
-          final columns = await verifyDb.rawQuery('PRAGMA table_info(call_history)');
-          final columnNames = columns.map((r) => r['name'] as String).toSet();
-          expect(columnNames, isNot(contains('tmp_col')));
-          // The original v1 columns survive.
-          expect(columnNames, containsAll(<String>['transcript', 'riskLevel']));
-        },
-      );
+        // Reopen read-only and verify the schema was rolled back: tmp_col
+        // must NOT exist (transaction atomicity).
+        final verifyDb = await rawFactory.openDatabase(dbPath);
+        addTearDown(() => verifyDb.close());
+        final columns = await verifyDb.rawQuery(
+          'PRAGMA table_info(call_history)',
+        );
+        final columnNames = columns.map((r) => r['name'] as String).toSet();
+        expect(columnNames, isNot(contains('tmp_col')));
+        // The original v1 columns survive.
+        expect(columnNames, containsAll(<String>['transcript', 'riskLevel']));
+      });
     });
 
     group('Insert edge cases', () {
@@ -273,11 +263,7 @@ CREATE TABLE call_history (
 
       test('insert with empty strings', () async {
         final id = await db.callHistoryDao.insert(
-          makeEntry(
-            transcript: '',
-            summary: '',
-            duration: '',
-          ),
+          makeEntry(transcript: '', summary: '', duration: ''),
         );
         expect(id, greaterThan(0));
 
@@ -349,22 +335,17 @@ CREATE TABLE call_history (
     group('Pagination edge cases', () {
       setUp(() async {
         for (var i = 0; i < 10; i++) {
-          await db.callHistoryDao.insert(
-            makeEntry(transcript: 'Item $i'),
-          );
+          await db.callHistoryDao.insert(makeEntry(transcript: 'Item $i'));
         }
       });
 
-      test(
-        'pagination with offset beyond total count returns empty',
-        () async {
-          final results = await db.callHistoryDao.getAllPaginated(
-            limit: 5,
-            offset: 100,
-          );
-          expect(results, isEmpty);
-        },
-      );
+      test('pagination with offset beyond total count returns empty', () async {
+        final results = await db.callHistoryDao.getAllPaginated(
+          limit: 5,
+          offset: 100,
+        );
+        expect(results, isEmpty);
+      });
 
       test('pagination with limit=0 returns empty', () async {
         final results = await db.callHistoryDao.getAllPaginated(

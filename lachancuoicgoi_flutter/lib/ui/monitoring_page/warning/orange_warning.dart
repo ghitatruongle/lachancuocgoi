@@ -4,7 +4,11 @@ import 'full_screen_warning.dart';
 
 /// Full-screen orange warning dialog for suspicious calls.
 class OrangeWarning extends StatelessWidget {
-  const OrangeWarning({super.key, required this.title, required this.onDismiss});
+  const OrangeWarning({
+    super.key,
+    required this.title,
+    required this.onDismiss,
+  });
 
   final String title;
   final VoidCallback onDismiss;

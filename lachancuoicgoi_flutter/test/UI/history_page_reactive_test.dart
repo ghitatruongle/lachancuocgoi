@@ -42,13 +42,13 @@ void main() {
   });
 
   CallHistory makeRow(int i) => CallHistory(
-        dateTime: '00:00:00 01/06/2026',
-        riskLevel: i % 2 == 0 ? 'GREEN' : 'RED',
-        summary: 'Row $i',
-        duration: '${i % 60}s',
-        flagCount: i % 5,
-        transcript: 'transcript-$i',
-      );
+    dateTime: '00:00:00 01/06/2026',
+    riskLevel: i % 2 == 0 ? 'GREEN' : 'RED',
+    summary: 'Row $i',
+    duration: '${i % 60}s',
+    flagCount: i % 5,
+    transcript: 'transcript-$i',
+  );
 
   /// Pump the HistoryPage inside a ProviderScope with an in-memory DB.
   /// Returns the provider container so the test can read state directly.
@@ -88,8 +88,9 @@ void main() {
   });
 
   // ─── Reactive: a new row appears without remount ───────────────────
-  testWidgets('inserting a row updates the list without remounting',
-      (tester) async {
+  testWidgets('inserting a row updates the list without remounting', (
+    tester,
+  ) async {
     await pumpPage(tester);
 
     // Insert one row. The reactive stream in _HistoryController picks
@@ -150,7 +151,8 @@ void main() {
     await tester.runAsync(() async {
       for (int i = 0; i < 100; i++) {
         await tester.pump();
-        if (tester.any(find.text('Row 1')) && tester.any(find.text('Row 2'))) break;
+        if (tester.any(find.text('Row 1')) && tester.any(find.text('Row 2')))
+          break;
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
     });
@@ -164,7 +166,8 @@ void main() {
     await tester.runAsync(() async {
       for (int i = 0; i < 100; i++) {
         await tester.pump();
-        if (!tester.any(find.text('Row 1')) && !tester.any(find.text('Row 2'))) break;
+        if (!tester.any(find.text('Row 1')) && !tester.any(find.text('Row 2')))
+          break;
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
     });
@@ -188,7 +191,9 @@ void main() {
     await tester.runAsync(() async {
       for (int i = 0; i < 100; i++) {
         await tester.pump();
-        if (tester.any(find.text('unique-marker-xyz')) && tester.any(find.text('ordinary row'))) break;
+        if (tester.any(find.text('unique-marker-xyz')) &&
+            tester.any(find.text('ordinary row')))
+          break;
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
     });
@@ -215,14 +220,14 @@ void main() {
   });
 
   // ─── Delete-all button is hidden when empty ─────────────────────────
-  testWidgets('delete-all button is hidden when list is empty',
-      (tester) async {
+  testWidgets('delete-all button is hidden when list is empty', (tester) async {
     await pumpPage(tester);
     expect(find.text('Xóa tất cả'), findsNothing);
   });
 
-  testWidgets('delete-all button is visible when list has rows',
-      (tester) async {
+  testWidgets('delete-all button is visible when list has rows', (
+    tester,
+  ) async {
     await pumpPage(tester);
     await tester.runAsync(() async {
       await db.callHistoryDao.insert(makeRow(1));

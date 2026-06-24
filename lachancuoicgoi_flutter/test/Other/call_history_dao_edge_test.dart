@@ -61,21 +61,18 @@ void main() {
         expect(all, isEmpty);
       });
 
-      test(
-        'updateRiskLevel for non-existent ID does not throw',
-        () async {
-          // Insert one record to ensure the table is not empty
-          await db.callHistoryDao.insert(makeEntry());
+      test('updateRiskLevel for non-existent ID does not throw', () async {
+        // Insert one record to ensure the table is not empty
+        await db.callHistoryDao.insert(makeEntry());
 
-          // Update non-existent ID
-          await db.callHistoryDao.updateRiskLevel(99999, 'ORANGE');
+        // Update non-existent ID
+        await db.callHistoryDao.updateRiskLevel(99999, 'ORANGE');
 
-          // Original record should be unchanged
-          final all = await db.callHistoryDao.getAll();
-          expect(all, hasLength(1));
-          expect(all[0].riskLevel, 'RED');
-        },
-      );
+        // Original record should be unchanged
+        final all = await db.callHistoryDao.getAll();
+        expect(all, hasLength(1));
+        expect(all[0].riskLevel, 'RED');
+      });
     });
 
     group('Delete by non-existent ID', () {
@@ -164,9 +161,7 @@ void main() {
     group('getAllPaginated edge cases', () {
       setUp(() async {
         for (var i = 0; i < 10; i++) {
-          await db.callHistoryDao.insert(
-            makeEntry(transcript: 'Item $i'),
-          );
+          await db.callHistoryDao.insert(makeEntry(transcript: 'Item $i'));
         }
       });
 
@@ -194,30 +189,22 @@ void main() {
         expect(results, isEmpty);
       });
 
-      test(
-        'getAllPaginated returns correct page with large offset',
-        () async {
-          final page = await db.callHistoryDao.getAllPaginated(
-            limit: 3,
-            offset: 7,
-          );
-          expect(page, hasLength(3));
-        },
-      );
+      test('getAllPaginated returns correct page with large offset', () async {
+        final page = await db.callHistoryDao.getAllPaginated(
+          limit: 3,
+          offset: 7,
+        );
+        expect(page, hasLength(3));
+      });
 
-      test(
-        'getAllPaginated default parameters return first 20',
-        () async {
-          // Insert 25 items
-          for (var i = 10; i < 25; i++) {
-            await db.callHistoryDao.insert(
-              makeEntry(transcript: 'Extra $i'),
-            );
-          }
-          final results = await db.callHistoryDao.getAllPaginated();
-          expect(results, hasLength(20));
-        },
-      );
+      test('getAllPaginated default parameters return first 20', () async {
+        // Insert 25 items
+        for (var i = 10; i < 25; i++) {
+          await db.callHistoryDao.insert(makeEntry(transcript: 'Extra $i'));
+        }
+        final results = await db.callHistoryDao.getAllPaginated();
+        expect(results, hasLength(20));
+      });
     });
 
     group('watchAll stream edge cases', () {
@@ -255,9 +242,7 @@ void main() {
       });
 
       test('watchAll emits on updateRiskLevel', () async {
-        final id = await db.callHistoryDao.insert(
-          makeEntry(risk: 'GREEN'),
-        );
+        final id = await db.callHistoryDao.insert(makeEntry(risk: 'GREEN'));
 
         final emissions = <List<CallHistory>>[];
         final firstEmission = Completer<void>();
@@ -378,9 +363,7 @@ void main() {
 
       test('rapid sequential inserts maintain order', () async {
         for (var i = 0; i < 50; i++) {
-          await db.callHistoryDao.insert(
-            makeEntry(transcript: 'Rapid $i'),
-          );
+          await db.callHistoryDao.insert(makeEntry(transcript: 'Rapid $i'));
         }
 
         final all = await db.callHistoryDao.getAll();

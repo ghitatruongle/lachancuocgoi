@@ -45,7 +45,9 @@ void main() {
 
     test('casualReductionPerMatch defaults to 0.15', () {
       // One casual phrase in opening -> 1.0 - 0.15 = 0.85
-      final result = SafetyFilter.calculateSafetyDiscount('ăn cơm chưa bạn nhé');
+      final result = SafetyFilter.calculateSafetyDiscount(
+        'ăn cơm chưa bạn nhé',
+      );
       expect(result, closeTo(0.85, 0.001));
     });
 
@@ -57,7 +59,8 @@ void main() {
 
     test('minMultiplier defaults to 0.4', () {
       // Many casual phrases + many transactions to push below 0.4
-      const text = 'ăn cơm chưa đi chơi không đang làm gì đấy thế à vậy hả '
+      const text =
+          'ăn cơm chưa đi chơi không đang làm gì đấy thế à vậy hả '
           'mẹ đây bố đây con đang chút nữa gọi lại mua rau đi chợ. '
           'chuyển khoản tiền trọ tiền cơm chia tiền nốt chuyển tiền học phí trả tiền điện';
       final result = SafetyFilter.calculateSafetyDiscount(text);
@@ -71,7 +74,9 @@ void main() {
 
   group('SafetyFilter — casual phrases in opening section', () {
     test('single casual phrase in opening -> discount applied (0.85)', () {
-      final result = SafetyFilter.calculateSafetyDiscount('alo, ăn cơm chưa bạn?');
+      final result = SafetyFilter.calculateSafetyDiscount(
+        'alo, ăn cơm chưa bạn?',
+      );
       expect(result, closeTo(0.85, 0.001));
     });
 
@@ -145,9 +150,19 @@ void main() {
 
     test('all danger override keywords are detected', () {
       const dangerKeywords = [
-        'số tài khoản', 'mã otp', 'chuyển khoản', 'mật khẩu',
-        'cccd', 'cmnd', 'công an', 'kiểm sát', 'tải ứng dụng',
-        'cài app', 'link', 'bắt cóc', 'tống tiền',
+        'số tài khoản',
+        'mã otp',
+        'chuyển khoản',
+        'mật khẩu',
+        'cccd',
+        'cmnd',
+        'công an',
+        'kiểm sát',
+        'tải ứng dụng',
+        'cài app',
+        'link',
+        'bắt cóc',
+        'tống tiền',
       ];
       for (final keyword in dangerKeywords) {
         SafetyFilter.resetForTesting();
@@ -204,7 +219,8 @@ void main() {
     });
 
     test('many casual + many transactions -> clamped to minMultiplier', () {
-      const text = 'ăn cơm chưa đi chơi không đang làm gì đấy thế à vậy hả '
+      const text =
+          'ăn cơm chưa đi chơi không đang làm gì đấy thế à vậy hả '
           'mẹ đây bố đây con đang chút nữa gọi lại mua rau đi chợ. '
           'chuyển khoản tiền trọ tiền cơm chia tiền nốt chuyển tiền học phí trả tiền điện';
       final result = SafetyFilter.calculateSafetyDiscount(text);
@@ -219,7 +235,8 @@ void main() {
   group('SafetyFilter — minimum multiplier clamp', () {
     test('discount does not go below 0.4', () {
       // Construct a text with many matches to push below 0.4
-      const text = 'ăn cơm chưa đi chơi không đang làm gì đấy thế à vậy hả '
+      const text =
+          'ăn cơm chưa đi chơi không đang làm gì đấy thế à vậy hả '
           'mẹ đây bố đây con đang chút nữa gọi lại mua rau đi chợ. '
           'chuyển khoản tiền trọ tiền cơm chia tiền nốt chuyển tiền học phí trả tiền điện';
       final result = SafetyFilter.calculateSafetyDiscount(text);
@@ -290,7 +307,11 @@ void main() {
       final customJson = jsonEncode({
         'openingSectionLength': 200,
         'casualPhrases': ['ăn cơm chưa', 'đi chơi không', 'đang làm gì đấy'],
-        'standardTransactions': ['tiền cơm', 'trả tiền điện', 'chuyển tiền học phí'],
+        'standardTransactions': [
+          'tiền cơm',
+          'trả tiền điện',
+          'chuyển tiền học phí',
+        ],
         'dangerOverrides': ['mã otp'],
         'casualReductionPerMatch': 0.15,
         'transactionReductionPerMatch': 0.30,
@@ -299,7 +320,8 @@ void main() {
       await SafetyFilter.loadConfig(assetProvider: (_) => customJson);
 
       // Push below 0.5: 3 casual (0.45) + 3 transactions (0.90) = 1.35 reduction
-      const text = 'ăn cơm chưa đi chơi không đang làm gì đấy. '
+      const text =
+          'ăn cơm chưa đi chơi không đang làm gì đấy. '
           'tiền cơm trả tiền điện chuyển tiền học phí';
       final result = SafetyFilter.calculateSafetyDiscount(text);
       // 1.0 - 1.35 = -0.35 -> clamped to 0.5
@@ -333,13 +355,16 @@ void main() {
       expect(result, closeTo(0.55, 0.001));
     });
 
-    test('transaction discount applies even when transaction is in opening', () {
-      // "tiền cơm" appears in opening section
-      const text = 'tiền cơm tháng này bao nhiêu vậy bạn?';
-      final result = SafetyFilter.calculateSafetyDiscount(text);
-      // Transaction is checked on full text -> 1 match -> 0.30 reduction
-      expect(result, closeTo(0.70, 0.001));
-    });
+    test(
+      'transaction discount applies even when transaction is in opening',
+      () {
+        // "tiền cơm" appears in opening section
+        const text = 'tiền cơm tháng này bao nhiêu vậy bạn?';
+        final result = SafetyFilter.calculateSafetyDiscount(text);
+        // Transaction is checked on full text -> 1 match -> 0.30 reduction
+        expect(result, closeTo(0.70, 0.001));
+      },
+    );
 
     test('exact boundary: text of exactly 200 chars', () {
       // Text is exactly 200 chars -> main section is empty
@@ -370,7 +395,9 @@ void main() {
 
       // "không phải ăn cơm" starts with negation → should be SKIPPED
       // "đi chơi" → counted
-      final result = SafetyFilter.calculateSafetyDiscount('đi chơi nhé, không phải ăn cơm đâu');
+      final result = SafetyFilter.calculateSafetyDiscount(
+        'đi chơi nhé, không phải ăn cơm đâu',
+      );
       // 1 casual * 0.15 = 0.15
       expect(result, closeTo(0.85, 0.001));
     });
@@ -383,7 +410,9 @@ void main() {
       });
       await SafetyFilter.loadConfig(assetProvider: (_) => json);
 
-      final result = SafetyFilter.calculateSafetyDiscount('đi chơi và ăn cơm nhé');
+      final result = SafetyFilter.calculateSafetyDiscount(
+        'đi chơi và ăn cơm nhé',
+      );
       // 2 casual * 0.15 = 0.30
       expect(result, closeTo(0.70, 0.001));
     });

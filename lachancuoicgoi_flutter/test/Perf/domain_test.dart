@@ -67,10 +67,7 @@ void main() {
         'cong an yeu cau ma otp',
       );
       expect(
-        TextNormalizer.normalize(
-          'C.ông an',
-          noiseMode: NoiseMode.space,
-        ),
+        TextNormalizer.normalize('C.ông an', noiseMode: NoiseMode.space),
         'c ong an',
       );
     });

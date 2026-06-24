@@ -8,22 +8,29 @@ void main() {
     final rand = Random(42);
 
     String generateRandomString(int maxLength) {
-      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 áàảãạâấầẩẫậăắằẳẵặéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđĐ ,.!?;\n\t';
+      const chars =
+          'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 áàảãạâấầẩẫậăắằẳẵặéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđĐ ,.!?;\n\t';
       final length = rand.nextInt(maxLength) + 1;
-      return List.generate(length, (_) => chars[rand.nextInt(chars.length)]).join();
+      return List.generate(
+        length,
+        (_) => chars[rand.nextInt(chars.length)],
+      ).join();
     }
 
     test('PIIStripper redact and restore fuzzing (1000 iterations)', () {
       for (int i = 0; i < 1000; i++) {
         final rawText = generateRandomString(150);
-        
+
         // Ensure no exception is thrown
         final res = PIIStripper.redactPII(rawText);
-        
+
         // Ensure we can restore it to the original text
-        final restored = PIIStripper.restorePII(res.redactedText, res.tokensMap);
-        
-        // PIIStripper replaces PII with tokens and maps them. 
+        final restored = PIIStripper.restorePII(
+          res.redactedText,
+          res.tokensMap,
+        );
+
+        // PIIStripper replaces PII with tokens and maps them.
         // Thus, restoring should equal the original text (barring minor spacing adjustments, but PIIStripper's restore preserves original spacing structure).
         // Let's verify that original values are restored properly.
         expect(restored, equals(rawText));
@@ -33,7 +40,7 @@ void main() {
     test('FlatTrie building and matching fuzzing (500 iterations)', () {
       for (int i = 0; i < 500; i++) {
         final trie = FlatTrie(initialCapacity: 10);
-        
+
         // Insert random keywords
         final keywordsCount = rand.nextInt(20) + 1;
         final List<String> keywords = [];
@@ -52,10 +59,10 @@ void main() {
             );
           }
         }
-        
+
         // Ensure properties hold
         expect(trie.nodesCount, greaterThan(0));
-        
+
         // Retrieve values for random nodes
         for (int n = 0; n < trie.nodesCount; n++) {
           final level = trie.getRiskLevel(n);

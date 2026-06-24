@@ -187,7 +187,10 @@ void main() {
     test('const constructor allows compile-time constants', () {
       const response = AnalysisResponse(level: 'GREEN');
       // Verify it can be used as a compile-time constant
-      expect(identical(response, const AnalysisResponse(level: 'GREEN')), isTrue);
+      expect(
+        identical(response, const AnalysisResponse(level: 'GREEN')),
+        isTrue,
+      );
     });
   });
 }

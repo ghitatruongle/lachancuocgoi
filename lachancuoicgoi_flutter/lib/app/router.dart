@@ -63,8 +63,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/', builder: (context, state) => const HomePage()),
       GoRoute(
-          path: '/simulation',
-          builder: (context, state) => const SimulationPage()),
+        path: '/simulation',
+        builder: (context, state) => const SimulationPage(),
+      ),
       GoRoute(
         path: '/monitoring',
         builder: (context, state) {
@@ -83,10 +84,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-          path: '/history', builder: (context, state) => const HistoryPage()),
+        path: '/history',
+        builder: (context, state) => const HistoryPage(),
+      ),
       GoRoute(
-          path: '/tips_lesson',
-          builder: (context, state) => const TipsLessonPage()),
+        path: '/tips_lesson',
+        builder: (context, state) => const TipsLessonPage(),
+      ),
     ],
   );
 });

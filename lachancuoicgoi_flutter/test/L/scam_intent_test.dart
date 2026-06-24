@@ -48,8 +48,11 @@ void main() {
   group('displayName', () {
     test('returns non-empty string for every intent', () {
       for (final intent in ScamIntent.values) {
-        expect(intent.displayName, isNotEmpty,
-            reason: 'displayName of ${intent.name} must not be empty');
+        expect(
+          intent.displayName,
+          isNotEmpty,
+          reason: 'displayName of ${intent.name} must not be empty',
+        );
       }
     });
 
@@ -59,30 +62,41 @@ void main() {
 
     test('authPoliceLawsuit has correct displayName', () {
       expect(
-          ScamIntent.authPoliceLawsuit.displayName, 'Giả danh Công an/Tòa án');
+        ScamIntent.authPoliceLawsuit.displayName,
+        'Giả danh Công an/Tòa án',
+      );
     });
 
     test('each intent has a unique displayName', () {
       final names = ScamIntent.values.map((i) => i.displayName).toList();
       final uniqueNames = names.toSet();
-      expect(uniqueNames.length, names.length,
-          reason: 'All displayNames must be unique');
+      expect(
+        uniqueNames.length,
+        names.length,
+        reason: 'All displayNames must be unique',
+      );
     });
   });
 
   group('description', () {
     test('returns non-empty string for every intent', () {
       for (final intent in ScamIntent.values) {
-        expect(intent.description, isNotEmpty,
-            reason: 'description of ${intent.name} must not be empty');
+        expect(
+          intent.description,
+          isNotEmpty,
+          reason: 'description of ${intent.name} must not be empty',
+        );
       }
     });
 
     test('each intent has a unique description', () {
       final descs = ScamIntent.values.map((i) => i.description).toList();
       final uniqueDescs = descs.toSet();
-      expect(uniqueDescs.length, descs.length,
-          reason: 'All descriptions must be unique');
+      expect(
+        uniqueDescs.length,
+        descs.length,
+        reason: 'All descriptions must be unique',
+      );
     });
   });
 
@@ -99,8 +113,11 @@ void main() {
         ScamIntent.genericScam,
       ];
       for (final intent in yellowIntents) {
-        expect(intent.baseRiskLevel, RiskLevel.yellow,
-            reason: '${intent.name} should be yellow');
+        expect(
+          intent.baseRiskLevel,
+          RiskLevel.yellow,
+          reason: '${intent.name} should be yellow',
+        );
       }
     });
 
@@ -119,8 +136,11 @@ void main() {
         ScamIntent.cryptoDrain,
       ];
       for (final intent in orangeIntents) {
-        expect(intent.baseRiskLevel, RiskLevel.orange,
-            reason: '${intent.name} should be orange');
+        expect(
+          intent.baseRiskLevel,
+          RiskLevel.orange,
+          reason: '${intent.name} should be orange',
+        );
       }
     });
 
@@ -137,8 +157,11 @@ void main() {
         ScamIntent.blackCreditTerror,
       ];
       for (final intent in redIntents) {
-        expect(intent.baseRiskLevel, RiskLevel.red,
-            reason: '${intent.name} should be red');
+        expect(
+          intent.baseRiskLevel,
+          RiskLevel.red,
+          reason: '${intent.name} should be red',
+        );
       }
     });
 
@@ -263,9 +286,12 @@ void main() {
         for (final intent in ScamIntent.values) {
           if (intent == ScamIntent.safe) continue;
           final level = intent.riskLevelForConfidence(0.0);
-          expect(level.index, greaterThanOrEqualTo(RiskLevel.yellow.index),
-              reason:
-                  '${intent.name} at 0.0 confidence should be at least yellow');
+          expect(
+            level.index,
+            greaterThanOrEqualTo(RiskLevel.yellow.index),
+            reason:
+                '${intent.name} at 0.0 confidence should be at least yellow',
+          );
         }
       });
     });

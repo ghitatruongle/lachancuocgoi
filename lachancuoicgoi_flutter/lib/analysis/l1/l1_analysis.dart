@@ -14,7 +14,6 @@ import '../health_check.dart';
 import 'l1_result.dart';
 import 'l1_safety_filter.dart';
 
-
 class FlatTrie {
   FlatTrie({int initialCapacity = 2000})
     : childrenMaps = List<Map<String, int>?>.filled(
@@ -489,7 +488,9 @@ class L1Analyzer implements Analyzer {
             .map((k) => k.toLowerCase().trim())
             .where((k) => k.isNotEmpty)
             .toSet();
-        _logger?.info('Loaded ${_criticalKeywords.length} critical keywords from JSON.');
+        _logger?.info(
+          'Loaded ${_criticalKeywords.length} critical keywords from JSON.',
+        );
       }
     } on Object catch (e) {
       _logger?.warning('Failed to load critical keywords: $e. Using defaults.');
@@ -710,7 +711,9 @@ class L1Analyzer implements Analyzer {
       return result;
     }
     if (_assetLoader == null) {
-      throw StateError('AssetLoader is null. Phải cung cấp AssetLoader hoặc provider cho $assetKey.');
+      throw StateError(
+        'AssetLoader is null. Phải cung cấp AssetLoader hoặc provider cho $assetKey.',
+      );
     }
     return _assetLoader.loadString(assetKey);
   }

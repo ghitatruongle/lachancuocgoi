@@ -9,9 +9,9 @@ class GeminiSummarizer {
     ApiKeyProvider? apiKeyProvider,
     KeyHealthTracker? keyHealthTracker,
     GeminiClient? geminiClient,
-  })  : _apiKeyProvider = apiKeyProvider ?? EnvironmentApiKeyProvider(),
-        _keyHealthTracker = keyHealthTracker,
-        _geminiClient = geminiClient;
+  }) : _apiKeyProvider = apiKeyProvider ?? EnvironmentApiKeyProvider(),
+       _keyHealthTracker = keyHealthTracker,
+       _geminiClient = geminiClient;
 
   static const int _minWords = 5;
 
@@ -31,7 +31,9 @@ class GeminiSummarizer {
 
   Future<String> summarize(String text) async {
     final trimmed = text.trim();
-    final words = trimmed.split(RegExp(r'\s+')).where((part) => part.isNotEmpty);
+    final words = trimmed
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty);
     if (words.length < _minWords) {
       return 'Không đủ nội dung để tóm tắt (cần ít nhất $_minWords từ)';
     }

@@ -24,7 +24,8 @@ class PermissionState {
 
   int get grantedCount => snapshot.grantedCount;
   int get totalPermissions => PermissionSnapshot.totalPermissions;
-  double get progress => totalPermissions > 0 ? grantedCount / totalPermissions : 0;
+  double get progress =>
+      totalPermissions > 0 ? grantedCount / totalPermissions : 0;
   bool get allGranted => snapshot.allGranted;
 
   PermissionState copyWith({
@@ -50,11 +51,13 @@ class PermissionController extends Notifier<PermissionState>
     with WidgetsBindingObserver {
   /// Backward-compatible constructor for tests that instantiate directly.
   /// In production, use [ProviderContainer] / [NotifierProvider] which calls [build].
-  PermissionController([NativeBridgeInterface? bridge]) : _storedBridge = bridge;
+  PermissionController([NativeBridgeInterface? bridge])
+    : _storedBridge = bridge;
 
   final NativeBridgeInterface? _storedBridge;
 
-  NativeBridgeInterface get _bridge => _storedBridge ?? ref.read(nativeBridgeProvider);
+  NativeBridgeInterface get _bridge =>
+      _storedBridge ?? ref.read(nativeBridgeProvider);
 
   @override
   PermissionState build() {
@@ -79,7 +82,8 @@ class PermissionController extends Notifier<PermissionState>
       final proceed = await PermissionRationaleDialog.show(
         context,
         permissionName: 'Ghi âm',
-        rationale: 'Lá Chắn Cuộc Gọi cần quyền ghi âm để thu nhận giọng nói của cuộc gọi đến, phục vụ cho việc chuyển đổi giọng nói thành văn bản (STT) và phân tích các dấu hiệu lừa đảo theo thời gian thực.',
+        rationale:
+            'Lá Chắn Cuộc Gọi cần quyền ghi âm để thu nhận giọng nói của cuộc gọi đến, phục vụ cho việc chuyển đổi giọng nói thành văn bản (STT) và phân tích các dấu hiệu lừa đảo theo thời gian thực.',
         icon: Icons.mic,
       );
       if (!proceed) return state.snapshot.recordAudio;
@@ -101,12 +105,16 @@ class PermissionController extends Notifier<PermissionState>
   }
 
   /// READ_PHONE_STATE / READ_CALL_LOG (Android) via permission_handler.
-  Future<bool> requestPhoneAndCallLogPermissions([BuildContext? context]) async {
-    if (context != null && (!state.snapshot.phoneState || !state.snapshot.callLog)) {
+  Future<bool> requestPhoneAndCallLogPermissions([
+    BuildContext? context,
+  ]) async {
+    if (context != null &&
+        (!state.snapshot.phoneState || !state.snapshot.callLog)) {
       final proceed = await PermissionRationaleDialog.show(
         context,
         permissionName: 'Trạng thái & Lịch sử cuộc gọi',
-        rationale: 'Lá Chắn Cuộc Gọi cần quyền đọc trạng thái điện thoại để phát hiện cuộc gọi đến và tự động kích hoạt giám sát. Quyền lịch sử cuộc gọi giúp ghi nhận thời lượng cuộc gọi và cập nhật thông tin lịch sử quét.',
+        rationale:
+            'Lá Chắn Cuộc Gọi cần quyền đọc trạng thái điện thoại để phát hiện cuộc gọi đến và tự động kích hoạt giám sát. Quyền lịch sử cuộc gọi giúp ghi nhận thời lượng cuộc gọi và cập nhật thông tin lịch sử quét.',
         icon: Icons.phone,
       );
       if (!proceed) return state.snapshot.phoneState && state.snapshot.callLog;
@@ -133,7 +141,8 @@ class PermissionController extends Notifier<PermissionState>
       final proceed = await PermissionRationaleDialog.show(
         context,
         permissionName: 'Thông báo',
-        rationale: 'Lá Chắn Cuộc Gọi cần quyền gửi thông báo để duy trì dịch vụ chạy nền giám sát cuộc gọi và hiển thị các cảnh báo rủi ro tức thời khi phát hiện dấu hiệu nghi ngờ.',
+        rationale:
+            'Lá Chắn Cuộc Gọi cần quyền gửi thông báo để duy trì dịch vụ chạy nền giám sát cuộc gọi và hiển thị các cảnh báo rủi ro tức thời khi phát hiện dấu hiệu nghi ngờ.',
         icon: Icons.notifications,
       );
       if (!proceed) return state.snapshot.notification;
@@ -154,7 +163,9 @@ class PermissionController extends Notifier<PermissionState>
     }
   }
 
-  Future<void> _requestStandardRuntimePermissions([BuildContext? context]) async {
+  Future<void> _requestStandardRuntimePermissions([
+    BuildContext? context,
+  ]) async {
     if (!_canUseRuntimePermissionUi) return;
 
     final s = state.snapshot;
@@ -162,7 +173,8 @@ class PermissionController extends Notifier<PermissionState>
       await requestMicrophonePermission(context);
     }
     if (context != null && !context.mounted) return;
-    if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
+    if (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS) {
       if (!state.snapshot.notification) {
         await requestNotificationPermission(context);
       }
@@ -185,10 +197,7 @@ class PermissionController extends Notifier<PermissionState>
       // Riverpod's Notifier doesn't have mounted; the provider is disposed
       // via ref.onDispose (set in build()), so we just update state.
       if (snapshot != state.snapshot) {
-        state = state.copyWith(
-          snapshot: snapshot,
-          lastUpdated: clock.now(),
-        );
+        state = state.copyWith(snapshot: snapshot, lastUpdated: clock.now());
       }
     } on Exception catch (e) {
       debugPrint('Failed to refresh permissions: $e');
@@ -214,7 +223,8 @@ class PermissionController extends Notifier<PermissionState>
       final proceed = await PermissionRationaleDialog.show(
         context,
         permissionName: 'Hiển thị trên ứng dụng khác',
-        rationale: 'Lá Chắn Cuộc Gọi cần quyền hiển thị trên ứng dụng khác để bật cảnh báo màu đỏ tràn màn hình khi phát hiện cuộc gọi lừa đảo khẩn cấp, giúp bạn nhận biết ngay lập tức.',
+        rationale:
+            'Lá Chắn Cuộc Gọi cần quyền hiển thị trên ứng dụng khác để bật cảnh báo màu đỏ tràn màn hình khi phát hiện cuộc gọi lừa đảo khẩn cấp, giúp bạn nhận biết ngay lập tức.',
         icon: Icons.layers,
       );
       if (!proceed) return state.snapshot.overlay;
@@ -235,7 +245,8 @@ class PermissionController extends Notifier<PermissionState>
       final proceed = await PermissionRationaleDialog.show(
         context,
         permissionName: 'Trợ năng',
-        rationale: 'Lá Chắn Cuộc Gọi cần quyền Trợ năng để đọc phụ đề âm thanh cuộc gọi trực tiếp từ hệ thống, giúp bảo vệ bạn ngay cả khi bạn không bật loa ngoài.',
+        rationale:
+            'Lá Chắn Cuộc Gọi cần quyền Trợ năng để đọc phụ đề âm thanh cuộc gọi trực tiếp từ hệ thống, giúp bảo vệ bạn ngay cả khi bạn không bật loa ngoài.',
         icon: Icons.accessibility_new,
       );
       if (!proceed) return state.snapshot.accessibility;
@@ -256,7 +267,8 @@ class PermissionController extends Notifier<PermissionState>
       final proceed = await PermissionRationaleDialog.show(
         context,
         permissionName: 'Sàng lọc cuộc gọi',
-        rationale: 'Lá Chắn Cuộc Gọi cần quyền Vai trò Sàng lọc Cuộc gọi để chủ động nhận dạng cuộc gọi từ số lạ và thực hiện sàng lọc trước khi chuông điện thoại của bạn reo.',
+        rationale:
+            'Lá Chắn Cuộc Gọi cần quyền Vai trò Sàng lọc Cuộc gọi để chủ động nhận dạng cuộc gọi từ số lạ và thực hiện sàng lọc trước khi chuông điện thoại của bạn reo.',
         icon: Icons.call,
       );
       if (!proceed) return state.snapshot.callScreening;
@@ -281,7 +293,9 @@ class PermissionController extends Notifier<PermissionState>
   }
 
   /// Request all missing permissions in sequence.
-  Future<Map<String, bool>> requestAllPermissions([BuildContext? context]) async {
+  Future<Map<String, bool>> requestAllPermissions([
+    BuildContext? context,
+  ]) async {
     final results = <String, bool>{};
 
     await _requestStandardRuntimePermissions(context);
@@ -289,7 +303,9 @@ class PermissionController extends Notifier<PermissionState>
     if (context != null && !context.mounted) return results;
 
     if (!state.snapshot.phoneState || !state.snapshot.callLog) {
-      results['phoneAndCallLog'] = await requestPhoneAndCallLogPermissions(context);
+      results['phoneAndCallLog'] = await requestPhoneAndCallLogPermissions(
+        context,
+      );
     }
 
     if (context != null && !context.mounted) return results;
@@ -321,8 +337,8 @@ class PermissionController extends Notifier<PermissionState>
 
 final permissionControllerProvider =
     NotifierProvider<PermissionController, PermissionState>(
-  PermissionController.new,
-);
+      PermissionController.new,
+    );
 
 /// Provider that returns true when all permissions are granted.
 final allPermissionsGrantedProvider = Provider<bool>((ref) {

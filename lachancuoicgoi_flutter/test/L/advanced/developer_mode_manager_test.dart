@@ -177,7 +177,10 @@ void main() {
 
       final state = container.read(developerModeProvider);
       // Expiry should be activation + 10 minutes
-      expect(state.expiresAtEpochMs, greaterThan(beforeActivation + 599_000)); // ~10 min in ms
+      expect(
+        state.expiresAtEpochMs,
+        greaterThan(beforeActivation + 599_000),
+      ); // ~10 min in ms
       expect(state.expiresAtEpochMs, lessThan(afterActivation + 601_000));
     });
   });

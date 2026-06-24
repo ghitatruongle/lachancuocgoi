@@ -6,9 +6,7 @@ import 'package:lachancuocgoi_flutter/services/permission_controller.dart';
 /// Creates a [ProviderContainer] and returns the [PermissionController] notifier.
 /// This is the correct way to create a [Notifier]-based controller in tests.
 ProviderContainer createContainer() {
-  return ProviderContainer(
-    overrides: [],
-  );
+  return ProviderContainer(overrides: []);
 }
 
 PermissionController createController(ProviderContainer container) {

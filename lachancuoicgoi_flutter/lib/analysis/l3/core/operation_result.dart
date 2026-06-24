@@ -1,9 +1,5 @@
 class Result<T> {
-  const Result._({
-    this.value,
-    this.error,
-    this.stackTrace,
-  });
+  const Result._({this.value, this.error, this.stackTrace});
 
   final T? value;
   final Object? error;

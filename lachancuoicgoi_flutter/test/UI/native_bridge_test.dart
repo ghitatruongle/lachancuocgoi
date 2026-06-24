@@ -208,9 +208,7 @@ void main() {
             throw PlatformException(code: 'ERROR', message: 'Test error');
           });
 
-      final result = await bridge.startCreatorMonitoring(
-        devModeExpiresAtMs: 0,
-      );
+      final result = await bridge.startCreatorMonitoring(devModeExpiresAtMs: 0);
       expect(result, isFalse);
     });
 
@@ -249,15 +247,18 @@ void main() {
       expect(methodCalls.last.method, 'isCreatorMonitoringActive');
     });
 
-    test('isCreatorMonitoringActive returns false on PlatformException', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(methodChannel, (call) async {
-            throw PlatformException(code: 'ERROR', message: 'Test error');
-          });
+    test(
+      'isCreatorMonitoringActive returns false on PlatformException',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(methodChannel, (call) async {
+              throw PlatformException(code: 'ERROR', message: 'Test error');
+            });
 
-      final result = await bridge.isCreatorMonitoringActive();
-      expect(result, isFalse);
-    });
+        final result = await bridge.isCreatorMonitoringActive();
+        expect(result, isFalse);
+      },
+    );
 
     test('requestPhoneAndCallLogPermissions calls correct method', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -271,28 +272,34 @@ void main() {
       expect(methodCalls.last.method, 'requestPhoneAndCallLogPermissions');
     });
 
-    test('requestPhoneAndCallLogPermissions returns false on PlatformException', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(methodChannel, (call) async {
-            throw PlatformException(code: 'ERROR', message: 'Test error');
-          });
+    test(
+      'requestPhoneAndCallLogPermissions returns false on PlatformException',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(methodChannel, (call) async {
+              throw PlatformException(code: 'ERROR', message: 'Test error');
+            });
 
-      final result = await bridge.requestPhoneAndCallLogPermissions();
-      expect(result, isFalse);
-    });
+        final result = await bridge.requestPhoneAndCallLogPermissions();
+        expect(result, isFalse);
+      },
+    );
 
-    test('startCreatorMonitoring returns false when native returns null', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(methodChannel, (call) async {
-            methodCalls.add(call);
-            return null;
-          });
+    test(
+      'startCreatorMonitoring returns false when native returns null',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(methodChannel, (call) async {
+              methodCalls.add(call);
+              return null;
+            });
 
-      final result = await bridge.startCreatorMonitoring(
-        devModeExpiresAtMs: 0,
-      );
-      expect(result, isFalse);
-    });
+        final result = await bridge.startCreatorMonitoring(
+          devModeExpiresAtMs: 0,
+        );
+        expect(result, isFalse);
+      },
+    );
   });
 
   group('NativeCallShieldBridge — Data Models', () {

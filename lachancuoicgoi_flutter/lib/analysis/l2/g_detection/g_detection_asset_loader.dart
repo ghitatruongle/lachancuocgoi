@@ -138,7 +138,9 @@ class GDetectionAssetLoader {
       return await provider(fileName);
     }
     if (_assetLoader == null) {
-      throw StateError('AssetLoader is null. Phải cung cấp AssetLoader hoặc provider cho $fileName.');
+      throw StateError(
+        'AssetLoader is null. Phải cung cấp AssetLoader hoặc provider cho $fileName.',
+      );
     }
     return _assetLoader.loadString('assets/$fileName');
   }

@@ -21,7 +21,9 @@ import 'l2/l2_analysis.dart';
 import 'l3/l3_analysis.dart';
 
 /// Providers for core abstraction services
-final assetLoaderProvider = Provider<AssetLoader>((ref) => const FlutterAssetLoader());
+final assetLoaderProvider = Provider<AssetLoader>(
+  (ref) => const FlutterAssetLoader(),
+);
 final loggerProvider = Provider<AppLogger>((ref) => const FlutterLogger());
 
 /// Singleton L1Analyzer — keyword trie is built once on first use.

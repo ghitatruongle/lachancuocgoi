@@ -50,29 +50,37 @@ void main() {
     });
 
     test('dateTime round-trips', () {
-      final restored =
-          CallHistory.fromMap(makeBaseline(dateTime: '13:45:01 02/02/2026').toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(dateTime: '13:45:01 02/02/2026').toMap(),
+      );
       expect(restored.dateTime, '13:45:01 02/02/2026');
     });
 
     test('riskLevel round-trips for GREEN', () {
-      final restored = CallHistory.fromMap(makeBaseline(riskLevel: 'GREEN').toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(riskLevel: 'GREEN').toMap(),
+      );
       expect(restored.riskLevel, 'GREEN');
     });
 
     test('riskLevel round-trips for RED', () {
-      final restored = CallHistory.fromMap(makeBaseline(riskLevel: 'RED').toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(riskLevel: 'RED').toMap(),
+      );
       expect(restored.riskLevel, 'RED');
     });
 
     test('summary round-trips (Vietnamese)', () {
-      final restored =
-          CallHistory.fromMap(makeBaseline(summary: 'Cảnh báo lừa đảo').toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(summary: 'Cảnh báo lừa đảo').toMap(),
+      );
       expect(restored.summary, 'Cảnh báo lừa đảo');
     });
 
     test('duration round-trips', () {
-      final restored = CallHistory.fromMap(makeBaseline(duration: '12:34').toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(duration: '12:34').toMap(),
+      );
       expect(restored.duration, '12:34');
     });
 
@@ -83,36 +91,45 @@ void main() {
 
     test('transcript round-trips (multiline)', () {
       const original = 'Line 1\nLine 2\nLine 3 — with em-dash';
-      final restored = CallHistory.fromMap(makeBaseline(transcript: original).toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(transcript: original).toMap(),
+      );
       expect(restored.transcript, original);
     });
 
     test('audioPath null round-trips as null', () {
-      final restored =
-          CallHistory.fromMap(makeBaseline(audioPath: null).toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(audioPath: null).toMap(),
+      );
       expect(restored.audioPath, isNull);
     });
 
     test('audioPath set round-trips', () {
-      final restored =
-          CallHistory.fromMap(makeBaseline(audioPath: '/tmp/a.wav').toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(audioPath: '/tmp/a.wav').toMap(),
+      );
       expect(restored.audioPath, '/tmp/a.wav');
     });
 
     test('analysisResult JSON round-trips', () {
       const json = '{"flags":["a","b"],"score":0.9}';
-      final restored = CallHistory.fromMap(makeBaseline(analysisResult: json).toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(analysisResult: json).toMap(),
+      );
       expect(restored.analysisResult, json);
     });
 
     test('analysisType round-trips', () {
-      final restored =
-          CallHistory.fromMap(makeBaseline(analysisType: 'L2').toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(analysisType: 'L2').toMap(),
+      );
       expect(restored.analysisType, 'L2');
     });
 
     test('alertHistory (empty list) round-trips', () {
-      final restored = CallHistory.fromMap(makeBaseline(alertHistory: '[]').toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(alertHistory: '[]').toMap(),
+      );
       expect(restored.alertHistory, '[]');
       expect(restored.getAlertHistoryList(), isEmpty);
     });
@@ -135,7 +152,9 @@ void main() {
         ),
       ];
       final json = CallHistory.alertHistoryToJson(entries);
-      final restored = CallHistory.fromMap(makeBaseline(alertHistory: json).toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(alertHistory: json).toMap(),
+      );
       expect(restored.alertHistory, json);
       final restoredList = restored.getAlertHistoryList();
       expect(restoredList, hasLength(2));
@@ -146,19 +165,29 @@ void main() {
     });
 
     test('alertHistory null round-trips as null and yields empty list', () {
-      final restored = CallHistory.fromMap(makeBaseline(alertHistory: null).toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(alertHistory: null).toMap(),
+      );
       expect(restored.alertHistory, isNull);
       expect(restored.getAlertHistoryList(), isEmpty);
     });
 
     test('alertHistory with invalid JSON yields empty list (not throw)', () {
-      final restored = CallHistory.fromMap(makeBaseline(alertHistory: 'not json').toMap());
+      final restored = CallHistory.fromMap(
+        makeBaseline(alertHistory: 'not json').toMap(),
+      );
       expect(restored.getAlertHistoryList(), isEmpty);
     });
   });
 
   group('CallHistory — recordingError values (Sprint 1+2 B5)', () {
-    for (final value in const [null, 'noAudio', 'sttFailed', 'partial', 'killed']) {
+    for (final value in const [
+      null,
+      'noAudio',
+      'sttFailed',
+      'partial',
+      'killed',
+    ]) {
       test('recordingError=$value round-trips through toMap/fromMap', () {
         final history = makeBaseline(recordingError: value);
         final map = history.toMap();

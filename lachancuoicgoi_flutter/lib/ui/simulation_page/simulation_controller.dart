@@ -28,7 +28,8 @@ class SimulationUiState {
 // ─── Controller ────────────────────────────────────────────────────────
 final simulationControllerProvider =
     NotifierProvider<SimulationController, SimulationUiState>(
-        SimulationController.new);
+      SimulationController.new,
+    );
 
 class SimulationController extends Notifier<SimulationUiState> {
   List<SimulationScenarioData>? _allScenarios;
@@ -46,20 +47,22 @@ class SimulationController extends Notifier<SimulationUiState> {
   Future<void> loadData() async {
     if (_allScenarios != null) return;
     try {
-      final jsonStr =
-          await rootBundle.loadString('assets/situation_test.json');
+      final jsonStr = await rootBundle.loadString('assets/situation_test.json');
       final raw = jsonDecode(jsonStr) as List<dynamic>;
       _allScenarios = raw
-          .map((e) =>
-              SimulationScenarioData.fromJson(e as Map<String, dynamic>))
-          .map((s) => SimulationScenarioData(
-                title: s.title,
-                description: s.description,
-                category: s.category.isEmpty ? 'Chung' : s.category,
-                riskLevel: s.riskLevel,
-                script: s.script,
-                iconEmoji: s.iconEmoji,
-              ))
+          .map(
+            (e) => SimulationScenarioData.fromJson(e as Map<String, dynamic>),
+          )
+          .map(
+            (s) => SimulationScenarioData(
+              title: s.title,
+              description: s.description,
+              category: s.category.isEmpty ? 'Chung' : s.category,
+              riskLevel: s.riskLevel,
+              script: s.script,
+              iconEmoji: s.iconEmoji,
+            ),
+          )
           .toList();
     } on Object catch (_) {
       _allScenarios = [];
@@ -76,6 +79,7 @@ class SimulationController extends Notifier<SimulationUiState> {
     _selectedCategory = category;
     _recompute();
   }
+
   void _recompute({bool? isDevMode}) {
     final scenarios = _allScenarios;
     if (scenarios == null) {
@@ -83,7 +87,8 @@ class SimulationController extends Notifier<SimulationUiState> {
       return;
     }
 
-    final effectiveDevMode = isDevMode ?? ref.read(developerModeProvider).isActive;
+    final effectiveDevMode =
+        isDevMode ?? ref.read(developerModeProvider).isActive;
 
     final sourceList = effectiveDevMode
         ? scenarios
@@ -92,7 +97,8 @@ class SimulationController extends Notifier<SimulationUiState> {
     final categories = sourceList.map((s) => s.category).toSet().toList();
 
     final filtered = sourceList.where((s) {
-      final matchesSearch = _searchQuery.isEmpty ||
+      final matchesSearch =
+          _searchQuery.isEmpty ||
           s.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           s.description.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesCategory =

@@ -238,10 +238,7 @@ class _SettingToggleCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            Switch(
-              value: checked,
-              onChanged: onChanged,
-            ),
+            Switch(value: checked, onChanged: onChanged),
           ],
         ),
       ),

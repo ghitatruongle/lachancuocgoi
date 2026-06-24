@@ -16,17 +16,39 @@ class SafetyFilter {
 
   static int _openingSectionLength = 200;
   static List<String> _casualPhrases = const <String>[
-    'ăn cơm chưa', 'đi chơi không', 'đang làm gì đấy', 'thế à', 'vậy hả',
-    'mẹ đây', 'bố đây', 'con đang', 'chút nữa gọi lại', 'mua rau', 'đi chợ',
+    'ăn cơm chưa',
+    'đi chơi không',
+    'đang làm gì đấy',
+    'thế à',
+    'vậy hả',
+    'mẹ đây',
+    'bố đây',
+    'con đang',
+    'chút nữa gọi lại',
+    'mua rau',
+    'đi chợ',
   ];
   static List<String> _standardTransactions = const <String>[
-    'chuyển khoản tiền trọ', 'tiền cơm', 'chia tiền nốt',
-    'chuyển tiền học phí', 'trả tiền điện',
+    'chuyển khoản tiền trọ',
+    'tiền cơm',
+    'chia tiền nốt',
+    'chuyển tiền học phí',
+    'trả tiền điện',
   ];
   static List<String> _dangerOverrides = const <String>[
-    'số tài khoản', 'mã otp', 'chuyển khoản', 'mật khẩu',
-    'cccd', 'cmnd', 'công an', 'kiểm sát', 'tải ứng dụng',
-    'cài app', 'link', 'bắt cóc', 'tống tiền',
+    'số tài khoản',
+    'mã otp',
+    'chuyển khoản',
+    'mật khẩu',
+    'cccd',
+    'cmnd',
+    'công an',
+    'kiểm sát',
+    'tải ứng dụng',
+    'cài app',
+    'link',
+    'bắt cóc',
+    'tống tiền',
   ];
   static double _casualReductionPerMatch = 0.15;
   static double _transactionReductionPerMatch = 0.30;
@@ -44,8 +66,15 @@ class SafetyFilter {
   // a negation word, it's likely not a real safety signal.
   // e.g. "không phải chuyển tiền học phí" → should NOT reduce discount.
   static const List<String> _negationWords = [
-    'không', 'khong', 'ko', 'chưa', 'chua',
-    'chẳng', 'chang', 'chả', 'cha',
+    'không',
+    'khong',
+    'ko',
+    'chưa',
+    'chua',
+    'chẳng',
+    'chang',
+    'chả',
+    'cha',
   ];
 
   // Relationship terms — unambiguous family indicators only, NORMALIZED (no diacritics)
@@ -53,8 +82,14 @@ class SafetyFilter {
   // Excludes ambiguous terms: 'ba' (bà/ba/three), 'di' (dì/đi), 'co' (cô/có),
   // 'ong' (ông), 'ma' (má/mà), 'mo' (mợ/mở).
   static const List<String> _relationshipTerms = [
-    'me', 'bo', 'vo', 'chong',
-    'chu', 'cau', 'bac', 'duong',
+    'me',
+    'bo',
+    'vo',
+    'chong',
+    'chu',
+    'cau',
+    'bac',
+    'duong',
   ];
 
   // Amount thresholds for safety discount adjustment.
@@ -76,7 +111,9 @@ class SafetyFilter {
         text = await assetProvider(configFile);
       } else {
         if (assetLoader == null) {
-          throw StateError('AssetLoader is null. Phải cung cấp AssetLoader để load config.');
+          throw StateError(
+            'AssetLoader is null. Phải cung cấp AssetLoader để load config.',
+          );
         }
         text = await assetLoader.loadString('assets/$configFile');
       }
@@ -110,7 +147,9 @@ class SafetyFilter {
       if (logger != null) {
         logger.warning('[SafetyFilter] Failed to load $configFile: $e', e, st);
       } else {
-        debugPrint('[WARN] [SafetyFilter] Failed to load $configFile: $e | Error: $e\n$st');
+        debugPrint(
+          '[WARN] [SafetyFilter] Failed to load $configFile: $e | Error: $e\n$st',
+        );
       }
     }
     // Pre-compute normalized phrase lists once after config is loaded.
@@ -119,13 +158,31 @@ class SafetyFilter {
 
   static void _rebuildNormalizedLists() {
     _normDanger = _dangerOverrides
-        .map((p) => TextNormalizer.normalize(p, applySlang: true, noiseMode: NoiseMode.space))
+        .map(
+          (p) => TextNormalizer.normalize(
+            p,
+            applySlang: true,
+            noiseMode: NoiseMode.space,
+          ),
+        )
         .toList();
     _normCasual = _casualPhrases
-        .map((p) => TextNormalizer.normalize(p, applySlang: true, noiseMode: NoiseMode.space))
+        .map(
+          (p) => TextNormalizer.normalize(
+            p,
+            applySlang: true,
+            noiseMode: NoiseMode.space,
+          ),
+        )
         .toList();
     _normTransaction = _standardTransactions
-        .map((p) => TextNormalizer.normalize(p, applySlang: true, noiseMode: NoiseMode.space))
+        .map(
+          (p) => TextNormalizer.normalize(
+            p,
+            applySlang: true,
+            noiseMode: NoiseMode.space,
+          ),
+        )
         .toList();
   }
 
@@ -181,7 +238,11 @@ class SafetyFilter {
     // Casual phrases: substring matching with negation awareness.
     // Only phrases in the opening section (greeting phase) count.
     final casualMatchCount = _normCasual
-        .where((p) => openingSection.contains(p) && !_isNegatedInText(openingSection, p))
+        .where(
+          (p) =>
+              openingSection.contains(p) &&
+              !_isNegatedInText(openingSection, p),
+        )
         .length;
     if (casualMatchCount > 0) {
       discountMultiplier -= _casualReductionPerMatch * casualMatchCount;
@@ -253,8 +314,14 @@ class SafetyFilter {
   static double _getAmountBonus(String text) {
     final amountPatterns = [
       // Formatted numbers with VND suffix: "1.234.567 vnd" or "1,234,567đ"
-      RegExp(r'(\d{1,3}(?:[.,]\d{3}){1,3})\s*(?:vnd|đ|dong|vnđ)(?!\w)', caseSensitive: false),
-      RegExp(r'(?:vnd|đ|dong|vnđ)\s*(\d{1,3}(?:[.,]\d{3}){1,3})', caseSensitive: false),
+      RegExp(
+        r'(\d{1,3}(?:[.,]\d{3}){1,3})\s*(?:vnd|đ|dong|vnđ)(?!\w)',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'(?:vnd|đ|dong|vnđ)\s*(\d{1,3}(?:[.,]\d{3}){1,3})',
+        caseSensitive: false,
+      ),
       // Plain numbers with VND suffix: "500000 vnd", "200000đ"
       RegExp(r'(\d{4,})\s*(?:vnd|đ|dong|vnđ)(?!\w)', caseSensitive: false),
       // Million shorthand: "2 trieu", "3tr"
@@ -266,7 +333,9 @@ class SafetyFilter {
       if (match != null) {
         final rawAmount = match.group(1) ?? match.group(2);
         if (rawAmount != null) {
-          final amount = double.tryParse(rawAmount.replaceAll(RegExp(r'[.,]'), ''));
+          final amount = double.tryParse(
+            rawAmount.replaceAll(RegExp(r'[.,]'), ''),
+          );
           if (amount != null) {
             if (amount < _smallAmountThreshold) return _smallAmountDiscount;
             if (amount > _largeAmountThreshold) return -_smallAmountDiscount;
@@ -275,7 +344,10 @@ class SafetyFilter {
       }
     }
     // Also check for "triệu" or "tr" pattern (e.g., "2 triệu", "3tr")
-    final trieuMatch = RegExp(r'(\d+(?:\.\d+)?)\s*(?:triệu|trieu|tr)(?!\w)', caseSensitive: false).firstMatch(text);
+    final trieuMatch = RegExp(
+      r'(\d+(?:\.\d+)?)\s*(?:triệu|trieu|tr)(?!\w)',
+      caseSensitive: false,
+    ).firstMatch(text);
     if (trieuMatch != null) {
       final numStr = trieuMatch.group(1);
       if (numStr != null) {
@@ -294,17 +366,39 @@ class SafetyFilter {
   static void resetForTesting() {
     _openingSectionLength = 200;
     _casualPhrases = <String>[
-      'ăn cơm chưa', 'đi chơi không', 'đang làm gì đấy', 'thế à', 'vậy hả',
-      'mẹ đây', 'bố đây', 'con đang', 'chút nữa gọi lại', 'mua rau', 'đi chợ',
+      'ăn cơm chưa',
+      'đi chơi không',
+      'đang làm gì đấy',
+      'thế à',
+      'vậy hả',
+      'mẹ đây',
+      'bố đây',
+      'con đang',
+      'chút nữa gọi lại',
+      'mua rau',
+      'đi chợ',
     ];
     _standardTransactions = <String>[
-      'chuyển khoản tiền trọ', 'tiền cơm', 'chia tiền nốt',
-      'chuyển tiền học phí', 'trả tiền điện',
+      'chuyển khoản tiền trọ',
+      'tiền cơm',
+      'chia tiền nốt',
+      'chuyển tiền học phí',
+      'trả tiền điện',
     ];
     _dangerOverrides = <String>[
-      'số tài khoản', 'mã otp', 'chuyển khoản', 'mật khẩu',
-      'cccd', 'cmnd', 'công an', 'kiểm sát', 'tải ứng dụng',
-      'cài app', 'link', 'bắt cóc', 'tống tiền',
+      'số tài khoản',
+      'mã otp',
+      'chuyển khoản',
+      'mật khẩu',
+      'cccd',
+      'cmnd',
+      'công an',
+      'kiểm sát',
+      'tải ứng dụng',
+      'cài app',
+      'link',
+      'bắt cóc',
+      'tống tiền',
     ];
     _casualReductionPerMatch = 0.15;
     _transactionReductionPerMatch = 0.30;

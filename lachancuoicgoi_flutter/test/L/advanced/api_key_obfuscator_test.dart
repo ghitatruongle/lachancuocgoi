@@ -65,14 +65,35 @@ void main() {
 
     test('returns null for random byte sequence that decodes but not AIza', () {
       // Base64-encode 16 random bytes — valid base64 but not a valid key
-      final randomBytes = <int>[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-      final base64Str = String.fromCharCodes(_base64Encode(randomBytes).codeUnits);
+      final randomBytes = <int>[
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+      ];
+      final base64Str = String.fromCharCodes(
+        _base64Encode(randomBytes).codeUnits,
+      );
       expect(ApiKeyObfuscator.decode(base64Str), isNull);
     });
 
     test('returns null for all-zero bytes', () {
       final zeroBytes = List<int>.filled(32, 0);
-      final base64Str = String.fromCharCodes(_base64Encode(zeroBytes).codeUnits);
+      final base64Str = String.fromCharCodes(
+        _base64Encode(zeroBytes).codeUnits,
+      );
       expect(ApiKeyObfuscator.decode(base64Str), isNull);
     });
 
@@ -131,7 +152,8 @@ void main() {
 
 // Helper: base64 operations used by legacy XOR test
 String _base64Encode(List<int> bytes) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   final result = StringBuffer();
   for (var i = 0; i < bytes.length; i += 3) {
     final b0 = bytes[i];
@@ -155,7 +177,8 @@ String _base64Encode(List<int> bytes) {
 }
 
 List<int> _base64Decode(String str) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   final clean = str.replaceAll('=', '');
   final result = <int>[];
   for (var i = 0; i < clean.length; i += 4) {

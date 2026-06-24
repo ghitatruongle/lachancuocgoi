@@ -7,11 +7,7 @@ import 'package:lachancuocgoi_flutter/ui/monitoring_page/alert_history_section.d
 void main() {
   Widget wrap(Widget child) {
     return MaterialApp(
-      home: Scaffold(
-        body: SingleChildScrollView(
-          child: child,
-        ),
-      ),
+      home: Scaffold(body: SingleChildScrollView(child: child)),
     );
   }
 
@@ -23,7 +19,8 @@ void main() {
     List<String>? allReasons,
   }) {
     return AlertHistoryEntry(
-      timestamp: timestamp ?? DateTime(2026, 1, 1, 10, 30, 0).millisecondsSinceEpoch,
+      timestamp:
+          timestamp ?? DateTime(2026, 1, 1, 10, 30, 0).millisecondsSinceEpoch,
       analysisLevel: 'L2',
       riskLevel: riskLevel,
       alertCount: alertCount,
@@ -34,9 +31,9 @@ void main() {
 
   group('AlertHistorySection', () {
     testWidgets('renders empty state when no alerts', (tester) async {
-      await tester.pumpWidget(wrap(
-        const AlertHistorySection(alertHistory: []),
-      ));
+      await tester.pumpWidget(
+        wrap(const AlertHistorySection(alertHistory: [])),
+      );
       await tester.pumpAndSettle();
 
       // Empty list => SizedBox.shrink
@@ -45,11 +42,9 @@ void main() {
     });
 
     testWidgets('shows section header when alerts exist', (tester) async {
-      await tester.pumpWidget(wrap(
-        AlertHistorySection(
-          alertHistory: [makeEntry()],
-        ),
-      ));
+      await tester.pumpWidget(
+        wrap(AlertHistorySection(alertHistory: [makeEntry()])),
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('LỊCH SỬ CẢNH BÁO'), findsOneWidget);
@@ -60,9 +55,7 @@ void main() {
         timestamp: DateTime(2026, 1, 1, 14, 30, 45).millisecondsSinceEpoch,
         displayedReason: 'Phát hiện lừa đảo OTP',
       );
-      await tester.pumpWidget(wrap(
-        AlertHistorySection(alertHistory: [entry]),
-      ));
+      await tester.pumpWidget(wrap(AlertHistorySection(alertHistory: [entry])));
       await tester.pumpAndSettle();
 
       expect(find.text('14:30:45'), findsOneWidget);
@@ -71,9 +64,7 @@ void main() {
 
     testWidgets('shows risk level colors for RED', (tester) async {
       final entry = makeEntry(riskLevel: 'RED');
-      await tester.pumpWidget(wrap(
-        AlertHistorySection(alertHistory: [entry]),
-      ));
+      await tester.pumpWidget(wrap(AlertHistorySection(alertHistory: [entry])));
       await tester.pumpAndSettle();
 
       // RED risk level shows red circle emoji
@@ -82,9 +73,7 @@ void main() {
 
     testWidgets('shows risk level colors for ORANGE', (tester) async {
       final entry = makeEntry(riskLevel: 'ORANGE');
-      await tester.pumpWidget(wrap(
-        AlertHistorySection(alertHistory: [entry]),
-      ));
+      await tester.pumpWidget(wrap(AlertHistorySection(alertHistory: [entry])));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('🟠'), findsOneWidget);
@@ -103,9 +92,7 @@ void main() {
           timestamp: DateTime(2026, 1, 1, 10, 5, 0).millisecondsSinceEpoch,
         ),
       ];
-      await tester.pumpWidget(wrap(
-        AlertHistorySection(alertHistory: entries),
-      ));
+      await tester.pumpWidget(wrap(AlertHistorySection(alertHistory: entries)));
       await tester.pumpAndSettle();
 
       // Entries are shown in reverse order
@@ -114,25 +101,18 @@ void main() {
     });
 
     testWidgets('shows alert count when count > 1', (tester) async {
-      final entry = makeEntry(
-        alertCount: 3,
-        riskLevel: 'RED',
-      );
-      await tester.pumpWidget(wrap(
-        AlertHistorySection(alertHistory: [entry]),
-      ));
+      final entry = makeEntry(alertCount: 3, riskLevel: 'RED');
+      await tester.pumpWidget(wrap(AlertHistorySection(alertHistory: [entry])));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('3 cảnh báo'), findsOneWidget);
     });
 
-    testWidgets('shows detail reasons when multiple reasons exist', (tester) async {
-      final entry = makeEntry(
-        allReasons: ['Reason A', 'Reason B', 'Reason C'],
-      );
-      await tester.pumpWidget(wrap(
-        AlertHistorySection(alertHistory: [entry]),
-      ));
+    testWidgets('shows detail reasons when multiple reasons exist', (
+      tester,
+    ) async {
+      final entry = makeEntry(allReasons: ['Reason A', 'Reason B', 'Reason C']);
+      await tester.pumpWidget(wrap(AlertHistorySection(alertHistory: [entry])));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Chi tiết:'), findsOneWidget);

@@ -14,10 +14,10 @@ class HealthCheckService {
     required bool Function() isCreatorMode,
     required void Function() onServiceDown,
     required Future<void> Function() onRestart,
-  })  : _getBridge = getBridge,
-        _isCreatorMode = isCreatorMode,
-        _onServiceDown = onServiceDown,
-        _onRestart = onRestart;
+  }) : _getBridge = getBridge,
+       _isCreatorMode = isCreatorMode,
+       _onServiceDown = onServiceDown,
+       _onRestart = onRestart;
 
   final NativeBridgeInterface Function() _getBridge;
   final bool Function() _isCreatorMode;
@@ -73,8 +73,10 @@ class HealthCheckService {
           'Health check: backoff attempt $_healthCheckRetryCount (still down)',
         );
       }
-      final nextIntervalSec =
-          (60 * (1 << (_healthCheckRetryCount - 1))).clamp(60, 300);
+      final nextIntervalSec = (60 * (1 << (_healthCheckRetryCount - 1))).clamp(
+        60,
+        300,
+      );
       _schedule(Duration(seconds: nextIntervalSec));
     });
   }

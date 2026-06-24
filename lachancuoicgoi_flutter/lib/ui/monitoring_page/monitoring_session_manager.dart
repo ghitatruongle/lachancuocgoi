@@ -14,7 +14,8 @@ class MonitoringSessionManager {
   bool recoveryAttempted = false;
 
   void startSnapshotTimer() {
-    if (controller.hasTestAnalyzerOverride || controller.isSimulationSession()) return;
+    if (controller.hasTestAnalyzerOverride || controller.isSimulationSession())
+      return;
     _snapshotTimer?.cancel();
     _snapshotTimer = Timer.periodic(
       const Duration(seconds: 5),
@@ -30,8 +31,10 @@ class MonitoringSessionManager {
   void saveSnapshot() {
     if (controller.disposed || controller.currentState.isEndingSession) return;
     if (controller.currentState.isSimulationMode) return;
-    if (controller.currentState.transcript.trim().isEmpty && controller.currentState.elapsedSeconds < 5) return;
-    
+    if (controller.currentState.transcript.trim().isEmpty &&
+        controller.currentState.elapsedSeconds < 5)
+      return;
+
     unawaited(
       SessionRecoveryStore.save(
         SessionSnapshot(
@@ -41,7 +44,9 @@ class MonitoringSessionManager {
           riskLevel: controller.currentState.riskLevel.storageName,
           analysisResultJson: null,
           recordingError: null,
-          startedAt: DateTime.fromMillisecondsSinceEpoch(sessionStartEpochSeconds * 1000),
+          startedAt: DateTime.fromMillisecondsSinceEpoch(
+            sessionStartEpochSeconds * 1000,
+          ),
         ),
       ),
     );
@@ -51,7 +56,7 @@ class MonitoringSessionManager {
     if (controller.hasTestAnalyzerOverride) return;
     if (recoveryAttempted) return;
     recoveryAttempted = true;
-    
+
     final snapshot = await SessionRecoveryStore.load();
     if (snapshot == null) return;
     final age = DateTime.now().difference(snapshot.startedAt);
@@ -59,7 +64,7 @@ class MonitoringSessionManager {
       await SessionRecoveryStore.clear();
       return;
     }
-    
+
     try {
       final bridge = controller.nativeBridge;
       if (await bridge.isMonitoringActive()) {

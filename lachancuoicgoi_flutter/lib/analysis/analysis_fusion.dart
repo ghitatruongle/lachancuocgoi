@@ -34,8 +34,11 @@ class AnalysisFusion {
           l1.alertEnabled ||
           l2.alertEnabled ||
           l3.alertEnabled,
-      confidence: [l1.confidence, l2.confidence, l3.confidence]
-          .reduce((a, b) => a > b ? a : b),
+      confidence: [
+        l1.confidence,
+        l2.confidence,
+        l3.confidence,
+      ].reduce((a, b) => a > b ? a : b),
       modelName: selected.modelName,
       isError: l1.isError || l2.isError || l3.isError,
       isFallback: l1.isFallback || l2.isFallback || l3.isFallback,

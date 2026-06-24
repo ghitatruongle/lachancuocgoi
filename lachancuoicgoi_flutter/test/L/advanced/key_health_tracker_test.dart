@@ -75,10 +75,7 @@ void main() {
 
       // Cooldown should be sometime tomorrow
       final tomorrow = DateTime.now().add(const Duration(days: 1));
-      expect(
-        summary[0].cooldownUntil!.day,
-        tomorrow.day,
-      );
+      expect(summary[0].cooldownUntil!.day, tomorrow.day);
     });
 
     test('invalid key marks exhausted', () {
@@ -109,18 +106,21 @@ void main() {
   });
 
   group('KeyHealthTracker — cooldown recovery', () {
-    test('recoverCooldownKeysIfNeeded does not recover non-expired cooldowns', () {
-      final tracker = KeyHealthTracker(
-        StaticApiKeyProvider(const ['AIzaKey1']),
-      );
-      // markQuotaExceeded sets cooldown until midnight (future)
-      tracker.markQuotaExceeded(0);
-      expect(tracker.getHealthSummary()[0].status, KeyStatus.cooldown);
+    test(
+      'recoverCooldownKeysIfNeeded does not recover non-expired cooldowns',
+      () {
+        final tracker = KeyHealthTracker(
+          StaticApiKeyProvider(const ['AIzaKey1']),
+        );
+        // markQuotaExceeded sets cooldown until midnight (future)
+        tracker.markQuotaExceeded(0);
+        expect(tracker.getHealthSummary()[0].status, KeyStatus.cooldown);
 
-      // Call recovery — cooldown not expired yet, so key stays cooldown
-      tracker.recoverCooldownKeysIfNeeded();
-      expect(tracker.getHealthSummary()[0].status, KeyStatus.cooldown);
-    });
+        // Call recovery — cooldown not expired yet, so key stays cooldown
+        tracker.recoverCooldownKeysIfNeeded();
+        expect(tracker.getHealthSummary()[0].status, KeyStatus.cooldown);
+      },
+    );
 
     test('getAvailableKeyIndex returns -1 when all keys in cooldown', () {
       final tracker = KeyHealthTracker(
@@ -133,9 +133,7 @@ void main() {
 
   group('KeyHealthTracker — getAvailableKeyIndex', () {
     test('returns -1 when no keys', () {
-      final tracker = KeyHealthTracker(
-        StaticApiKeyProvider(const <String>[]),
-      );
+      final tracker = KeyHealthTracker(StaticApiKeyProvider(const <String>[]));
       expect(tracker.getAvailableKeyIndex(), -1);
     });
 
@@ -169,7 +167,13 @@ void main() {
   group('KeyHealthTracker — getActiveKeyIndices', () {
     test('returns all indices when all active', () {
       final tracker = KeyHealthTracker(
-        StaticApiKeyProvider(const ['AIzaK1', 'AIzaK2', 'AIzaK3', 'AIzaK4', 'AIzaK5']),
+        StaticApiKeyProvider(const [
+          'AIzaK1',
+          'AIzaK2',
+          'AIzaK3',
+          'AIzaK4',
+          'AIzaK5',
+        ]),
       );
       final active = tracker.getActiveKeyIndices();
       expect(active, hasLength(5));
@@ -209,9 +213,7 @@ void main() {
     });
 
     test('hasActiveKeys false when empty', () {
-      final tracker = KeyHealthTracker(
-        StaticApiKeyProvider(const <String>[]),
-      );
+      final tracker = KeyHealthTracker(StaticApiKeyProvider(const <String>[]));
       expect(tracker.hasActiveKeys(), isFalse);
       expect(tracker.areAllKeysDown(), isTrue);
     });

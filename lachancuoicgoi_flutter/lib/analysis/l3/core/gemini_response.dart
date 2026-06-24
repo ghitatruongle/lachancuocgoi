@@ -22,7 +22,7 @@ class AnalysisResponse {
           .map((e) => e.toString())
           .toList();
     }
-    
+
     return AnalysisResponse(
       reasoningSteps: parsedSteps,
       level: json['level'] as String?,

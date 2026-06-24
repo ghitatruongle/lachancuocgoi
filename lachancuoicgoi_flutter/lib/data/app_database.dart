@@ -24,7 +24,7 @@ final appDatabaseFutureProvider = FutureProvider<AppDatabase>((ref) async {
 
 class AppDatabase {
   AppDatabase._(this.database, this.callHistoryDao)
-      : callHistoryRepository = LocalCallHistoryRepository(callHistoryDao);
+    : callHistoryRepository = LocalCallHistoryRepository(callHistoryDao);
 
   static const int schemaVersion = 6;
   static const String databaseName = 'call_shield_database.db';
@@ -205,18 +205,19 @@ CREATE TABLE IF NOT EXISTS call_history (
 
   Future<List<CallHistory>> getAll() => callHistoryRepository.getAll();
 
-  Future<List<CallHistory>> getAllPaginated({
-    int limit = 20,
-    int offset = 0,
-  }) =>
+  Future<List<CallHistory>> getAllPaginated({int limit = 20, int offset = 0}) =>
       callHistoryRepository.getAllPaginated(limit: limit, offset: offset);
 
   Future<int> count() => callHistoryRepository.count();
 
-  Future<List<CallHistory>> search(String query, {int limit = 20, int offset = 0}) =>
-      callHistoryRepository.search(query, limit: limit, offset: offset);
+  Future<List<CallHistory>> search(
+    String query, {
+    int limit = 20,
+    int offset = 0,
+  }) => callHistoryRepository.search(query, limit: limit, offset: offset);
 
-  Future<int> searchCount(String query) => callHistoryRepository.searchCount(query);
+  Future<int> searchCount(String query) =>
+      callHistoryRepository.searchCount(query);
 
   Stream<List<CallHistory>> watchAll() => callHistoryRepository.watchAll();
 
@@ -259,7 +260,9 @@ class InMemoryAppDatabase implements AppDatabase, CallHistoryRepository {
 
   @override
   Future<int> insert(CallHistory callHistory) async {
-    final newId = _history.isEmpty ? 1 : (_history.map((e) => e.id).reduce(max) + 1);
+    final newId = _history.isEmpty
+        ? 1
+        : (_history.map((e) => e.id).reduce(max) + 1);
     final historyWithId = callHistory.copyWith(id: newId);
     _history.insert(0, historyWithId); // Newest first
     _streamController.add(List.unmodifiable(_history));
@@ -272,7 +275,10 @@ class InMemoryAppDatabase implements AppDatabase, CallHistoryRepository {
   }
 
   @override
-  Future<List<CallHistory>> getAllPaginated({int limit = 20, int offset = 0}) async {
+  Future<List<CallHistory>> getAllPaginated({
+    int limit = 20,
+    int offset = 0,
+  }) async {
     if (offset >= _history.length) return [];
     return _history.sublist(offset, min(offset + limit, _history.length));
   }
@@ -281,11 +287,15 @@ class InMemoryAppDatabase implements AppDatabase, CallHistoryRepository {
   Future<int> count() async => _history.length;
 
   @override
-  Future<List<CallHistory>> search(String query, {int limit = 20, int offset = 0}) async {
+  Future<List<CallHistory>> search(
+    String query, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
     final queryLower = query.toLowerCase();
     final filtered = _history.where((e) {
       return e.summary.toLowerCase().contains(queryLower) ||
-             e.transcript.toLowerCase().contains(queryLower);
+          e.transcript.toLowerCase().contains(queryLower);
     }).toList();
     if (offset >= filtered.length) return [];
     return filtered.sublist(offset, min(offset + limit, filtered.length));
@@ -296,7 +306,7 @@ class InMemoryAppDatabase implements AppDatabase, CallHistoryRepository {
     final queryLower = query.toLowerCase();
     return _history.where((e) {
       return e.summary.toLowerCase().contains(queryLower) ||
-             e.transcript.toLowerCase().contains(queryLower);
+          e.transcript.toLowerCase().contains(queryLower);
     }).length;
   }
 

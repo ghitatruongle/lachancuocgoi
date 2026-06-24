@@ -12,6 +12,7 @@ enum MonitoringState {
   stopped,
   networkAvailable,
   networkLost,
+
   /// Sprint 2 (C1): native STT switched to the Vosk offline fallback.
   /// The `transcript` slot of the parsed tuple carries the reason
   /// (e.g. "error12_loop" or "network_errors_3") which the UI can
@@ -25,15 +26,21 @@ enum MonitoringState {
       final parts = raw.split(':');
       final duration = parts.length > 1 ? int.tryParse(parts[1]) : null;
       // Extract transcript — normalize empty string to null for consistency
-      final rawTranscript = parts.length > 2 ? parts.sublist(2).join(':') : null;
-      final transcript = (rawTranscript == null || rawTranscript.isEmpty) ? null : rawTranscript;
+      final rawTranscript = parts.length > 2
+          ? parts.sublist(2).join(':')
+          : null;
+      final transcript = (rawTranscript == null || rawTranscript.isEmpty)
+          ? null
+          : rawTranscript;
       return (MonitoringState.stopped, duration, transcript);
     }
     if (raw.startsWith('STT_FALLBACK:VOSK:')) {
       // The third field is the reason (e.g. "error12_loop",
       // "network_errors_3"). Empty string is normalised to null.
       const prefix = 'STT_FALLBACK:VOSK:';
-      final reason = raw.length > prefix.length ? raw.substring(prefix.length) : null;
+      final reason = raw.length > prefix.length
+          ? raw.substring(prefix.length)
+          : null;
       return (MonitoringState.sttFallbackVosk, null, reason);
     }
     return switch (raw) {
@@ -127,14 +134,14 @@ class PermissionSnapshot {
 
   @override
   int get hashCode => Object.hash(
-        recordAudio,
-        phoneState,
-        callLog,
-        overlay,
-        notification,
-        accessibility,
-        callScreening,
-      );
+    recordAudio,
+    phoneState,
+    callLog,
+    overlay,
+    notification,
+    accessibility,
+    callScreening,
+  );
 }
 
 // ─── Monitoring Stop Result ───────────────────────────────────────────────────
@@ -220,8 +227,10 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   Timer? _iosSimulationTimer;
   int _iosTimerTicks = 0;
 
-  final _iosMonitoringStateController = StreamController<(MonitoringState, int?, String?)>.broadcast();
-  final _iosTranscriptController = StreamController<TranscriptUpdate>.broadcast();
+  final _iosMonitoringStateController =
+      StreamController<(MonitoringState, int?, String?)>.broadcast();
+  final _iosTranscriptController =
+      StreamController<TranscriptUpdate>.broadcast();
   final _iosRmsController = StreamController<double>.broadcast();
   final _iosCallEventController = StreamController<CallEvent>.broadcast();
 
@@ -239,7 +248,9 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
     _iosSimulationTimer?.cancel();
     _iosStartTime = DateTime.now();
     _iosTimerTicks = 0;
-    _iosSimulationTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    _iosSimulationTimer = Timer.periodic(const Duration(milliseconds: 100), (
+      timer,
+    ) {
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
         timer.cancel();
         return;
@@ -268,10 +279,12 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       const partialChunkWords = 5;
       final phaseTick = _iosTimerTicks % sentenceCommitInterval;
       if (phaseTick == 0) {
-        final sentenceIndex = (_iosTimerTicks ~/ sentenceCommitInterval - 1) %
+        final sentenceIndex =
+            (_iosTimerTicks ~/ sentenceCommitInterval - 1) %
             _iosScamScript.length;
-        final transcript =
-            _iosScamScript.sublist(0, sentenceIndex + 1).join(' ');
+        final transcript = _iosScamScript
+            .sublist(0, sentenceIndex + 1)
+            .join(' ');
         _iosTranscriptController.add(
           TranscriptUpdate(text: transcript, isPartial: false),
         );
@@ -289,10 +302,12 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
           final previousTranscript = sentenceIndex > 0
               ? '${_iosScamScript.sublist(0, sentenceIndex).join(' ')} '
               : '';
-          _iosTranscriptController.add(TranscriptUpdate(
-            text: '$previousTranscript$partialText',
-            isPartial: true,
-          ));
+          _iosTranscriptController.add(
+            TranscriptUpdate(
+              text: '$previousTranscript$partialText',
+              isPartial: true,
+            ),
+          );
         }
       }
     });
@@ -361,11 +376,17 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       _iosMonitoringActive = false;
       _stopSimulation();
-      final duration = _iosStartTime != null 
-          ? DateTime.now().difference(_iosStartTime!).inSeconds 
+      final duration = _iosStartTime != null
+          ? DateTime.now().difference(_iosStartTime!).inSeconds
           : 0;
-      final fullTranscript = _iosScamScript.take((_iosTimerTicks ~/ 100)).join(' ');
-      _iosMonitoringStateController.add((MonitoringState.stopped, duration, fullTranscript));
+      final fullTranscript = _iosScamScript
+          .take((_iosTimerTicks ~/ 100))
+          .join(' ');
+      _iosMonitoringStateController.add((
+        MonitoringState.stopped,
+        duration,
+        fullTranscript,
+      ));
       return true;
     }
     try {
@@ -402,11 +423,17 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       _iosCreatorMonitoringActive = false;
       _stopSimulation();
-      final duration = _iosStartTime != null 
-          ? DateTime.now().difference(_iosStartTime!).inSeconds 
+      final duration = _iosStartTime != null
+          ? DateTime.now().difference(_iosStartTime!).inSeconds
           : 0;
-      final fullTranscript = _iosScamScript.take((_iosTimerTicks ~/ 100)).join(' ');
-      _iosMonitoringStateController.add((MonitoringState.stopped, duration, fullTranscript));
+      final fullTranscript = _iosScamScript
+          .take((_iosTimerTicks ~/ 100))
+          .join(' ');
+      _iosMonitoringStateController.add((
+        MonitoringState.stopped,
+        duration,
+        fullTranscript,
+      ));
       return true;
     }
     try {
@@ -632,10 +659,9 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       return;
     }
     try {
-      await _methodChannel.invokeMethod<void>(
-        'showIncomingCallOverlay',
-        {'callerInfo': callerInfo},
-      );
+      await _methodChannel.invokeMethod<void>('showIncomingCallOverlay', {
+        'callerInfo': callerInfo,
+      });
     } on PlatformException catch (e) {
       debugPrint('NativeBridge.showIncomingCallOverlay error: $e');
     }
@@ -656,22 +682,23 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
 
   // ─── EventChannel streams (cached to prevent memory leaks) ─────────────
 
-  late final Stream<TranscriptUpdate> _cachedTranscriptStream = _transcriptChannel
-      .receiveBroadcastStream()
-      .map<TranscriptUpdate>((event) {
-        if (event is Map) {
-          return TranscriptUpdate(
-            text: event['text']?.toString() ?? '',
-            isPartial: event['isPartial'] == true,
-          );
-        }
-        return TranscriptUpdate(
-          text: event?.toString() ?? '',
-          isPartial: false,
-        );
-      })
-      .where((u) => u.text.isNotEmpty)
-      .asBroadcastStream();
+  late final Stream<TranscriptUpdate> _cachedTranscriptStream =
+      _transcriptChannel
+          .receiveBroadcastStream()
+          .map<TranscriptUpdate>((event) {
+            if (event is Map) {
+              return TranscriptUpdate(
+                text: event['text']?.toString() ?? '',
+                isPartial: event['isPartial'] == true,
+              );
+            }
+            return TranscriptUpdate(
+              text: event?.toString() ?? '',
+              isPartial: false,
+            );
+          })
+          .where((u) => u.text.isNotEmpty)
+          .asBroadcastStream();
 
   late final Stream<double> _cachedRmsStream = _rmsChannel
       .receiveBroadcastStream()
@@ -683,10 +710,10 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       .asBroadcastStream();
 
   late final Stream<(MonitoringState, int?, String?)>
-      _cachedMonitoringStateStream = _monitoringStateChannel
-          .receiveBroadcastStream()
-          .map((event) => MonitoringState.parse(event?.toString() ?? ''))
-          .asBroadcastStream();
+  _cachedMonitoringStateStream = _monitoringStateChannel
+      .receiveBroadcastStream()
+      .map((event) => MonitoringState.parse(event?.toString() ?? ''))
+      .asBroadcastStream();
 
   late final Stream<CallEvent> _cachedCallEventStream = _callEventChannel
       .receiveBroadcastStream()

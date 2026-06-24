@@ -28,8 +28,11 @@ void main() {
         AppSpacing.xl,
       ];
       for (var i = 1; i < values.length; i++) {
-        expect(values[i], greaterThan(values[i - 1]),
-            reason: 'Spacing $i should be > ${i - 1}');
+        expect(
+          values[i],
+          greaterThan(values[i - 1]),
+          reason: 'Spacing $i should be > ${i - 1}',
+        );
       }
     });
   });
@@ -88,8 +91,11 @@ void main() {
         _radiusOf(AppTheme.shapes.extraLarge),
       ];
       for (var i = 1; i < radii.length; i++) {
-        expect(radii[i], greaterThan(radii[i - 1]),
-            reason: 'Shape $i radius should be > ${i - 1}');
+        expect(
+          radii[i],
+          greaterThan(radii[i - 1]),
+          reason: 'Shape $i radius should be > ${i - 1}',
+        );
       }
     });
   });
@@ -130,19 +136,13 @@ void main() {
     test('card theme has rounded shape', () {
       expect(theme.cardTheme.shape, isA<RoundedRectangleBorder>());
       final shape = theme.cardTheme.shape as RoundedRectangleBorder;
-      expect(
-        shape.borderRadius,
-        const BorderRadius.all(Radius.circular(18)),
-      );
+      expect(shape.borderRadius, const BorderRadius.all(Radius.circular(18)));
     });
 
     test('dialog theme has large rounded shape', () {
       expect(theme.dialogTheme.shape, isA<RoundedRectangleBorder>());
       final shape = theme.dialogTheme.shape as RoundedRectangleBorder;
-      expect(
-        shape.borderRadius,
-        const BorderRadius.all(Radius.circular(24)),
-      );
+      expect(shape.borderRadius, const BorderRadius.all(Radius.circular(24)));
     });
 
     test('app bar has no elevation', () {
@@ -161,10 +161,7 @@ void main() {
     });
 
     test('headlineSmall has bold weight', () {
-      expect(
-        theme.textTheme.headlineSmall?.fontWeight,
-        FontWeight.bold,
-      );
+      expect(theme.textTheme.headlineSmall?.fontWeight, FontWeight.bold);
     });
   });
 
@@ -193,17 +190,11 @@ void main() {
     });
 
     test('surface is dark', () {
-      expect(
-        theme.colorScheme.surface,
-        const Color(0xFF141A24),
-      );
+      expect(theme.colorScheme.surface, const Color(0xFF141A24));
     });
 
     test('onSurface is light for readability', () {
-      expect(
-        theme.colorScheme.onSurface,
-        const Color(0xFFE3E8F2),
-      );
+      expect(theme.colorScheme.onSurface, const Color(0xFFE3E8F2));
     });
 
     test('status bar icons are light', () {
@@ -258,15 +249,21 @@ void main() {
 
         // Verify we have decent contrast between background and text
         final bgContrast = _contrastRatio(bg, onBg);
-        expect(bgContrast, greaterThan(4.5),
-            reason:
-                'Background/onSurface contrast in ${theme.brightness} mode should be ≥ 4.5:1');
+        expect(
+          bgContrast,
+          greaterThan(4.5),
+          reason:
+              'Background/onSurface contrast in ${theme.brightness} mode should be ≥ 4.5:1',
+        );
 
         // Primary/onPrimary should be readable
         final primaryContrast = _contrastRatio(primary, onPrimary);
-        expect(primaryContrast, greaterThan(2.5),
-            reason:
-                'Primary/onPrimary contrast in ${theme.brightness} mode should be ≥ 2.5:1 (actual: ${primaryContrast.toStringAsFixed(2)})');
+        expect(
+          primaryContrast,
+          greaterThan(2.5),
+          reason:
+              'Primary/onPrimary contrast in ${theme.brightness} mode should be ≥ 2.5:1 (actual: ${primaryContrast.toStringAsFixed(2)})',
+        );
       }
     });
   });

@@ -20,7 +20,8 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
     AssetLoader? assetLoader,
     AppLogger? logger,
   }) : _commaSeparatedKeys =
-            commaSeparatedKeys ?? const String.fromEnvironment('GEMINI_API_KEYS'),
+           commaSeparatedKeys ??
+           const String.fromEnvironment('GEMINI_API_KEYS'),
        _singleKey = singleKey ?? const String.fromEnvironment('GEMINI_API_KEY'),
        _assetLoader = assetLoader,
        _logger = logger {
@@ -82,7 +83,9 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
 
     try {
       if (_assetLoader == null) {
-        throw StateError('AssetLoader is null. Phải cung cấp AssetLoader để load .');
+        throw StateError(
+          'AssetLoader is null. Phải cung cấp AssetLoader để load .',
+        );
       }
       final raw = await _assetLoader.loadString('');
       _loadedFromAssets = true;

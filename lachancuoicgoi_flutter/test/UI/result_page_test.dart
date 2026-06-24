@@ -68,9 +68,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const MaterialApp(
-            home: ResultPage(historyId: 1),
-          ),
+          child: const MaterialApp(home: ResultPage(historyId: 1)),
         ),
       );
 

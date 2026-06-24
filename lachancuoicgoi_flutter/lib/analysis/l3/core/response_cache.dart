@@ -84,10 +84,7 @@ class ResponseCache<T> {
 }
 
 class CacheStats {
-  const CacheStats({
-    required this.size,
-    required this.maxSize,
-  });
+  const CacheStats({required this.size, required this.maxSize});
 
   final int size;
   final int maxSize;

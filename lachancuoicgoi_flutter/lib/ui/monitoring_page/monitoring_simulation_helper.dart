@@ -17,7 +17,8 @@ class MonitoringSimulationHelper {
     _simulationPlaybackTimer?.cancel();
 
     void scheduleNext() {
-      if (currentScriptLineIndex >= scriptLines.length || controller.disposed) return;
+      if (currentScriptLineIndex >= scriptLines.length || controller.disposed)
+        return;
 
       final line = scriptLines[currentScriptLineIndex];
       final delay = (line['delay'] as num?)?.toInt() ?? 2000;

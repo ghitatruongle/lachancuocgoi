@@ -58,11 +58,7 @@ class PermissionRationaleDialog extends StatelessWidget {
                     color: cs.primaryContainer,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    icon,
-                    color: cs.onPrimaryContainer,
-                    size: 28,
-                  ),
+                  child: Icon(icon, color: cs.onPrimaryContainer, size: 28),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(

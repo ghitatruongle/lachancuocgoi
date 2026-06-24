@@ -17,11 +17,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            nativeBridgeProvider.overrideWithValue(NativeCallShieldBridge.instance),
+            nativeBridgeProvider.overrideWithValue(
+              NativeCallShieldBridge.instance,
+            ),
           ],
-          child: const MaterialApp(
-            home: HomePage(),
-          ),
+          child: const MaterialApp(home: HomePage()),
         ),
       );
 
@@ -33,17 +33,18 @@ void main() {
       expect(find.byType(Dialog), findsOneWidget);
     });
 
-    testWidgets('permission dialog does not show on second build',
-        (tester) async {
+    testWidgets('permission dialog does not show on second build', (
+      tester,
+    ) async {
       // First build
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            nativeBridgeProvider.overrideWithValue(NativeCallShieldBridge.instance),
+            nativeBridgeProvider.overrideWithValue(
+              NativeCallShieldBridge.instance,
+            ),
           ],
-          child: const MaterialApp(
-            home: HomePage(),
-          ),
+          child: const MaterialApp(home: HomePage()),
         ),
       );
       await tester.pump();
@@ -59,11 +60,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            nativeBridgeProvider.overrideWithValue(NativeCallShieldBridge.instance),
+            nativeBridgeProvider.overrideWithValue(
+              NativeCallShieldBridge.instance,
+            ),
           ],
-          child: const MaterialApp(
-            home: HomePage(),
-          ),
+          child: const MaterialApp(home: HomePage()),
         ),
       );
       await tester.pump();
