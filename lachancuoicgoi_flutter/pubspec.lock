@@ -437,7 +437,7 @@ packages:
     source: hosted
     version: "2.1.5"
   path_provider_android:
-    dependency: "direct overridden"
+    dependency: transitive
     description:
       name: path_provider_android
       sha256: f2c65e21139ce2c3dad46922be8272bb5963516045659e71bb16e151c93b580e

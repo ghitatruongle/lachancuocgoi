@@ -37,11 +37,6 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   fake_async: ^1.3.1
 
-dependency_overrides:
-  # path_provider_android 2.2.22 pinned to maintain compatibility with
-  # sqflite's platform channel contract. Remove when sqflite-next is released.
-  path_provider_android: 2.2.22
-
 flutter:
   uses-material-design: true
   assets:
