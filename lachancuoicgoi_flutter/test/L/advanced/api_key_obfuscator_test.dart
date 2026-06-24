@@ -4,7 +4,7 @@ import 'package:lachancuocgoi_flutter/analysis/l3/core/api_key_obfuscator.dart';
 void main() {
   group('ApiKeyObfuscator — encode/decode round-trip', () {
     test('encode then decode returns original key', () {
-      const raw = 'pQq';
+      const raw = 'AIzaSyAaBB22CcDdEeFfGgHhIiJjKkLlMmNnOoPpQq';
       final encoded = ApiKeyObfuscator.encode(raw);
       final decoded = ApiKeyObfuscator.decode(encoded);
       expect(decoded, raw);

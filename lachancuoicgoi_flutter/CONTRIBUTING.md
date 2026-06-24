@@ -18,8 +18,8 @@ Dưới đây là tài liệu hướng dẫn chi tiết cách thiết lập dự
    - Dự án sử dụng `sqflite_common_ffi` để chạy các bài test trên máy tính cá nhân.
    - Trên Windows, bạn cần cài đặt SQLite FFI (nếu chưa có sẵn). Cách đơn giản nhất là chạy `sqfliteFfiInit()` trong setup của các test case.
 
-3. **Cấu hình file môi trường ``:**
-   - Tạo file `` ở thư mục gốc của dự án (nếu chưa có).
+3. **Cấu hình file môi trường `env.json`:**
+   - Tạo file `env.json` ở thư mục gốc của dự án (nếu chưa có).
    - Nội dung mẫu:
      ```json
      {
@@ -27,7 +27,7 @@ Dưới đây là tài liệu hướng dẫn chi tiết cách thiết lập dự
        "model": "gemini-1.5-flash"
      }
      ```
-   - *Lưu ý:* File `` đã được đưa vào danh sách `.gitignore` để tránh rò rỉ mã bảo mật API Key của bạn.
+   - *Lưu ý:* File `env.json` đã được đưa vào danh sách `.gitignore` để tránh rò rỉ mã bảo mật API Key của bạn.
 
 4. **Tải các thư viện phụ thuộc:**
    - Chạy lệnh: `flutter pub get`.

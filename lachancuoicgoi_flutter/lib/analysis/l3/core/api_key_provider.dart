@@ -8,7 +8,7 @@ abstract interface class ApiKeyProvider {
 
   int getKeyCount();
 
-  /// True nếu keys đang được load từ bundled assets ( ship cùng APK).
+  /// True nếu keys đang được load từ bundled assets (env.json ship cùng APK).
   /// Bị set bởi [EnvironmentApiKeyProvider] khi fallback vào rootBundle.
   bool get isLoadedFromAssets => false;
 }
@@ -35,11 +35,11 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
   final AppLogger? _logger;
 
   /// Mutable list — populated eagerly from dart-define in constructor,
-  /// and optionally extended by [ensureLoaded] from  asset.
+  /// and optionally extended by [ensureLoaded] from env.json asset.
   List<String> _keys = [];
   bool _envLoaded = false;
 
-  /// True nếu [ensureLoaded] đã fallback sang đọc  từ rootBundle
+  /// True nếu [ensureLoaded] đã fallback sang đọc env.json từ rootBundle
   /// (nghĩa là keys bị bundle trong APK — không an toàn).
   bool _loadedFromAssets = false;
 
@@ -47,8 +47,8 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
   bool get isLoadedFromAssets => _loadedFromAssets;
 
   /// Sentinel patterns cho placeholder keys (AIzaReplace..., REPLACE_ME, etc.).
-  /// Khi  chứa các giá trị này, keys bị bỏ qua hoàn toàn — tránh
-  /// tình trạng dev commit nhầm env.example.json thay vì  thật.
+  /// Khi env.json chứa các giá trị này, keys bị bỏ qua hoàn toàn — tránh
+  /// tình trạng dev commit nhầm env.example.json thay vì env.json thật.
   static const List<String> _placeholderPatterns = <String>[
     'aizareplace',
     'aizayour',
@@ -66,37 +66,37 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
     return _placeholderPatterns.any(lower.contains);
   }
 
-  /// Load keys from `` asset if dart-define keys were not provided.
+  /// Load keys from `env.json` asset if dart-define keys were not provided.
   /// Safe to call multiple times — only loads once.
   ///
-  /// SECURITY:  trong assets bị bundle trong APK. Bất kỳ ai cài app
+  /// SECURITY: env.json trong assets bị bundle trong APK. Bất kỳ ai cài app
   /// đều có thể extract API keys. Đây là fix tạm thời — fix triệt để phải:
   /// 1. Rotate tất cả keys trên Google Cloud (xem SECURITY.md)
-  /// 2. Move  ra app documents directory (không bị bundle)
+  /// 2. Move env.json ra app documents directory (không bị bundle)
   /// 3. Clean git history bằng BFG Repo Cleaner
   Future<void> ensureLoaded() async {
     if (_envLoaded) return;
     _envLoaded = true;
 
-    // If dart-define already provided keys, no need to load .
+    // If dart-define already provided keys, no need to load env.json.
     if (_keys.isNotEmpty) return;
 
     try {
       if (_assetLoader == null) {
         throw StateError(
-          'AssetLoader is null. Phải cung cấp AssetLoader để load .',
+          'AssetLoader is null. Phải cung cấp AssetLoader để load env.json.',
         );
       }
-      final raw = await _assetLoader.loadString('');
+      final raw = await _assetLoader.loadString('env.json');
       _loadedFromAssets = true;
       _warnAboutBundledKeys();
       _parseAndIngestEnvJson(raw);
       _logger?.info(
-        'Loaded ${_keys.length} API keys from  asset '
+        'Loaded ${_keys.length} API keys from env.json asset '
         '(SECURITY WARNING: keys are bundled in APK).',
       );
     } on Object catch (e) {
-      _logger?.warning('Failed to load : $e');
+      _logger?.warning('Failed to load env.json: $e');
     }
   }
 
@@ -122,9 +122,9 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
     }
     if (placeholderCount > 0) {
       _logger?.warning(
-        'SECURITY: Bỏ qua $placeholderCount placeholder key(s) trong . '
-        'Có thể bạn đang dùng env.example.json thay vì  thật. '
-        'Hãy tạo  với key thật rồi mới chạy app.',
+        'SECURITY: Bỏ qua $placeholderCount placeholder key(s) trong env.json. '
+        'Có thể bạn đang dùng env.example.json thay vì env.json thật. '
+        'Hãy tạo env.json với key thật rồi mới chạy app.',
       );
     }
   }
@@ -134,14 +134,14 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
     const isRelease = bool.fromEnvironment('dart.vm.product');
     if (isRelease) {
       _logger?.warning(
-        '🚨 SECURITY WARNING:  đang được bundle trong APK release. '
+        '🚨 SECURITY WARNING: env.json đang được bundle trong APK release. '
         'Bất kỳ ai cài app đều có thể extract API keys. '
-        'Hãy move  ra app documents directory và rotate keys. '
+        'Hãy move env.json ra app documents directory và rotate keys. '
         'Xem SECURITY.md.',
       );
     } else {
       _logger?.info(
-        '⚠️ [DEBUG]  load từ assets. Trong production, '
+        '⚠️ [DEBUG] env.json load từ assets. Trong production, '
         'hãy dùng app documents dir để keys không bị ship cùng APK.',
       );
     }
