@@ -14,8 +14,10 @@ class MonitoringSessionManager {
   bool recoveryAttempted = false;
 
   void startSnapshotTimer() {
-    if (controller.hasTestAnalyzerOverride || controller.isSimulationSession())
+    if (controller.hasTestAnalyzerOverride ||
+        controller.isSimulationSession()) {
       return;
+    }
     _snapshotTimer?.cancel();
     _snapshotTimer = Timer.periodic(
       const Duration(seconds: 5),
@@ -32,8 +34,9 @@ class MonitoringSessionManager {
     if (controller.disposed || controller.currentState.isEndingSession) return;
     if (controller.currentState.isSimulationMode) return;
     if (controller.currentState.transcript.trim().isEmpty &&
-        controller.currentState.elapsedSeconds < 5)
+        controller.currentState.elapsedSeconds < 5) {
       return;
+    }
 
     unawaited(
       SessionRecoveryStore.save(

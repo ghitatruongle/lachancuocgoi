@@ -151,8 +151,9 @@ void main() {
     await tester.runAsync(() async {
       for (int i = 0; i < 100; i++) {
         await tester.pump();
-        if (tester.any(find.text('Row 1')) && tester.any(find.text('Row 2')))
+        if (tester.any(find.text('Row 1')) && tester.any(find.text('Row 2'))) {
           break;
+        }
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
     });
@@ -166,8 +167,10 @@ void main() {
     await tester.runAsync(() async {
       for (int i = 0; i < 100; i++) {
         await tester.pump();
-        if (!tester.any(find.text('Row 1')) && !tester.any(find.text('Row 2')))
+        if (!tester.any(find.text('Row 1')) &&
+            !tester.any(find.text('Row 2'))) {
           break;
+        }
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
     });
@@ -192,8 +195,9 @@ void main() {
       for (int i = 0; i < 100; i++) {
         await tester.pump();
         if (tester.any(find.text('unique-marker-xyz')) &&
-            tester.any(find.text('ordinary row')))
+            tester.any(find.text('ordinary row'))) {
           break;
+        }
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
     });
