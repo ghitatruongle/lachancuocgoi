@@ -16,14 +16,17 @@
 | **Phase 3** — Dependency Upgrades | ✅ HOÀN THÀNH | `41fdcadb`, `76a04842`, `3398f2ed`, `ae3a41b6` | riverpod 2.6→3.3 (Override import + ref.mounted fix), go_router 14.8→17.3 (clean), permission_handler 11.4→12.0 (clean), dropped path_provider_android override. 0 issues, 1331/1331. |
 | **Phase 4** — Refactor File Lớn | ✅ HOÀN THÀNH | scam_graph commit, `8c1a8618`, `16f98e5b`, `0ff6274e` | 4 file >650 LOC tách thành module nhỏ. scam_graph_builder 1050→118+232+396+347, l1_analysis 786→680+114 (FlatTrie), native_bridge 763→575+36+166 (dedup ~200 LOC), g_thinking 685→638+50. 0 issues, 1331/1331. |
 | **Phase 5** — Simulator Bridge Expansion | ✅ HOÀN THÀNH | `5f6f2c08` + earlier | SimulatorScriptCatalog (3 kịch bản: tax/bank/prize), SimulatorCreatorMode (custom lines), SimulatorPermissionGate (no-op allGranted), CI verify-ios-config job. 11 test mới. 0 issues, 1342/1342. |
-| **Phase 6** — Docs + Final Verification | ⬜ CHỜ | — | |
+| **Phase 6** — Docs + Final Verification | ✅ HOÀN THÀNH | `38b3165f`, `v1.4.0` | CHANGELOG/KEHOACH/README cập nhật, version bump 1.3.0+8→1.4.0+9. Final verify: analyze 0 issues, format clean, 1342/1342 tests pass. Tagged v1.4.0. |
 
-**Baseline metrics (sau Phase 0-2):**
+**Final metrics (sau Phase 6):**
 - `dart analyze lib/ test/` → **No issues found!** (0 errors, 0 warnings, 0 info)
 - `dart format --check lib/ test/` → **0 changed** (clean)
-- `flutter test --exclude-tags perf` → **1331/1331 passed**
+- `flutter test --exclude-tags perf` → **1342/1342 passed**
 - Git history: 0 real API keys, env.json scrubbed
 - Pre-commit hook: active (chặn env.json + AIza keys)
+- Dependencies: riverpod 3.3, go_router 17.3, permission_handler 12.0 (all latest)
+- 4 file lớn >650 LOC đã tách thành module nhỏ
+- Simulator bridge: multi-scenario + creator mode + permission gate
 
 ---
 
