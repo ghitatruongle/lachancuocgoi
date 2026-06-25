@@ -4,6 +4,39 @@ Tất cả các thay đổi đáng chú ý của dự án **Lá Chắn Cuộc G�
 
 ---
 
+## [1.4.0+9] - 2026-06-25
+
+### Security
+- **Git history scrubbed**: Rotated all 21 Gemini API keys, used BFG Repo-Cleaner to delete `env.json` and replace all `AIza*` secrets across the entire git history. Force-pushed clean history to remote.
+- **Pre-commit hook**: Added `.git/hooks/pre-commit` that blocks commits of `env.json` or staged `AIza*` key patterns. Installable via `bash tool/install-hooks.sh`.
+
+### Dependencies Upgraded
+- `flutter_riverpod` 2.6 → 3.3 (added `misc.dart` import for `Override`, `ref.mounted` checks in `DeveloperModeController`).
+- `go_router` 14.8 → 17.3 (clean upgrade, no breakage).
+- `permission_handler` 11.4 → 12.0 (clean upgrade, compileSdk already at 36).
+- Dropped `path_provider_android` dependency override (tech debt cleared).
+
+### Refactor — File Size Reduction
+- `scam_graph_builder.dart` 1050 LOC → 4 part-files (118 + 232 + 396 + 347) by scenario category.
+- `l1_analysis.dart` 786 LOC → 680 + 114 (extracted `FlatTrie` to `flat_trie.dart`).
+- `native_call_shield_bridge.dart` 763 LOC → 575 + 36 + 166 (extracted `bridge_models.dart`, deduplicated ~200 LOC with `native_bridge_interface.dart`).
+- `g_thinking.dart` 685 LOC → 638 + 50 (extracted `TierClassification` + `AggregatedRisk` value objects).
+
+### Simulator Bridge Expansion
+- **SimulatorScriptCatalog**: 3 selectable scam scenarios (tax authority, bank fraud, prize) replacing the single hard-coded script.
+- **SimulatorCreatorMode**: Replay user-supplied transcript lines for custom testing on non-Android platforms.
+- **SimulatorPermissionGate**: No-op gate returning `allGranted` to keep the UI contract consistent.
+- **CI**: Added `verify-ios-config` job to catch iOS Xcode project config drift.
+
+### Code Quality
+- Reformatted 152 drifted files (`dart format`).
+- Fixed 6 `curly_braces_in_flow_control_structures` info-level lints.
+- Adopted Conventional Commits convention (documented in `CONTRIBUTING.md`).
+- Tests: 1331 → **1342** (+11 new simulator tests).
+- `dart analyze`: **0 issues** (0 errors, 0 warnings, 0 info).
+
+---
+
 ## [1.3.0+8] - 2026-06-22
 
 ### Cải Tiến Kiến Trúc & Chất Lượng Mã Nguồn
