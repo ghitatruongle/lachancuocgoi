@@ -14,7 +14,7 @@
 | **Phase 1** — Security: Rotate Keys + BFG History Rewrite | ✅ HOÀN THÀNH | (force-pushed rewrite) | 21 keys rotated (manual), BFG scrubbed AIza + env.json từ toàn bộ history, `git gc --aggressive`, force-push origin. Verified: 0 real keys in history, 1331 tests pass. |
 | **Phase 2** — Commit Hygiene + Pre-commit Hook | ✅ HOÀN THÀNH | `6b01739a` | Pre-commit hook (chặn env.json + AIza), `tool/install-hooks.sh`, `tool/pre-commit.template`, Conventional Commits trong `CONTRIBUTING.md`. |
 | **Phase 3** — Dependency Upgrades | ✅ HOÀN THÀNH | `41fdcadb`, `76a04842`, `3398f2ed`, `ae3a41b6` | riverpod 2.6→3.3 (Override import + ref.mounted fix), go_router 14.8→17.3 (clean), permission_handler 11.4→12.0 (clean), dropped path_provider_android override. 0 issues, 1331/1331. |
-| **Phase 4** — Refactor File Lớn | ⬜ CHỜ | — | |
+| **Phase 4** — Refactor File Lớn | ✅ HOÀN THÀNH | scam_graph commit, `8c1a8618`, `16f98e5b`, `0ff6274e` | 4 file >650 LOC tách thành module nhỏ. scam_graph_builder 1050→118+232+396+347, l1_analysis 786→680+114 (FlatTrie), native_bridge 763→575+36+166 (dedup ~200 LOC), g_thinking 685→638+50. 0 issues, 1331/1331. |
 | **Phase 5** — Simulator Bridge Expansion | ⬜ CHỜ | — | |
 | **Phase 6** — Docs + Final Verification | ⬜ CHỜ | — | |
 
