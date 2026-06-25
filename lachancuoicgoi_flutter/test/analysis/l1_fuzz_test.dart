@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lachancuocgoi_flutter/analysis/l1/l1_analysis.dart';
+import 'package:lachancuocgoi_flutter/analysis/l1/flat_trie.dart';
 import 'package:lachancuocgoi_flutter/analysis/l3/core/pii_stripper.dart';
 
 void main() {
