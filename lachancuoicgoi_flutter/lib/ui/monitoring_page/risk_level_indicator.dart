@@ -24,8 +24,7 @@ class RiskLevelIndicator extends StatelessWidget {
             Expanded(
               child: Text(
                 'Mức độ rủi ro',
-                style:
-                    tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(width: 8),

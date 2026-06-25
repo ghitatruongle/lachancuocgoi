@@ -33,8 +33,12 @@ class L2Analyzer implements Analyzer {
     ResponseCache<AnalysisResult>? cache,
   }) : _assetLoader = assetLoader,
        _logger = logger,
-       _gDetectionEngine = gDetectionEngine ?? GDetectionEngine(assetLoader: assetLoader, logger: logger),
-       _intentClassifier = intentClassifier ?? TFLiteIntentClassifier(assetLoader: assetLoader, logger: logger),
+       _gDetectionEngine =
+           gDetectionEngine ??
+           GDetectionEngine(assetLoader: assetLoader, logger: logger),
+       _intentClassifier =
+           intentClassifier ??
+           TFLiteIntentClassifier(assetLoader: assetLoader, logger: logger),
        _wfsaEngine =
            wfsaEngine ?? WfsaEngine(ScamGraphBuilder.buildDefaultGraphs()),
        _cache = cache ?? ResponseCache<AnalysisResult>();
@@ -189,7 +193,9 @@ class L2Analyzer implements Analyzer {
     await prevMutex.timeout(
       const Duration(seconds: 5),
       onTimeout: () {
-        _logger?.warning('Timeout waiting for previous analysis lock — force continuing');
+        _logger?.warning(
+          'Timeout waiting for previous analysis lock — force continuing',
+        );
       },
     );
 
@@ -214,8 +220,10 @@ class L2Analyzer implements Analyzer {
       final parsedGDetectionResult = L2ResultParser.parse(gResult);
 
       final isLongText = fullText.length > 80;
-      final hasGDetectionRisk = parsedGDetectionResult.overallRiskLevel.index >= RiskLevel.yellow.index;
-      
+      final hasGDetectionRisk =
+          parsedGDetectionResult.overallRiskLevel.index >=
+          RiskLevel.yellow.index;
+
       _Luong1Result luong1Result = const _Luong1Fallback();
       if (isLongText || hasGDetectionRisk) {
         luong1Result = await _runIntentFlow(fullText);
@@ -266,11 +274,7 @@ class L2Analyzer implements Analyzer {
       if (myGeneration == _analysisGeneration) {
         _processedTextLength = fullText.length;
         _lastResult = result;
-        _cache.put(
-          normalizedKey,
-          result,
-          riskLevel: result.overallRiskLevel,
-        );
+        _cache.put(normalizedKey, result, riskLevel: result.overallRiskLevel);
       }
       return result;
     } finally {
@@ -285,10 +289,12 @@ class L2Analyzer implements Analyzer {
     try {
       var intentPredictions = await _intentClassifier.predictIntent(fullText);
       if (intentPredictions.isEmpty) return const _Luong1Fallback();
-      
+
       // Platt scaling (sigmoid calibration) replaces old temperature scaling.
       // Converts softmax confidences to logits, applies sigmoid, re-normalises.
-      final rawConfidences = intentPredictions.map((p) => p.confidence).toList();
+      final rawConfidences = intentPredictions
+          .map((p) => p.confidence)
+          .toList();
       // Invert softmax to approximate logits: logit = ln(p / (1 - p))
       final approxLogits = rawConfidences.map((p) {
         final clamped = p.clamp(1e-7, 1.0 - 1e-7);
@@ -301,7 +307,7 @@ class L2Analyzer implements Analyzer {
           confidence: calibrated[i],
         );
       }).toList();
-      
+
       intentPredictions.sort((a, b) => b.confidence.compareTo(a.confidence));
       final topIntent = intentPredictions.first;
       final secondConfidence = intentPredictions.length > 1
@@ -336,8 +342,11 @@ class L2Analyzer implements Analyzer {
     bool isAiHighlyConfidentScam = false;
     if (luong1Result is _Luong1Success) {
       final topIntent = luong1Result.prediction;
-      final intentRisk = topIntent.intent.riskLevelForConfidence(topIntent.confidence);
-      final isSafeIntent = topIntent.intent == ScamIntent.safe || intentRisk == RiskLevel.green;
+      final intentRisk = topIntent.intent.riskLevelForConfidence(
+        topIntent.confidence,
+      );
+      final isSafeIntent =
+          topIntent.intent == ScamIntent.safe || intentRisk == RiskLevel.green;
       if (!isSafeIntent && topIntent.confidence > 0.8) {
         isAiHighlyConfidentScam = true;
       }
@@ -353,8 +362,11 @@ class L2Analyzer implements Analyzer {
       newRisk = RiskLevel.green;
     }
 
-    if (isAiHighlyConfidentScam && newRisk == RiskLevel.green && originalRisk.index >= RiskLevel.yellow.index) {
-      return RiskLevel.yellow; // Keep it at least yellow if AI is confident it's a scam
+    if (isAiHighlyConfidentScam &&
+        newRisk == RiskLevel.green &&
+        originalRisk.index >= RiskLevel.yellow.index) {
+      return RiskLevel
+          .yellow; // Keep it at least yellow if AI is confident it's a scam
     }
     return newRisk;
   }
@@ -518,7 +530,8 @@ class L2Analyzer implements Analyzer {
     final contextWeight = 1.0 - aiWeight;
     final ensembleConfidence = ctx.result2.confidence > 0
         ? (ctx.prediction.confidence * aiWeight +
-              ctx.result2.confidence * contextWeight).clamp(0.0, 1.0)
+                  ctx.result2.confidence * contextWeight)
+              .clamp(0.0, 1.0)
         : ctx.prediction.confidence;
     return AnalysisResult(
       overallRiskLevel: _maxRisk(ctx.intentRisk, ctx.result2.overallRiskLevel),
@@ -528,8 +541,8 @@ class L2Analyzer implements Analyzer {
       ]),
       reason: '⚠️ ${ctx.intentLabel} — ${ctx.prediction.intent.description}',
       analysisLevel: AnalysisLevel.l2Fused,
-      alertEnabled: ctx.result2.alertEnabled ||
-          ctx.intentRisk != RiskLevel.green,
+      alertEnabled:
+          ctx.result2.alertEnabled || ctx.intentRisk != RiskLevel.green,
       confidence: ensembleConfidence,
     );
   }
@@ -566,7 +579,11 @@ class L2Analyzer implements Analyzer {
   }
 
   String _normalizeForCache(String text) {
-    return text.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    return text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 }
 

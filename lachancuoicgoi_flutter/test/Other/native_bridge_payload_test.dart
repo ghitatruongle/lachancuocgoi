@@ -39,8 +39,7 @@ void main() {
       expect(u.isPartial, isFalse);
     });
 
-    test('old-style event: empty String → empty text (filtered by stream)',
-        () {
+    test('old-style event: empty String → empty text (filtered by stream)', () {
       final u = parseTranscriptEvent('');
       expect(u.text, isEmpty);
     });

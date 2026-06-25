@@ -19,9 +19,7 @@ void main() {
     });
 
     test('single permission granted', () {
-      const snapshot = PermissionSnapshot(
-        recordAudio: true,
-      );
+      const snapshot = PermissionSnapshot(recordAudio: true);
 
       expect(snapshot.grantedCount, 1);
       expect(snapshot.allGranted, isFalse);
@@ -78,14 +76,18 @@ void main() {
     });
 
     test('STOPPED: with empty transcript', () {
-      final (state, duration, transcript) = MonitoringState.parse('STOPPED:30:');
+      final (state, duration, transcript) = MonitoringState.parse(
+        'STOPPED:30:',
+      );
       expect(state, MonitoringState.stopped);
       expect(duration, 30);
       expect(transcript, isNull);
     });
 
     test('STOPPED: with invalid duration uses null', () {
-      final (state, duration, transcript) = MonitoringState.parse('STOPPED:abc:some text');
+      final (state, duration, transcript) = MonitoringState.parse(
+        'STOPPED:abc:some text',
+      );
       expect(state, MonitoringState.stopped);
       expect(duration, isNull);
       expect(transcript, 'some text');

@@ -15,9 +15,7 @@ void main() {
 
   group('L2Analyzer - edge cases', () {
     test('analyze with empty text returns GREEN', () async {
-      final analyzer = _createL2Analyzer(
-        gResult: _greenGResult(),
-      );
+      final analyzer = _createL2Analyzer(gResult: _greenGResult());
       await analyzer.initialize();
 
       final result = await analyzer.analyze('', '');
@@ -26,9 +24,7 @@ void main() {
     });
 
     test('analyze with whitespace-only fullText returns GREEN', () async {
-      final analyzer = _createL2Analyzer(
-        gResult: _greenGResult(),
-      );
+      final analyzer = _createL2Analyzer(gResult: _greenGResult());
       await analyzer.initialize();
 
       final result = await analyzer.analyze('   ', '   \n\t  ');
@@ -36,9 +32,7 @@ void main() {
     });
 
     test('analyze with single character fullText returns GREEN', () async {
-      final analyzer = _createL2Analyzer(
-        gResult: _greenGResult(),
-      );
+      final analyzer = _createL2Analyzer(gResult: _greenGResult());
       await analyzer.initialize();
 
       // GDetection will still run, but with minimal tokens
@@ -47,42 +41,36 @@ void main() {
       expect(result.analysisLevel, AnalysisLevel.l2);
     });
 
-    test(
-      '_applySafetyDiscount with orange risk level preserves it',
-      () async {
-        // The safety discount logic does not downgrade orange or red
-        final gResult = GResult(
-          riskLevel: RiskLevel.orange,
-          reason: 'Cảnh báo phát hiện',
-          allMatchedKeywords: <KeywordMatch>{
-            const KeywordMatch(
-              keyword: 'test',
-              level: RiskLevel.orange,
-              category: 'Chung',
-            ),
-          },
-          alertEnabled: true,
-        );
-        final analyzer = _createL2Analyzer(gResult: gResult);
-        await analyzer.initialize();
+    test('_applySafetyDiscount with orange risk level preserves it', () async {
+      // The safety discount logic does not downgrade orange or red
+      final gResult = GResult(
+        riskLevel: RiskLevel.orange,
+        reason: 'Cảnh báo phát hiện',
+        allMatchedKeywords: <KeywordMatch>{
+          const KeywordMatch(
+            keyword: 'test',
+            level: RiskLevel.orange,
+            category: 'Chung',
+          ),
+        },
+        alertEnabled: true,
+      );
+      final analyzer = _createL2Analyzer(gResult: gResult);
+      await analyzer.initialize();
 
-        // Full text with casual opening to trigger safety discount
-        final casualText =
-            '${'ăn cơm chưa ' * 10} co dau hieu lua dao';
-        final result = await analyzer.analyze(casualText, casualText);
+      // Full text with casual opening to trigger safety discount
+      final casualText = '${'ăn cơm chưa ' * 10} co dau hieu lua dao';
+      final result = await analyzer.analyze(casualText, casualText);
 
-        // Orange should not be downgraded by safety discount
-        expect(
-          result.overallRiskLevel.index,
-          greaterThanOrEqualTo(RiskLevel.orange.index),
-        );
-      },
-    );
+      // Orange should not be downgraded by safety discount
+      expect(
+        result.overallRiskLevel.index,
+        greaterThanOrEqualTo(RiskLevel.orange.index),
+      );
+    });
 
     test('resetSession clears all state', () async {
-      final analyzer = _createL2Analyzer(
-        gResult: _greenGResult(),
-      );
+      final analyzer = _createL2Analyzer(gResult: _greenGResult());
       await analyzer.initialize();
 
       // Run an analysis to set state
@@ -96,46 +84,33 @@ void main() {
       expect(analyzer.lastResult.matches, isEmpty);
     });
 
-    test(
-      'syncProcessedTextLength propagates correctly',
-      () async {
-        final analyzer = _createL2Analyzer(
-          gResult: _greenGResult(),
-        );
-        await analyzer.initialize();
+    test('syncProcessedTextLength propagates correctly', () async {
+      final analyzer = _createL2Analyzer(gResult: _greenGResult());
+      await analyzer.initialize();
 
-        analyzer.syncProcessedTextLength(500);
-        expect(analyzer.processedTextLength, 500);
-      },
-    );
+      analyzer.syncProcessedTextLength(500);
+      expect(analyzer.processedTextLength, 500);
+    });
 
-    test(
-      'syncProcessedTextLength with negative value clamps to 0',
-      () async {
-        final analyzer = _createL2Analyzer(
-          gResult: _greenGResult(),
-        );
-        await analyzer.initialize();
+    test('syncProcessedTextLength with negative value clamps to 0', () async {
+      final analyzer = _createL2Analyzer(gResult: _greenGResult());
+      await analyzer.initialize();
 
-        analyzer.syncProcessedTextLength(-10);
-        expect(analyzer.processedTextLength, 0);
-      },
-    );
+      analyzer.syncProcessedTextLength(-10);
+      expect(analyzer.processedTextLength, 0);
+    });
 
-    test(
-      'healthCheck returns down when GDetectionEngine not ready',
-      () async {
-        final analyzer = _createL2Analyzer(
-          gResult: _greenGResult(),
-          gReady: false,
-          intentReady: false,
-        );
-        // Do NOT initialize — engine won't be ready
-        final report = analyzer.healthCheck();
-        expect(report.status, HealthStatus.down);
-        expect(report.component, 'L2');
-      },
-    );
+    test('healthCheck returns down when GDetectionEngine not ready', () async {
+      final analyzer = _createL2Analyzer(
+        gResult: _greenGResult(),
+        gReady: false,
+        intentReady: false,
+      );
+      // Do NOT initialize — engine won't be ready
+      final report = analyzer.healthCheck();
+      expect(report.status, HealthStatus.down);
+      expect(report.component, 'L2');
+    });
 
     test(
       'healthCheck returns degraded when GDetection OK but IntentClassifier not ready',
@@ -154,33 +129,26 @@ void main() {
       },
     );
 
-    test(
-      'healthCheck returns healthy when both engines ready',
-      () async {
-        final analyzer = _createL2Analyzer(
-          gResult: _greenGResult(),
-          gReady: true,
-          intentReady: true,
-        );
-        final report = analyzer.healthCheck();
-        expect(report.status, HealthStatus.healthy);
-        expect(report.component, 'L2');
-      },
-    );
-
-    test('level returns l2', () async {
+    test('healthCheck returns healthy when both engines ready', () async {
       final analyzer = _createL2Analyzer(
         gResult: _greenGResult(),
+        gReady: true,
+        intentReady: true,
       );
+      final report = analyzer.healthCheck();
+      expect(report.status, HealthStatus.healthy);
+      expect(report.component, 'L2');
+    });
+
+    test('level returns l2', () async {
+      final analyzer = _createL2Analyzer(gResult: _greenGResult());
       expect(analyzer.level, AnalysisLevel.l2);
     });
 
     test(
       'lastResult returns initial green result before any analysis',
       () async {
-        final analyzer = _createL2Analyzer(
-          gResult: _greenGResult(),
-        );
+        final analyzer = _createL2Analyzer(gResult: _greenGResult());
         expect(analyzer.lastResult.overallRiskLevel, RiskLevel.green);
         expect(analyzer.lastResult.matches, isEmpty);
         expect(analyzer.lastResult.analysisLevel, AnalysisLevel.l2);
@@ -283,10 +251,7 @@ class _FakeIntentClassifier implements IntentClassifier {
   @override
   Future<List<IntentPrediction>> predictIntent(String transcript) async {
     return <IntentPrediction>[
-      const IntentPrediction(
-        intent: ScamIntent.safe,
-        confidence: 0.95,
-      ),
+      const IntentPrediction(intent: ScamIntent.safe, confidence: 0.95),
     ];
   }
 

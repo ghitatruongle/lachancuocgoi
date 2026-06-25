@@ -68,10 +68,9 @@ class IntentOutputMapper {
     final active = <IntentPrediction>[];
     for (var i = 0; i < classCount; i++) {
       if (calibrated[i] >= threshold) {
-        active.add(IntentPrediction(
-          intent: intentLabels[i],
-          confidence: calibrated[i],
-        ));
+        active.add(
+          IntentPrediction(intent: intentLabels[i], confidence: calibrated[i]),
+        );
       }
     }
     active.sort((a, b) => b.confidence.compareTo(a.confidence));
@@ -145,10 +144,9 @@ class IntentOutputMapper {
     final calibrated = plattCalibrate(logits);
     final predictions = <IntentPrediction>[];
     for (var i = 0; i < calibrated.length; i++) {
-      predictions.add(IntentPrediction(
-        intent: intentLabels[i],
-        confidence: calibrated[i],
-      ));
+      predictions.add(
+        IntentPrediction(intent: intentLabels[i], confidence: calibrated[i]),
+      );
     }
     predictions.sort((a, b) => b.confidence.compareTo(a.confidence));
     return predictions;

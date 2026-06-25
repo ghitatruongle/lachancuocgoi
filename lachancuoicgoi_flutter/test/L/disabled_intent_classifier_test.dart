@@ -22,8 +22,7 @@ void main() {
 
     test('predictIntent returns empty list even with OTP text', () async {
       const classifier = DisabledIntentClassifier();
-      final predictions =
-          await classifier.predictIntent('gửi mã otp cho tôi');
+      final predictions = await classifier.predictIntent('gửi mã otp cho tôi');
       expect(predictions, isEmpty);
     });
 

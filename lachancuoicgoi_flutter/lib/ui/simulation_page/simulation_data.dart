@@ -18,9 +18,11 @@ class SimulationScenarioData {
   final String iconEmoji;
 
   factory SimulationScenarioData.fromJson(Map<String, dynamic> json) {
-    final rawScript = (json['script'] as List<dynamic>?)
-            ?.map((e) => SimulationScriptLine.fromJson(
-                e as Map<String, dynamic>))
+    final rawScript =
+        (json['script'] as List<dynamic>?)
+            ?.map(
+              (e) => SimulationScriptLine.fromJson(e as Map<String, dynamic>),
+            )
             .toList() ??
         const <SimulationScriptLine>[];
     return SimulationScenarioData(
@@ -35,23 +37,24 @@ class SimulationScenarioData {
 
   /// Convert absolute timestamps to relative delays between lines.
   static List<SimulationScriptLine> _computeRelativeDelays(
-      List<SimulationScriptLine> lines) {
+    List<SimulationScriptLine> lines,
+  ) {
     if (lines.length <= 1) return lines;
     final result = <SimulationScriptLine>[];
     for (var i = 0; i < lines.length; i++) {
       // Default gap when timestamps are equal/zero/inverted: 1500ms
       // (sits comfortably inside the [500, 10000] clamp window).
       const fallbackGap = 1500;
-      final rawGap = i == 0
-          ? 0
-          : (lines[i].delay - lines[i - 1].delay).abs();
+      final rawGap = i == 0 ? 0 : (lines[i].delay - lines[i - 1].delay).abs();
       final relativeDelay = rawGap <= 0 ? fallbackGap : rawGap;
-      result.add(SimulationScriptLine(
-        speaker: lines[i].speaker,
-        line: lines[i].line,
-        riskLevel: lines[i].riskLevel,
-        delay: relativeDelay.clamp(500, 10000),
-      ));
+      result.add(
+        SimulationScriptLine(
+          speaker: lines[i].speaker,
+          line: lines[i].line,
+          riskLevel: lines[i].riskLevel,
+          delay: relativeDelay.clamp(500, 10000),
+        ),
+      );
     }
     return result;
   }
@@ -75,9 +78,10 @@ class SimulationScriptLine {
       speaker: json['speaker'] as String? ?? '',
       line: json['line'] as String? ?? '',
       riskLevel: json['riskLevel'] as String?,
-      delay: (json['timestamp'] as num?)?.toInt()
-          ?? (json['delay'] as num?)?.toInt()
-          ?? 2000,
+      delay:
+          (json['timestamp'] as num?)?.toInt() ??
+          (json['delay'] as num?)?.toInt() ??
+          2000,
     );
   }
 }

@@ -29,46 +29,88 @@ class PIIStripper {
     // Order matters: contextual matches before generic ones to reduce false
     // positives and overlapping match resolution.
     PiiCollectors.collectOtp(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectBankAccount(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectNationalId(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectCardNumber(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectEmails(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectUrls(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectSocialMedia(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectDateOfBirth(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectPartialPii(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectCompactPhoneLabels(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectPhoneNumbers(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectContextualPersonNames(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectGenericNames(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
     PiiCollectors.collectAddresses(
-      originalText, replacements, tokenByValue, counters,
+      originalText,
+      replacements,
+      tokenByValue,
+      counters,
     );
 
     if (replacements.isEmpty) {

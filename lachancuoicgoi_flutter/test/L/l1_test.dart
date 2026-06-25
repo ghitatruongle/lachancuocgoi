@@ -112,21 +112,21 @@ void main() {
       expect(result.matches.single.isFuzzy, isTrue);
     });
 
-    test('detects level-2 normal keyword match (parity with Kotlin testAnalyze_NormalKeyword)', () async {
-      final analyzer = _newTestAnalyzer();
-      await analyzer.initialize();
+    test(
+      'detects level-2 normal keyword match (parity with Kotlin testAnalyze_NormalKeyword)',
+      () async {
+        final analyzer = _newTestAnalyzer();
+        await analyzer.initialize();
 
-      final result = await analyzer.analyze(
-        'Chúc mừng anh đã nhận được khuyến mãi lớn.',
-      );
+        final result = await analyzer.analyze(
+          'Chúc mừng anh đã nhận được khuyến mãi lớn.',
+        );
 
-      expect(result.overallRiskLevel, RiskLevel.yellow);
-      expect(result.alertEnabled, isTrue);
-      expect(
-        result.matches.map((m) => m.keyword),
-        contains('khuyến mãi'),
-      );
-    });
+        expect(result.overallRiskLevel, RiskLevel.yellow);
+        expect(result.alertEnabled, isTrue);
+        expect(result.matches.map((m) => m.keyword), contains('khuyến mãi'));
+      },
+    );
 
     test(
       'does not flicker to GREEN when stream receives no new tokens',
@@ -165,39 +165,47 @@ void main() {
       await analyzer.initialize();
 
       expect(analyzer.isReady, isTrue);
-      
+
       final result1 = await analyzer.analyze('đây là trò lừa đảo');
       expect(result1.overallRiskLevel, RiskLevel.yellow);
-      
+
       final result2 = await analyzer.analyze('tôi đi chuyển tiền');
       expect(result2.overallRiskLevel, RiskLevel.yellow);
 
       final result3 = await analyzer.analyze('yêu cầu nhập mã otp');
-      expect(result3.overallRiskLevel, RiskLevel.red); // critical OTP keyword forces RED
+      expect(
+        result3.overallRiskLevel,
+        RiskLevel.red,
+      ); // critical OTP keyword forces RED
     });
 
-    test('applies negative lookahead context filtering to reduce false alarms', () async {
-      final analyzer = _newTestAnalyzer();
-      await analyzer.initialize();
+    test(
+      'applies negative lookahead context filtering to reduce false alarms',
+      () async {
+        final analyzer = _newTestAnalyzer();
+        await analyzer.initialize();
 
-      final alertNormal = await analyzer.analyze('tôi thấy công an');
-      expect(alertNormal.overallRiskLevel, RiskLevel.yellow);
-      
-      final alertNegated = await analyzer.analyze('không phải công an đâu');
-      expect(alertNegated.overallRiskLevel, RiskLevel.green);
+        final alertNormal = await analyzer.analyze('tôi thấy công an');
+        expect(alertNormal.overallRiskLevel, RiskLevel.yellow);
 
-      final transNormal = await analyzer.analyze('yêu cầu chuyển tiền ngay');
-      expect(transNormal.overallRiskLevel, RiskLevel.yellow);
+        final alertNegated = await analyzer.analyze('không phải công an đâu');
+        expect(alertNegated.overallRiskLevel, RiskLevel.green);
 
-      final transSafe = await analyzer.analyze('tôi đi chuyển tiền cho mẹ');
-      expect(transSafe.overallRiskLevel, RiskLevel.green);
+        final transNormal = await analyzer.analyze('yêu cầu chuyển tiền ngay');
+        expect(transNormal.overallRiskLevel, RiskLevel.yellow);
 
-      final resultNormal = await analyzer.analyze('tôi là công an đây');
-      expect(resultNormal.overallRiskLevel, RiskLevel.yellow);
+        final transSafe = await analyzer.analyze('tôi đi chuyển tiền cho mẹ');
+        expect(transSafe.overallRiskLevel, RiskLevel.green);
 
-      final resultTroll = await analyzer.analyze('tôi là công an đây nói đùa thôi');
-      expect(resultTroll.overallRiskLevel, RiskLevel.green);
-    });
+        final resultNormal = await analyzer.analyze('tôi là công an đây');
+        expect(resultNormal.overallRiskLevel, RiskLevel.yellow);
+
+        final resultTroll = await analyzer.analyze(
+          'tôi là công an đây nói đùa thôi',
+        );
+        expect(resultTroll.overallRiskLevel, RiskLevel.green);
+      },
+    );
   });
 
   group('Phase 4 Monitoring mock integration', () {

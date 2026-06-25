@@ -198,13 +198,13 @@ lib/
 
 | Metric | Giá trị |
 |--------|---------|
-| Tổng commits | ~35+ |
-| Dart files | ~90+ |
-| Tests | 1454 |
+| Tổng commits | ~45+ |
+| Dart files | ~125+ |
+| Tests | 1342 |
 | Analysis issues | 0 |
-| Ngày phát triển | ~46 ngày (06/05 → 20/06/2026) |
+| Ngày phát triển | ~50 ngày (06/05 → 25/06/2026) |
 | Kiến trúc | 3-tier analysis (L1/L2/L3) + Native bridge |
-| Platform | Flutter (Android/iOS) + Kotlin native overlay |
+| Platform | Flutter (Android native) + iOS/Desktop (simulator bridge) |
 | Shared UI widgets | 9 (`lib/ui/widgets/`) |
 | A11y surfaces | RiskLevelIndicator (live region), RiskBadge, keyword chips, LoadingElevatedButton, QuickActionCard, tips button, permission warning |
 

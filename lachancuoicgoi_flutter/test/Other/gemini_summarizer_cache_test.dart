@@ -83,8 +83,11 @@ void main() {
         );
       } on Object catch (_) {}
 
-      expect(executorCallCount, equals(0),
-          reason: 'Circuit breaker should block calls after 5 failures');
+      expect(
+        executorCallCount,
+        equals(0),
+        reason: 'Circuit breaker should block calls after 5 failures',
+      );
     });
   });
 }

@@ -129,7 +129,9 @@ class AnalysisCoordinator {
     }
     final l2Future = _l2Analyzer.isReady
         ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
-        : Future.value(AnalysisFallback.defaultForMode(AnalysisMode.gDetection));
+        : Future.value(
+            AnalysisFallback.defaultForMode(AnalysisMode.gDetection),
+          );
 
     final results = await Future.wait([l1Future, l2Future]);
     final l1Result = results[0];
@@ -163,7 +165,8 @@ class AnalysisCoordinator {
   Future<AnalysisResult> _analyzeIncrementalParallel(String fullText) async {
     final processedLength = _l1Analyzer.processedTextLength;
     final lastResult =
-        _lastParallelResult ?? AnalysisFallback.defaultForMode(AnalysisMode.parallel);
+        _lastParallelResult ??
+        AnalysisFallback.defaultForMode(AnalysisMode.parallel);
 
     if (fullText.length <= processedLength) {
       return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
@@ -175,7 +178,7 @@ class AnalysisCoordinator {
     final minDelta = _adaptiveMinDelta(
       lastResult.overallRiskLevel,
       AnalysisMode.parallel,
-	      transcriptLength: lastResult.matches.isNotEmpty ? fullText.length : 0,
+      transcriptLength: lastResult.matches.isNotEmpty ? fullText.length : 0,
       matchCount: lastResult.matches.length,
       lastConfidence: lastResult.confidence,
       speechRate: 0,
@@ -192,7 +195,9 @@ class AnalysisCoordinator {
     if (!_l2Analyzer.isReady) await _l2Analyzer.initialize();
     final l2Future = _l2Analyzer.isReady
         ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
-        : Future.value(AnalysisFallback.defaultForMode(AnalysisMode.gDetection));
+        : Future.value(
+            AnalysisFallback.defaultForMode(AnalysisMode.gDetection),
+          );
 
     final results = await Future.wait([l1Future, l2Future]);
     final l1Result = results[0];
@@ -213,7 +218,8 @@ class AnalysisCoordinator {
     AnalysisResult l3Result;
     try {
       final result = await l3Future.timeout(const Duration(milliseconds: 800));
-      l3Result = result ?? AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
+      l3Result =
+          result ?? AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
     } on TimeoutException {
       l3Result = AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
     }
@@ -266,7 +272,8 @@ class AnalysisCoordinator {
 
   AnalysisResult getLastResult(AnalysisMode mode) {
     if (mode == AnalysisMode.parallel) {
-      return _lastParallelResult ?? AnalysisFallback.defaultForMode(AnalysisMode.parallel);
+      return _lastParallelResult ??
+          AnalysisFallback.defaultForMode(AnalysisMode.parallel);
     }
     final result = _analyzerFor(mode).lastResult;
     if (mode == AnalysisMode.geminiApi &&
@@ -418,9 +425,14 @@ class AnalysisCoordinator {
       rateFactor = 0.85;
     }
 
-    final delta = (baseDelta * modeMultiplier * densityFactor * confidenceFactor * rateFactor)
-        .round()
-        .clamp(5, 100);
+    final delta =
+        (baseDelta *
+                modeMultiplier *
+                densityFactor *
+                confidenceFactor *
+                rateFactor)
+            .round()
+            .clamp(5, 100);
     return delta;
   }
 }

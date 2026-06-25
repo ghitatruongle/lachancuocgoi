@@ -52,7 +52,9 @@ class TFLiteIntentClassifier implements IntentClassifier {
     try {
       final vocab = await _loadVocab();
       if (_assetLoader == null) {
-        throw StateError('AssetLoader is null. Phải cung cấp AssetLoader để load model $modelAsset.');
+        throw StateError(
+          'AssetLoader is null. Phải cung cấp AssetLoader để load model $modelAsset.',
+        );
       }
       final ByteData modelData = await _assetLoader.load(modelAsset);
       final Uint8List modelBytes = modelData.buffer.asUint8List(
@@ -185,7 +187,9 @@ class TFLiteIntentClassifier implements IntentClassifier {
 
   Future<Map<String, int>> _loadVocab() async {
     if (_assetLoader == null) {
-      throw StateError('AssetLoader is null. Phải cung cấp AssetLoader để load vocab $vocabAsset.');
+      throw StateError(
+        'AssetLoader is null. Phải cung cấp AssetLoader để load vocab $vocabAsset.',
+      );
     }
     final vocabText = await _assetLoader.loadString(vocabAsset);
     final vocab = <String, int>{};
@@ -222,9 +226,7 @@ void _isolateMain(SendPort mainSendPort) async {
         );
 
         final outputTensor = interpreter.getOutputTensor(0);
-        numClasses = outputTensor.shape.isEmpty
-            ? 0
-            : outputTensor.shape.last;
+        numClasses = outputTensor.shape.isEmpty ? 0 : outputTensor.shape.last;
 
         if (numClasses != intentLabels.length) {
           debugPrint(
@@ -270,9 +272,8 @@ void _isolateMain(SendPort mainSendPort) async {
         final inputs = tokenizer.buildInputs(tokens);
 
         final Object output = switch (outputType) {
-          IntentOutputType.uint8 || IntentOutputType.int8 => <List<int>>[
-            List<int>.filled(numClasses, 0),
-          ],
+          IntentOutputType.uint8 ||
+          IntentOutputType.int8 => <List<int>>[List<int>.filled(numClasses, 0)],
           IntentOutputType.float32 => <List<double>>[
             List<double>.filled(numClasses, 0),
           ],

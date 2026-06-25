@@ -28,7 +28,9 @@ void main() {
       );
     }
 
-    testWidgets('renders correctly on Galaxy J6+ portrait screen', (tester) async {
+    testWidgets('renders correctly on Galaxy J6+ portrait screen', (
+      tester,
+    ) async {
       // Configure target device dimensions for Samsung Galaxy J6+:
       // Physical resolution: 720 x 1480 pixels
       // Logical size: 360 x 740, Device Pixel Ratio: 2.0
@@ -40,16 +42,15 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            nativeBridgeProvider.overrideWithValue(fakeBridge),
-          ],
+          overrides: [nativeBridgeProvider.overrideWithValue(fakeBridge)],
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
             theme: ThemeData.light(),
             home: MonitoringPage(
               l1AnalyzerOverride: analyzer,
               simulatedScenarioTitle: 'Mô phỏng ngân hàng lừa đảo',
-              simulatedTranscript: 'Anh Nguyễn Văn A vui lòng cung cấp mã OTP gửi về điện thoại',
+              simulatedTranscript:
+                  'Anh Nguyễn Văn A vui lòng cung cấp mã OTP gửi về điện thoại',
             ),
           ),
         ),

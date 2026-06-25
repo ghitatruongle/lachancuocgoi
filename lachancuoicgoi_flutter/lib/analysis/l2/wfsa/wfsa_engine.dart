@@ -171,7 +171,8 @@ class WfsaEngine {
         final currentStateId =
             _currentSessionStates[graphId] ?? graph.initialStateId;
         final currentState = graph.states[currentStateId];
-        final currentStage = currentState?.stage ?? ScamStage.stage1Introduction;
+        final currentStage =
+            currentState?.stage ?? ScamStage.stage1Introduction;
         final baseDecay = _decayForGraph(graphId);
         final adaptiveDecay = _adaptiveDecay(baseDecay, currentStage);
         final newScore = currentScore * adaptiveDecay;
@@ -212,14 +213,16 @@ class WfsaEngine {
             _segmentsSinceLastTrigger[graphId] = 0;
 
             // --- Session timeline tracking ---
-            _transitionHistory.add(TransitionRecord(
-              graphId: graphId,
-              fromStateId: fromStateId,
-              toStateId: transition.targetStateId,
-              scoreAfter: _graphScores[graphId]!,
-              stage: targetState.stage,
-              segmentIndex: _segmentIndex,
-            ));
+            _transitionHistory.add(
+              TransitionRecord(
+                graphId: graphId,
+                fromStateId: fromStateId,
+                toStateId: transition.targetStateId,
+                scoreAfter: _graphScores[graphId]!,
+                stage: targetState.stage,
+                segmentIndex: _segmentIndex,
+              ),
+            );
             // Prevent unbounded history growth: trim oldest 20% when over cap.
             if (_transitionHistory.length > maxTransitionHistory) {
               _transitionHistory.removeRange(
@@ -286,8 +289,9 @@ class WfsaEngine {
         }
       }
       if (best != null && best.value > 0) {
-        _graphScores[best.key] =
-            (best.value + bonus).clamp(0.0, 100.0).toDouble();
+        _graphScores[best.key] = (best.value + bonus)
+            .clamp(0.0, 100.0)
+            .toDouble();
       }
     }
   }

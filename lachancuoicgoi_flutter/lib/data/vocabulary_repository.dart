@@ -3,9 +3,8 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 
 class VocabularyRepository {
-  const VocabularyRepository({
-    AssetBundle? assetBundle,
-  }) : _assetBundle = assetBundle;
+  const VocabularyRepository({AssetBundle? assetBundle})
+    : _assetBundle = assetBundle;
 
   final AssetBundle? _assetBundle;
 

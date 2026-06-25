@@ -5,11 +5,7 @@ import '../../data/call_history.dart';
 
 /// History item card matching Kotlin HistoryItemCard.kt
 class HistoryItemCard extends StatelessWidget {
-  const HistoryItemCard({
-    super.key,
-    required this.item,
-    required this.onTap,
-  });
+  const HistoryItemCard({super.key, required this.item, required this.onTap});
 
   final CallHistory item;
   final VoidCallback onTap;
@@ -28,9 +24,7 @@ class HistoryItemCard extends StatelessWidget {
     };
 
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: cs.surfaceContainerHighest,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -55,7 +49,9 @@ class HistoryItemCard extends StatelessWidget {
                           Text(item.dateTime, style: tt.bodySmall),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: riskColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(50),
@@ -76,8 +72,9 @@ class HistoryItemCard extends StatelessWidget {
                       // Summary
                       Text(
                         item.summary,
-                        style: tt.bodyLarge
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        style: tt.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -86,8 +83,9 @@ class HistoryItemCard extends StatelessWidget {
                       // Duration + flag count
                       Text(
                         '${item.duration} • ${item.flagCount} dấu hiệu',
-                        style: tt.bodySmall
-                            ?.copyWith(color: cs.onSurfaceVariant),
+                        style: tt.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(height: 4),
 
@@ -100,7 +98,9 @@ class HistoryItemCard extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: item.analysisType == null
-                              ? cs.surfaceContainerHighest.withValues(alpha: 0.5)
+                              ? cs.surfaceContainerHighest.withValues(
+                                  alpha: 0.5,
+                                )
                               : cs.secondaryContainer,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(

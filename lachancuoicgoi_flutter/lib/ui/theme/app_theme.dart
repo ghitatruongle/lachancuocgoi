@@ -224,8 +224,7 @@ class AppTheme {
 
   static ThemeData _build(ColorScheme colorScheme) {
     final bool isDark = colorScheme.brightness == Brightness.dark;
-    final Color background =
-        isDark ? _darkBackground : _lightBackground;
+    final Color background = isDark ? _darkBackground : _lightBackground;
 
     return ThemeData(
       useMaterial3: true,
@@ -233,9 +232,7 @@ class AppTheme {
       scaffoldBackgroundColor: background,
       textTheme: _appTypography,
       cardTheme: CardThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         elevation: 1,
       ),
       appBarTheme: AppBarTheme(
@@ -245,14 +242,11 @@ class AppTheme {
         scrolledUnderElevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: background,
-          statusBarIconBrightness:
-              isDark ? Brightness.light : Brightness.dark,
+          statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         ),
       ),
       dialogTheme: DialogThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
   }

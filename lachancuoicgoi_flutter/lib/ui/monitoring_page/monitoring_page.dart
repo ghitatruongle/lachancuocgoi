@@ -255,7 +255,9 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
         button: true,
         label: 'Kết thúc cuộc gọi và lưu kết quả',
         child: ElevatedButton(
-          onPressed: state.isEndingSession ? null : () => controller.endSession(),
+          onPressed: state.isEndingSession
+              ? null
+              : () => controller.endSession(),
           style: ElevatedButton.styleFrom(
             backgroundColor: cs.error,
             foregroundColor: cs.onError,
@@ -325,7 +327,8 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                             builder: (context, _) {
                               return AudioWaveform(
                                 amplitudes: controller.currentAmplitudes,
-                                writeIndex: controller.currentAmplitudeWriteIndex,
+                                writeIndex:
+                                    controller.currentAmplitudeWriteIndex,
                                 elapsedSeconds: _elapsedNotifier,
                               );
                             },
@@ -341,7 +344,8 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                   Card(
                     elevation: 4,
                     child: Semantics(
-                      label: 'Mức độ rủi ro cuộc gọi hiện tại: ${state.riskLevel.vietnameseName}',
+                      label:
+                          'Mức độ rủi ro cuộc gọi hiện tại: ${state.riskLevel.vietnameseName}',
                       liveRegion: true,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -395,10 +399,12 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                                             ),
                                             backgroundColor: match.level.color
                                                 .withValues(alpha: 0.8),
-                                            visualDensity: VisualDensity.compact,
+                                            visualDensity:
+                                                VisualDensity.compact,
                                             padding: EdgeInsets.zero,
                                             materialTapTargetSize:
-                                                MaterialTapTargetSize.shrinkWrap,
+                                                MaterialTapTargetSize
+                                                    .shrinkWrap,
                                           );
                                         })
                                         .toList(),

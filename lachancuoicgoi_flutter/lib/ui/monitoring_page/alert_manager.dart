@@ -11,9 +11,8 @@ import '../../services/native_call_shield_bridge.dart';
 ///
 /// Extracted from [MonitoringController] to reduce class size.
 class AlertManager {
-  AlertManager({
-    required NativeBridgeInterface Function() getBridge,
-  }) : _getBridge = getBridge;
+  AlertManager({required NativeBridgeInterface Function() getBridge})
+    : _getBridge = getBridge;
 
   final NativeBridgeInterface Function() _getBridge;
 
@@ -64,14 +63,16 @@ class AlertManager {
       }
     }
 
-    currentHistory.add(AlertHistoryEntry(
-      timestamp: timestamp,
-      analysisLevel: result.analysisLevel.id,
-      riskLevel: riskLevel,
-      alertCount: 1,
-      displayedReason: reason,
-      allReasons: [reason],
-    ));
+    currentHistory.add(
+      AlertHistoryEntry(
+        timestamp: timestamp,
+        analysisLevel: result.analysisLevel.id,
+        riskLevel: riskLevel,
+        alertCount: 1,
+        displayedReason: reason,
+        allReasons: [reason],
+      ),
+    );
 
     // Bound the history size
     if (currentHistory.length > _maxAlerts) {

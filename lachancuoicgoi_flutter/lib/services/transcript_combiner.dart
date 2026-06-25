@@ -11,7 +11,7 @@
 /// `dual_source_transcript_test.dart` without spinning up a Service.
 library;
 
-import 'native_call_shield_bridge.dart' show TranscriptUpdate;
+import 'native_bridge_interface.dart' show TranscriptUpdate;
 
 bool _isBlank(String s) => s.trim().isEmpty;
 

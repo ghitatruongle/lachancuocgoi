@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_mode.dart';
 import 'package:lachancuocgoi_flutter/app/settings_controller.dart';
 import 'package:lachancuocgoi_flutter/services/developer_mode_manager.dart';

@@ -84,7 +84,9 @@ void main() {
     test(
       'loads bundled assets and returns a non-green fraud benchmark',
       () async {
-        final engine = GDetectionEngine(assetLoader: const FlutterAssetLoader());
+        final engine = GDetectionEngine(
+          assetLoader: const FlutterAssetLoader(),
+        );
         await engine.initialize();
 
         final result = await engine.performFullAnalysis(

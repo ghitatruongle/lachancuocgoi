@@ -77,39 +77,50 @@ class L1ResultParser {
         ? (totalTokens * _earlyPositionFraction).ceil()
         : 0;
 
-    final bestScore = categoryGroups.values.map((keywords) {
-      final maxLevel = keywords
-          .map((match) => match.level.index)
-          .reduce((a, b) => a > b ? a : b);
-      final weight = switch (keywords.length) {
-        >= 4 => 1.00,
-        3 => 0.85,
-        2 => 0.65,
-        _ => 0.30,
-      };
+    final bestScore = categoryGroups.values
+        .map((keywords) {
+          final maxLevel = keywords
+              .map((match) => match.level.index)
+              .reduce((a, b) => a > b ? a : b);
+          final weight = switch (keywords.length) {
+            >= 4 => 1.00,
+            3 => 0.85,
+            2 => 0.65,
+            _ => 0.30,
+          };
 
-      // Positional weighting: if any keyword in this category group
-      // appears early in the transcript, apply a score multiplier.
-      final hasEarlyKeyword = earlyThreshold > 0 &&
-          keywords.any((m) => m.startIndex >= 0 && m.startIndex < earlyThreshold);
-      final positionalBonus = hasEarlyKeyword ? _earlyPositionMultiplier : 1.0;
+          // Positional weighting: if any keyword in this category group
+          // appears early in the transcript, apply a score multiplier.
+          final hasEarlyKeyword =
+              earlyThreshold > 0 &&
+              keywords.any(
+                (m) => m.startIndex >= 0 && m.startIndex < earlyThreshold,
+              );
+          final positionalBonus = hasEarlyKeyword
+              ? _earlyPositionMultiplier
+              : 1.0;
 
-      return maxLevel * weight * positionalBonus;
-    }).fold<double>(0, (best, score) => score > best ? score : best);
+          return maxLevel * weight * positionalBonus;
+        })
+        .fold<double>(0, (best, score) => score > best ? score : best);
 
     // Category co-occurrence bonus: 2+ distinct categories with risk matches
     // indicates a compound scam pattern (e.g. AUTHORITY + MONEY + URGENCY).
     final distinctCategoryCount = categoryGroups.length;
-    final extraCategories =
-        (distinctCategoryCount - 1).clamp(0, _maxCoOccurrenceBonusCategories);
+    final extraCategories = (distinctCategoryCount - 1).clamp(
+      0,
+      _maxCoOccurrenceBonusCategories,
+    );
     final coOccurrenceBonus =
         extraCategories * _coOccurrenceBonusPerExtraCategory;
     final adjustedBestScore = bestScore + coOccurrenceBonus;
 
     final effectiveCriticalKeywords =
         criticalKeywords ?? _defaultCriticalKeywords;
-    final hasCriticalKeyword =
-        _containsCriticalKeyword(riskMatches, effectiveCriticalKeywords);
+    final hasCriticalKeyword = _containsCriticalKeyword(
+      riskMatches,
+      effectiveCriticalKeywords,
+    );
     final adjustedRiskLevel = switch (adjustedBestScore) {
       _ when hasCriticalKeyword => RiskLevel.red,
       < 1.00 => RiskLevel.yellow,
@@ -117,14 +128,12 @@ class L1ResultParser {
       _ => RiskLevel.red,
     };
 
-    final reason = StringBuffer(
-      switch (adjustedRiskLevel) {
-        RiskLevel.red => 'PHÁT HIỆN TỪ KHÓA NGUY HIỂM',
-        RiskLevel.orange => 'PHÁT HIỆN TỪ KHÓA NGUY CƠ',
-        RiskLevel.yellow => 'Phát hiện từ khóa cần lưu ý',
-        RiskLevel.green => 'Hệ thống L1 phát hiện từ khóa rủi ro.',
-      },
-    );
+    final reason = StringBuffer(switch (adjustedRiskLevel) {
+      RiskLevel.red => 'PHÁT HIỆN TỪ KHÓA NGUY HIỂM',
+      RiskLevel.orange => 'PHÁT HIỆN TỪ KHÓA NGUY CƠ',
+      RiskLevel.yellow => 'Phát hiện từ khóa cần lưu ý',
+      RiskLevel.green => 'Hệ thống L1 phát hiện từ khóa rủi ro.',
+    });
 
     if (hasCriticalKeyword) {
       reason.write(' [CẢNH BÁO OTP/BẢO MẬT]');
@@ -153,9 +162,11 @@ class L1ResultParser {
   ) {
     return matches.any((match) {
       final keyword = match.keyword.toLowerCase();
-      return criticalKeywords.any((critical) =>
-          RegExp(r'(?:\b|\s|^)' + RegExp.escape(critical) + r'(?:\b|\s|$)')
-              .hasMatch(keyword));
+      return criticalKeywords.any(
+        (critical) => RegExp(
+          r'(?:\b|\s|^)' + RegExp.escape(critical) + r'(?:\b|\s|$)',
+        ).hasMatch(keyword),
+      );
     });
   }
 

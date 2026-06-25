@@ -150,14 +150,8 @@ void main() {
       });
 
       test('multiple spaces between words are collapsed', () {
-        expect(
-          TextNormalizer.normalize('hello     world'),
-          'hello world',
-        );
-        expect(
-          TextNormalizer.normalize('  a   b   c  '),
-          'a b c',
-        );
+        expect(TextNormalizer.normalize('hello     world'), 'hello world');
+        expect(TextNormalizer.normalize('  a   b   c  '), 'a b c');
       });
 
       test('combining marks are stripped', () {
@@ -224,25 +218,19 @@ void main() {
         expect(tokens.length, 2000);
       });
 
-      test(
-        'tokenize with NoiseMode.space preserves word boundaries',
-        () {
-          final tokens = TextNormalizer.tokenize(
-            'hello-world_test',
-            noiseMode: NoiseMode.space,
-          );
-          expect(tokens, ['hello', 'world', 'test']);
-        },
-      );
+      test('tokenize with NoiseMode.space preserves word boundaries', () {
+        final tokens = TextNormalizer.tokenize(
+          'hello-world_test',
+          noiseMode: NoiseMode.space,
+        );
+        expect(tokens, ['hello', 'world', 'test']);
+      });
     });
 
     group('loadSlangConfig', () {
       test('clears previous config when loading new one', () {
         TextNormalizer.loadSlangConfig({'ck': 'chuyen khoan'});
-        expect(
-          TextNormalizer.normalize('ck'),
-          contains('chuyen'),
-        );
+        expect(TextNormalizer.normalize('ck'), contains('chuyen'));
 
         // Load empty config should clear
         TextNormalizer.loadSlangConfig({});

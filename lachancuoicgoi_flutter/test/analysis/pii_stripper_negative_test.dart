@@ -14,7 +14,9 @@ void main() {
     });
 
     test('handles weird unicode characters without crashing', () {
-      final res = PIIStripper.redactPII('Tên tôi là 𠜎𠜱𠝹𠱓𠱸𠲖𠳏 hoặc Nguyễn Văn A ☠️ 💣 👨‍💻');
+      final res = PIIStripper.redactPII(
+        'Tên tôi là 𠜎𠜱𠝹𠱓𠱸𠲖𠳏 hoặc Nguyễn Văn A ☠️ 💣 👨‍💻',
+      );
       expect(res.tokensMap.values, contains('Nguyễn Văn A'));
       expect(res.redactedText, contains('[TEN_NGUOI_1]'));
     });
@@ -25,7 +27,9 @@ void main() {
       expect(shortPhone.tokensMap, isEmpty);
 
       // Phone number: too long (13 digits)
-      final longPhone = PIIStripper.redactPII('Số điện thoại tôi là 09123456789012');
+      final longPhone = PIIStripper.redactPII(
+        'Số điện thoại tôi là 09123456789012',
+      );
       expect(longPhone.tokensMap, isEmpty);
 
       // CCCD: too short (5 digits)
@@ -33,7 +37,9 @@ void main() {
       expect(shortCCCD.tokensMap, isEmpty);
 
       // CCCD: too long (20 digits)
-      final longCCCD = PIIStripper.redactPII('Mã CCCD của tôi là 12345678901234567890');
+      final longCCCD = PIIStripper.redactPII(
+        'Mã CCCD của tôi là 12345678901234567890',
+      );
       expect(longCCCD.tokensMap, isEmpty);
     });
 
@@ -47,7 +53,7 @@ void main() {
       }
 
       final res = PIIStripper.redactPII(buffer.toString());
-      
+
       // Check that tokensMap length is capped at 200
       expect(res.tokensMap.length, lessThanOrEqualTo(200));
       expect(res.tokensMap.length, equals(200));

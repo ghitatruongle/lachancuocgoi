@@ -114,10 +114,7 @@ void main() {
     });
 
     test('same length but completely different chars', () {
-      expect(
-        FuzzyMatcher.damerauLevenshtein('abc', 'xyz', maxDistance: 3),
-        3,
-      );
+      expect(FuzzyMatcher.damerauLevenshtein('abc', 'xyz', maxDistance: 3), 3);
     });
 
     test('Unicode characters work correctly', () {
@@ -133,53 +130,41 @@ void main() {
 
   group('FuzzyMatcher — findClosest', () {
     test('exact match returns the candidate', () {
-      final result = FuzzyMatcher.findClosest(
-        'hello',
-        {'hello', 'world'},
-      );
+      final result = FuzzyMatcher.findClosest('hello', {'hello', 'world'});
       expect(result, 'hello');
     });
 
     test('fuzzy match within distance returns best candidate', () {
-      final result = FuzzyMatcher.findClosest(
-        'helo',
-        {'hello', 'world'},
-        maxDistance: 2,
-      );
+      final result = FuzzyMatcher.findClosest('helo', {
+        'hello',
+        'world',
+      }, maxDistance: 2);
       expect(result, 'hello');
     });
 
     test('no match within distance returns null', () {
-      final result = FuzzyMatcher.findClosest(
-        'xyzabc',
-        {'hello', 'world'},
-        maxDistance: 2,
-      );
+      final result = FuzzyMatcher.findClosest('xyzabc', {
+        'hello',
+        'world',
+      }, maxDistance: 2);
       expect(result, isNull);
     });
 
     test('empty candidates returns null', () {
-      final result = FuzzyMatcher.findClosest(
-        'hello',
-        const <String>{},
-      );
+      final result = FuzzyMatcher.findClosest('hello', const <String>{});
       expect(result, isNull);
     });
 
     test('prefers closer match over farther one', () {
-      final result = FuzzyMatcher.findClosest(
-        'helo',
-        {'hello', 'hxxxxxx'},
-        maxDistance: 3,
-      );
+      final result = FuzzyMatcher.findClosest('helo', {
+        'hello',
+        'hxxxxxx',
+      }, maxDistance: 3);
       expect(result, 'hello');
     });
 
     test('case sensitivity matters', () {
-      final result = FuzzyMatcher.findClosest(
-        'Hello',
-        {'hello', 'world'},
-      );
+      final result = FuzzyMatcher.findClosest('Hello', {'hello', 'world'});
       expect(result, 'hello');
     });
 
@@ -214,39 +199,36 @@ void main() {
     });
 
     test('findClosest with empty token', () {
-      final result = FuzzyMatcher.findClosest(
-        '',
-        {'a', 'bb', 'ccc'},
-        maxDistance: 2,
-      );
+      final result = FuzzyMatcher.findClosest('', {
+        'a',
+        'bb',
+        'ccc',
+      }, maxDistance: 2);
       // Empty string has distance = candidate.length
       expect(result, 'a'); // distance 1 from 'a'
     });
 
     test('findClosest with single character token', () {
-      final result = FuzzyMatcher.findClosest(
-        'x',
-        {'y', 'z', 'xy'},
-        maxDistance: 1,
-      );
+      final result = FuzzyMatcher.findClosest('x', {
+        'y',
+        'z',
+        'xy',
+      }, maxDistance: 1);
       expect(result, 'y'); // distance 1
     });
 
     test('maxDistance=0 only allows exact matches', () {
-      final result = FuzzyMatcher.findClosest(
+      final result = FuzzyMatcher.findClosest('hello', {
         'hello',
-        {'hello', 'hell'},
-        maxDistance: 0,
-      );
+        'hell',
+      }, maxDistance: 0);
       expect(result, 'hello');
     });
 
     test('maxDistance=0 with no exact match returns null', () {
-      final result = FuzzyMatcher.findClosest(
-        'hello',
-        {'hell'},
-        maxDistance: 0,
-      );
+      final result = FuzzyMatcher.findClosest('hello', {
+        'hell',
+      }, maxDistance: 0);
       expect(result, isNull);
     });
   });

@@ -59,9 +59,7 @@ void main() {
     });
 
     test('copyWith with clearNavigationIntent sets it to null', () {
-      const state = MonitoringPageState(
-        navigationIntent: NavigateToResult(42),
-      );
+      const state = MonitoringPageState(navigationIntent: NavigateToResult(42));
       final cleared = state.copyWith(clearNavigationIntent: true);
       expect(cleared.navigationIntent, isNull);
     });

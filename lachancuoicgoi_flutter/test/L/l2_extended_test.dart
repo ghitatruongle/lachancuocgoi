@@ -26,18 +26,20 @@ void main() {
       expect(report.message, contains('GDetectionEngine'));
     });
 
-    test('returns degraded when GDetection OK but IntentClassifier not ready',
-        () {
-      final analyzer = L2Analyzer(
-        gDetectionEngine: _FakeReadyGDetectionEngine(),
-        intentClassifier: const DisabledIntentClassifier(),
-        wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
-      );
+    test(
+      'returns degraded when GDetection OK but IntentClassifier not ready',
+      () {
+        final analyzer = L2Analyzer(
+          gDetectionEngine: _FakeReadyGDetectionEngine(),
+          intentClassifier: const DisabledIntentClassifier(),
+          wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
+        );
 
-      final report = analyzer.healthCheck();
-      expect(report.status.name, 'degraded');
-      expect(report.message, contains('IntentClassifier'));
-    });
+        final report = analyzer.healthCheck();
+        expect(report.status.name, 'degraded');
+        expect(report.message, contains('IntentClassifier'));
+      },
+    );
 
     test('returns healthy when both components ready', () {
       final analyzer = L2Analyzer(
@@ -153,36 +155,42 @@ void main() {
       expect(result.overallRiskLevel, RiskLevel.orange);
     });
 
-    test('discounts yellow risk to green when safety discount <= 0.5', () async {
-      // SafetyFilter needs to be loaded for this to work
-      // This test verifies the discount logic path exists
-      final analyzer = L2Analyzer(
-        gDetectionEngine: _FakeGDetectionEngine(
-          GResult(
-            riskLevel: RiskLevel.yellow,
-            reason: 'Test',
-            allMatchedKeywords: <KeywordMatch>{
-              const KeywordMatch(
-                keyword: 'test',
-                level: RiskLevel.yellow,
-                category: 'Test',
-              ),
-            },
-            alertEnabled: true,
+    test(
+      'discounts yellow risk to green when safety discount <= 0.5',
+      () async {
+        // SafetyFilter needs to be loaded for this to work
+        // This test verifies the discount logic path exists
+        final analyzer = L2Analyzer(
+          gDetectionEngine: _FakeGDetectionEngine(
+            GResult(
+              riskLevel: RiskLevel.yellow,
+              reason: 'Test',
+              allMatchedKeywords: <KeywordMatch>{
+                const KeywordMatch(
+                  keyword: 'test',
+                  level: RiskLevel.yellow,
+                  category: 'Test',
+                ),
+              },
+              alertEnabled: true,
+            ),
           ),
-        ),
-        intentClassifier: const DisabledIntentClassifier(),
-        wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
-      );
-      await analyzer.initialize();
+          intentClassifier: const DisabledIntentClassifier(),
+          wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
+        );
+        await analyzer.initialize();
 
-      final result = await analyzer.analyze('test', 'xin chào cảm ơn bạn nhé');
-      // With safety phrases, yellow may be discounted to green
-      expect(
-        result.overallRiskLevel.index,
-        lessThanOrEqualTo(RiskLevel.yellow.index),
-      );
-    });
+        final result = await analyzer.analyze(
+          'test',
+          'xin chào cảm ơn bạn nhé',
+        );
+        // With safety phrases, yellow may be discounted to green
+        expect(
+          result.overallRiskLevel.index,
+          lessThanOrEqualTo(RiskLevel.yellow.index),
+        );
+      },
+    );
   });
 
   group('L2Analyzer — _mergeContextResult', () {
@@ -239,10 +247,7 @@ void main() {
       );
       await analyzer.initialize();
 
-      final result = await analyzer.analyze(
-        'test',
-        'công an chuyển tiền test',
-      );
+      final result = await analyzer.analyze('test', 'công an chuyển tiền test');
 
       // Should have distinct matches (no duplicates)
       final keywords = result.matches.map((m) => m.keyword).toList();
@@ -323,11 +328,11 @@ class _FakeNotReadyGDetectionEngine extends GDetectionEngine {
 
   @override
   Future<GResult> performFullAnalysis(String text) async => const GResult(
-        riskLevel: RiskLevel.green,
-        reason: '',
-        allMatchedKeywords: <KeywordMatch>{},
-        alertEnabled: false,
-      );
+    riskLevel: RiskLevel.green,
+    reason: '',
+    allMatchedKeywords: <KeywordMatch>{},
+    alertEnabled: false,
+  );
 }
 
 class _FakeReadyGDetectionEngine extends GDetectionEngine {
@@ -339,11 +344,11 @@ class _FakeReadyGDetectionEngine extends GDetectionEngine {
 
   @override
   Future<GResult> performFullAnalysis(String text) async => const GResult(
-        riskLevel: RiskLevel.green,
-        reason: '',
-        allMatchedKeywords: <KeywordMatch>{},
-        alertEnabled: false,
-      );
+    riskLevel: RiskLevel.green,
+    reason: '',
+    allMatchedKeywords: <KeywordMatch>{},
+    alertEnabled: false,
+  );
 }
 
 class _FakeSlowGDetectionEngine extends GDetectionEngine {

@@ -10,8 +10,7 @@ import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
 class FakeNativeBridge implements NativeBridgeInterface {
   FakeNativeBridge();
 
-  final _transcriptController =
-      StreamController<TranscriptUpdate>.broadcast();
+  final _transcriptController = StreamController<TranscriptUpdate>.broadcast();
   final _rmsController = StreamController<double>.broadcast();
   final _monitoringStateController =
       StreamController<(MonitoringState, int?, String?)>.broadcast();
@@ -29,8 +28,7 @@ class FakeNativeBridge implements NativeBridgeInterface {
   String? lastCallerInfo;
 
   @override
-  Stream<TranscriptUpdate> get transcriptStream =>
-      _transcriptController.stream;
+  Stream<TranscriptUpdate> get transcriptStream => _transcriptController.stream;
 
   @override
   Stream<double> get rmsStream => _rmsController.stream;
@@ -73,8 +71,9 @@ class FakeNativeBridge implements NativeBridgeInterface {
   }
 
   @override
-  Future<bool> startCreatorMonitoring({required int devModeExpiresAtMs}) async =>
-      true;
+  Future<bool> startCreatorMonitoring({
+    required int devModeExpiresAtMs,
+  }) async => true;
 
   @override
   Future<bool> stopCreatorMonitoring() async => true;

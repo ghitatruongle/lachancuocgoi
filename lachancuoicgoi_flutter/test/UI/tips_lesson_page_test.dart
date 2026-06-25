@@ -5,9 +5,7 @@ import 'package:lachancuocgoi_flutter/ui/tips_lesson_page/tips_lesson_page.dart'
 
 void main() {
   Widget wrap(Widget child) {
-    return MaterialApp(
-      home: child,
-    );
+    return MaterialApp(home: child);
   }
 
   group('TipsLessonPage', () {
@@ -41,10 +39,7 @@ void main() {
       await tester.pumpWidget(wrap(const TipsLessonPage()));
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('Những kiến thức cần biết'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Những kiến thức cần biết'), findsOneWidget);
     });
 
     testWidgets('back button is present', (tester) async {

@@ -1,11 +1,7 @@
 class FuzzyMatcher {
   FuzzyMatcher._();
 
-  static int levenshtein(
-    String a,
-    String b, {
-    int maxDistance = 2,
-  }) {
+  static int levenshtein(String a, String b, {int maxDistance = 2}) {
     if ((a.length - b.length).abs() > maxDistance) {
       return maxDistance + 1;
     }
@@ -35,11 +31,7 @@ class FuzzyMatcher {
     return previous[b.length];
   }
 
-  static int damerauLevenshtein(
-    String a,
-    String b, {
-    int maxDistance = 2,
-  }) {
+  static int damerauLevenshtein(String a, String b, {int maxDistance = 2}) {
     if (a == b) return 0;
     if (a.isEmpty) return b.length.clamp(0, maxDistance + 1).toInt();
     if (b.isEmpty) return a.length.clamp(0, maxDistance + 1).toInt();
@@ -55,11 +47,7 @@ class FuzzyMatcher {
       r2[0] = i;
       for (var j = 1; j <= b.length; j++) {
         final cost = a.codeUnitAt(i - 1) == b.codeUnitAt(j - 1) ? 0 : 1;
-        var value = _min3(
-          r1[j] + 1,
-          r2[j - 1] + 1,
-          r1[j - 1] + cost,
-        );
+        var value = _min3(r1[j] + 1, r2[j - 1] + 1, r1[j - 1] + cost);
 
         if (i > 1 &&
             j > 1 &&

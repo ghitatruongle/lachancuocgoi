@@ -20,7 +20,11 @@ class AnalysisFallback {
     required String fallbackReason,
     required bool Function() isL2Ready,
     required Future<void> Function() initializeL2,
-    required Future<AnalysisResult> Function(String incrementalText, String fullText) runL2Analysis,
+    required Future<AnalysisResult> Function(
+      String incrementalText,
+      String fullText,
+    )
+    runL2Analysis,
   }) async {
     if (!isL2Ready()) {
       await initializeL2();

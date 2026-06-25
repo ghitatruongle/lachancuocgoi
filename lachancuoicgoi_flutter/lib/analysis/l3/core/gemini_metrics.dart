@@ -53,16 +53,17 @@ class GeminiMetrics {
 
   MetricsSnapshot getSnapshot() {
     final totalRequests = _cacheHits + _cacheMisses;
-    final summaries = _callsPerKey.entries
-        .map(
-          (entry) => KeyMetricSummary(
-            index: entry.key,
-            calls: entry.value,
-            errors: _errorsPerKey[entry.key] ?? 0,
-          ),
-        )
-        .toList()
-      ..sort((left, right) => left.index.compareTo(right.index));
+    final summaries =
+        _callsPerKey.entries
+            .map(
+              (entry) => KeyMetricSummary(
+                index: entry.key,
+                calls: entry.value,
+                errors: _errorsPerKey[entry.key] ?? 0,
+              ),
+            )
+            .toList()
+          ..sort((left, right) => left.index.compareTo(right.index));
     return MetricsSnapshot(
       totalApiCalls: _totalCalls,
       successCalls: _successCalls,
@@ -128,7 +129,9 @@ class MetricsSnapshot {
   final List<KeyMetricSummary> perKeyMetrics;
   final List<String> recentErrors;
 
-  double get successRate => totalApiCalls > 0 ? successCalls / totalApiCalls : 0;
+  double get successRate =>
+      totalApiCalls > 0 ? successCalls / totalApiCalls : 0;
 
-  double get failureRate => totalApiCalls > 0 ? failureCalls / totalApiCalls : 0;
+  double get failureRate =>
+      totalApiCalls > 0 ? failureCalls / totalApiCalls : 0;
 }

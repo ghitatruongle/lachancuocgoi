@@ -9,15 +9,14 @@ import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 
 /// A fake AnalysisCoordinator that returns controllable results.
 class FakeAnalysisCoordinator extends AnalysisCoordinator {
-  FakeAnalysisCoordinator({
-    AnalysisResult? resultToReturn,
-    this.errorToThrow,
-  }) : _resultToReturn = resultToReturn ??
-            const AnalysisResult(
-              overallRiskLevel: RiskLevel.green,
-              matches: <KeywordMatch>[],
-              analysisLevel: AnalysisLevel.l1,
-            );
+  FakeAnalysisCoordinator({AnalysisResult? resultToReturn, this.errorToThrow})
+    : _resultToReturn =
+          resultToReturn ??
+          const AnalysisResult(
+            overallRiskLevel: RiskLevel.green,
+            matches: <KeywordMatch>[],
+            analysisLevel: AnalysisLevel.l1,
+          );
 
   final AnalysisResult _resultToReturn;
   final Object? errorToThrow;

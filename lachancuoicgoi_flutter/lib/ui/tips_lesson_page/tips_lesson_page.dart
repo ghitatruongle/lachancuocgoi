@@ -100,8 +100,7 @@ class TipsLessonPage extends StatelessWidget {
             style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.sm),
-          for (final tip in _tips)
-            _TipCard(tip: tip),
+          for (final tip in _tips) _TipCard(tip: tip),
         ],
       ),
     );
@@ -185,8 +184,9 @@ class _TipCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             tip.title,
-                            style: tt.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                            style: tt.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
@@ -194,8 +194,7 @@ class _TipCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       tip.description,
-                      style: tt.bodySmall
-                          ?.copyWith(color: cs.onSurfaceVariant),
+                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                     ),
                   ],
                 ),

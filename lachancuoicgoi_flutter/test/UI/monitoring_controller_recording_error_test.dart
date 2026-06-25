@@ -83,32 +83,37 @@ void main() {
   }
 
   // ─── Case 1: no audio (silent) ──────────────────────────────────────
-  test('endSession with empty transcript + zero amplitudes → noAudio', () async {
-    final row = await driveEndSession(
-      transcript: '',
-      peakAmplitude: 0.0,
-      hasReceivedAnyAudio: false,
-    );
-    expect(row, isNotNull, reason: 'no row inserted');
-    expect(row!.recordingError, 'noAudio');
-    expect(row.transcript, '');
-    expect(row.summary, contains('Không thu được âm thanh'));
-    expect(row.summary, contains('micro'));
-  });
+  test(
+    'endSession with empty transcript + zero amplitudes → noAudio',
+    () async {
+      final row = await driveEndSession(
+        transcript: '',
+        peakAmplitude: 0.0,
+        hasReceivedAnyAudio: false,
+      );
+      expect(row, isNotNull, reason: 'no row inserted');
+      expect(row!.recordingError, 'noAudio');
+      expect(row.transcript, '');
+      expect(row.summary, contains('Không thu được âm thanh'));
+      expect(row.summary, contains('micro'));
+    },
+  );
 
   // ─── Case 2: STT failed (heard something but engine failed) ──────────
-  test('endSession with empty transcript + loud amplitudes → sttFailed',
-      () async {
-    final row = await driveEndSession(
-      transcript: '',
-      peakAmplitude: 0.8,
-      hasReceivedAnyAudio: true,
-    );
-    expect(row, isNotNull);
-    expect(row!.recordingError, 'sttFailed');
-    expect(row.summary, contains('STT'));
-    expect(row.summary, contains('nhận diện'));
-  });
+  test(
+    'endSession with empty transcript + loud amplitudes → sttFailed',
+    () async {
+      final row = await driveEndSession(
+        transcript: '',
+        peakAmplitude: 0.8,
+        hasReceivedAnyAudio: true,
+      );
+      expect(row, isNotNull);
+      expect(row!.recordingError, 'sttFailed');
+      expect(row.summary, contains('STT'));
+      expect(row.summary, contains('nhận diện'));
+    },
+  );
 
   // ─── Case 3: success path (transcript present) ──────────────────────
   test('endSession with non-empty transcript → null recordingError', () async {
@@ -124,28 +129,32 @@ void main() {
   });
 
   // ─── Case 4: threshold boundary at 0.5 ──────────────────────────────
-  test('endSession with empty transcript + amplitude == 0.5 → sttFailed',
-      () async {
-    final row = await driveEndSession(
-      transcript: '',
-      peakAmplitude: 0.5,
-      hasReceivedAnyAudio: true,
-    );
-    expect(row, isNotNull);
-    expect(row!.recordingError, 'sttFailed');
-  });
+  test(
+    'endSession with empty transcript + amplitude == 0.5 → sttFailed',
+    () async {
+      final row = await driveEndSession(
+        transcript: '',
+        peakAmplitude: 0.5,
+        hasReceivedAnyAudio: true,
+      );
+      expect(row, isNotNull);
+      expect(row!.recordingError, 'sttFailed');
+    },
+  );
 
   // ─── Case 5: empty amplitudes list → 0.0 max → noAudio ──────────────
-  test('endSession with empty transcript + empty amplitudes → noAudio',
-      () async {
-    final row = await driveEndSession(
-      transcript: '',
-      peakAmplitude: 0.0,
-      hasReceivedAnyAudio: false,
-    );
-    expect(row, isNotNull);
-    expect(row!.recordingError, 'noAudio');
-  });
+  test(
+    'endSession with empty transcript + empty amplitudes → noAudio',
+    () async {
+      final row = await driveEndSession(
+        transcript: '',
+        peakAmplitude: 0.0,
+        hasReceivedAnyAudio: false,
+      );
+      expect(row, isNotNull);
+      expect(row!.recordingError, 'noAudio');
+    },
+  );
 
   // ─── Case 6: stopMonitoring is called on the bridge ────────────────
   test('endSession calls stopMonitoring on the bridge', () async {

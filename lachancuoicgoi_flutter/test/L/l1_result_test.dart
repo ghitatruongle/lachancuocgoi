@@ -403,23 +403,29 @@ void main() {
       final withFewTokens = L1ResultParser.parse(matches, 5);
       final withManyTokens = L1ResultParser.parse(matches, 1000);
 
-      expect(withFewTokens.confidence, greaterThanOrEqualTo(withManyTokens.confidence));
+      expect(
+        withFewTokens.confidence,
+        greaterThanOrEqualTo(withManyTokens.confidence),
+      );
     });
   });
 
   group('L1ResultParser.parse - reason text', () {
-    test('RED level reason uses dangerous warning text (via critical keyword)', () {
-      // Critical keyword forces RED regardless of score
-      final matches = <KeywordMatch>{
-        const KeywordMatch(
-          keyword: 'mã otp',
-          level: RiskLevel.yellow,
-          category: 'PII',
-        ),
-      };
-      final result = L1ResultParser.parse(matches);
-      expect(result.reason, contains('NGUY HIỂM'));
-    });
+    test(
+      'RED level reason uses dangerous warning text (via critical keyword)',
+      () {
+        // Critical keyword forces RED regardless of score
+        final matches = <KeywordMatch>{
+          const KeywordMatch(
+            keyword: 'mã otp',
+            level: RiskLevel.yellow,
+            category: 'PII',
+          ),
+        };
+        final result = L1ResultParser.parse(matches);
+        expect(result.reason, contains('NGUY HIỂM'));
+      },
+    );
 
     test('ORANGE level reason uses risk warning text', () {
       // 2 ORANGE keywords: score = 2 * 0.65 = 1.30 => ORANGE

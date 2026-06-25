@@ -2,9 +2,13 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'native_bridge_interface.dart';
+import 'simulator/simulator_scripts.dart';
 
 class SimulatorCallShieldBridge implements NativeBridgeInterface {
-  SimulatorCallShieldBridge();
+  SimulatorCallShieldBridge({SimulatorScript? script})
+    : _script = script ?? SimulatorScriptCatalog.bankFraud;
+
+  final SimulatorScript _script;
 
   bool _iosMonitoringActive = false;
   bool _iosCreatorMonitoringActive = false;
@@ -18,15 +22,6 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
       StreamController<TranscriptUpdate>.broadcast();
   final _iosRmsController = StreamController<double>.broadcast();
   final _iosCallEventController = StreamController<CallEvent>.broadcast();
-
-  static const List<String> _iosScamScript = [
-    'Xin chào ông, tôi là cán bộ điều tra thuộc Cơ quan Cảnh sát điều tra Bộ Công an.',
-    'Hiện tại số điện thoại và tài khoản ngân hàng của ông đang bị nghi ngờ liên quan đến một đường dây rửa tiền và buôn bán ma túy quy mô lớn xuyên quốc gia.',
-    'Để phục vụ công tác điều tra, yêu cầu ông không được tiết lộ thông tin này cho bất kỳ ai khác.',
-    'Bây giờ ông cần phải chuyển toàn bộ số tiền hiện có sang một tài khoản tạm giữ an toàn của Bộ Công an để chúng tôi xác minh nguồn gốc.',
-    'Tôi sẽ gửi thông tin tài khoản cho ông. Hãy nhanh chóng thực hiện giao dịch này trong vòng 15 phút, nếu không chúng tôi sẽ tiến hành phong tỏa toàn bộ tài sản của ông và gửi lệnh bắt tạm giam hình sự.',
-    'Hãy đọc lại cho tôi mã xác thực OTP vừa được gửi đến điện thoại của ông để chúng tôi hoàn tất thủ tục mở hồ sơ bảo lãnh tư pháp.',
-  ];
 
   void _startSimulation() {
     _iosSimulationTimer?.cancel();
@@ -50,8 +45,8 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
       if (phaseTick == 0) {
         final sentenceIndex =
             (_iosTimerTicks ~/ sentenceCommitInterval - 1) %
-            _iosScamScript.length;
-        final transcript = _iosScamScript
+            _script.lines.length;
+        final transcript = _script.lines
             .sublist(0, sentenceIndex + 1)
             .join(' ');
         _iosTranscriptController.add(
@@ -61,14 +56,14 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
           phaseTick < partialWindowEnd &&
           phaseTick % partialStride == 0) {
         final sentenceIndex =
-            (_iosTimerTicks ~/ sentenceCommitInterval) % _iosScamScript.length;
-        final nextSentence = _iosScamScript[sentenceIndex];
+            (_iosTimerTicks ~/ sentenceCommitInterval) % _script.lines.length;
+        final nextSentence = _script.lines[sentenceIndex];
         final words = nextSentence.split(' ');
         final wordCount = (phaseTick - partialWindowStart) ~/ partialChunkWords;
         if (wordCount > 0 && wordCount <= words.length) {
           final partialText = words.sublist(0, wordCount).join(' ');
           final previousTranscript = sentenceIndex > 0
-              ? '${_iosScamScript.sublist(0, sentenceIndex).join(' ')} '
+              ? '${_script.lines.sublist(0, sentenceIndex).join(' ')} '
               : '';
           _iosTranscriptController.add(
             TranscriptUpdate(
@@ -119,7 +114,7 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
     final duration = _iosStartTime != null
         ? DateTime.now().difference(_iosStartTime!).inSeconds
         : 0;
-    final fullTranscript = _iosScamScript
+    final fullTranscript = _script.lines
         .take((_iosTimerTicks ~/ 100))
         .join(' ');
     _iosMonitoringStateController.add((
@@ -145,7 +140,7 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
     final duration = _iosStartTime != null
         ? DateTime.now().difference(_iosStartTime!).inSeconds
         : 0;
-    final fullTranscript = _iosScamScript
+    final fullTranscript = _script.lines
         .take((_iosTimerTicks ~/ 100))
         .join(' ');
     _iosMonitoringStateController.add((

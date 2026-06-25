@@ -50,9 +50,7 @@ void main() {
     });
 
     testWidgets('uses defaults for missing keys', (tester) async {
-      SharedPreferences.setMockInitialValues({
-        'IS_DARK_THEME': true,
-      });
+      SharedPreferences.setMockInitialValues({'IS_DARK_THEME': true});
 
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -98,7 +96,9 @@ void main() {
         autoEnableSpeakerphone: true,
         creatorAudioCapture: true,
       );
-      await container.read(settingsControllerProvider.notifier).update(newState);
+      await container
+          .read(settingsControllerProvider.notifier)
+          .update(newState);
 
       final state = container.read(settingsControllerProvider);
       expect(state.isDarkTheme, isTrue);

@@ -1,6 +1,6 @@
 # SECURITY — Rotate API Keys & Clean Git History
 
-> ⚠️ **KHẨN CẤP**: 21 API keys Gemini đã từng được commit vào git history của repo này. Bất kỳ ai có quyền truy cập repo đều có thể extract keys qua `git log -- `. **Phải rotate keys trên Google Cloud Console TRƯỚC khi clean git history.**
+> ⚠️ **KHẨN CẤP**: 21 API keys Gemini đã từng được commit vào git history của repo này. Bất kỳ ai có quyền truy cập repo đều có thể extract keys qua `git log -- env.json`. **Phải rotate keys trên Google Cloud Console TRƯỚC khi clean git history.**
 
 ---
 
@@ -25,28 +25,28 @@
    - Click **+ CREATE CREDENTIALS** → **API key**
    - Restrict key: chỉ cho phép **Generative Language API**
    - Đặt tên: `la-chan-cuoc-goi` (giữ nguyên convention)
-4. **KHÔNG commit keys mới vào git**. Cập nhật file `` ở local (file này đã có trong `.gitignore`).
+4. **KHÔNG commit keys mới vào git**. Cập nhật file `env.json` ở local (file này đã có trong `.gitignore`).
 
-### Step 2: Verify `.gitignore` đã có ``
+### Step 2: Verify `.gitignore` đã có `env.json`
 
 Kiểm tra file `.gitignore` ở root có dòng:
 
 ```
-
+env.json
 .env
 .env.*
 ```
 
 ✅ Đã có sẵn (xem [`.gitignore`](../../.gitignore) line 49).
 
-### Step 3: Xác nhận `` không bị commit trong tương lai
+### Step 3: Xác nhận `env.json` không bị commit trong tương lai
 
 ```bash
 # Phải báo "no changes" (file đã ở local, không bị track)
-git status 
+git status env.json
 
 # Nếu vẫn bị track (do commit cũ), untrack ngay:
-git rm --cached 
+git rm --cached env.json
 ```
 
 ### Step 4: Clean git history bằng BFG Repo Cleaner
@@ -62,8 +62,8 @@ git rm --cached
 # Backup trước khi clean (an toàn)
 cp -r .git .git-backup
 
-# Chạy BFG xoá  khỏi toàn bộ history
-bfg --delete-files 
+# Chạy BFG xoá env.json khỏi toàn bộ history
+bfg --delete-files env.json
 git reflog expire --expire=now --all
 git gc --prune=now --aggressive
 
@@ -75,8 +75,8 @@ git push --force --tags
 ### Step 5: Verify
 
 ```bash
-# Không được có kết quả ( đã bị xoá khỏi history)
-git log --all --full-history -- 
+# Không được có kết quả (env.json đã bị xoá khỏi history)
+git log --all --full-history -- env.json
 
 # Scan toàn bộ history xem còn sót AIza key nào không
 git log --all -p | grep -i "AIza" || echo "✅ Clean"
@@ -94,15 +94,15 @@ gitleaks detect --source . --verbose
 File [env.example.json](../../env.example.json) là template an toàn, đã được commit vào git. Khi dev mới cần keys:
 
 ```bash
-cp env.example.json 
-# Sửa  với keys thật (do team lead cấp)
+cp env.example.json env.json
+# Sửa env.json với keys thật (do team lead cấp)
 ```
 
 ### b) Placeholder detection trong code
 
-`EnvironmentApiKeyProvider` ([`lib/analysis/l3/core/api_key_provider.dart`](../../lib/analysis/l3/core/api_key_provider.dart)) tự động phát hiện và bỏ qua các placeholder keys (`AIzaReplace...`, `REPLACE_ME`, etc.) khi load ``. Nếu dev commit nhầm `env.example.json` thay vì `` thật, app sẽ:
+`EnvironmentApiKeyProvider` ([`lib/analysis/l3/core/api_key_provider.dart`](../../lib/analysis/l3/core/api_key_provider.dart)) tự động phát hiện và bỏ qua các placeholder keys (`AIzaReplace...`, `REPLACE_ME`, etc.) khi load `env.json`. Nếu dev commit nhầm `env.example.json` thay vì `env.json` thật, app sẽ:
 
-1. Log warning: `SECURITY: Bỏ qua N placeholder key(s) trong `
+1. Log warning: `SECURITY: Bỏ qua N placeholder key(s) trong env.json`
 2. Không gọi được Gemini API → fail rõ ràng, dev nhận ra ngay
 
 ### c) Runtime warning khi load từ assets
@@ -110,9 +110,9 @@ cp env.example.json
 Trong release mode, app sẽ log:
 
 ```
-🚨 SECURITY WARNING:  đang được bundle trong APK release.
+🚨 SECURITY WARNING: env.json đang được bundle trong APK release.
 Bất kỳ ai cài app đều có thể extract API keys.
-Hãy move  ra app documents directory và rotate keys.
+Hãy move env.json ra app documents directory và rotate keys.
 ```
 
 ### d) Git pre-commit hook (khuyến nghị thêm)
@@ -121,9 +121,9 @@ Tạo file `.git/hooks/pre-commit`:
 
 ```bash
 #!/bin/sh
-# Block commit nếu  chứa AIza key thật
-if git diff --cached --name-only | grep -q "^$"; then
-  echo "❌ BLOCKED:  không được commit!"
+# Block commit nếu env.json chứa AIza key thật
+if git diff --cached --name-only | grep -q "^env.json$"; then
+  echo "❌ BLOCKED: env.json không được commit!"
   echo "   Nếu bạn thật sự cần commit (rare), dùng: git commit --no-verify"
   exit 1
 fi

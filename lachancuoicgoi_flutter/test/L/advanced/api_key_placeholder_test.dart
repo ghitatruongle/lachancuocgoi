@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/l3/core/api_key_provider.dart';
 
-/// Regression tests cho Bug #1:  có thể chứa placeholder keys
+/// Regression tests cho Bug #1: env.json có thể chứa placeholder keys
 /// (AIzaReplace..., REPLACE_ME, etc.) nếu dev commit nhầm env.example.json
-/// thay vì  thật.
+/// thay vì env.json thật.
 ///
 /// Fix: `EnvironmentApiKeyProvider.isPlaceholderKey()` detect và skip các
-/// pattern placeholder này khi load .
+/// pattern placeholder này khi load env.json.
 void main() {
   group('Bug #1: Placeholder key detection', () {
     test('detects AIzaReplace... as placeholder', () {
@@ -71,7 +71,7 @@ void main() {
       'accepts real-looking Gemini key (starts with AIza, not placeholder)',
       () {
         // Một key Gemini hợp lệ có dạng "AIza" + 35 ký tự base64url
-        const realKey = 'w';
+        const realKey = 'AIzaSyD1234567890abcdefghijklmnopqrstuvw';
         expect(EnvironmentApiKeyProvider.isPlaceholderKey(realKey), isFalse);
       },
     );

@@ -47,4 +47,3 @@ class FlutterAssetLoader implements AssetLoader {
     return rootBundle.load(key);
   }
 }
-

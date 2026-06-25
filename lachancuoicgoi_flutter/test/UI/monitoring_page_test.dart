@@ -38,9 +38,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          nativeBridgeProvider.overrideWithValue(fakeBridge),
-        ],
+        overrides: [nativeBridgeProvider.overrideWithValue(fakeBridge)],
         child: MaterialApp(
           home: MonitoringPage(
             l1AnalyzerOverride: analyzer,
@@ -138,23 +136,22 @@ void main() {
 
   // ─── Transcript display ──────────────────────────────────────────────
   group('MonitoringPage — transcript', () {
-    testWidgets('shows simulated transcript in live conversation',
-        (tester) async {
+    testWidgets('shows simulated transcript in live conversation', (
+      tester,
+    ) async {
       await pumpPage(
         tester: tester,
         transcript: 'Nhân viên ngân hàng yêu cầu OTP',
       );
-      expect(
-        find.text('Nhân viên ngân hàng yêu cầu OTP'),
-        findsOneWidget,
-      );
+      expect(find.text('Nhân viên ngân hàng yêu cầu OTP'), findsOneWidget);
     });
   });
 
   // ─── Risk level from test analyzer override ──────────────────────────
   group('MonitoringPage — test analyzer override', () {
-    testWidgets('shows red risk when test analyzer with transcript',
-        (tester) async {
+    testWidgets('shows red risk when test analyzer with transcript', (
+      tester,
+    ) async {
       await pumpPage(
         tester: tester,
         transcript: 'Nhân viên ngân hàng yêu cầu OTP',

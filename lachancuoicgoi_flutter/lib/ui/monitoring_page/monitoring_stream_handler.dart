@@ -18,7 +18,10 @@ class MonitoringStreamHandler {
     if (controller.isSimulationSession()) return;
 
     if (!streamsDead &&
-        (transcriptSub != null || rmsSub != null || stateSub != null || callEventSub != null)) {
+        (transcriptSub != null ||
+            rmsSub != null ||
+            stateSub != null ||
+            callEventSub != null)) {
       return;
     }
     streamsDead = false;

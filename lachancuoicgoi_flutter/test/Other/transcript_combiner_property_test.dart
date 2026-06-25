@@ -25,7 +25,8 @@ void main() {
   group('combineTranscriptSources — property-style sweep', () {
     test('100 random Vietnamese-like inputs respect the invariants', () {
       final rng = Random(42);
-      const alphabet = 'aáàảãạăắằẳẵặâấầẩẫậeéèẻẽẹêếềểễệ'
+      const alphabet =
+          'aáàảãạăắằẳẵặâấầẩẫậeéèẻẽẹêếềểễệ'
           'iíìỉĩịoóòỏõọôốồổỗộơớờởỡợuúùủũụưứừửữự'
           'yýỳỷỹỵđbcdghklmnpqrstvx '
           '.,?!"';
@@ -52,7 +53,8 @@ void main() {
           accessibility: accessibility,
         );
 
-        final anyNonBlank = stt.trim().isNotEmpty ||
+        final anyNonBlank =
+            stt.trim().isNotEmpty ||
             partial.trim().isNotEmpty ||
             accessibility.trim().isNotEmpty;
 
@@ -71,7 +73,8 @@ void main() {
           final expected2 = accessibility;
           final expected3 = '$stt\n$partial';
           final expected4 = '$accessibility\n$partial';
-          final ok = composed == expected1 ||
+          final ok =
+              composed == expected1 ||
               composed == expected2 ||
               composed == expected3 ||
               composed == expected4;
@@ -127,11 +130,7 @@ void main() {
       // partial when there is already a cumulative transcript. A
       // refactor that changes this would break the parity contract.
       expect(
-        combineTranscriptSources(
-          stt: '',
-          partial: 'wor',
-          accessibility: '',
-        ),
+        combineTranscriptSources(stt: '', partial: 'wor', accessibility: ''),
         isNull,
       );
     });

@@ -44,14 +44,15 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forSummarization(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            return expectedSummary;
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return expectedSummary;
+              },
         ),
       );
 
@@ -68,14 +69,15 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forSummarization(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            throw Exception('Network timeout');
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                throw Exception('Network timeout');
+              },
         ),
       );
 

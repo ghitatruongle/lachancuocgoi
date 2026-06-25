@@ -111,14 +111,8 @@ final _testMasterModel = RiskScenariosMaster.fromJson({
       'name': 'Gia danh cong an',
       'risk_level': 3,
       'category': 'AUTH_POLICE_LAWSUIT',
-      'trigger_phrases': [
-        'cong an',
-        'vien kiem sat',
-      ],
-      'required_context': [
-        'dieu tra',
-        'lenh bat',
-      ],
+      'trigger_phrases': ['cong an', 'vien kiem sat'],
+      'required_context': ['dieu tra', 'lenh bat'],
       'l2_analysis_hints': {
         'urgency_level': 'high',
         'authority_claim': true,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_level.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_result.dart';
@@ -16,13 +17,9 @@ L1Analyzer createEmptyL1Analyzer() {
 }
 
 /// Common ProviderScope overrides for MonitoringPage widget tests.
-List<Override> createCommonOverrides({
-  L1Analyzer? l1AnalyzerOverride,
-}) {
+List<Override> createCommonOverrides({L1Analyzer? l1AnalyzerOverride}) {
   return [
-    nativeBridgeProvider.overrideWithValue(
-      NativeCallShieldBridge.instance,
-    ),
+    nativeBridgeProvider.overrideWithValue(NativeCallShieldBridge.instance),
   ];
 }
 
@@ -74,7 +71,8 @@ AnalysisResult createRedResult({
 }) {
   return AnalysisResult(
     overallRiskLevel: RiskLevel.red,
-    matches: matches ??
+    matches:
+        matches ??
         const <KeywordMatch>[
           KeywordMatch(
             keyword: 'OTP',
@@ -89,9 +87,7 @@ AnalysisResult createRedResult({
 }
 
 /// Factory for an orange AnalysisResult (medium risk).
-AnalysisResult createOrangeResult({
-  String reason = 'Nội dung đáng ngờ',
-}) {
+AnalysisResult createOrangeResult({String reason = 'Nội dung đáng ngờ'}) {
   return AnalysisResult(
     overallRiskLevel: RiskLevel.orange,
     matches: const <KeywordMatch>[

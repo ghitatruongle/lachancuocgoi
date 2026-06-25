@@ -22,10 +22,10 @@ class AnalysisOrchestrator {
     required String Function() getTranscript,
     required void Function(AnalysisResult result, AnalysisMode mode) onResult,
     required void Function(AnalysisResult fallback) onError,
-  })  : _getEffectiveMode = getEffectiveMode,
-        _getTranscript = getTranscript,
-        _onResult = onResult,
-        _onError = onError;
+  }) : _getEffectiveMode = getEffectiveMode,
+       _getTranscript = getTranscript,
+       _onResult = onResult,
+       _onError = onError;
 
   final AnalysisCoordinator coordinator;
   final AnalysisMode Function() _getEffectiveMode;

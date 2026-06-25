@@ -49,14 +49,15 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            return '{"level":"green","label":"","reason":"OK","recommendation":""}';
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return '{"level":"green","label":"","reason":"OK","recommendation":""}';
+              },
         ),
       );
 
@@ -73,14 +74,15 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            return '{"level":"unknown","label":"Test","reason":"Có dấu hiệu lừa đảo chuyển tiền","recommendation":"Cẩn thận"}';
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return '{"level":"unknown","label":"Test","reason":"Có dấu hiệu lừa đảo chuyển tiền","recommendation":"Cẩn thận"}';
+              },
         ),
       );
 
@@ -94,14 +96,15 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            return '{"level":"unknown","label":"Test","reason":"Công an yêu cầu cung cấp tài khoản","recommendation":""}';
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return '{"level":"unknown","label":"Test","reason":"Công an yêu cầu cung cấp tài khoản","recommendation":""}';
+              },
         ),
       );
 
@@ -115,14 +118,15 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            return '{"level":"unknown","label":"Test","reason":"Nội dung đáng ngờ cần lưu ý","recommendation":""}';
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return '{"level":"unknown","label":"Test","reason":"Nội dung đáng ngờ cần lưu ý","recommendation":""}';
+              },
         ),
       );
 
@@ -136,14 +140,15 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            return '{"level":"unknown","label":"Test","reason":"Normal conversation about weather","recommendation":""}';
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return '{"level":"unknown","label":"Test","reason":"Normal conversation about weather","recommendation":""}';
+              },
         ),
       );
 
@@ -159,19 +164,21 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            return '{"level":"green","label":"","reason":"OK","recommendation":""}';
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return '{"level":"green","label":"","reason":"OK","recommendation":""}';
+              },
         ),
       );
 
       analyzer.createSession(initialProcessedTextLength: 0);
-      const text = 'Hello world this is a test sentence for boundary detection. Yes it is.';
+      const text =
+          'Hello world this is a test sentence for boundary detection. Yes it is.';
       final result = await analyzer.analyzeIncremental(text);
       expect(result, isNotNull);
     });
@@ -182,19 +189,21 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            return '{"level":"green","label":"","reason":"OK","recommendation":""}';
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return '{"level":"green","label":"","reason":"OK","recommendation":""}';
+              },
         ),
       );
 
       analyzer.createSession(initialProcessedTextLength: 0);
-      const text = 'Anh oi minh di an com nhe nha di choi nha. Toi cung muon di choi lam nha';
+      const text =
+          'Anh oi minh di an com nhe nha di choi nha. Toi cung muon di choi lam nha';
       final result = await analyzer.analyzeIncremental(text);
       expect(result, isNotNull);
     });
@@ -328,18 +337,21 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            return '{"level":"red","label":"Lua dao","reason":"Co dau hieu","recommendation":"Can than"}';
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return '{"level":"red","label":"Lua dao","reason":"Co dau hieu","recommendation":"Can than"}';
+              },
         ),
       );
 
-      final result = await analyzer.analyze('this is a test sentence here with enough characters');
+      final result = await analyzer.analyze(
+        'this is a test sentence here with enough characters',
+      );
       // Confidence = 0.3 (level) + 0.15 (reason) + 0.15 (label) + 0.15 (recommendation) = 0.75
       expect(result.confidence, greaterThanOrEqualTo(0.75));
     });
@@ -350,14 +362,15 @@ void main() {
         geminiClient: GeminiClient(
           apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
           config: GeminiConfig.forAnalysis(),
-          requestExecutor: ({
-            required String apiKey,
-            required GeminiConfig config,
-            required String modelName,
-            required String prompt,
-          }) async {
-            return '{"level":"","label":"","reason":"","recommendation":""}';
-          },
+          requestExecutor:
+              ({
+                required String apiKey,
+                required GeminiConfig config,
+                required String modelName,
+                required String prompt,
+              }) async {
+                return '{"level":"","label":"","reason":"","recommendation":""}';
+              },
         ),
       );
 

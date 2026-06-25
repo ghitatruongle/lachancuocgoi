@@ -26,11 +26,14 @@ void main() {
       expect(result.length, intentLabels.length);
     });
 
-    test('tensor longer than intentLabels truncates to intentLabels length', () {
-      final longTensor = List<num>.filled(intentLabels.length + 10, 1.0);
-      final result = IntentOutputMapper.decodeFlatOutput(longTensor);
-      expect(result.length, intentLabels.length);
-    });
+    test(
+      'tensor longer than intentLabels truncates to intentLabels length',
+      () {
+        final longTensor = List<num>.filled(intentLabels.length + 10, 1.0);
+        final result = IntentOutputMapper.decodeFlatOutput(longTensor);
+        expect(result.length, intentLabels.length);
+      },
+    );
   });
 
   group('IntentOutputMapper.decodeFlatOutput - all-zero logits', () {
@@ -154,8 +157,10 @@ void main() {
     });
 
     test('logits shorter than intentLabels uses available logits', () {
-      final result =
-          IntentOutputMapper.predictionsFromLogits(<double>[1.0, 2.0]);
+      final result = IntentOutputMapper.predictionsFromLogits(<double>[
+        1.0,
+        2.0,
+      ]);
       // Graceful mismatch: returns predictions for available logits.
       expect(result.length, 2);
     });
@@ -205,8 +210,7 @@ void main() {
       );
       final predictions = IntentOutputMapper.predictionsFromLogits(logits);
 
-      final total =
-          predictions.fold<double>(0, (sum, p) => sum + p.confidence);
+      final total = predictions.fold<double>(0, (sum, p) => sum + p.confidence);
       expect(total, closeTo(1.0, 0.0001));
     });
 
@@ -249,14 +253,20 @@ void main() {
     });
 
     test('handles very large values without overflow', () {
-      final result =
-          IntentOutputMapper.softmax(<double>[1000.0, 1000.0, 1000.0]);
+      final result = IntentOutputMapper.softmax(<double>[
+        1000.0,
+        1000.0,
+        1000.0,
+      ]);
       expect(result, <double>[1 / 3, 1 / 3, 1 / 3]);
     });
 
     test('handles very negative values', () {
-      final result =
-          IntentOutputMapper.softmax(<double>[-1000.0, -1000.0, -1000.0]);
+      final result = IntentOutputMapper.softmax(<double>[
+        -1000.0,
+        -1000.0,
+        -1000.0,
+      ]);
       expect(result.length, 3);
       final sum = result.reduce((a, b) => a + b);
       expect(sum, closeTo(1.0, 0.0001));
@@ -295,30 +305,31 @@ void main() {
 
   group('IntentOutputMapper full pipeline', () {
     test(
-        'decodeFlatOutput + predictionsFromLogits produces sorted predictions',
-        () {
-      final raw = List<num>.filled(intentLabels.length, 0);
-      raw[ScamIntent.romanceScam.index] = 200;
-      raw[ScamIntent.safe.index] = 50;
+      'decodeFlatOutput + predictionsFromLogits produces sorted predictions',
+      () {
+        final raw = List<num>.filled(intentLabels.length, 0);
+        raw[ScamIntent.romanceScam.index] = 200;
+        raw[ScamIntent.safe.index] = 50;
 
-      final logits = IntentOutputMapper.decodeFlatOutput(
-        raw,
-        outputType: IntentOutputType.uint8,
-        scale: 0.1,
-        zeroPoint: 128,
-      );
-      final predictions = IntentOutputMapper.predictionsFromLogits(logits);
-
-      expect(predictions.first.intent, ScamIntent.romanceScam);
-      expect(predictions.length, intentLabels.length);
-
-      // Verify descending order
-      for (var i = 0; i < predictions.length - 1; i++) {
-        expect(
-          predictions[i].confidence,
-          greaterThanOrEqualTo(predictions[i + 1].confidence),
+        final logits = IntentOutputMapper.decodeFlatOutput(
+          raw,
+          outputType: IntentOutputType.uint8,
+          scale: 0.1,
+          zeroPoint: 128,
         );
-      }
-    });
+        final predictions = IntentOutputMapper.predictionsFromLogits(logits);
+
+        expect(predictions.first.intent, ScamIntent.romanceScam);
+        expect(predictions.length, intentLabels.length);
+
+        // Verify descending order
+        for (var i = 0; i < predictions.length - 1; i++) {
+          expect(
+            predictions[i].confidence,
+            greaterThanOrEqualTo(predictions[i + 1].confidence),
+          );
+        }
+      },
+    );
   });
 }

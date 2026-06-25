@@ -60,14 +60,14 @@ class SessionSnapshot {
   final DateTime startedAt;
 
   Map<String, Object?> toJson() => {
-        'phoneNumber': phoneNumber,
-        'transcript': transcript,
-        'elapsedSeconds': elapsedSeconds,
-        'riskLevel': riskLevel,
-        'analysisResultJson': analysisResultJson,
-        'recordingError': recordingError,
-        'startedAtIso': startedAt.toIso8601String(),
-      };
+    'phoneNumber': phoneNumber,
+    'transcript': transcript,
+    'elapsedSeconds': elapsedSeconds,
+    'riskLevel': riskLevel,
+    'analysisResultJson': analysisResultJson,
+    'recordingError': recordingError,
+    'startedAtIso': startedAt.toIso8601String(),
+  };
 
   factory SessionSnapshot.fromJson(Map<String, Object?> json) {
     return SessionSnapshot(
@@ -77,7 +77,8 @@ class SessionSnapshot {
       riskLevel: json['riskLevel'] as String?,
       analysisResultJson: json['analysisResultJson'] as String?,
       recordingError: json['recordingError'] as String?,
-      startedAt: DateTime.tryParse(json['startedAtIso'] as String? ?? '') ??
+      startedAt:
+          DateTime.tryParse(json['startedAtIso'] as String? ?? '') ??
           DateTime.now(),
     );
   }

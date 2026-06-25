@@ -108,11 +108,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                               'assets/logo.png',
                               width: 80,
                               height: 80,
-                              errorBuilder: (context, error, stackTrace) => Icon(
-                                Icons.shield_outlined,
-                                size: 64,
-                                color: cs.primary,
-                              ),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
+                                    Icons.shield_outlined,
+                                    size: 64,
+                                    color: cs.primary,
+                                  ),
                             ),
                             const SizedBox(height: AppSpacing.sm),
                             Text(

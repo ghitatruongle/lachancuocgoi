@@ -66,6 +66,7 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
   Future<void> _restore() async {
     if (_restored) return; // Prevent double restore.
     final prefs = await SharedPreferences.getInstance();
+    if (!ref.mounted) return; // Provider disposed while awaiting.
     _activatedAtMs = prefs.getInt(_prefsKeyActivatedAt) ?? 0;
     _restored = true;
     _refreshState();
@@ -118,6 +119,7 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
       _activatedAtMs = 0;
       debugPrint('DeveloperMode.activate() persist failed: $e');
     }
+    if (!ref.mounted) return;
     _refreshState();
   }
 

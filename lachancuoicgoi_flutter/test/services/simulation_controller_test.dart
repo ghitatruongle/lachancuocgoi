@@ -33,8 +33,7 @@ void main() {
 
     test('updateSearchQuery before loadData resets state', () {
       final container = createContainer();
-      final notifier =
-          container.read(simulationControllerProvider.notifier);
+      final notifier = container.read(simulationControllerProvider.notifier);
 
       // Before loadData, _allScenarios is null, so _recompute resets state
       notifier.updateSearchQuery('OTP');
@@ -46,8 +45,7 @@ void main() {
 
     test('updateSelectedCategory before loadData resets state', () {
       final container = createContainer();
-      final notifier =
-          container.read(simulationControllerProvider.notifier);
+      final notifier = container.read(simulationControllerProvider.notifier);
 
       notifier.updateSelectedCategory('Lừa đảo');
       final state = container.read(simulationControllerProvider);
@@ -96,18 +94,13 @@ void main() {
     });
 
     test('fromJson handles empty script list', () {
-      final json = {
-        'title': 'Test',
-        'script': <dynamic>[],
-      };
+      final json = {'title': 'Test', 'script': <dynamic>[]};
       final data = SimulationScenarioData.fromJson(json);
       expect(data.script, isEmpty);
     });
 
     test('fromJson handles null script', () {
-      final json = {
-        'title': 'Test',
-      };
+      final json = {'title': 'Test'};
       final data = SimulationScenarioData.fromJson(json);
       expect(data.script, isEmpty);
     });
@@ -129,19 +122,14 @@ void main() {
     });
 
     test('fromJson handles missing delay with default 2000', () {
-      final json = {
-        'speaker': 'Speaker',
-        'line': 'Line',
-      };
+      final json = {'speaker': 'Speaker', 'line': 'Line'};
 
       final line = SimulationScriptLine.fromJson(json);
       expect(line.delay, 2000);
     });
 
     test('fromJson handles missing speaker', () {
-      final json = {
-        'line': 'Line',
-      };
+      final json = {'line': 'Line'};
 
       final line = SimulationScriptLine.fromJson(json);
       expect(line.speaker, '');

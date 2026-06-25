@@ -69,7 +69,9 @@ enum RiskLevel {
   /// security-focused app (better to over-warn than silently pass).
   static RiskLevel _unknownRiskLevel(String? original) {
     // Plain log (no Flutter dependency) — this is the domain layer.
-    developer.log('RiskLevel.fromString: unknown value "$original", defaulting to orange');
+    developer.log(
+      'RiskLevel.fromString: unknown value "$original", defaulting to orange',
+    );
     return RiskLevel.orange;
   }
 }

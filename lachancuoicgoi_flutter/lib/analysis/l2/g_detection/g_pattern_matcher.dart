@@ -167,10 +167,11 @@ class GPatternMatcher {
       PatternKeyword(:final value) => _matchKeyword(tokens, index, value),
       PatternCategory(:final categoryName) =>
         matchesByIndex[index]?.any(
-              (match) =>
-                  match.category.toLowerCase() == categoryName.toLowerCase(),
-            ) ==
-            true
+                  (match) =>
+                      match.category.toLowerCase() ==
+                      categoryName.toLowerCase(),
+                ) ==
+                true
             ? index
             : -1,
       PatternWildcard() => index,

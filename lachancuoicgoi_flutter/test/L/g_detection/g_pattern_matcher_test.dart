@@ -31,7 +31,14 @@ void main() {
 
     test('does not match when gap exceeds maxGap', () {
       final tokens = [
-        'chuyen', 'xxx', 'yyy', 'zzz', 'aaa', 'bbb', 'tien', 'gap',
+        'chuyen',
+        'xxx',
+        'yyy',
+        'zzz',
+        'aaa',
+        'bbb',
+        'tien',
+        'gap',
       ];
       final patterns = [
         const ScamPattern(
@@ -39,10 +46,7 @@ void main() {
           description: 'Test',
           riskBonus: 0.5,
           maxGap: 2,
-          template: [
-            PatternKeyword('chuyen'),
-            PatternKeyword('tien'),
-          ],
+          template: [PatternKeyword('chuyen'), PatternKeyword('tien')],
         ),
       ];
       final results = GPatternMatcher.matchPatterns(tokens, patterns, {});
@@ -85,14 +89,14 @@ void main() {
           description: 'Authority',
           riskBonus: 0.7,
           maxGap: 5,
-          template: [
-            PatternCategory('AUTHORITY'),
-            PatternKeyword('chuyen'),
-          ],
+          template: [PatternCategory('AUTHORITY'), PatternKeyword('chuyen')],
         ),
       ];
-      final results =
-          GPatternMatcher.matchPatterns(tokens, patterns, keywordMatches);
+      final results = GPatternMatcher.matchPatterns(
+        tokens,
+        patterns,
+        keywordMatches,
+      );
       expect(results, hasLength(1));
       expect(results[0].patternId, 'auth_pattern');
     });
@@ -139,10 +143,7 @@ void main() {
           description: 'Transfer',
           riskBonus: 0.7,
           maxGap: 5,
-          template: [
-            PatternKeyword('chuyen'),
-            PatternKeyword('tien'),
-          ],
+          template: [PatternKeyword('chuyen'), PatternKeyword('tien')],
         ),
         const ScamPattern(
           id: 'otp',
@@ -166,8 +167,7 @@ void main() {
           template: [],
         ),
       ];
-      final results =
-          GPatternMatcher.matchPatterns(['test'], patterns, {});
+      final results = GPatternMatcher.matchPatterns(['test'], patterns, {});
       expect(results, isEmpty);
     });
   });

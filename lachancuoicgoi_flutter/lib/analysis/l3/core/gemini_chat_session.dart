@@ -100,15 +100,15 @@ class GeminiChatSession {
       ) {
         _currentModelIndex = modelIndex;
         final modelName = _fallbackModels[_currentModelIndex];
-        
+
         int modelRetries = 0;
         bool shouldMoveToNextModel = false;
-        
+
         while (modelRetries < 2 && !shouldMoveToNextModel) {
           if (modelRetries > 0) {
             await Future<void>.delayed(const Duration(milliseconds: 1000));
           }
-          
+
           try {
             final responseText = await _chatExecutor(
               apiKey: keys[_currentKeyIndex],
@@ -118,13 +118,23 @@ class GeminiChatSession {
               prompt: text,
             );
             final parsed = parser(responseText, modelName);
-            
+
             // L3 Resilience: Cost tracking
             final historyTextLength = _safeHistory.fold<int>(
-                0, (sum, content) => sum + (content.parts.firstOrNull is TextPart ? (content.parts.first as TextPart).text.length : 0));
-            final estimatedTokens = (historyTextLength + text.length + responseText.length) ~/ 4;
-            keyHealthTracker?.recordTokenUsage(_currentKeyIndex, estimatedTokens);
-            
+              0,
+              (sum, content) =>
+                  sum +
+                  (content.parts.firstOrNull is TextPart
+                      ? (content.parts.first as TextPart).text.length
+                      : 0),
+            );
+            final estimatedTokens =
+                (historyTextLength + text.length + responseText.length) ~/ 4;
+            keyHealthTracker?.recordTokenUsage(
+              _currentKeyIndex,
+              estimatedTokens,
+            );
+
             _safeHistory.add(Content.text(text));
             _safeHistory.add(Content.model(<Part>[TextPart(responseText)]));
             while (_safeHistory.length > _maxHistoryEntries) {
@@ -160,7 +170,7 @@ class GeminiChatSession {
             keyHealthTracker?.markError(_currentKeyIndex, error.toString());
           }
         }
-        
+
         if (_classifyError(lastError) == GeminiErrorType.auth) {
           break;
         }

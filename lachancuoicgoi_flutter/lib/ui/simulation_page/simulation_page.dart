@@ -64,7 +64,9 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
           // ── Search bar ──
           Padding(
             padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm, vertical: 8),
+              horizontal: AppSpacing.sm,
+              vertical: 8,
+            ),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -119,7 +121,8 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
                         label: Text(cat),
                         selected: uiState.selectedCategory == cat,
                         onSelected: (_) => controller.updateSelectedCategory(
-                            uiState.selectedCategory == cat ? null : cat),
+                          uiState.selectedCategory == cat ? null : cat,
+                        ),
                       ),
                     ),
                 ],
@@ -129,9 +132,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
           const SizedBox(height: 8),
 
           // ── Scenarios list ──
-          Expanded(
-            child: _buildBody(uiState, cs, tt),
-          ),
+          Expanded(child: _buildBody(uiState, cs, tt)),
         ],
       ),
     );
@@ -189,11 +190,13 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
               extra: {
                 'scenarioTitle': scenario.title,
                 'scenarioScriptLines': scenario.script
-                    .map((line) => {
-                          'speaker': line.speaker,
-                          'line': line.line,
-                          'delay': line.delay,
-                        })
+                    .map(
+                      (line) => {
+                        'speaker': line.speaker,
+                        'line': line.line,
+                        'delay': line.delay,
+                      },
+                    )
                     .toList(),
               },
             );
@@ -206,10 +209,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
 
 // ─── Scenario Card ─────────────────────────────────────────────────────
 class _ScenarioCard extends StatefulWidget {
-  const _ScenarioCard({
-    required this.scenario,
-    required this.onStart,
-  });
+  const _ScenarioCard({required this.scenario, required this.onStart});
 
   final SimulationScenarioData scenario;
   final VoidCallback onStart;
@@ -248,8 +248,10 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.scenario.iconEmoji,
-                            style: const TextStyle(fontSize: 28)),
+                        Text(
+                          widget.scenario.iconEmoji,
+                          style: const TextStyle(fontSize: 28),
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -257,17 +259,20 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                             children: [
                               Text(
                                 widget.scenario.title,
-                                style: tt.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.bold),
+                                style: tt.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 widget.scenario.description,
-                                style: tt.bodySmall
-                                    ?.copyWith(color: cs.onSurfaceVariant),
+                                style: tt.bodySmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
+                                ),
                                 maxLines: _expanded ? null : 2,
-                                overflow:
-                                    _expanded ? null : TextOverflow.ellipsis,
+                                overflow: _expanded
+                                    ? null
+                                    : TextOverflow.ellipsis,
                               ),
                             ],
                           ),
@@ -299,8 +304,9 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                             if (widget.scenario.script.length > 4)
                               Text(
                                 '... và ${widget.scenario.script.length - 4} dòng nữa',
-                                style: tt.labelSmall
-                                    ?.copyWith(color: cs.onSurfaceVariant),
+                                style: tt.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
+                                ),
                               ),
                           ],
                         ),

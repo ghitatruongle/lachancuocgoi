@@ -51,7 +51,9 @@ class CallHistoryDao {
 
   /// Returns total number of records.
   Future<int> count() async {
-    final result = await _db.rawQuery('SELECT COUNT(*) as cnt FROM call_history');
+    final result = await _db.rawQuery(
+      'SELECT COUNT(*) as cnt FROM call_history',
+    );
     return (result.first['cnt'] as int?) ?? 0;
   }
 
@@ -69,7 +71,8 @@ class CallHistoryDao {
     final like = '%$escaped%';
     final rows = await _db.query(
       'call_history',
-      where: r"transcript LIKE ? ESCAPE '\' OR summary LIKE ? ESCAPE '\' OR riskLevel LIKE ? ESCAPE '\' "
+      where:
+          r"transcript LIKE ? ESCAPE '\' OR summary LIKE ? ESCAPE '\' OR riskLevel LIKE ? ESCAPE '\' "
           r"OR dateTime LIKE ? ESCAPE '\' OR analysisType LIKE ? ESCAPE '\'",
       whereArgs: [like, like, like, like, like],
       orderBy: 'id DESC',
@@ -110,11 +113,7 @@ class CallHistoryDao {
   }
 
   Future<void> deleteById(int id) async {
-    await _db.delete(
-      'call_history',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await _db.delete('call_history', where: 'id = ?', whereArgs: [id]);
     _notifyChanged();
   }
 
@@ -144,7 +143,10 @@ class CallHistoryDao {
 
   /// Escapes SQLite LIKE wildcards (%, _) so user input is treated literally.
   static String _escapeLike(String input) {
-    return input.replaceAll(r'\', r'\\').replaceAll('%', r'\%').replaceAll('_', r'\_');
+    return input
+        .replaceAll(r'\', r'\\')
+        .replaceAll('%', r'\%')
+        .replaceAll('_', r'\_');
   }
 
   void _notifyChanged() {

@@ -88,7 +88,9 @@ void main() {
         ],
       });
       final m = SentenceMatcher(model);
-      final tokens = GFlash.tokenize('vui long gui ma otp cho chung toi de xac nhan');
+      final tokens = GFlash.tokenize(
+        'vui long gui ma otp cho chung toi de xac nhan',
+      );
       final result = m.match(tokens);
       expect(result, isNotNull);
       expect(result!.level, 3);

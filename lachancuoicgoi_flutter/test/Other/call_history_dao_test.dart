@@ -72,16 +72,25 @@ void main() {
       for (var i = 0; i < 5; i++) {
         await db.callHistoryDao.insert(makeEntry(transcript: 'Item $i'));
       }
-      final page2 = await db.callHistoryDao.getAllPaginated(limit: 2, offset: 2);
+      final page2 = await db.callHistoryDao.getAllPaginated(
+        limit: 2,
+        offset: 2,
+      );
       expect(page2, hasLength(2));
       // Should be different from page 1
-      final page1 = await db.callHistoryDao.getAllPaginated(limit: 2, offset: 0);
+      final page1 = await db.callHistoryDao.getAllPaginated(
+        limit: 2,
+        offset: 0,
+      );
       expect(page1[0].id, isNot(page2[0].id));
     });
 
     test('offset beyond data returns empty', () async {
       await db.callHistoryDao.insert(makeEntry());
-      final page = await db.callHistoryDao.getAllPaginated(limit: 10, offset: 100);
+      final page = await db.callHistoryDao.getAllPaginated(
+        limit: 10,
+        offset: 100,
+      );
       expect(page, isEmpty);
     });
   });
@@ -146,7 +155,11 @@ void main() {
     test('deleteById removes specific entry', () async {
       final id1 = await db.callHistoryDao.insert(makeEntry(transcript: 'A'));
       final id2 = await db.callHistoryDao.insert(makeEntry(transcript: 'B'));
-      await db.database.delete('call_history', where: 'id = ?', whereArgs: [id1]);
+      await db.database.delete(
+        'call_history',
+        where: 'id = ?',
+        whereArgs: [id1],
+      );
       final all = await db.callHistoryDao.getAll();
       expect(all, hasLength(1));
       expect(all[0].id, id2);

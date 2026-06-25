@@ -6,7 +6,10 @@ void main() {
   group('StaticApiKeyProvider', () {
     test('returns unmodifiable list', () {
       final provider = StaticApiKeyProvider(const ['AIzaKey1', 'AIzaKey2']);
-      expect(() => provider.getApiKeys().add('AIzaKey3'), throwsUnsupportedError);
+      expect(
+        () => provider.getApiKeys().add('AIzaKey3'),
+        throwsUnsupportedError,
+      );
     });
 
     test('filters empty keys', () {

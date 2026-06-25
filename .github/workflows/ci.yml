@@ -46,12 +46,12 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      # Tạo  placeholder để build không lỗi thiếu asset.
+      # Tạo env.json placeholder để build không lỗi thiếu asset.
       # CI KHÔNG bao giờ chứa API key thật — chỉ cần file tồn tại
       # cho rootBundle.loadString. Placeholder detection (api_key_provider)
       # sẽ loại bỏ các key giả và L3 fail an toàn trong test.
-      - name: Create  placeholder
-        run: cp env.example.json  || true
+      - name: Create env.json placeholder
+        run: cp env.example.json env.json || true
 
       - name: Static analysis
         run: dart analyze lib/ test/
@@ -84,8 +84,8 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Create  placeholder
-        run: cp env.example.json  || true
+      - name: Create env.json placeholder
+        run: cp env.example.json env.json || true
 
       - name: Performance suite
         run: flutter test --tags perf

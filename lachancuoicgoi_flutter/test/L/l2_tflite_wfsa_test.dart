@@ -75,8 +75,10 @@ void main() {
       expect(predictions.first.intent, ScamIntent.bankCardFraud);
       expect(predictions.first.confidence, greaterThan(0.60));
       // Very short tensor: graceful mismatch fills remaining with 0.
-      expect(IntentOutputMapper.decodeFlatOutput(<num>[1, 2, 3]).length,
-          intentLabels.length);
+      expect(
+        IntentOutputMapper.decodeFlatOutput(<num>[1, 2, 3]).length,
+        intentLabels.length,
+      );
     });
 
     test('softmax computes correct probabilities and handles edge cases', () {
@@ -88,29 +90,36 @@ void main() {
 
       expect(IntentOutputMapper.softmax(<double>[]), isEmpty);
 
-      final extreme = IntentOutputMapper.softmax(<double>[1000.0, 1000.0, 1000.0]);
-      expect(extreme, <double>[1/3, 1/3, 1/3]);
+      final extreme = IntentOutputMapper.softmax(<double>[
+        1000.0,
+        1000.0,
+        1000.0,
+      ]);
+      expect(extreme, <double>[1 / 3, 1 / 3, 1 / 3]);
     });
 
-    test('decodeFlatOutput supports int8 quantization and float32 pass-through', () {
-      final rawFloat = List<num>.filled(intentLabels.length, 2.5);
-      final decodedFloat = IntentOutputMapper.decodeFlatOutput(
-        rawFloat,
-        outputType: IntentOutputType.float32,
-      );
-      expect(decodedFloat.every((x) => x == 2.5), isTrue);
+    test(
+      'decodeFlatOutput supports int8 quantization and float32 pass-through',
+      () {
+        final rawFloat = List<num>.filled(intentLabels.length, 2.5);
+        final decodedFloat = IntentOutputMapper.decodeFlatOutput(
+          rawFloat,
+          outputType: IntentOutputType.float32,
+        );
+        expect(decodedFloat.every((x) => x == 2.5), isTrue);
 
-      final rawInt8 = List<num>.filled(intentLabels.length, -10);
-      rawInt8[0] = 50;
-      final decodedInt8 = IntentOutputMapper.decodeFlatOutput(
-        rawInt8,
-        outputType: IntentOutputType.int8,
-        scale: 0.5,
-        zeroPoint: 10,
-      );
-      expect(decodedInt8[0], (50 - 10) * 0.5); // 20.0
-      expect(decodedInt8[1], (-10 - 10) * 0.5); // -10.0
-    });
+        final rawInt8 = List<num>.filled(intentLabels.length, -10);
+        rawInt8[0] = 50;
+        final decodedInt8 = IntentOutputMapper.decodeFlatOutput(
+          rawInt8,
+          outputType: IntentOutputType.int8,
+          scale: 0.5,
+          zeroPoint: 10,
+        );
+        expect(decodedInt8[0], (50 - 10) * 0.5); // 20.0
+        expect(decodedInt8[1], (-10 - 10) * 0.5); // -10.0
+      },
+    );
   });
 
   group('Phase 6 WFSA and SafetyFilter', () {

@@ -8,8 +8,10 @@ library pii_regex;
 // ignore_for_file: library_prefixes
 // ignore_for_file: public_member_api_docs
 
-const String vietnameseCaps = 'A-ZĐÀÁẢÃẠÂẤẦẨẪẬĂẮẰẲẴẶÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ';
-const String vietnameseLowers = 'a-zđàáảãạâấẩẫậăắằẳẵặéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ';
+const String vietnameseCaps =
+    'A-ZĐÀÁẢÃẠÂẤẦẨẪẬĂẮẰẲẴẶÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ';
+const String vietnameseLowers =
+    'a-zđàáảãạâấẩẫậăắằẳẵặéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ';
 
 /// Common role/title keywords that should NOT be mistaken for person names.
 final List<String> roleKeywords = <String>[
@@ -98,9 +100,7 @@ final RegExp partialPiiRegex = RegExp(
 );
 
 /// Phone numbers: +84, 84, 0 prefix with 9-11 digits
-final RegExp phoneRegex = RegExp(
-  r'(?:\+84|84|0)(?:[\s.-]?\d){8,10}\b',
-);
+final RegExp phoneRegex = RegExp(r'(?:\+84|84|0)(?:[\s.-]?\d){8,10}\b');
 
 /// Person names with context clues: "tôi tên là Nguyễn Văn A"
 final RegExp personNameRegex = RegExp(
@@ -130,7 +130,10 @@ final RegExp digitCleaner = RegExp(r'\D');
 /// Vietnamese name validator: checks length and word count, excludes role keywords.
 bool isValidPersonName(String candidate) {
   final normalized = normalizeVietnamese(candidate);
-  final wordCount = normalized.split(' ').where((part) => part.isNotEmpty).length;
+  final wordCount = normalized
+      .split(' ')
+      .where((part) => part.isNotEmpty)
+      .length;
   return normalized.length >= 5 &&
       wordCount >= 2 &&
       wordCount <= 5 &&

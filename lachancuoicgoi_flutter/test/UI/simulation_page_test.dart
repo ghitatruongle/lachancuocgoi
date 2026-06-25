@@ -12,11 +12,7 @@ void main() {
 
   Widget buildPage() {
     return ProviderScope(
-      overrides: [
-        bridgeOverride(),
-        settingsOverride(),
-        devModeOverride(),
-      ],
+      overrides: [bridgeOverride(), settingsOverride(), devModeOverride()],
       child: MaterialApp.router(
         routerConfig: GoRouter(
           initialLocation: '/simulation',

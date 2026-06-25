@@ -1,10 +1,6 @@
 import 'api_key_provider.dart';
 
-enum KeyStatus {
-  active,
-  cooldown,
-  exhausted,
-}
+enum KeyStatus { active, cooldown, exhausted }
 
 class KeyHealth {
   const KeyHealth({
@@ -62,11 +58,14 @@ class KeyHealthTracker {
     _resetTokenUsageIfNeeded(keyIndex);
     final currentTokens = (_keyTokensUsed[keyIndex] ?? 0) + tokens;
     _keyTokensUsed[keyIndex] = currentTokens;
-    
-    if (currentTokens >= _predictiveCooldownThreshold && _keyStatuses[keyIndex] == KeyStatus.active) {
+
+    if (currentTokens >= _predictiveCooldownThreshold &&
+        _keyStatuses[keyIndex] == KeyStatus.active) {
       // Predictive cooldown: Tạm ngưng key 1 phút trước khi dính 429
       _keyStatuses[keyIndex] = KeyStatus.cooldown;
-      _keyCooldownUntil[keyIndex] = DateTime.now().add(const Duration(minutes: 1));
+      _keyCooldownUntil[keyIndex] = DateTime.now().add(
+        const Duration(minutes: 1),
+      );
     }
   }
 
@@ -74,7 +73,9 @@ class KeyHealthTracker {
     final resetTime = _keyTokenResetTime[keyIndex];
     if (resetTime == null || DateTime.now().isAfter(resetTime)) {
       _keyTokensUsed[keyIndex] = 0;
-      _keyTokenResetTime[keyIndex] = DateTime.now().add(const Duration(minutes: 1));
+      _keyTokenResetTime[keyIndex] = DateTime.now().add(
+        const Duration(minutes: 1),
+      );
     }
   }
 

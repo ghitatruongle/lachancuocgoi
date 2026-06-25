@@ -40,14 +40,14 @@ void main() {
   });
 
   CallHistory makeRow(int i) => CallHistory(
-        dateTime: '00:00:00 01/06/2026',
-        riskLevel: i % 2 == 0 ? 'GREEN' : 'RED',
-        summary: 'Summary $i',
-        duration: '${i % 60}s',
-        flagCount: i % 5,
-        transcript: 'transcript-$i ${"x" * 50}',
-        recordingError: i % 100 == 0 ? 'noAudio' : null,
-      );
+    dateTime: '00:00:00 01/06/2026',
+    riskLevel: i % 2 == 0 ? 'GREEN' : 'RED',
+    summary: 'Summary $i',
+    duration: '${i % 60}s',
+    flagCount: i % 5,
+    transcript: 'transcript-$i ${"x" * 50}',
+    recordingError: i % 100 == 0 ? 'noAudio' : null,
+  );
 
   test('insert 1000 rows in < 5s', () async {
     final sw = Stopwatch()..start();
@@ -58,7 +58,8 @@ void main() {
     expect(
       sw.elapsedMilliseconds,
       lessThan(5000),
-      reason: '1000-row insert took ${sw.elapsedMilliseconds}ms '
+      reason:
+          '1000-row insert took ${sw.elapsedMilliseconds}ms '
           '(budget 5000ms)',
     );
   });
@@ -89,7 +90,8 @@ void main() {
     expect(
       sw.elapsedMilliseconds,
       lessThan(500),
-      reason: 'search("Summary") on 1000 rows took '
+      reason:
+          'search("Summary") on 1000 rows took '
           '${sw.elapsedMilliseconds}ms (budget 500ms)',
     );
   });
@@ -117,7 +119,8 @@ void main() {
     expect(
       stopwatch.elapsedMilliseconds,
       lessThan(100),
-      reason: 'watchAll re-emit took ${stopwatch.elapsedMilliseconds}ms '
+      reason:
+          'watchAll re-emit took ${stopwatch.elapsedMilliseconds}ms '
           '(budget 100ms)',
     );
   });
@@ -127,16 +130,14 @@ void main() {
       await db.callHistoryDao.insert(makeRow(i));
     }
     final sw = Stopwatch()..start();
-    final page = await db.callHistoryDao.getAllPaginated(
-      limit: 50,
-      offset: 0,
-    );
+    final page = await db.callHistoryDao.getAllPaginated(limit: 50, offset: 0);
     sw.stop();
     expect(page, hasLength(50));
     expect(
       sw.elapsedMilliseconds,
       lessThan(200),
-      reason: 'getAllPaginated(50) on 1000 rows took '
+      reason:
+          'getAllPaginated(50) on 1000 rows took '
           '${sw.elapsedMilliseconds}ms (budget 200ms)',
     );
   });

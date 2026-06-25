@@ -8,38 +8,42 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('SettingsController — Phase 3: race condition fix', () {
-    testWidgets('SharedPreferences pre-initialization makes _load() resolve fast',
-        (tester) async {
-      // Simulate main.dart pre-initializing SharedPreferences
-      SharedPreferences.setMockInitialValues({
-        'IS_DARK_THEME': true,
-        'ANALYSIS_MODE': 'GEMINI_API',
-        'AUDIO_BOOST': true,
-        'AUTO_ENABLE_SPEAKERPHONE': true,
-        'CREATOR_AUDIO_CAPTURE': true,
-      });
+    testWidgets(
+      'SharedPreferences pre-initialization makes _load() resolve fast',
+      (tester) async {
+        // Simulate main.dart pre-initializing SharedPreferences
+        SharedPreferences.setMockInitialValues({
+          'IS_DARK_THEME': true,
+          'ANALYSIS_MODE': 'GEMINI_API',
+          'AUDIO_BOOST': true,
+          'AUTO_ENABLE_SPEAKERPHONE': true,
+          'CREATOR_AUDIO_CAPTURE': true,
+        });
 
-      // Pre-initialize (simulating main.dart)
-      await SharedPreferences.getInstance();
+        // Pre-initialize (simulating main.dart)
+        await SharedPreferences.getInstance();
 
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
 
-      // Read triggers build() which calls _load()
-      container.read(settingsControllerProvider);
+        // Read triggers build() which calls _load()
+        container.read(settingsControllerProvider);
 
-      // Wait for _load() to complete in fake time
-      await tester.pump();
+        // Wait for _load() to complete in fake time
+        await tester.pump();
 
-      final state = container.read(settingsControllerProvider);
-      expect(state.isDarkTheme, isTrue);
-      expect(state.analysisMode, AnalysisMode.geminiApi);
-      expect(state.audioBoost, isTrue);
-      expect(state.autoEnableSpeakerphone, isTrue);
-      expect(state.creatorAudioCapture, isTrue);
-    });
+        final state = container.read(settingsControllerProvider);
+        expect(state.isDarkTheme, isTrue);
+        expect(state.analysisMode, AnalysisMode.geminiApi);
+        expect(state.audioBoost, isTrue);
+        expect(state.autoEnableSpeakerphone, isTrue);
+        expect(state.creatorAudioCapture, isTrue);
+      },
+    );
 
-    testWidgets('settings load within 200ms after pre-initialization', (tester) async {
+    testWidgets('settings load within 200ms after pre-initialization', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues({
         'IS_DARK_THEME': true,
         'ANALYSIS_MODE': 'GEMINI_API',
@@ -83,7 +87,9 @@ void main() {
       expect(loadedState.analysisMode, AnalysisMode.gDetection);
     });
 
-    testWidgets('update() persists to SharedPreferences and reloads', (tester) async {
+    testWidgets('update() persists to SharedPreferences and reloads', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues({});
 
       final container = ProviderContainer();

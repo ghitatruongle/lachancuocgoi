@@ -6,7 +6,10 @@ void main() {
     test('fromJson parses risk levels', () {
       final json = {
         'riskLevels': [
-          {'level': 0, 'keywords': ['xin chao']},
+          {
+            'level': 0,
+            'keywords': ['xin chao'],
+          },
           {
             'level': 3,
             'threats': {
@@ -94,11 +97,7 @@ void main() {
           'scenario': 0.2,
           'context': 0.1,
         },
-        'riskLevelThresholds': {
-          'red': 0.8,
-          'orange': 0.6,
-          'yellow': 0.4,
-        },
+        'riskLevelThresholds': {'red': 0.8, 'orange': 0.6, 'yellow': 0.4},
       };
       final config = ScoringConfig.fromJson(json);
       expect(config.topicConfirmationThreshold, 5);
@@ -120,10 +119,7 @@ void main() {
     });
 
     test('fromJson overrides defaults', () {
-      final w = ScoringWeights.fromJson({
-        'keyword': 0.3,
-        'sentiment': 0.1,
-      });
+      final w = ScoringWeights.fromJson({'keyword': 0.3, 'sentiment': 0.1});
       expect(w.keyword, 0.3);
       expect(w.sentiment, 0.1);
       // Others keep defaults
@@ -140,7 +136,11 @@ void main() {
     });
 
     test('fromJson overrides', () {
-      final t = RiskThresholds.fromJson({'red': 0.9, 'orange': 0.7, 'yellow': 0.5});
+      final t = RiskThresholds.fromJson({
+        'red': 0.9,
+        'orange': 0.7,
+        'yellow': 0.5,
+      });
       expect(t.red, 0.9);
       expect(t.orange, 0.7);
       expect(t.yellow, 0.5);
@@ -149,7 +149,10 @@ void main() {
 
   group('PatternElement', () {
     test('fromJson creates PatternKeyword', () {
-      final e = PatternElement.fromJson({'type': 'keyword', 'value': 'chuyen tien'});
+      final e = PatternElement.fromJson({
+        'type': 'keyword',
+        'value': 'chuyen tien',
+      });
       expect(e, isA<PatternKeyword>());
       expect((e as PatternKeyword).value, 'chuyen tien');
     });
@@ -230,10 +233,7 @@ void main() {
         'category': 'AUTH',
         'trigger_phrases': ['cong an'],
         'required_context': ['dieu tra'],
-        'l2_analysis_hints': {
-          'urgency_level': 'high',
-          'authority_claim': true,
-        },
+        'l2_analysis_hints': {'urgency_level': 'high', 'authority_claim': true},
       };
       final scenario = MasterScenario.fromJson(json);
       expect(scenario.id, 'S1');
@@ -359,7 +359,10 @@ void main() {
     test('fromJson parses situations', () {
       final json = {
         'situations': [
-          {'name': 'Situation 1', 'trigger_phrases': ['test']},
+          {
+            'name': 'Situation 1',
+            'trigger_phrases': ['test'],
+          },
         ],
       };
       final model = AiCheckModel.fromJson(json);

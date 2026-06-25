@@ -29,15 +29,20 @@ void main() {
       expect(router, isA<GoRouter>());
     });
 
-    test('returns the same GoRouter instance on re-read (singleton Provider)',
-        () {
-      final first = container.read(appRouterProvider);
-      final second = container.read(appRouterProvider);
-      expect(identical(first, second), isTrue,
+    test(
+      'returns the same GoRouter instance on re-read (singleton Provider)',
+      () {
+        final first = container.read(appRouterProvider);
+        final second = container.read(appRouterProvider);
+        expect(
+          identical(first, second),
+          isTrue,
           reason:
               'appRouterProvider is a Provider (not a factory), so it must '
-              'return the same GoRouter instance on every read.');
-    });
+              'return the same GoRouter instance on every read.',
+        );
+      },
+    );
 
     test('router is created successfully with all routes', () {
       // In go_router 14.x, routerDelegate.routes is not publicly exposed.

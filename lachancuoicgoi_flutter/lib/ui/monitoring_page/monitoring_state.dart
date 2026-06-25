@@ -49,12 +49,15 @@ class MonitoringPageState {
   // avoid excessive Riverpod rebuilds at 10+ Hz.
   final NavigationIntent? navigationIntent;
   final List<AlertHistoryEntry> alertHistory;
+
   /// Sprint 2 (C1): true while the user should see a banner explaining
   /// that STT fell back to Vosk.
   final bool isSttFallback;
+
   /// Sprint 2 (C1): free-form reason from the native side
   /// (e.g. `error12_loop`, `network_errors_3`).
   final String? sttFallbackReason;
+
   /// Monotonic id incremented every time the banner is (re)shown.
   /// Drives a banner widget keyed off this value so it animates on each
   /// new event instead of being a no-op.
@@ -108,8 +111,7 @@ class MonitoringPageState {
       sttFallbackReason: clearSttFallbackReason
           ? null
           : (sttFallbackReason ?? this.sttFallbackReason),
-      sttFallbackBannerId:
-          sttFallbackBannerId ?? this.sttFallbackBannerId,
+      sttFallbackBannerId: sttFallbackBannerId ?? this.sttFallbackBannerId,
     );
   }
 
@@ -138,25 +140,25 @@ class MonitoringPageState {
 
   @override
   int get hashCode => Object.hash(
-        riskLevel,
-        peakRiskLevel,
-        transcript,
-        elapsedSeconds,
-        networkAvailable,
-        isFallbackActive,
-        analysisResult,
-        isAnalyzing,
-        isEndingSession,
-        isSimulationMode,
-        selectedMode,
-        effectiveMode,
-        isCreatorMode,
-        navigationIntent,
-        Object.hashAll(alertHistory),
-        isSttFallback,
-        sttFallbackReason,
-        sttFallbackBannerId,
-      );
+    riskLevel,
+    peakRiskLevel,
+    transcript,
+    elapsedSeconds,
+    networkAvailable,
+    isFallbackActive,
+    analysisResult,
+    isAnalyzing,
+    isEndingSession,
+    isSimulationMode,
+    selectedMode,
+    effectiveMode,
+    isCreatorMode,
+    navigationIntent,
+    Object.hashAll(alertHistory),
+    isSttFallback,
+    sttFallbackReason,
+    sttFallbackBannerId,
+  );
 
   static bool _listEquals<T>(List<T> a, List<T> b) {
     if (identical(a, b)) return true;

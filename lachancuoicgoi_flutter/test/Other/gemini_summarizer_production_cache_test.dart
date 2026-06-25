@@ -71,51 +71,60 @@ void main() {
   });
 
   group('Bug #3: Client reuse với circuit breaker (integration)', () {
-    test('circuit breaker state shared across multiple summarize() calls', () async {
-      // 6 lần gọi liên tiếp với failing executor.
-      // 5 lần đầu fail → circuit breaker mở.
-      // Lần thứ 6 KHÔNG gọi executor (cached client chặn).
-      var executorCalls = 0;
-      Future<String> failingExecutor({
-        required String apiKey,
-        required GeminiConfig config,
-        required String modelName,
-        required String prompt,
-      }) async {
-        executorCalls++;
-        throw Exception('Simulated failure #$executorCalls');
-      }
+    test(
+      'circuit breaker state shared across multiple summarize() calls',
+      () async {
+        // 6 lần gọi liên tiếp với failing executor.
+        // 5 lần đầu fail → circuit breaker mở.
+        // Lần thứ 6 KHÔNG gọi executor (cached client chặn).
+        var executorCalls = 0;
+        Future<String> failingExecutor({
+          required String apiKey,
+          required GeminiConfig config,
+          required String modelName,
+          required String prompt,
+        }) async {
+          executorCalls++;
+          throw Exception('Simulated failure #$executorCalls');
+        }
 
-      final client = GeminiClient(
-        apiKeyProvider: StaticApiKeyProvider(const ['AIzaTestKey']),
-        config: GeminiConfig.forSummarization(),
-        requestExecutor: failingExecutor,
-      );
+        final client = GeminiClient(
+          apiKeyProvider: StaticApiKeyProvider(const ['AIzaTestKey']),
+          config: GeminiConfig.forSummarization(),
+          requestExecutor: failingExecutor,
+        );
 
-      final summarizer = GeminiSummarizer(
-        apiKeyProvider: StaticApiKeyProvider(const ['AIzaTestKey']),
-        geminiClient: client, // Inject client
-      );
+        final summarizer = GeminiSummarizer(
+          apiKeyProvider: StaticApiKeyProvider(const ['AIzaTestKey']),
+          geminiClient: client, // Inject client
+        );
 
-      // 5 calls đầu — fail và trigger circuit breaker
-      for (var i = 0; i < 5; i++) {
-        final result = await summarizer.summarize(
+        // 5 calls đầu — fail và trigger circuit breaker
+        for (var i = 0; i < 5; i++) {
+          final result = await summarizer.summarize(
+            'Test với đủ từ để trigger API call cho summarization',
+          );
+          // Summarizer trả về error string thay vì throw
+          expect(result, contains('Lỗi tóm tắt'));
+        }
+
+        expect(
+          executorCalls,
+          equals(5),
+          reason: 'Executor phải được gọi 5 lần (circuit breaker threshold)',
+        );
+
+        // Call thứ 6 — circuit breaker open → KHÔNG gọi executor
+        final result6 = await summarizer.summarize(
           'Test với đủ từ để trigger API call cho summarization',
         );
-        // Summarizer trả về error string thay vì throw
-        expect(result, contains('Lỗi tóm tắt'));
-      }
-
-      expect(executorCalls, equals(5),
-          reason: 'Executor phải được gọi 5 lần (circuit breaker threshold)');
-
-      // Call thứ 6 — circuit breaker open → KHÔNG gọi executor
-      final result6 = await summarizer.summarize(
-        'Test với đủ từ để trigger API call cho summarization',
-      );
-      expect(result6, contains('Lỗi tóm tắt'));
-      expect(executorCalls, equals(5),
-          reason: 'Circuit breaker mở → executor KHÔNG được gọi thêm lần nào');
-    });
+        expect(result6, contains('Lỗi tóm tắt'));
+        expect(
+          executorCalls,
+          equals(5),
+          reason: 'Circuit breaker mở → executor KHÔNG được gọi thêm lần nào',
+        );
+      },
+    );
   });
 }

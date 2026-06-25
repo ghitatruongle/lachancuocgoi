@@ -4,16 +4,14 @@ import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
 void main() {
   group('MonitoringState.parse — edge cases', () {
     test('STOPPED:0:empty parses to null transcript', () {
-      final (state, duration, transcript) =
-          MonitoringState.parse('STOPPED:0:');
+      final (state, duration, transcript) = MonitoringState.parse('STOPPED:0:');
       expect(state, MonitoringState.stopped);
       expect(duration, 0);
       expect(transcript, isNull);
     });
 
     test('STOPPED: with no second colon after duration', () {
-      final (state, duration, transcript) =
-          MonitoringState.parse('STOPPED:45');
+      final (state, duration, transcript) = MonitoringState.parse('STOPPED:45');
       expect(state, MonitoringState.stopped);
       expect(duration, 45);
       // parts.length == 2 so no transcript part
@@ -21,8 +19,9 @@ void main() {
     });
 
     test('STOPPED: with negative duration', () {
-      final (state, duration, transcript) =
-          MonitoringState.parse('STOPPED:-5:hello');
+      final (state, duration, transcript) = MonitoringState.parse(
+        'STOPPED:-5:hello',
+      );
       expect(state, MonitoringState.stopped);
       expect(duration, -5);
       expect(transcript, 'hello');
@@ -30,8 +29,9 @@ void main() {
 
     test('STOPPED: with very long transcript', () {
       final longTranscript = 'a' * 5000;
-      final (state, duration, transcript) =
-          MonitoringState.parse('STOPPED:10:$longTranscript');
+      final (state, duration, transcript) = MonitoringState.parse(
+        'STOPPED:10:$longTranscript',
+      );
       expect(state, MonitoringState.stopped);
       expect(duration, 10);
       expect(transcript, longTranscript);
@@ -76,10 +76,7 @@ void main() {
       // CallEvent.fromMap uses `as String?` — int throws TypeError,
       // which means the caller must pass correct types.
       // This test documents the behavior: TypeError on wrong type.
-      expect(
-        () => CallEvent.fromMap({'type': 123}),
-        throwsA(isA<TypeError>()),
-      );
+      expect(() => CallEvent.fromMap({'type': 123}), throwsA(isA<TypeError>()));
     });
   });
 

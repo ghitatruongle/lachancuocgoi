@@ -13,8 +13,11 @@ void main() {
       // Classifier chưa initialize → close() phải không throw
       final classifier = TFLiteIntentClassifier();
       expect(() => classifier.close(), returnsNormally);
-      expect(() => classifier.close(), returnsNormally,
-          reason: 'close() phải idempotent — gọi nhiều lần không crash');
+      expect(
+        () => classifier.close(),
+        returnsNormally,
+        reason: 'close() phải idempotent — gọi nhiều lần không crash',
+      );
     });
 
     test('close() không throw exception khi isolate = null', () {
@@ -60,12 +63,21 @@ void main() {
       ];
 
       for (final classifier in classifiers) {
-        expect(() => classifier.close(), returnsNormally,
-            reason: '${classifier.runtimeType} close() không được throw');
-        expect(() => classifier.close(), returnsNormally,
-            reason: '${classifier.runtimeType} close() phải idempotent');
-        expect(classifier.isReady, isFalse,
-            reason: '${classifier.runtimeType} phải set isReady=false');
+        expect(
+          () => classifier.close(),
+          returnsNormally,
+          reason: '${classifier.runtimeType} close() không được throw',
+        );
+        expect(
+          () => classifier.close(),
+          returnsNormally,
+          reason: '${classifier.runtimeType} close() phải idempotent',
+        );
+        expect(
+          classifier.isReady,
+          isFalse,
+          reason: '${classifier.runtimeType} phải set isReady=false',
+        );
       }
     });
   });
@@ -85,8 +97,11 @@ void main() {
       classifier.close();
       stopwatch.stop();
       // close() phải return gần như ngay (< 100ms) — không block chờ isolate
-      expect(stopwatch.elapsedMilliseconds, lessThan(100),
-          reason: 'close() không được block chờ isolate shutdown');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(100),
+        reason: 'close() không được block chờ isolate shutdown',
+      );
     });
   });
 }
