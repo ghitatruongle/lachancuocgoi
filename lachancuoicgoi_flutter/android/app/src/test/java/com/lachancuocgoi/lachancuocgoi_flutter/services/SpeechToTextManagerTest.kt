@@ -215,4 +215,119 @@ class SpeechToTextManagerTest {
         val stt = manager.sttState.value
         assertTrue("expected SttState.Error, got $stt", stt is SttState.Error)
     }
+
+    // ─── 11. Bug #3: isRestarting must reset even when createSpeechRecognizer throws ──
+
+    /**
+     * Reads the private `isRestarting` flag via reflection.
+     */
+    private fun readIsRestarting(): Boolean {
+        val field = SpeechToTextManager::class.java.getDeclaredField("isRestarting")
+        field.isAccessible = true
+        return field.getBoolean(manager)
+    }
+
+    @Test
+    fun `Bug3 isRestarting is reset after createSpeechRecognizer throws`() {
+        // 1) Override the previous setUp: enable Google STT this time.
+        unmockkAll()
+        mockkStatic(android.speech.SpeechRecognizer::class)
+        every { android.speech.SpeechRecognizer.isRecognitionAvailable(any()) } returns true
+        every {
+            android.speech.SpeechRecognizer.createSpeechRecognizer(any())
+        } throws RuntimeException("simulated device failure")
+
+        // 2) Trigger startListening() — the inner block catches the throw and
+        //    the finally clause MUST reset isRestarting.
+        manager.startListening()
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        // 3) The bug would manifest as isRestarting being left at true.
+        assertFalse(
+            "isRestarting must reset to false even when createSpeechRecognizer throws (Bug #3)",
+            readIsRestarting(),
+        )
+    }
+
+    @Test
+    fun `Bug3 isRestarting is reset after createSpeechRecognizer returns null`() {
+        // Override setUp: Google STT available, but createSpeechRecognizer
+        // returns null (some OEMs do this on broken builds).
+        unmockkAll()
+        mockkStatic(android.speech.SpeechRecognizer::class)
+        every { android.speech.SpeechRecognizer.isRecognitionAvailable(any()) } returns true
+        every { android.speech.SpeechRecognizer.createSpeechRecognizer(any()) } returns null
+
+        manager.startListening()
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        assertFalse(
+            "isRestarting must reset to false when createSpeechRecognizer returns null (Bug #3)",
+            readIsRestarting(),
+        )
+    }
+
+    @Test
+    fun `Bug3 a second startListening after failure still proceeds (does not skip)`() {
+        // Regression test for Bug #3: a failure in the first startListening
+        // must NOT cause the next call to be skipped by the isRestarting guard.
+        unmockkAll()
+        mockkStatic(android.speech.SpeechRecognizer::class)
+        // First call: throw. Second call: succeed (return a mock).
+        var firstCall = true
+        every { android.speech.SpeechRecognizer.isRecognitionAvailable(any()) } returns true
+        every { android.speech.SpeechRecognizer.createSpeechRecognizer(any()) } answers {
+            if (firstCall) {
+                firstCall = false
+                throw RuntimeException("first-call failure")
+            }
+            null // then null, just to exercise both branches
+        }
+
+        manager.startListening()
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+        // Second call must not be blocked by stale isRestarting=true.
+        assertFalse("must allow retry", readIsRestarting())
+        manager.startListening()
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertFalse("must still not be blocked after retry", readIsRestarting())
+    }
+
+    // ─── Bug #34: overlap detection cap bumped 15 → 30 words ───────────
+
+    @Test
+    fun `Bug34 detects 20-word overlap (long scam phrase)`() {
+        // Build a 20-word "tail" of the existing transcript and an identical
+        // 20-word "head" of the new segment. The algorithm should drop
+        // those 20 words from the new segment.
+        val tail20 = List(20) { "w$it" }.joinToString(" ")
+        val newHead20 = List(20) { "w$it" }.joinToString(" ")
+        val existing = "xin chào ông $tail20"
+        val newSegment = "$newHead20 rồi tiếp tục nói"
+        val result = appendOverlap(existing, newSegment)
+        // The 20 overlapping words should be dropped; only "rồi tiếp tục nói"
+        // should be appended after the existing.
+        assertTrue(
+            "Expected deduped new content; got: $result",
+            result.endsWith("rồi tiếp tục nói"),
+        )
+        assertFalse(
+            "Original overlapping words should NOT appear twice",
+            result.contains("w0 w1 w2"),
+        )
+    }
+
+    @Test
+    fun `Bug34 still caps at 30 words (no false positives)`() {
+        // 31+ word overlap should be capped at 30 (bestOverlap = 30, drop 30,
+        // still 1 trailing word left to dedupe by tail match). This is just
+        // a regression guard — the algorithm must not crash on long input.
+        val tail30 = (1..30).joinToString(" ") { "t$it" }
+        val newHead30 = (1..30).joinToString(" ") { "t$it" }
+        val existing = "intro $tail30"
+        val newSegment = "$newHead30 extra"
+        val result = appendOverlap(existing, newSegment)
+        // 30 words deduped, "extra" appended.
+        assertTrue(result.endsWith("extra"))
+    }
 }

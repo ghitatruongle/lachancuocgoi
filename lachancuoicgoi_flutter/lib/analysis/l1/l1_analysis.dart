@@ -12,6 +12,7 @@ import '../common/fuzzy_matcher.dart';
 import '../common/text_normalizer.dart';
 import '../health_check.dart';
 import 'flat_trie.dart';
+import 'helpers/bigram_corrections_loader.dart';
 import 'l1_result.dart';
 import 'l1_safety_filter.dart';
 
@@ -42,7 +43,7 @@ class L1Analyzer implements Analyzer {
   AnalysisLevel get level => AnalysisLevel.l1;
 
   FlatTrie _trie = FlatTrie();
-  final Map<String, List<_TokenCorrection>> _corrections = {};
+  final Map<String, List<TokenCorrection>> _corrections = {};
   final Map<String, KeywordMatch> _singleTokenFuzzyCandidates = {};
 
   final L1Config config;
@@ -227,7 +228,7 @@ class L1Analyzer implements Analyzer {
     final result = <String>[];
     var index = 0;
     while (index < tokens.length) {
-      _TokenCorrection? matchedCorrection;
+      TokenCorrection? matchedCorrection;
       final currentWord = tokens[index];
       final possibleCorrections = _corrections[currentWord];
 
@@ -333,34 +334,18 @@ class L1Analyzer implements Analyzer {
   }
 
   Future<void> _loadBigramCorrections() async {
+    // BUG-L1-FUZZY-CACHE-LEAK fix: Clear existing corrections before loading.
+    _corrections.clear();
     try {
       final jsonText = await _loadString(
         'assets/bigram_corrections.json',
         _bigramCorrectionsProvider,
       );
-      final decoded = jsonDecode(jsonText);
-      if (decoded is! Map<String, dynamic>) return;
-
-      final corrections = decoded['corrections'];
-      if (corrections is! List) return;
-
-      for (final rawEntry in corrections) {
-        if (rawEntry is! Map) continue;
-        final from = _readTokenList(rawEntry['from']);
-        final to = _readTokenList(rawEntry['to']);
-        if (from.isEmpty || to.isEmpty) continue;
-
-        final firstWord = from.first;
-        _corrections
-            .putIfAbsent(firstWord, () => [])
-            .add(_TokenCorrection(from, to));
-      }
-      for (final list in _corrections.values) {
-        list.sort((a, b) => b.from.length.compareTo(a.from.length));
-      }
+      // Wave 3 refactor: delegated to BigramCorrectionsLoader.
+      BigramCorrectionsLoader.loadFromJson(jsonText, _corrections, _logger);
     } on Object catch (e) {
       _logger?.warning('Failed to load bigram corrections: $e');
-      _corrections.clear();
+      // Already cleared at start, so _corrections remains empty on failure.
     }
   }
 
@@ -579,20 +564,6 @@ class L1Analyzer implements Analyzer {
     );
   }
 
-  List<String> _readTokenList(Object? rawValue) {
-    if (rawValue is! List) return const [];
-    return rawValue
-        .map(
-          (item) => TextNormalizer.normalize(
-            item.toString(),
-            applySlang: true,
-            noiseMode: NoiseMode.space,
-          ),
-        )
-        .where((token) => token.isNotEmpty)
-        .toList();
-  }
-
   Future<String> _loadString(
     String assetKey,
     FutureOr<String> Function()? provider,
@@ -663,13 +634,6 @@ class L1Analyzer implements Analyzer {
   ) {
     return _applyRiskDensity(matches, totalTokens);
   }
-}
-
-class _TokenCorrection {
-  const _TokenCorrection(this.from, this.to);
-
-  final List<String> from;
-  final List<String> to;
 }
 
 class _UnmatchedToken {

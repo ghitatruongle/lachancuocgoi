@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:isolate';
 
 import '../../../core/asset_loader.dart';
+import '../../../core/noop_asset_loader.dart';
 import '../../../core/logger.dart';
 import 'g_flash.dart';
 import 'g_models.dart';
@@ -23,13 +24,13 @@ class GDetectionAssetLoader {
     AssetLoader? assetLoader,
     AppLogger? logger,
     FutureOr<String> Function(String fileName)? assetProvider,
-  }) : _assetLoader = assetLoader,
+  }) : _assetLoader = assetLoader ?? const NoopAssetLoader(),
        _logger = logger,
        _assetProvider = assetProvider;
 
   static const int _isolateDecodeThreshold = 10 * 1024;
 
-  final AssetLoader? _assetLoader;
+  final AssetLoader _assetLoader;
   final AppLogger? _logger;
   FutureOr<String> Function(String fileName)? _assetProvider;
 
@@ -137,11 +138,9 @@ class GDetectionAssetLoader {
     if (provider != null) {
       return await provider(fileName);
     }
-    if (_assetLoader == null) {
-      throw StateError(
-        'AssetLoader is null. Phải cung cấp AssetLoader hoặc provider cho $fileName.',
-      );
-    }
+    // BUG-L2-5 fix: _assetLoader now non-nullable with NoopAssetLoader default.
+    // If NoopAssetLoader returns empty JSON, downstream parsers will gracefully
+    // degrade to zero-vocabulary mode. StateError only thrown if explicitly needed.
     return _assetLoader.loadString('assets/$fileName');
   }
 

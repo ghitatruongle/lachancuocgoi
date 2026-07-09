@@ -71,6 +71,11 @@ class AudioAmplitudeHandler {
     _peakAmplitude = peakAmplitude;
     _hasReceivedAnyAudio = hasReceivedAnyAudio;
   }
+
+  /// Disposes the waveform notifier.
+  void dispose() {
+    _waveformNotifier.dispose();
+  }
 }
 
 class _WaveformNotifier extends ChangeNotifier {

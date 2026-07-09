@@ -263,4 +263,17 @@ class ServiceWatchdogReceiverTest {
         assertNull(prefs.getString("watchdog_phone_number", null))
         assertEquals(false, prefs.getBoolean("watchdog_speakerphone", false))
     }
+
+    // ─── Bug #25: RESTART_COOLDOWN_MS constant ─────────────────────────
+
+    @Test
+    fun `Bug25 RESTART_COOLDOWN_MS is 4 minutes (240_000ms)`() {
+        // Bug #25 fix: was 60_000ms (1 min) — too short relative to the
+        // 5-minute alarm interval, causing real restart attempts to be
+        // throttled when AlarmManager batched multiple watchdog alarms.
+        val field = ServiceWatchdogReceiver::class.java
+            .getDeclaredField("RESTART_COOLDOWN_MS")
+        field.isAccessible = true
+        assertEquals(4L * 60_000L, (field.get(null) as Long))
+    }
 }

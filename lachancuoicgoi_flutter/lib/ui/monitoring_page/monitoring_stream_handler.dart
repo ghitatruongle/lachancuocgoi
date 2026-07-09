@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import '../../core/system_logger.dart';
 import '../../services/native_call_shield_bridge.dart';
 import 'monitoring_controller.dart';
 
@@ -12,6 +12,7 @@ class MonitoringStreamHandler {
   StreamSubscription<double>? rmsSub;
   StreamSubscription<(MonitoringState, int?, String?)>? stateSub;
   StreamSubscription<CallEvent>? callEventSub;
+  StreamSubscription<String>? logsSub;
   bool streamsDead = false;
 
   void initStreams() {
@@ -21,7 +22,8 @@ class MonitoringStreamHandler {
         (transcriptSub != null ||
             rmsSub != null ||
             stateSub != null ||
-            callEventSub != null)) {
+            callEventSub != null ||
+            logsSub != null)) {
       return;
     }
     streamsDead = false;
@@ -37,13 +39,13 @@ class MonitoringStreamHandler {
       },
       onDone: () {
         if (controller.disposed) return;
-        debugPrint('transcriptStream done — marking subscriptions dead.');
+        SystemLogger.instance.log(LogCategory.stt, 'transcriptStream done — marking subscriptions dead.');
         streamsDead = true;
         transcriptSub?.cancel();
         transcriptSub = null;
       },
       onError: (Object e, StackTrace st) {
-        debugPrint('transcriptStream error: $e');
+        SystemLogger.instance.log(LogCategory.stt, 'transcriptStream error: $e', level: LogLevel.error);
         streamsDead = true;
         transcriptSub?.cancel();
         transcriptSub = null;
@@ -57,13 +59,13 @@ class MonitoringStreamHandler {
       },
       onDone: () {
         if (controller.disposed) return;
-        debugPrint('rmsStream done — marking subscriptions dead.');
+        SystemLogger.instance.log(LogCategory.recording, 'rmsStream done — marking subscriptions dead.');
         streamsDead = true;
         rmsSub?.cancel();
         rmsSub = null;
       },
       onError: (Object e, StackTrace st) {
-        debugPrint('rmsStream error: $e');
+        SystemLogger.instance.log(LogCategory.recording, 'rmsStream error: $e', level: LogLevel.error);
         streamsDead = true;
         rmsSub?.cancel();
         rmsSub = null;
@@ -77,13 +79,13 @@ class MonitoringStreamHandler {
       },
       onDone: () {
         if (controller.disposed) return;
-        debugPrint('monitoringStateStream done — marking subscriptions dead.');
+        SystemLogger.instance.log(LogCategory.system, 'monitoringStateStream done — marking subscriptions dead.');
         streamsDead = true;
         stateSub?.cancel();
         stateSub = null;
       },
       onError: (Object e, StackTrace st) {
-        debugPrint('monitoringStateStream error: $e');
+        SystemLogger.instance.log(LogCategory.system, 'monitoringStateStream error: $e', level: LogLevel.error);
         streamsDead = true;
         stateSub?.cancel();
         stateSub = null;
@@ -99,16 +101,57 @@ class MonitoringStreamHandler {
       },
       onDone: () {
         if (controller.disposed) return;
-        debugPrint('callEventStream done — marking subscriptions dead.');
+        SystemLogger.instance.log(LogCategory.system, 'callEventStream done — marking subscriptions dead.');
         streamsDead = true;
         callEventSub?.cancel();
         callEventSub = null;
       },
       onError: (Object e, StackTrace st) {
-        debugPrint('callEventStream error: $e');
+        SystemLogger.instance.log(LogCategory.system, 'callEventStream error: $e', level: LogLevel.error);
         streamsDead = true;
         callEventSub?.cancel();
         callEventSub = null;
+      },
+    );
+
+    logsSub = bridge.logsStream.listen(
+      (rawLog) {
+        if (controller.disposed) return;
+        final parts = rawLog.split('|');
+        if (parts.length >= 3) {
+          final levelStr = parts[0].toUpperCase();
+          final tagStr = parts[1];
+          final message = parts.sublist(2).join('|');
+
+          LogLevel level = LogLevel.info;
+          if (levelStr == 'WARN' || levelStr == 'WARNING') {
+            level = LogLevel.warning;
+          } else if (levelStr == 'ERROR') {
+            level = LogLevel.error;
+          }
+
+          LogCategory category = LogCategory.system;
+          if (tagStr.contains('Vosk') || tagStr.contains('Model') || tagStr.contains('gemini') || tagStr.contains('Gemini')) {
+            category = LogCategory.model;
+          } else if (tagStr.contains('Speech') || tagStr.contains('STT')) {
+            category = LogCategory.stt;
+          } else if (tagStr.contains('Capture') || tagStr.contains('Audio') || tagStr.contains('Service')) {
+            category = LogCategory.recording;
+          }
+
+          SystemLogger.instance.log(category, message, level: level);
+        }
+      },
+      onDone: () {
+        if (controller.disposed) return;
+        SystemLogger.instance.log(LogCategory.system, 'logsStream done.');
+        logsSub?.cancel();
+        logsSub = null;
+      },
+      onError: (Object e, StackTrace st) {
+        SystemLogger.instance.log(LogCategory.system, 'logsStream error: $e', level: LogLevel.error);
+        logsSub?.cancel();
+        logsSub = null;
       },
     );
   }
@@ -122,5 +165,7 @@ class MonitoringStreamHandler {
     stateSub = null;
     callEventSub?.cancel();
     callEventSub = null;
+    logsSub?.cancel();
+    logsSub = null;
   }
 }

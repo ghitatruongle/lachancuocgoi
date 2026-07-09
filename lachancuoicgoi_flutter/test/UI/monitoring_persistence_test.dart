@@ -95,6 +95,8 @@ class ManualMockNativeBridge implements NativeBridgeInterface {
   @override
   Stream<CallEvent> get callEventStream => const Stream.empty();
   @override
+  Stream<String> get logsStream => const Stream.empty();
+  @override
   Future<bool> isMonitoringActive() async => false;
   @override
   Future<bool> stopMonitoring() async => true;

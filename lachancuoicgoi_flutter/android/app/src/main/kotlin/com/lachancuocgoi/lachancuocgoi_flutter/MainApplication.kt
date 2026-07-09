@@ -12,7 +12,16 @@ class MainApplication : Application() {
         const val BACKGROUND_MONITORING_CHANNEL_ID = "BackgroundMonitoringChannel"
         const val INCOMING_CALL_CHANNEL_ID = "IncomingCallChannel"
         const val MEDIA_PROJECTION_CHANNEL_ID = "media_projection_channel"
-        private const val LOCKSCREEN_VISIBILITY_NO_OVERRIDE = -1000
+
+        /**
+         * Bug #27 fix: documented the magic constant. On API < 26
+         * (`Build.VERSION_CODES.O`) NotificationChannel has no
+         * `lockscreenVisibility` field, so the user-agent stores it as
+         * -1000 internally. The repair logic used to special-case -1000 →
+         * VISIBILITY_PUBLIC as "already correct, skip"; that magic number
+         * is now named and explained here.
+         */
+        const val LOCKSCREEN_VISIBILITY_NO_OVERRIDE = -1000
     }
 
     override fun onCreate() {
@@ -31,11 +40,18 @@ class MainApplication : Application() {
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
             description = "Thông báo khi đang giám sát cuộc gọi"
+            // Bug #18 fix: also set lockscreen visibility so the foreground
+            // monitoring notification is visible on the lockscreen (matching
+            // the INCOMING_CALL_CHANNEL_ID behavior). Previously the user
+            // couldn't see that monitoring was active without unlocking the
+            // device — confusing because the mic indicator is hidden too.
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         createOrRepairChannel(
             manager,
             monitoringChannel,
             expectedImportance = NotificationManager.IMPORTANCE_LOW,
+            expectedLockscreenVisibility = Notification.VISIBILITY_PUBLIC,
         )
 
         val incomingCallChannel = NotificationChannel(

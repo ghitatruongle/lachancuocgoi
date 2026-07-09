@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/asset_loader.dart';
 import '../core/logger.dart';
+import '../core/system_logger.dart';
 import '../services/flutter_services_impl.dart';
 import 'analysis_coordinator.dart';
 import 'l1/l1_analysis.dart';
@@ -24,7 +25,10 @@ import 'l3/l3_analysis.dart';
 final assetLoaderProvider = Provider<AssetLoader>(
   (ref) => const FlutterAssetLoader(),
 );
-final loggerProvider = Provider<AppLogger>((ref) => const FlutterLogger());
+
+/// Unified logger: SystemLogger implements AppLogger, so all analysis-layer
+/// logs are also visible in the UI System Log viewer.
+final loggerProvider = Provider<AppLogger>((ref) => SystemLogger.instance);
 
 /// Singleton L1Analyzer — keyword trie is built once on first use.
 final l1AnalyzerProvider = Provider<L1Analyzer>((ref) {

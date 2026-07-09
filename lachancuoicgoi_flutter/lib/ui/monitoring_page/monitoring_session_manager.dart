@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import '../../core/risk_level.dart';
+import '../../core/system_logger.dart';
 import '../../data/call_history.dart';
 import '../../data/session_recovery_store.dart';
 import 'monitoring_controller.dart';
@@ -33,8 +33,22 @@ class MonitoringSessionManager {
   void saveSnapshot() {
     if (controller.disposed || controller.currentState.isEndingSession) return;
     if (controller.currentState.isSimulationMode) return;
-    if (controller.currentState.transcript.trim().isEmpty &&
-        controller.currentState.elapsedSeconds < 5) {
+    // Bug #40 fix: if there is no transcript AND no elapsed time, skip —
+    // nothing meaningful to recover. The previous code skipped only when
+    // transcript-empty AND elapsed < 5s, so after 5s of silence it would
+    // save an empty snapshot every 5s. The recovery code then sees
+    // transcript="" and saves a CallHistory with that empty transcript,
+    // which the UI displays as a blank row in History.
+    final state = controller.currentState;
+    if (state.transcript.trim().isEmpty && state.elapsedSeconds < 10) {
+      return;
+    }
+    // Also skip if the user just hasn't spoken yet but monitoring is
+    // genuinely running — we still want the snapshot, but only if there
+    // is SOME signal (RMS, partial). Without any signal there's nothing
+    // useful to recover. Use audioHandler.hasReceivedAnyAudio instead of
+    // state.peakAmplitude (which doesn't exist on MonitoringPageState).
+    if (state.transcript.trim().isEmpty && !controller.audioHandler.hasReceivedAnyAudio) {
       return;
     }
 
@@ -42,9 +56,9 @@ class MonitoringSessionManager {
       SessionRecoveryStore.save(
         SessionSnapshot(
           phoneNumber: controller.phoneNumber ?? '',
-          transcript: controller.currentState.transcript,
-          elapsedSeconds: controller.currentState.elapsedSeconds,
-          riskLevel: controller.currentState.riskLevel.storageName,
+          transcript: state.transcript,
+          elapsedSeconds: state.elapsedSeconds,
+          riskLevel: state.riskLevel.storageName,
           analysisResultJson: null,
           recordingError: null,
           startedAt: DateTime.fromMillisecondsSinceEpoch(
@@ -94,7 +108,7 @@ class MonitoringSessionManager {
       );
       await db.insert(history);
     } on Object catch (e) {
-      debugPrint('Session recovery failed: $e');
+      SystemLogger.instance.log(LogCategory.system, 'Session recovery failed: $e', level: LogLevel.error);
     } finally {
       await SessionRecoveryStore.clear();
     }

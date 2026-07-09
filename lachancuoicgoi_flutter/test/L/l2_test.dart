@@ -118,9 +118,17 @@ void main() {
         );
         await analyzer.initialize();
 
+        // BUG FIX: Safety filter checks danger keywords only in main section
+        // (>200 chars). Transcript must be long enough that "tài khoản" is
+        // fully in the main section, not split across the 200-char boundary.
         final result = await analyzer.analyze(
           'cục cảnh sát đang điều tra',
-          'Tôi là công an, chúng tôi đang điều tra và có lệnh bắt.',
+          'Tôi là công an, chúng tôi đang điều tra và có lệnh bắt. '
+          'Đây là cuộc gọi khẩn cấp yêu cầu bạn hợp tác ngay lập tức. '
+          'Nếu không hợp tác sẽ bị bắt giữ và truy tố trước pháp luật. '
+          'Bạn cần làm theo hướng dẫn của chúng tôi để xác minh thông tin. '
+          'Hãy cung cấp số tài khoản ngân hàng ngay bây giờ để chúng tôi '
+          'kiểm tra và xác minh nguồn gốc tiền bạc.',
         );
 
         expect(result.analysisLevel, AnalysisLevel.l2);

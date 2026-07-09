@@ -3,9 +3,10 @@ import 'dart:convert';
 
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/system_logger.dart';
 
 class DeveloperModeState {
   const DeveloperModeState({
@@ -117,7 +118,7 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
       // If persist fails, revert in-memory state to avoid contradiction
       // between isActive (reads _activatedAtMs) and persisted state.
       _activatedAtMs = 0;
-      debugPrint('DeveloperMode.activate() persist failed: $e');
+      SystemLogger.instance.log(LogCategory.system, 'DeveloperMode.activate() persist failed: $e', level: LogLevel.error);
     }
     if (!ref.mounted) return;
     _refreshState();
@@ -135,7 +136,7 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
     } on Object catch (e) {
       // Non-fatal — in-memory state is already cleared. On next restart
       // the restore will see an expired activation and deactivate.
-      debugPrint('DeveloperMode.deactivate() persist failed: $e');
+      SystemLogger.instance.log(LogCategory.system, 'DeveloperMode.deactivate() persist failed: $e', level: LogLevel.error);
     }
   }
 

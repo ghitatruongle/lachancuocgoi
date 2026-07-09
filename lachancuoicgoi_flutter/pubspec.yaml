@@ -1,7 +1,7 @@
 name: lachancuocgoi_flutter
 description: Flutter port dự kiến của dự án La Chắn Cuộc Gọi.
 publish_to: "none"
-version: 1.4.0+9
+version: 1.5.0+11
 
 environment:
   sdk: ">=3.9.0 <4.0.0"

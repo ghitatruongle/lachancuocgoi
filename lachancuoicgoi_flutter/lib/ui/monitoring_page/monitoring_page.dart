@@ -7,6 +7,7 @@ import '../home_page/settings_dialog.dart';
 import '../theme/risk_level_colors.dart';
 import 'audio_waveform.dart';
 import 'live_conversation.dart';
+import 'system_log_view.dart';
 import 'alert_history_section.dart';
 import 'monitoring_controller.dart';
 import 'risk_level_indicator.dart';
@@ -32,6 +33,7 @@ class MonitoringPage extends ConsumerStatefulWidget {
 class _MonitoringPageState extends ConsumerState<MonitoringPage>
     with WidgetsBindingObserver {
   late final _ElapsedNotifier _elapsedNotifier = _ElapsedNotifier();
+  int _activeTab = 0;
 
   @override
   void initState() {
@@ -483,27 +485,68 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      isSimulation
-                          ? 'Kịch bản mô phỏng'
-                          : 'Cuộc hội thoại trực tiếp',
-                      style: tt.titleSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildTabButton(
+                            0,
+                            isSimulation ? 'Kịch bản mô phỏng' : 'Cuộc hội thoại trực tiếp',
+                            cs,
+                            tt,
+                          ),
+                          const SizedBox(width: 20),
+                          _buildTabButton(1, 'Nhật ký hệ thống', cs, tt),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Expanded(
                       child: RepaintBoundary(
-                        child: LiveConversation(
-                          transcript: state.transcript,
-                          isSimulation: isSimulation,
-                        ),
+                        child: _activeTab == 0
+                            ? LiveConversation(
+                                transcript: state.transcript,
+                                isSimulation: isSimulation,
+                              )
+                            : const SystemLogView(),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabButton(
+    int index,
+    String label,
+    ColorScheme cs,
+    TextTheme tt,
+  ) {
+    final isSelected = _activeTab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _activeTab = index),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: tt.titleSmall?.copyWith(
+              color: isSelected ? cs.primary : cs.onSurfaceVariant,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          const SizedBox(height: 4),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            height: 2,
+            width: isSelected ? 40 : 0,
+            color: isSelected ? cs.primary : Colors.transparent,
           ),
         ],
       ),

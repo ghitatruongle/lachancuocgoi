@@ -197,4 +197,31 @@ class TranscriptionHubTest {
         // Sanity: distinct threads represented in the posted set
         assertEquals(threads, tokensPosted.map { it.substringBefore('_') }.toSet().size)
     }
+
+    // ─── Bug #38: takeLast window bumped 10 → 20 ────────────────────────
+
+    @Test
+    fun `Bug38 detects 15-word overlap (long caption line)`() {
+        // Build a 15-word shared phrase between two captions. Previously
+        // the algorithm looked at only 10 trailing words, so 15-word
+        // overlaps leaked through as duplicated text.
+        TranscriptionHub.reset()
+        val shared15 = List(15) { "w$it" }.joinToString(" ")
+        TranscriptionHub.postTranscript("mở đầu $shared15")
+        // Add the second caption that starts with the same 15 words.
+        TranscriptionHub.postTranscript("$shared15 tiếp theo")
+        val final = TranscriptionHub.transcriptFlow.value
+        assertFalse(
+            "Overlapping 15 words must NOT appear twice: $final",
+            final.split(shared15).size > 2, // would be 3+ if duplicated
+        )
+        assertTrue(
+            "Both segments' unique parts should remain: $final",
+            final.contains("mở đầu") && final.contains("tiếp theo"),
+        )
+    }
+
+    private fun assertFalse(message: String, condition: Boolean) {
+        if (condition) throw AssertionError(message)
+    }
 }

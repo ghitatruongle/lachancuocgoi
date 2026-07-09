@@ -43,6 +43,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Quay lại',
           onPressed: () => context.go('/'),
         ),
         title: const Text('Tình huống giả lập'),
@@ -75,6 +76,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
                 suffixIcon: uiState.searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.close),
+                        tooltip: 'Xóa tìm kiếm',
                         onPressed: () {
                           _searchController.clear();
                           controller.updateSearchQuery('');
@@ -264,15 +266,21 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                widget.scenario.description,
-                                style: tt.bodySmall?.copyWith(
-                                  color: cs.onSurfaceVariant,
+                              // BUG-UI-A11Y-2 fix: Wrap ellipsis text in Semantics so
+                              // screen readers announce the full description even when
+                              // visually truncated to 2 lines.
+                              Semantics(
+                                label: widget.scenario.description,
+                                child: Text(
+                                  widget.scenario.description,
+                                  style: tt.bodySmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                  maxLines: _expanded ? null : 2,
+                                  overflow: _expanded
+                                      ? null
+                                      : TextOverflow.ellipsis,
                                 ),
-                                maxLines: _expanded ? null : 2,
-                                overflow: _expanded
-                                    ? null
-                                    : TextOverflow.ellipsis,
                               ),
                             ],
                           ),

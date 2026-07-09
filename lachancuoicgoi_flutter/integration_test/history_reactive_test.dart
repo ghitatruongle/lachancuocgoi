@@ -26,7 +26,8 @@ CallHistory _row({
 }
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  binding.testTextInput.register();
 
   group('Sprint 4 — history reactive updates', () {
     late IntegrationTestHarness harness;
@@ -108,12 +109,14 @@ void main() {
       expect(find.text('Orange call'), findsOneWidget);
       expect(find.text('Red call'), findsOneWidget);
 
-      final searchField = find.byType(TextField).first;
+      final searchField = find.byType(EditableText).first;
+      await tester.tap(searchField);
+      await tester.pumpAndSettle();
       await tester.enterText(searchField, 'red');
-      await tester.pump(const Duration(milliseconds: 300));
-      for (var i = 0; i < 3; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
+      await tester.pumpAndSettle();
+      // Wait for 300ms debounce + async SQLite query to complete.
+      await Future<void>.delayed(const Duration(milliseconds: 1000));
+      await tester.pumpAndSettle();
 
       expect(find.text('Red call'), findsOneWidget,
           reason: 'The RED record should be the only visible row');

@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../analysis_level.dart';
 import '../analysis_result.dart';
@@ -10,14 +10,17 @@ import '../../core/risk_level.dart';
 import '../../core/asset_loader.dart';
 import '../../core/logger.dart';
 import 'core/api_key_provider.dart';
+import 'core/circuit_breaker.dart';
+import 'core/confidence_calculator.dart';
 import 'core/gemini_chat_session.dart';
 import 'core/gemini_client.dart';
 import 'core/gemini_config.dart';
 import 'core/gemini_metrics.dart';
-import 'core/gemini_response.dart';
 import 'core/key_health_tracker.dart';
+import 'core/l3_response_parser.dart';
 import 'core/pii_stripper.dart';
 import 'core/response_cache.dart';
+import 'core/risk_deescalation.dart';
 import 'prompt_builder.dart';
 
 class L3Analyzer implements Analyzer {
@@ -29,6 +32,9 @@ class L3Analyzer implements Analyzer {
     GeminiClient? geminiClient,
     GeminiChatSession Function()? sessionFactory,
     ResponseCache<AnalysisResult>? cache,
+    CircuitBreaker? circuitBreaker,
+    L3ResponseParser? responseParser,
+    RiskDeescalationMachine? deescalationMachine,
   }) {
     final provider =
         apiKeyProvider ??
@@ -47,6 +53,9 @@ class L3Analyzer implements Analyzer {
       geminiClient: client,
       sessionFactory: sessionFactory,
       cache: cache ?? ResponseCache<AnalysisResult>(),
+      circuitBreaker: circuitBreaker ?? CircuitBreaker(),
+      responseParser: responseParser ?? L3ResponseParser(),
+      deescalationMachine: deescalationMachine ?? RiskDeescalationMachine(),
     );
   }
 
@@ -56,11 +65,17 @@ class L3Analyzer implements Analyzer {
     required GeminiClient geminiClient,
     required GeminiChatSession Function()? sessionFactory,
     required ResponseCache<AnalysisResult> cache,
-  }) : _apiKeyProvider = apiKeyProvider,
-       _keyHealthTracker = keyHealthTracker,
-       _client = geminiClient,
-       _sessionFactory = sessionFactory,
-       _cache = cache;
+    required CircuitBreaker circuitBreaker,
+    required L3ResponseParser responseParser,
+    required RiskDeescalationMachine deescalationMachine,
+  })  : _apiKeyProvider = apiKeyProvider,
+        _keyHealthTracker = keyHealthTracker,
+        _client = geminiClient,
+        _sessionFactory = sessionFactory,
+        _cache = cache,
+        _circuitBreaker = circuitBreaker,
+        _responseParser = responseParser,
+        _deescalation = deescalationMachine;
 
   static const int _minWords = 3;
   static const int _minIncrementalChars = 60;
@@ -72,16 +87,20 @@ class L3Analyzer implements Analyzer {
   final GeminiChatSession Function()? _sessionFactory;
   final ResponseCache<AnalysisResult> _cache;
 
+  // Extracted sub-components
+  final CircuitBreaker _circuitBreaker;
+  final L3ResponseParser _responseParser;
+  final RiskDeescalationMachine _deescalation;
+
   GeminiChatSession? _activeSession;
   bool _isAnalyzing = false;
   int _processedTextLength = 0;
-  RiskLevel _maxRiskLevel = RiskLevel.green;
-  int _consecutiveGreenCount = 0;
-  DateTime? _lastErrorTime;
-  DateTime? _circuitBreakerUntil;
-  int _consecutiveErrors = 0;
-  final List<DateTime> _requestTimestamps = [];
-  final List<DateTime> _errorTimestamps = [];
+  // BUG-L3-INFLIGHT-CIRCUIT-BLOCK fix: Generation counter to prevent stale
+  // in-flight results from writing to _lastResult after closeSession() is called.
+  // Previously: user exits monitoring mid-Gemini-call (up to 25s) → closeSession
+  // sets _activeSession=null but _isAnalyzing=true stays. When in-flight resolves,
+  // it writes _lastResult from OLD session, leaking PII into new session.
+  int _sessionGeneration = 0;
   AnalysisResult _lastResult = const AnalysisResult(
     overallRiskLevel: RiskLevel.green,
     matches: <KeywordMatch>[],
@@ -105,6 +124,16 @@ class L3Analyzer implements Analyzer {
         _keyHealthTracker.hasActiveKeys();
   }
 
+  /// Whether a Gemini chat session is currently active.
+  ///
+  /// BUG FIX (Bug #1): Previously the coordinator decided whether to create
+  /// a new session by checking [_processedTextLength] == 0. But short-text
+  /// incremental analysis returns early WITHOUT updating
+  /// `_processedTextLength`, so the next call would see length=0 again and
+  /// recreate the session — discarding all chat history. Now callers should
+  /// check [hasActiveSession] instead.
+  bool get hasActiveSession => _activeSession != null;
+
   @override
   void resetSession() {
     closeSession();
@@ -121,9 +150,6 @@ class L3Analyzer implements Analyzer {
   @override
   AnalysisResult get lastResult => _lastResult;
 
-  /// Đóng Gemini chat session (giữ kết nối HTTP keep-alive + history).
-  /// Trước đây L3Analyzer không có dispose() trong contract Analyzer → session
-  /// bị phụ thuộc hoàn toàn vào GC. Idempotent.
   @override
   void dispose() {
     closeSession();
@@ -143,9 +169,9 @@ class L3Analyzer implements Analyzer {
     final exhaustedCount = summary
         .where((item) => item.status == KeyStatus.exhausted)
         .length;
-    final isRecentError =
-        _lastErrorTime != null &&
-        DateTime.now().difference(_lastErrorTime!) < const Duration(minutes: 1);
+    final isRecentError = _circuitBreaker.lastErrorTime != null &&
+        DateTime.now().difference(_circuitBreaker.lastErrorTime!) <
+            const Duration(minutes: 1);
 
     if (!hasApiKey) {
       return const HealthReport(
@@ -170,12 +196,12 @@ class L3Analyzer implements Analyzer {
             '$cooldownCount/$totalKeys keys hết quota (cooldown đến 00:00). $exhaustedCount keys invalid.',
       );
     }
-    if (_consecutiveErrors >= 3) {
+    if (_circuitBreaker.consecutiveErrors >= 3) {
       return HealthReport(
         status: HealthStatus.degraded,
         component: 'L3',
         message:
-            '$_consecutiveErrors lỗi liên tiếp. $activeCount/$totalKeys keys ACTIVE.',
+            '${_circuitBreaker.consecutiveErrors} lỗi liên tiếp. $activeCount/$totalKeys keys ACTIVE.',
       );
     }
     if (isRecentError) {
@@ -183,7 +209,7 @@ class L3Analyzer implements Analyzer {
         status: HealthStatus.degraded,
         component: 'L3',
         message:
-            'Gần đây có lỗi (consecutiveErrors=$_consecutiveErrors, errorRate=${_getErrorRateString()}). $activeCount/$totalKeys keys ACTIVE.',
+            'Gần đây có lỗi (consecutiveErrors=${_circuitBreaker.consecutiveErrors}, errorRate=${_circuitBreaker.getErrorRateString()}). $activeCount/$totalKeys keys ACTIVE.',
       );
     }
     return HealthReport(
@@ -195,33 +221,29 @@ class L3Analyzer implements Analyzer {
   }
 
   Future<AnalysisResult> analyze(String text) async {
-    // Concurrency guard: previously only analyzeIncremental() checked
-    // _isAnalyzing. If the coordinator calls analyze() while an incremental
-    // run is in flight, both mutate _lastResult / _maxRiskLevel /
-    // _consecutiveGreenCount across awaits → torn state. Reuse the same flag.
     if (_isAnalyzing) {
       return _lastResult;
     }
 
-    if (_circuitBreakerUntil != null) {
-      if (DateTime.now().isBefore(_circuitBreakerUntil!)) {
-        return const AnalysisResult(
-          overallRiskLevel: RiskLevel.green,
-          matches: <KeywordMatch>[],
-          reason: 'L3 đang tạm ngưng do lỗi mạng (Circuit Breaker)',
-          analysisLevel: AnalysisLevel.l3,
-        );
-      } else {
-        _circuitBreakerUntil = null;
-        _consecutiveErrors = 0;
-      }
+    if (_circuitBreaker.isOpen) {
+      return const AnalysisResult(
+        overallRiskLevel: RiskLevel.green,
+        matches: <KeywordMatch>[],
+        reason: 'L3 đang tạm ngưng do lỗi mạng (Circuit Breaker)',
+        analysisLevel: AnalysisLevel.l3,
+      );
     }
 
+    // BUG-L3-INFLIGHT-CIRCUIT-BLOCK fix: Capture generation at call start.
+    final myGeneration = _sessionGeneration;
     _isAnalyzing = true;
     try {
       final validationError = _validateInput(text);
       if (validationError != null) {
-        _lastResult = validationError;
+        // Only write if generation hasn't changed (session not closed mid-flight).
+        if (myGeneration == _sessionGeneration) {
+          _lastResult = validationError;
+        }
         return validationError;
       }
 
@@ -229,7 +251,9 @@ class L3Analyzer implements Analyzer {
       final cached = _cache.get(normalizedKey);
       if (cached != null) {
         GeminiMetrics.instance.recordCacheHit();
-        _lastResult = cached;
+        if (myGeneration == _sessionGeneration) {
+          _lastResult = cached;
+        }
         return cached;
       }
       GeminiMetrics.instance.recordCacheMiss();
@@ -251,12 +275,25 @@ class L3Analyzer implements Analyzer {
             analysisResult,
             riskLevel: analysisResult.overallRiskLevel,
           );
-          _recordRequest(false);
-          _lastResult = analysisResult;
+          _circuitBreaker.recordSuccess();
+          // Only write if generation hasn't changed.
+          if (myGeneration == _sessionGeneration) {
+            _lastResult = analysisResult;
+          }
           return analysisResult;
         },
         onFailure: (error, _) {
-          _recordRequest(true);
+          // BUG-L3-CIRCUIT-RACE fix: Do NOT record failure in L3Analyzer's
+          // circuit breaker if the error is "Circuit breaker open" from
+          // GeminiClient's own circuit breaker. GeminiClient already tracks
+          // failures and opens its circuit after 5 consecutive fails (30s cooldown).
+          // Recording this as an L3Analyzer failure causes double-tripping:
+          // L3 would trip for 2 minutes AFTER GeminiClient's 30s cooldown ends,
+          // resulting in ~2.5 minutes total unavailability instead of the intended 30s.
+          final errorString = error.toString();
+          if (!errorString.contains('Circuit breaker open')) {
+            _circuitBreaker.recordFailure();
+          }
           final analysisResult = AnalysisResult(
             overallRiskLevel: RiskLevel.green,
             matches: const <KeywordMatch>[],
@@ -264,7 +301,10 @@ class L3Analyzer implements Analyzer {
             analysisLevel: AnalysisLevel.l3,
             isError: true,
           );
-          _lastResult = analysisResult;
+          // Only write if generation hasn't changed.
+          if (myGeneration == _sessionGeneration) {
+            _lastResult = analysisResult;
+          }
           return analysisResult;
         },
       );
@@ -285,22 +325,18 @@ class L3Analyzer implements Analyzer {
     _processedTextLength = initialProcessedTextLength < 0
         ? 0
         : initialProcessedTextLength;
-    _maxRiskLevel = RiskLevel.green;
-    _consecutiveGreenCount = 0;
+    _deescalation.reset();
   }
 
   Future<AnalysisResult?> analyzeIncremental(String fullText) async {
     if (_isAnalyzing) return null;
 
-    if (_circuitBreakerUntil != null) {
-      if (DateTime.now().isBefore(_circuitBreakerUntil!)) {
-        return null;
-      } else {
-        _circuitBreakerUntil = null;
-        _consecutiveErrors = 0;
-      }
+    if (_circuitBreaker.isOpen) {
+      return null;
     }
 
+    // BUG-L3-INFLIGHT-CIRCUIT-BLOCK fix: Capture generation at call start.
+    final myGeneration = _sessionGeneration;
     _isAnalyzing = true;
     try {
       final session = _activeSession;
@@ -315,7 +351,7 @@ class L3Analyzer implements Analyzer {
       if (newTextLength < _minIncrementalChars) {
         return null;
       }
-      if (!_isSentenceBoundary(newText) &&
+      if (!_responseParser.isSentenceBoundary(newText) &&
           newTextLength < _maxIncrementalChars) {
         return null;
       }
@@ -352,11 +388,16 @@ class L3Analyzer implements Analyzer {
       );
 
       if (isTransient) {
-        // Exponential Backoff with Jitter
-        final random = math.Random();
+        // BUG-L3-RETRY-DELAY-OVERFLOW fix: Exponential Backoff with Jitter
+        // Previously: baseDelay could reach (1 << 5) * 1000 = 32000ms (32s),
+        // but AnalysisCoordinator._analyzeParallel times out L3 after 800ms.
+        // A 32s delay means the retry is guaranteed to be cut by the timeout,
+        // wasting Gemini quota and leaving _isAnalyzing=true for 32s (blocking
+        // all subsequent calls). Cap at 1500ms to stay under coordinator timeout.
+        final random = DateTime.now().microsecond % 1000;
         final baseDelay =
-            math.pow(2, _consecutiveErrors.clamp(0, 5)).toInt() * 1000;
-        final delayMs = baseDelay + random.nextInt(1000);
+            (1 << _circuitBreaker.consecutiveErrors.clamp(0, 5)) * 1000;
+        final delayMs = (baseDelay + random).clamp(100, 1500);
         await Future<void>.delayed(Duration(milliseconds: delayMs));
         result = await session.sendMessage<AnalysisResult>(
           prompt,
@@ -370,13 +411,21 @@ class L3Analyzer implements Analyzer {
 
       return result.fold(
         onSuccess: (analysisResult) {
-          _processedTextLength = fullText.length;
-          _recordRequest(false);
-          _lastResult = analysisResult;
+          // Only write if generation hasn't changed (session not closed mid-flight).
+          if (myGeneration == _sessionGeneration) {
+            _processedTextLength = fullText.length;
+            _lastResult = analysisResult;
+          }
+          _circuitBreaker.recordSuccess();
           return analysisResult;
         },
         onFailure: (error, _) {
-          _recordRequest(true);
+          // BUG-L3-CIRCUIT-RACE fix: Same logic as in analyze() — skip
+          // recording failure if error comes from GeminiClient's circuit breaker.
+          final errorString = error.toString();
+          if (!errorString.contains('Circuit breaker open')) {
+            _circuitBreaker.recordFailure();
+          }
           final analysisResult = AnalysisResult(
             overallRiskLevel: RiskLevel.green,
             matches: const <KeywordMatch>[],
@@ -384,7 +433,10 @@ class L3Analyzer implements Analyzer {
             analysisLevel: AnalysisLevel.l3,
             isError: true,
           );
-          _lastResult = analysisResult;
+          // Only write if generation hasn't changed.
+          if (myGeneration == _sessionGeneration) {
+            _lastResult = analysisResult;
+          }
           return analysisResult;
         },
       );
@@ -394,67 +446,39 @@ class L3Analyzer implements Analyzer {
   }
 
   void closeSession({bool resetProgress = true}) {
+    // BUG-L3-INFLIGHT-CIRCUIT-BLOCK fix: Increment generation to invalidate
+    // any in-flight analyze() calls. When user exits monitoring mid-Gemini-call,
+    // the call may still complete after 25s and try to write _lastResult.
+    // Incrementing generation here ensures those stale writes are ignored.
+    _sessionGeneration++;
     _activeSession?.close();
     _activeSession = null;
     if (resetProgress) {
       _processedTextLength = 0;
     }
-    _maxRiskLevel = RiskLevel.green;
-    _consecutiveGreenCount = 0;
+    _deescalation.reset();
   }
 
   MetricsSnapshot getMetrics() => GeminiMetrics.instance.getSnapshot();
 
   /// Parses the raw LLM response text into an [AnalysisResult].
   ///
-  /// NOTE: this method has a side effect — it mutates [_maxRiskLevel] and
-  /// [_consecutiveGreenCount] to implement the de-escalation state machine
-  /// (3 consecutive greens de-escalate from yellow only). This is safe because
-  /// both [analyze] and [analyzeIncremental] guard entry with [_isAnalyzing],
-  /// so only one parse can be in flight at a time per analyzer instance.
+  /// Delegates to [L3ResponseParser] for JSON extraction and risk level
+  /// parsing, and to [RiskDeescalationMachine] for de-escalation logic.
   AnalysisResult parseResponse(
     String responseText,
     String modelName, [
     String? originalText,
   ]) {
-    if (responseText.trim().isEmpty) {
-      throw const FormatException('Response is blank');
-    }
-    final jsonString = _extractJson(responseText);
-    final decoded = jsonDecode(jsonString);
-    if (decoded is! Map) {
-      throw const FormatException('Expected JSON object');
-    }
-    final response = AnalysisResponse.fromJson(decoded.cast<String, Object?>());
-    final riskLevel = _parseRiskLevel(response.level, response.reason);
+    final response = _responseParser.parse(responseText);
+    final riskLevel = _responseParser.parseRiskLevel(
+      response.level,
+      response.reason,
+    );
 
-    var finalRiskLevel = riskLevel;
-    if (riskLevel == RiskLevel.green) {
-      _consecutiveGreenCount++;
-      // Only de-escalate from yellow, not from orange/red during active scam
-      if (_consecutiveGreenCount >= 3 &&
-          _maxRiskLevel.index > RiskLevel.green.index &&
-          _maxRiskLevel.index <= RiskLevel.yellow.index) {
-        _maxRiskLevel = _maxRiskLevel.deescalate();
-        _consecutiveGreenCount = 0;
-      }
-      finalRiskLevel = _maxRiskLevel;
-    } else {
-      _consecutiveGreenCount = 0;
-      if (riskLevel.index > _maxRiskLevel.index) {
-        _maxRiskLevel = riskLevel;
-      }
-    }
+    final finalRiskLevel = _deescalation.process(riskLevel);
 
-    final reasonParts = <String>[
-      if ((response.label ?? '').trim().isNotEmpty) '[${response.label}]',
-      if ((response.reason ?? '').trim().isNotEmpty) response.reason!.trim(),
-      if ((response.recommendation ?? '').trim().isNotEmpty)
-        'Khuyến cáo: ${response.recommendation!.trim()}',
-    ];
-    final reason = reasonParts.join(' ').trim().isNotEmpty
-        ? reasonParts.join(' ')
-        : 'Phân tích hoàn tất';
+    final reason = _responseParser.assembleReason(response);
 
     final matches = (response.label ?? '').trim().isNotEmpty
         ? <KeywordMatch>[
@@ -471,7 +495,7 @@ class L3Analyzer implements Analyzer {
       matches: matches,
       reason: reason,
       analysisLevel: AnalysisLevel.l3,
-      confidence: _calculateConfidence(response, originalText),
+      confidence: calculateConfidence(response, originalText),
       modelName: modelName,
     );
   }
@@ -491,7 +515,6 @@ class L3Analyzer implements Analyzer {
         .where((part) => part.isNotEmpty)
         .length;
     if (wordCount < _minWords) {
-      // NOTE: String interpolation with const variables is supported in Dart.
       return const AnalysisResult(
         overallRiskLevel: RiskLevel.green,
         matches: <KeywordMatch>[],
@@ -503,197 +526,21 @@ class L3Analyzer implements Analyzer {
   }
 
   String _normalizeForCache(String text) {
+    // BUG-L2-CACHE-NORMALIZED-KEY fix: Use Unicode-aware regex to preserve
+    // Vietnamese diacritics. Previously \w (ASCII [A-Za-z0-9_]) stripped
+    // all accents: "công an" → "cng an", "cộng án" → "cng n" → collision.
+    // Now \p{L} matches any Unicode letter, \p{N} matches any number.
     return text
         .toLowerCase()
-        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }
 
-  bool _isSentenceBoundary(String text) {
-    final trimmed = text.trimRight();
-    if (trimmed.isEmpty) {
-      return false;
-    }
-    final lower = trimmed.toLowerCase();
-    final lastChar = trimmed[trimmed.length - 1];
-    if ('.?!\n;:'.contains(lastChar) || trimmed.endsWith('...')) {
-      return true;
-    }
-    final endings = <String>[
-      ' à',
-      ' ạ',
-      ' nhé',
-      ' nha',
-      ' vậy',
-      ' rồi',
-      ' đi',
-      ' nhỉ',
-      ' hen',
-      ' nghe',
-    ];
-    return endings.any(lower.endsWith);
-  }
+  // Backward-compatible accessors for tests that inspect internal state.
+  @visibleForTesting
+  int get consecutiveErrors => _circuitBreaker.consecutiveErrors;
 
-  String _extractJson(String responseText) {
-    // Try to find a markdown json block first
-    final markdownRegex = RegExp(r'```json\s*(\{.*?\})\s*```', dotAll: true);
-    final match = markdownRegex.firstMatch(responseText);
-    if (match != null) {
-      return match.group(1) ?? responseText;
-    }
-
-    // Fallback to finding the first { and last }
-    final startIndex = responseText.indexOf('{');
-    final endIndex = responseText.lastIndexOf('}');
-    if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
-      return responseText.substring(startIndex, endIndex + 1);
-    }
-    return responseText;
-  }
-
-  RiskLevel _parseRiskLevel(String? level, String? reason) {
-    switch (level?.trim().toLowerCase()) {
-      case 'red':
-        return RiskLevel.red;
-      case 'orange':
-        return RiskLevel.orange;
-      case 'yellow':
-        return RiskLevel.yellow;
-      case 'green':
-        return RiskLevel.green;
-      default:
-        return _inferLevelFromReason(reason);
-    }
-  }
-
-  RiskLevel _inferLevelFromReason(String? reason) {
-    final lower = reason?.toLowerCase() ?? '';
-    final redWords = <String>[
-      'lừa đảo',
-      'chuyển tiền',
-      'mã otp',
-      'đe dọa',
-      'khởi tố',
-      'bắt cóc',
-      'tống tiền',
-    ];
-    if (redWords.any(lower.contains)) {
-      return RiskLevel.red;
-    }
-    final orangeWords = <String>[
-      'công an',
-      'kiểm sát',
-      'tài khoản',
-      'mật khẩu',
-      'cấp bách',
-      'ngay lập tức',
-      'ứng dụng',
-    ];
-    if (orangeWords.any(lower.contains)) {
-      return RiskLevel.orange;
-    }
-    final yellowWords = <String>[
-      'đáng ngờ',
-      'cẩn thận',
-      'lưu ý',
-      'chú ý',
-      'không chắc',
-      'có thể',
-    ];
-    if (yellowWords.any(lower.contains)) {
-      return RiskLevel.yellow;
-    }
-    return RiskLevel.green;
-  }
-
-  double _calculateConfidence(
-    AnalysisResponse response, [
-    String? originalText,
-  ]) {
-    if (response.confidenceScore != null) {
-      final score = response.confidenceScore!.clamp(0.0, 1.0);
-      if (originalText != null && originalText.trim().length < 30) {
-        return (score * 0.8).clamp(0.0, 1.0);
-      }
-      return score;
-    }
-
-    var confidence = 0.0;
-    final level = response.level?.trim().toLowerCase();
-    if (<String>{'green', 'yellow', 'orange', 'red'}.contains(level)) {
-      confidence += 0.3;
-    }
-    final reason = (response.reason ?? '').trim();
-    if (reason.isNotEmpty) {
-      confidence += 0.15;
-      if (reason.length > 20) {
-        confidence += 0.15;
-      }
-    } else {
-      // Graceful degradation: L3 response chỉ có level mà không có reason
-      // Chấp nhận nhưng giảm confidence thay vì ném lỗi ở parseResponse
-      confidence -= 0.2;
-    }
-    if ((response.label ?? '').trim().isNotEmpty) {
-      confidence += 0.15;
-    }
-    if ((response.recommendation ?? '').trim().isNotEmpty) {
-      confidence += 0.15;
-    }
-    final reasoningSteps = response.reasoningSteps;
-    if (reasoningSteps != null && reasoningSteps.isNotEmpty) {
-      confidence += (0.05 * reasoningSteps.length).clamp(0.0, 0.15);
-    }
-    final lowerReason = reason.toLowerCase();
-    final uncertaintyWords = [
-      'có thể',
-      'không chắc',
-      'có lẽ',
-      'hơi',
-      'tạm thời',
-    ];
-    final uncertaintyCount = uncertaintyWords
-        .where(lowerReason.contains)
-        .length;
-    if (uncertaintyCount > 0) {
-      confidence -= 0.1 * uncertaintyCount;
-    }
-    if (originalText != null && originalText.trim().length < 30) {
-      confidence -= 0.15;
-    }
-    return confidence.clamp(0.0, 1.0);
-  }
-
-  void _recordRequest(bool isError) {
-    final now = DateTime.now();
-    _requestTimestamps.add(now);
-    if (isError) {
-      _errorTimestamps.add(now);
-      _consecutiveErrors++;
-      _lastErrorTime = now;
-    } else {
-      _consecutiveErrors = 0;
-      _circuitBreakerUntil = null;
-    }
-
-    // Sliding window: 10 mins
-    final windowStart = now.subtract(const Duration(minutes: 10));
-    _requestTimestamps.removeWhere((t) => t.isBefore(windowStart));
-    _errorTimestamps.removeWhere((t) => t.isBefore(windowStart));
-
-    // Check circuit breaker: > 60% errors in the last 10 mins (min 5 requests)
-    if (_requestTimestamps.length >= 5) {
-      final errorRate = _errorTimestamps.length / _requestTimestamps.length;
-      if (errorRate > 0.6) {
-        _circuitBreakerUntil = now.add(const Duration(minutes: 2));
-      }
-    }
-  }
-
-  String _getErrorRateString() {
-    if (_requestTimestamps.isEmpty) return '0%';
-    final rate = (_errorTimestamps.length / _requestTimestamps.length) * 100;
-    return '${rate.toStringAsFixed(1)}%';
-  }
+  @visibleForTesting
+  String get errorRateString => _circuitBreaker.getErrorRateString();
 }

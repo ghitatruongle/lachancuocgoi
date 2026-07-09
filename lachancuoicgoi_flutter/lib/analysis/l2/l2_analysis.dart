@@ -10,6 +10,7 @@ import '../health_check.dart';
 import '../../core/risk_level.dart';
 import '../../core/logger.dart';
 import '../../core/asset_loader.dart';
+import '../../core/noop_asset_loader.dart';
 import 'g_detection/g_detection_engine.dart';
 import 'intent/tflite_intent_classifier.dart';
 
@@ -31,21 +32,21 @@ class L2Analyzer implements Analyzer {
     IntentClassifier? intentClassifier,
     WfsaEngine? wfsaEngine,
     ResponseCache<AnalysisResult>? cache,
-  }) : _assetLoader = assetLoader,
+  }) : _assetLoader = assetLoader ?? const NoopAssetLoader(),
        _logger = logger,
        _gDetectionEngine =
            gDetectionEngine ??
-           GDetectionEngine(assetLoader: assetLoader, logger: logger),
+           GDetectionEngine(assetLoader: assetLoader ?? const NoopAssetLoader(), logger: logger),
        _intentClassifier =
            intentClassifier ??
-           TFLiteIntentClassifier(assetLoader: assetLoader, logger: logger),
+           TFLiteIntentClassifier(assetLoader: assetLoader ?? const NoopAssetLoader(), logger: logger),
        _wfsaEngine =
            wfsaEngine ?? WfsaEngine(ScamGraphBuilder.buildDefaultGraphs()),
        _cache = cache ?? ResponseCache<AnalysisResult>();
 
   final L2Config config;
   final ResponseCache<AnalysisResult> _cache;
-  final AssetLoader? _assetLoader;
+  final AssetLoader _assetLoader;
   final AppLogger? _logger;
 
   double get aiHighConfidenceThreshold => config.aiHighConfidenceThreshold;
@@ -66,6 +67,13 @@ class L2Analyzer implements Analyzer {
   // Phase 2.3: Concurrency limiter — only one analyze() runs at a time.
   // Prevents CPU spike from concurrent TFLite + GDetection + WFSA.
   Future<void> _analysisMutex = Future.value();
+
+  // BUG FIX (Bug #4): Guard concurrent initialize() calls so that multiple
+  // callers share the same in-flight init Future instead of each spawning
+  // a redundant Future.wait. Sub-components (GDetectionEngine, TFLite) have
+  // their own guards, but without this top-level guard each concurrent caller
+  // still creates and awaits its own Future.wait object, doubling overhead.
+  Future<void>? _initFuture;
 
   // Generation counter: incremented at the start of each analyze() call.
   // When a mutex timeout forces a new analysis to start while the previous
@@ -89,6 +97,26 @@ class L2Analyzer implements Analyzer {
 
   @override
   Future<void> initialize() async {
+    // BUG FIX (Bug #4): Cache the init Future so concurrent callers share a
+    // single attempt. Without this guard, each concurrent caller creates its
+    // own Future.wait — harmless (sub-component guards deduplicate) but
+    // wasteful and confusing in logs.
+    final pending = _initFuture;
+    if (pending != null) return pending;
+    
+    // Bug fix: clear _initFuture on failure to allow retry
+    // (previously cached failed future permanently, making L2 unusable)
+    try {
+      final future = _doInitialize();
+      _initFuture = future;
+      return await future;
+    } catch (e) {
+      _initFuture = null;  // Allow retry on next call
+      rethrow;
+    }
+  }
+
+  Future<void> _doInitialize() async {
     // Chạy song song 3 component — mỗi component đã có Future.delayed nội bộ
     await Future.wait(<Future<void>>[
       _gDetectionEngine.initialize(),
@@ -135,6 +163,10 @@ class L2Analyzer implements Analyzer {
 
   @override
   void resetSession() {
+    // Bug fix: increment generation to invalidate in-flight analyzes
+    // (previously, in-flight analyze() could overwrite _lastResult after reset)
+    _analysisGeneration++;
+    
     _gDetectionEngine.reset();
     _wfsaEngine.resetSession();
     // Cache is maintained across sessions intentionally to avoid redundant compute
@@ -165,6 +197,7 @@ class L2Analyzer implements Analyzer {
   void dispose() {
     _intentClassifier.close();
     _gDetectionEngine.dispose();
+    _initFuture = null;
   }
 
   Future<AnalysisResult> analyze(
@@ -181,34 +214,46 @@ class L2Analyzer implements Analyzer {
       return emptyResult;
     }
 
+    // Use fullText for all analysis paths (GDetection, WFSA, intent trigger).
+    // GDetection needs full context for keyword matching and scenario detection.
+    // The previous optimization using incrementalText broke keyword matching
+    // (only scanned the latest chunk, missing scam keywords in earlier text)
+    // and caused the intent flow to be skipped for short incremental text.
+    // TFLiteIntentClassifier already has internal caching (skips if <20% growth).
+    final textToAnalyze = fullText;
+
     // Phase 2.3: Wait for any in-flight analysis to finish before starting.
     final prevMutex = _analysisMutex;
     final completer = Completer<void>();
     _analysisMutex = completer.future;
 
-    // Capture the generation BEFORE incrementing — used to detect if a
-    // newer analyze() call has superseded this one after a mutex timeout.
-    final myGeneration = ++_analysisGeneration;
-
-    await prevMutex.timeout(
-      const Duration(seconds: 5),
-      onTimeout: () {
-        _logger?.warning(
-          'Timeout waiting for previous analysis lock — force continuing',
-        );
-      },
-    );
-
-    // Early bail-out: if a newer analyze() superseded us while we were waiting
-    // on the mutex (or its timeout), don't bother running the expensive
-    // TFLite + trie work — its result would be discarded by the generation
-    // guard below anyway. This avoids doubling CPU load when calls overlap.
-    if (myGeneration != _analysisGeneration) {
-      completer.complete();
-      return _lastResult;
-    }
-
+    // BUG-L2-MUTEX-COMPLETER-DOUBLE fix: Wrap entire mutex + analyze logic
+    // in try-finally to guarantee completer.complete() is called even if
+    // prevMutex.timeout() throws (not TimeoutException). Previously, if
+    // timeout() threw (e.g., prevMutex was a Future.error), completer would
+    // never complete, causing ALL subsequent analyze() calls to hang for 5s.
     try {
+      // Capture the generation BEFORE incrementing — used to detect if a
+      // newer analyze() call has superseded this one after a mutex timeout.
+      final myGeneration = ++_analysisGeneration;
+
+      await prevMutex.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          _logger?.warning(
+            'Timeout waiting for previous analysis lock — force continuing',
+          );
+        },
+      );
+
+      // Early bail-out: if a newer analyze() superseded us while we were waiting
+      // on the mutex (or its timeout), don't bother running the expensive
+      // TFLite + trie work — its result would be discarded by the generation
+      // guard below anyway. This avoids doubling CPU load when calls overlap.
+      if (myGeneration != _analysisGeneration) {
+        return _lastResult;
+      }
+
       final normalizedKey = _normalizeForCache(fullText);
       final cached = _cache.get(normalizedKey);
       if (cached != null) {
@@ -216,23 +261,23 @@ class L2Analyzer implements Analyzer {
         return cached;
       }
 
-      final gResult = await _gDetectionEngine.performFullAnalysis(fullText);
+      final gResult = await _gDetectionEngine.performFullAnalysis(textToAnalyze);
       final parsedGDetectionResult = L2ResultParser.parse(gResult);
 
-      final isLongText = fullText.length > 80;
+      final isLongText = textToAnalyze.length > 80;
       final hasGDetectionRisk =
           parsedGDetectionResult.overallRiskLevel.index >=
           RiskLevel.yellow.index;
 
       _Luong1Result luong1Result = const _Luong1Fallback();
       if (isLongText || hasGDetectionRisk) {
-        luong1Result = await _runIntentFlow(fullText);
+        luong1Result = await _runIntentFlow(textToAnalyze);
       }
 
       final intentForWfsa = luong1Result is _Luong1Success
           ? <IntentPrediction>[luong1Result.prediction]
           : const <IntentPrediction>[];
-      var wfsaScore = _wfsaEngine.analyzeIncremental(fullText, intentForWfsa);
+      var wfsaScore = _wfsaEngine.analyzeIncremental(textToAnalyze, intentForWfsa);
       // PERF-2: Truyền text ĐÃ normalize xuống SafetyFilter để tránh normalize
       // 2 lần (GDetection/L2 path cũng normalize cùng text). Normalize 1 lần ở
       // đây, dùng cho cả safety discount.
@@ -278,7 +323,10 @@ class L2Analyzer implements Analyzer {
       }
       return result;
     } finally {
-      completer.complete();
+      // BUG-L2-MUTEX-COMPLETER-DOUBLE fix: Always complete, even on exception.
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
     }
   }
 
@@ -579,9 +627,13 @@ class L2Analyzer implements Analyzer {
   }
 
   String _normalizeForCache(String text) {
+    // BUG-L2-CACHE-NORMALIZED-KEY fix: Use Unicode-aware regex to preserve
+    // Vietnamese diacritics. Previously \w (ASCII [A-Za-z0-9_]) stripped
+    // all accents: "công an" → "cng an", "cộng án" → "cng n" → collision.
+    // Now \p{L} matches any Unicode letter, \p{N} matches any number.
     return text
         .toLowerCase()
-        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }

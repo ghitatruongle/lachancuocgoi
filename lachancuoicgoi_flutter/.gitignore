@@ -18,10 +18,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code related
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -39,10 +37,24 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android Studio and local build configs
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/local.properties
+/android/.gradle/
+.gradle/
+**/android/**/local.properties
+**/android/local.properties
+
+# iOS local configs and keys
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/ephemeral/
+**/.ios/
+**/ios/**/config.h
+**/ios/**/Pods/
+**/ios/.symlinks/
 
 # Environment variables
 env.json
@@ -55,3 +67,11 @@ env.json
 .cursor/
 .cline/
 .windsurf/
+
+# Sensitive files - never push to git
+hoso/
+
+# Parent folder exclusions (git-backup and presentations)
+.git-backup-pre-bfg/
+thuyet_trinh.html
+*.html

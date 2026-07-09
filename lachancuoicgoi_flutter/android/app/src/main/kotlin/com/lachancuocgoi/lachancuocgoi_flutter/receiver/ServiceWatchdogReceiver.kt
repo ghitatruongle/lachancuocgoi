@@ -90,10 +90,14 @@ class ServiceWatchdogReceiver : BroadcastReceiver() {
         private const val TAG = "ServiceWatchdogRcvr"
         const val ACTION_CHECK_SERVICE =
             "com.lachancuocgoi.ACTION_CHECK_MONITORING_SERVICE"
-        // Sprint 2 (B1): minimum gap between two auto-restart attempts.
-        // 60s is well under the alarm interval (5min) but long enough
-        // to break the kill-restart-kill loop.
-        private const val RESTART_COOLDOWN_MS = 60_000L
+        // Bug #25 fix: bumped from 60s → 4 minutes. The 60s cooldown was
+        // shorter than the 5min alarm interval, so if the system fired
+        // multiple watchdog alarms in quick succession (AlarmManager can
+        // batch inexact alarms), the second/third were incorrectly
+        // throttled and the service didn't restart when it should have.
+        // 4 minutes (still under the 5min interval) preserves the
+        // "throttle, don't kill" intent without losing real restarts.
+        private const val RESTART_COOLDOWN_MS = 4 * 60_000L
         private const val KEY_LAST_RESTART_AT_MS = "watchdog_last_restart_at_ms"
     }
 }

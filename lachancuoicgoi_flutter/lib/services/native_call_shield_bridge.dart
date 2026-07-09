@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, visibleForTesting, TargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../core/system_logger.dart';
 import 'native_bridge_interface.dart';
 
 // Re-export the interface + models so existing imports of this file keep
@@ -31,6 +32,9 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   static const _callEventChannel = EventChannel(
     'com.lachancuocgoi/call_events',
   );
+  static const _logsChannel = EventChannel(
+    'com.lachancuocgoi/logs',
+  );
 
   // iOS simulation fields
   bool _iosMonitoringActive = false;
@@ -45,6 +49,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       StreamController<TranscriptUpdate>.broadcast();
   final _iosRmsController = StreamController<double>.broadcast();
   final _iosCallEventController = StreamController<CallEvent>.broadcast();
+  final _iosLogsController = StreamController<String>.broadcast();
 
   // Preset script for simulating a scam call to show risk detection in action
   static const List<String> _iosScamScript = [
@@ -60,6 +65,11 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
     _iosSimulationTimer?.cancel();
     _iosStartTime = DateTime.now();
     _iosTimerTicks = 0;
+    _iosLogsController.add('INFO|System|Giả lập: Khởi động phiên giám sát cuộc gọi...');
+    _iosLogsController.add('INFO|Recording|Giả lập: Thiết lập luồng ghi âm...');
+    _iosLogsController.add('INFO|Model|Giả lập: Vosk model preloading...');
+    _iosLogsController.add('INFO|Model|Giả lập: Vosk model initialized successfully');
+    _iosLogsController.add('INFO|STT|Giả lập: Sẵn sàng nhận diện giọng nói (vi-VN)...');
     _iosSimulationTimer = Timer.periodic(const Duration(milliseconds: 100), (
       timer,
     ) {
@@ -68,6 +78,13 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
         return;
       }
       _iosTimerTicks++;
+
+      if (_iosTimerTicks == 5) {
+        _iosLogsController.add('INFO|Recording|Giả lập: Đã nhận dữ liệu âm thanh (RMS > 0)');
+      }
+      if (_iosTimerTicks == 30) {
+        _iosLogsController.add('INFO|STT|Giả lập: Bắt đầu nhận diện giọng nói Google STT');
+      }
 
       // 1. Emit simulated RMS (waveform data) every 100ms.
       // Thang giả lập khớp rmsDb của Android (~ -2..10 dB) để pipeline
@@ -156,6 +173,9 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
     if (!_iosCallEventController.isClosed) {
       _iosCallEventController.close();
     }
+    if (!_iosLogsController.isClosed) {
+      _iosLogsController.close();
+    }
   }
 
   // ─── MethodChannel calls ────────────────────────────────────────────────
@@ -178,7 +198,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.startMonitoring error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.startMonitoring error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -205,7 +225,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       final result = await _methodChannel.invokeMethod<bool>('stopMonitoring');
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.stopMonitoring error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.stopMonitoring error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -225,7 +245,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.startCreatorMonitoring error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.startCreatorMonitoring error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -254,7 +274,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.stopCreatorMonitoring error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.stopCreatorMonitoring error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -262,7 +282,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<bool> showRedAlert(String reason) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      debugPrint('iOS Simulation: RED ALERT displayed - $reason');
+      SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: RED ALERT displayed - $reason');
       return true;
     }
     try {
@@ -271,7 +291,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       });
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.showRedAlert error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.showRedAlert error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -279,7 +299,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<bool> showOrangeAlert(String reason) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      debugPrint('iOS Simulation: ORANGE ALERT displayed - $reason');
+      SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: ORANGE ALERT displayed - $reason');
       return true;
     }
     try {
@@ -289,7 +309,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.showOrangeAlert error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.showOrangeAlert error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -297,14 +317,14 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<bool> dismissAlert() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      debugPrint('iOS Simulation: Alert dismissed');
+      SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: Alert dismissed');
       return true;
     }
     try {
       final result = await _methodChannel.invokeMethod<bool>('dismissAlert');
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.dismissAlert error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.dismissAlert error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -332,7 +352,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
         return PermissionSnapshot.fromMap(result);
       }
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.getPermissionSnapshot error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.getPermissionSnapshot error: $e', level: LogLevel.error);
     }
     return const PermissionSnapshot();
   }
@@ -348,7 +368,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.openAccessibilitySettings error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.openAccessibilitySettings error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -364,7 +384,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.requestCallScreeningRole error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.requestCallScreeningRole error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -380,7 +400,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.requestPhoneAndCallLogPermissions error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.requestPhoneAndCallLogPermissions error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -396,7 +416,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.checkOverlayPermission error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.checkOverlayPermission error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -412,7 +432,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.requestOverlayPermission error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.requestOverlayPermission error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -427,7 +447,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.isAccessibilityEnabled error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.isAccessibilityEnabled error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -443,7 +463,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.isMonitoringActive error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.isMonitoringActive error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -459,7 +479,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.isCreatorMonitoringActive error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.isCreatorMonitoringActive error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -467,7 +487,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<void> showIncomingCallOverlay(String callerInfo) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      debugPrint('iOS Simulation: Incoming Call Overlay shown - $callerInfo');
+      SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: Incoming Call Overlay shown - $callerInfo');
       return;
     }
     try {
@@ -475,20 +495,20 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
         'callerInfo': callerInfo,
       });
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.showIncomingCallOverlay error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.showIncomingCallOverlay error: $e', level: LogLevel.error);
     }
   }
 
   @override
   Future<void> dismissIncomingCallOverlay() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      debugPrint('iOS Simulation: Incoming Call Overlay dismissed');
+      SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: Incoming Call Overlay dismissed');
       return;
     }
     try {
       await _methodChannel.invokeMethod<void>('dismissIncomingCallOverlay');
     } on PlatformException catch (e) {
-      debugPrint('NativeBridge.dismissIncomingCallOverlay error: $e');
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.dismissIncomingCallOverlay error: $e', level: LogLevel.error);
     }
   }
 
@@ -535,6 +555,11 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       })
       .asBroadcastStream();
 
+  late final Stream<String> _cachedLogsStream = _logsChannel
+      .receiveBroadcastStream()
+      .map((event) => event?.toString() ?? '')
+      .asBroadcastStream();
+
   @override
   Stream<TranscriptUpdate> get transcriptStream {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
@@ -565,6 +590,14 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       return _iosCallEventController.stream;
     }
     return _cachedCallEventStream;
+  }
+
+  @override
+  Stream<String> get logsStream {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return _iosLogsController.stream;
+    }
+    return _cachedLogsStream;
   }
 }
 

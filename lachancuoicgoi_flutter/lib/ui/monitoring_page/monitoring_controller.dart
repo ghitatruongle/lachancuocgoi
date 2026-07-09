@@ -1,10 +1,11 @@
-import 'dart:async' show Completer, Timer, unawaited;
-import 'dart:convert' show jsonEncode;
+import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/foundation.dart'
-    show ChangeNotifier, debugPrint, visibleForTesting;
+    show ChangeNotifier, visibleForTesting;
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/system_logger.dart';
 
 import '../../analysis/analysis_coordinator.dart';
 import '../../analysis/analysis_level.dart';
@@ -16,18 +17,20 @@ import '../../analysis/l1/l1_analysis.dart';
 import '../../app/settings_controller.dart';
 import '../../core/risk_level.dart';
 import '../../data/app_database.dart';
-import '../../data/call_history.dart';
-import '../../data/session_recovery_store.dart';
 import '../../services/developer_mode_manager.dart';
 import '../../services/native_call_shield_bridge.dart';
 import 'alert_manager.dart';
 import 'analysis_orchestrator.dart';
 import 'audio_amplitude_handler.dart';
 import 'health_check_service.dart';
+import 'monitoring_event_router.dart';
+import 'monitoring_formatters.dart' as formatters;
 import 'monitoring_session_manager.dart';
 import 'monitoring_simulation_helper.dart';
+import 'monitoring_starter.dart';
 import 'monitoring_state.dart';
 import 'monitoring_stream_handler.dart';
+import 'session_ender.dart';
 
 export 'monitoring_state.dart';
 
@@ -68,11 +71,13 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   late final MonitoringSimulationHelper simulationHelper;
   late final MonitoringStreamHandler streamHandler;
 
+  // Extracted sub-services
+  late final SessionEnder _sessionEnder;
+  late final MonitoringStarter _starter;
+  late final MonitoringEventRouter _eventRouter;
+
   // Navigation
   Timer? _timer;
-  bool _endSessionInProgress = false;
-  bool _stoppedEventReceived = false;
-  Completer<void>? _stoppedCompleter;
 
   // Settings listener
   ProviderSubscription<SettingsState>? _settingsSub;
@@ -99,6 +104,34 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       },
       onRestart: () => _runRestartSequence(),
     );
+
+    // Initialize extracted sub-services
+    _sessionEnder = SessionEnder(
+      getBridge: () => ref.read(nativeBridgeProvider),
+      getDatabase: () => ref.read(appDatabaseFutureProvider.future),
+      audioHandler: _audioHandler,
+    );
+    _starter = MonitoringStarter(
+      getBridge: () => ref.read(nativeBridgeProvider),
+      getSettings: () => ref.read(settingsControllerProvider),
+      getDevMode: () => ref.read(developerModeProvider),
+      isSimulationSession: isSimulationSession,
+      hasTestAnalyzerOverride: () => hasTestAnalyzerOverride,
+      updateState: (updater) {
+        if (!_disposed) state = updater(state);
+      },
+    );
+    _eventRouter = MonitoringEventRouter(
+      updateState: (updater) {
+        if (!_disposed) state = updater(state);
+      },
+      getState: () => state,
+      onStoppedEvent: () {
+        _sessionEnder.onStoppedEvent();
+      },
+      endSession: () => endSession(),
+    );
+
     sessionManager = MonitoringSessionManager(this);
     simulationHelper = MonitoringSimulationHelper(this);
     streamHandler = MonitoringStreamHandler(this);
@@ -135,6 +168,8 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     List<Map<String, dynamic>>? simulatedScriptLines,
     L1Analyzer? l1AnalyzerOverride,
   }) {
+    SystemLogger.instance.clear();
+    SystemLogger.instance.log(LogCategory.system, 'Khởi động phiên giám sát cuộc gọi mới...');
     if (_initialized) {
       _resetForNewSession();
     }
@@ -267,37 +302,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   void handleRmsEvent(double rms) => _audioHandler.handleRmsEvent(rms);
 
   void handleMonitoringStateEvent((MonitoringState, int?, String?) stateData) {
-    final monitoringState = stateData.$1;
-    if (monitoringState == MonitoringState.networkAvailable ||
-        monitoringState == MonitoringState.networkLost) {
-      final isAvailable = monitoringState == MonitoringState.networkAvailable;
-      final runtime = AnalysisModePolicy.createRuntimeState(
-        state.selectedMode,
-        isAvailable,
-      );
-      state = state.copyWith(
-        networkAvailable: runtime.networkAvailable,
-        effectiveMode: runtime.effectiveMode,
-        isFallbackActive: runtime.isFallbackActive,
-      );
-    } else if (monitoringState == MonitoringState.sttFallbackVosk) {
-      state = state.copyWith(
-        isSttFallback: true,
-        sttFallbackReason: stateData.$3,
-        sttFallbackBannerId: state.sttFallbackBannerId + 1,
-      );
-    } else if (monitoringState == MonitoringState.stopped) {
-      final finalTranscript = stateData.$3?.trim();
-      if (finalTranscript != null && finalTranscript.isNotEmpty) {
-        state = state.copyWith(transcript: finalTranscript);
-      }
-      _stoppedEventReceived = true;
-      _stoppedCompleter?.complete();
-      _stoppedCompleter = null;
-      if (!state.isEndingSession && !_disposed) {
-        endSession();
-      }
-    }
+    _eventRouter.handleMonitoringStateEvent(stateData);
   }
 
   void onLifecycleChanged(AppLifecycleState lifecycle) {
@@ -309,97 +314,21 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   }
 
   Future<void> endSession() async {
-    if (_endSessionInProgress) return;
-    _endSessionInProgress = true;
-
-    if (!_stoppedEventReceived && !isSimulationSession()) {
-      _stoppedCompleter = Completer<void>();
-    }
-
-    state = state.copyWith(isEndingSession: true);
-    unawaited(SessionRecoveryStore.clear());
-    try {
-      final bridge = nativeBridge;
-      if (_isCreatorMode) {
-        await bridge.stopCreatorMonitoring();
-      } else {
-        await bridge.stopMonitoring();
-      }
-
-      if (_stoppedCompleter != null) {
-        await _stoppedCompleter!.future.timeout(
-          const Duration(milliseconds: 1000),
-          onTimeout: () => null,
-        );
-      }
-
-      if (_disposed) return;
-      // Guard: orchestrator may not be ready if initAfterFrame wasn't called
-      // (e.g. test with overridden analyzer). Proceed without analysis if so.
-      if (_coordinatorInstance != null) {
-        await _orch.ensureAnalysisComplete();
-      }
-      if (_disposed) return;
-
-      final risk = state.peakRiskLevel.index > state.riskLevel.index
-          ? state.peakRiskLevel
-          : state.riskLevel;
-      final result = state.analysisResult;
-      final reason = result?.reason?.trim();
-      final summaryParts = <String>[];
-      if (isSimulationSession()) {
-        summaryParts.add('[Mô phỏng]');
-      }
-
-      RecordingError? recordingError;
-      if (state.transcript.trim().isEmpty) {
-        recordingError = _audioHandler.hasReceivedAnyAudio
-            ? RecordingError.sttFailed
-            : RecordingError.noAudio;
-      }
-      if (recordingError == RecordingError.noAudio) {
-        summaryParts.add(
-          'Không thu được âm thanh — kiểm tra quyền micro hoặc nguồn âm thanh',
-        );
-      } else if (recordingError == RecordingError.sttFailed) {
-        summaryParts.add('Không nhận diện được giọng nói (STT không khả dụng)');
-      } else if (reason != null && reason.isNotEmpty) {
-        summaryParts.add(reason);
-      } else {
-        summaryParts.add(risk.vietnameseName);
-      }
-      final summary = summaryParts.join(' ');
-
-      final flagCount = result?.matches.length ?? 0;
-      final history = CallHistory.withRecordingError(
-        dateTime: formatSessionDateTime(),
-        riskLevel: risk.storageName,
-        summary: summary,
-        duration: formatElapsedTime(state.elapsedSeconds),
-        flagCount: flagCount,
-        transcript: state.transcript,
-        audioPath: null,
-        analysisResult: result != null ? jsonEncode(result.toJson()) : null,
-        analysisType: state.effectiveMode.name,
-        alertHistory: CallHistory.alertHistoryToJson(state.alertHistory),
-        recordingError: recordingError,
-      );
-
-      final db = await appDatabase;
-      if (_disposed) return;
-      final id = await db.insert(history);
-      if (_disposed) return;
-      _endSessionInProgress = false;
-      state = state.copyWith(navigationIntent: NavigateToResult(id));
-    } on Object catch (e, st) {
-      debugPrint('End monitoring / save result failed: $e\n$st');
-      _endSessionInProgress = false;
-      if (!_disposed) {
-        state = state.copyWith(
-          isEndingSession: false,
-          navigationIntent: const NavigateToHome(),
-        );
-      }
+    final intent = await _sessionEnder.endSession(
+      state: state,
+      isCreatorMode: _isCreatorMode,
+      isSimulationSession: isSimulationSession(),
+      isDisposed: _disposed,
+      getAnalysisResult: () => state.analysisResult,
+      getAlertHistory: () => state.alertHistory,
+      getOrchestrator: () => _orchInstance,
+      hasCoordinator: () => _coordinatorInstance != null,
+    );
+    if (intent != null && !_disposed) {
+      state = state.copyWith(navigationIntent: intent);
+    } else if (!_disposed && _sessionEnder.endSessionInProgress == false) {
+      // Error path: endSession returned null but session is not in progress
+      // means it was already in progress or an error occurred
     }
   }
 
@@ -421,36 +350,14 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     return hasStructured || title.isNotEmpty || script.isNotEmpty;
   }
 
-  static String modeLabel(AnalysisMode mode) {
-    return switch (mode) {
-      AnalysisMode.normal => 'L1',
-      AnalysisMode.gDetection => 'L2',
-      AnalysisMode.geminiApi => 'L3',
-      AnalysisMode.parallel => 'Parallel',
-    };
-  }
-
-  String formatSessionDateTime() {
-    final now = DateTime.now();
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(now.hour)}:${two(now.minute)}:${two(now.second)} '
-        '${two(now.day)}/${two(now.month)}/${now.year}';
-  }
-
-  static String formatElapsedTime(int seconds) {
-    final m = seconds ~/ 60;
-    final s = seconds % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-
-  String formatElapsedTimeHelper(int seconds) => formatElapsedTime(seconds);
-
-  /// Formats a [DateTime] as "HH:mm:ss DD/MM/YYYY".
-  String formatDateTime(DateTime value) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(value.hour)}:${two(value.minute)}:${two(value.second)} '
-        '${two(value.day)}/${two(value.month)}/${value.year}';
-  }
+  // Backward-compatible static/instance methods delegating to formatters.
+  static String modeLabel(AnalysisMode mode) => formatters.modeLabel(mode);
+  String formatSessionDateTime() => formatters.formatSessionDateTime();
+  static String formatElapsedTime(int seconds) =>
+      formatters.formatElapsedTime(seconds);
+  String formatElapsedTimeHelper(int seconds) =>
+      formatters.formatElapsedTime(seconds);
+  String formatDateTime(DateTime value) => formatters.formatDateTime(value);
 
   // ─── Private ────────────────────────────────────────────────────────
 
@@ -476,8 +383,6 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     return _orchInstance!;
   }
 
-  bool _hasAttemptedStart = false;
-
   bool get _isCreatorMode => state.isCreatorMode;
 
   Future<void> _recoverAndStartMonitoring() async {
@@ -487,43 +392,12 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   }
 
   Future<void> _startLiveMonitoringIfNeeded() async {
-    if (isSimulationSession() ||
-        _hasAttemptedStart ||
-        _disposed ||
-        hasTestAnalyzerOverride) {
-      return;
-    }
-    _hasAttemptedStart = true;
-
-    final bridge = nativeBridge;
-    final settings = ref.read(settingsControllerProvider);
-    final devMode = ref.read(developerModeProvider);
-
-    final shouldUseCreatorMode =
-        devMode.isActive && settings.creatorAudioCapture;
-
-    if (shouldUseCreatorMode) {
-      state = state.copyWith(isCreatorMode: true);
-      final alreadyRunning = await bridge.isCreatorMonitoringActive();
-      if (alreadyRunning) return;
-      final started = await bridge.startCreatorMonitoring(
-        devModeExpiresAtMs: devMode.expiresAtEpochMs,
-      );
-      if (started) return;
-      state = state.copyWith(isCreatorMode: false);
-    }
-
-    final alreadyRunning = await bridge.isMonitoringActive();
-    if (!alreadyRunning) {
-      await bridge.startMonitoring(
-        enableSpeakerphone: settings.autoEnableSpeakerphone,
-      );
-    }
+    await _starter.startLiveMonitoringIfNeeded(isDisposed: _disposed);
   }
 
   Future<void> _runRestartSequence() async {
     if (_disposed) return;
-    _hasAttemptedStart = false;
+    _starter.resetAttempt();
     await _startLiveMonitoringIfNeeded();
     if (!_disposed) streamHandler.initStreams();
   }
@@ -595,12 +469,10 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _simulatedScriptLines = null;
     _l1AnalyzerOverride = null;
     _coordinatorInstance = null;
-    _orchInstance?.cancelDebounce();
+    _orchInstance?.dispose();
     _orchInstance = null;
-    _hasAttemptedStart = false;
-    _endSessionInProgress = false;
-    _stoppedEventReceived = false;
-    _stoppedCompleter = null;
+    _starter.reset();
+    _sessionEnder.reset();
     _audioHandler.reset();
     _alertManager.reset();
     state = const MonitoringPageState();
@@ -611,9 +483,14 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _timer?.cancel();
     _healthCheckService.stop();
     sessionManager.stopSnapshotTimer();
-    _orchInstance?.cancelDebounce();
+    _orchInstance?.dispose();
+    _audioHandler.dispose();
     simulationHelper.stopSimulationPlayback();
     streamHandler.cancelStreams();
+    // Bug #44 fix: null out _disposed marker BEFORE closing _settingsSub
+    // so any in-flight settings listener callback (Riverpod may invoke
+    // callbacks synchronously on close) sees _disposed=true and bails
+    // out instead of trying to update state on a disposed controller.
     _settingsSub?.close();
     _settingsSub = null;
   }

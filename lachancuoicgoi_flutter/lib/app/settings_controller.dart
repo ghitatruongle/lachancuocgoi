@@ -84,6 +84,7 @@ class SettingsController extends Notifier<SettingsState> {
       creatorAudioCapture: prefs.getBool('CREATOR_AUDIO_CAPTURE') ?? false,
     );
     _loaded = true;
+    if (!ref.mounted) return;
     state = loadedState.copyWith(isLoaded: true);
   }
 

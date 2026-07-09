@@ -194,8 +194,9 @@ class PermissionController extends Notifier<PermissionState>
     _lastRefreshTime = now;
     try {
       final snapshot = await _bridge.getPermissionSnapshot();
-      // Riverpod's Notifier doesn't have mounted; the provider is disposed
-      // via ref.onDispose (set in build()), so we just update state.
+      // Riverpod's Notifier does have ref.mounted, so we check it here
+      // before updating state.
+      if (!ref.mounted) return;
       if (snapshot != state.snapshot) {
         state = state.copyWith(snapshot: snapshot, lastUpdated: clock.now());
       }

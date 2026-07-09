@@ -36,6 +36,7 @@ class ResultPage extends ConsumerWidget {
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
+            tooltip: 'Quay lại',
             onPressed: () => context.go('/'),
           ),
           title: const Text('Kết quả phân tích'),
@@ -48,6 +49,7 @@ class ResultPage extends ConsumerWidget {
             appBar: AppBar(
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
+                tooltip: 'Quay lại',
                 onPressed: () => context.go('/'),
               ),
               title: const Text('Kết quả phân tích'),
@@ -68,6 +70,7 @@ class ResultPage extends ConsumerWidget {
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
+              tooltip: 'Quay lại',
               onPressed: () => context.go('/'),
             ),
             title: Column(

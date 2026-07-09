@@ -80,6 +80,7 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                     ),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
+                      tooltip: 'Đóng',
                       icon: const Icon(Icons.close),
                     ),
                   ],

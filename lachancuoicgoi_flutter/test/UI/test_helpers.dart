@@ -91,6 +91,8 @@ class FakeNativeBridge implements NativeBridgeInterface {
       const Stream.empty();
   @override
   Stream<CallEvent> get callEventStream => const Stream.empty();
+  @override
+  Stream<String> get logsStream => const Stream.empty();
 }
 
 /// Override for nativeBridgeProvider.

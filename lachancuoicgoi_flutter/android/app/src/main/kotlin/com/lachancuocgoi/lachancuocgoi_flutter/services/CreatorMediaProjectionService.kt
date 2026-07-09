@@ -54,6 +54,31 @@ class CreatorMediaProjectionService : Service() {
 
     private lateinit var voskSttManager: VoskSttManager
 
+    /**
+     * Bug #7 fix: registered against [projection] so we know when the system
+     * revokes it (user disabled it via Settings, OS killed the projection,
+     * etc.). Without this callback the capture loop would keep reading 0
+     * bytes silently and the user would see an empty transcript with no
+     * indication of what went wrong.
+     */
+    private val projectionCallback = object : MediaProjection.Callback() {
+        override fun onStop() {
+            Log.w(TAG, "MediaProjection stopped by system — tearing down capture loop")
+            NativeBridgeEventSink.sendLog(
+                TAG,
+                "Quyền MediaProjection đã bị thu hồi. Dừng Creator Mode.",
+                "WARN",
+            )
+            // Unregister to avoid re-entry if onStop fires multiple times.
+            try {
+                projection?.unregisterCallback(this)
+            } catch (_: Exception) { /* ignore */ }
+            stopCapture()
+            stopForegroundCompat()
+            stopSelf()
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         voskSttManager = VoskSttManager(application)
@@ -98,12 +123,23 @@ class CreatorMediaProjectionService : Service() {
                 val readyProjection = mediaProjectionManager.getMediaProjection(code, data)
                 if (readyProjection != null) {
                     projection = readyProjection
+                    // Bug #7 fix: register a callback so we are notified when
+                    // the system revokes the projection (user went into
+                    // Settings and turned it off, app killed by OS, etc.).
+                    // Without this, the service would keep running with a
+                    // dead projection — capture loop reads 0 bytes silently.
+                    readyProjection.registerCallback(
+                        projectionCallback,
+                        android.os.Handler(android.os.Looper.getMainLooper()),
+                    )
                     onMediaProjectionReady?.invoke(readyProjection)
                     startAudioLoop(readyProjection, devModeExpiresAtMs)
                 }
                 Log.d(TAG, "MediaProjection obtained successfully")
+                NativeBridgeEventSink.sendLog(TAG, "Quyền ghi âm màn hình/hệ thống đã được cấp thành công.", "INFO")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to get MediaProjection", e)
+                NativeBridgeEventSink.sendLog(TAG, "Không thể lấy quyền MediaProjection: ${e.message}", "ERROR")
                 NativeBridgeEventSink.sendMonitoringState("STOPPED:0:")
             }
         }
@@ -130,18 +166,46 @@ class CreatorMediaProjectionService : Service() {
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "DỪNG", stopPendingIntent)
             .build()
 
+        // Bug #8 fix: same as BackgroundMonitoringService — check
+        // POST_NOTIFICATIONS before promoting to foreground on API 33+.
+        // On pre-Tiramisu the permission is implicitly granted so the
+        // check is a no-op.
+        val hasNotifPerm =
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotifPerm) {
+            Log.w(TAG, "POST_NOTIFICATIONS not granted — Creator Mode will run without foreground promotion")
+            NativeBridgeEventSink.sendLog(
+                TAG,
+                "Thiếu quyền thông báo — Creator Mode sẽ chạy ở chế độ degraded.",
+                "WARN",
+            )
+            // Don't crash; the service continues running. Without foreground
+            // promotion, Android may kill it sooner — surface the state.
+            return
+        }
+
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val foregroundType =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION or
-                            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                    } else {
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-                    }
-                startForeground(NOTIFICATION_ID, notification, foregroundType)
-            } else {
-                startForeground(NOTIFICATION_ID, notification)
+            val foregroundType =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION or
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                } else {
+                    0
+                }
+            // Bug #8 fix: route through safeStartForeground so any
+            // ForegroundServiceStartNotAllowedException / MissingForegroundServiceTypeException
+            // is swallowed instead of crashing.
+            val promoted = ForegroundServiceLauncher.safeStartForeground(
+                this,
+                NOTIFICATION_ID,
+                notification,
+                foregroundType,
+            )
+            if (!promoted) {
+                Log.w(TAG, "startForeground failed — Creator Mode is running but not as foreground")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start foreground", e)
@@ -153,11 +217,13 @@ class CreatorMediaProjectionService : Service() {
         stopEventSent = false
         val record = CreatorAudioCaptureManager.startCapture(mediaProjection)
         if (record == null) {
+            NativeBridgeEventSink.sendLog(TAG, "Không thể bắt đầu capture audio hệ thống (AudioRecord null)", "ERROR")
             sendStoppedState()
             return
         }
 
         voskSttManager.resetTranscript()
+        NativeBridgeEventSink.sendLog(TAG, "Đang khởi động giám sát ngầm ở chế độ Creator...", "INFO")
         NativeBridgeEventSink.sendMonitoringState("STARTED")
 
         devModeWatchdogJob?.cancel()
@@ -166,6 +232,7 @@ class CreatorMediaProjectionService : Service() {
                 val remainingMs = devModeExpiresAtMs - System.currentTimeMillis()
                 if (remainingMs <= 0L) {
                     Log.w(TAG, "Developer Mode expired. Stopping Creator service.")
+                    NativeBridgeEventSink.sendLog(TAG, "Hết hạn chế độ Developer Mode. Tiến hành dừng Creator Service.", "WARN")
                     stopCapture()
                     stopForegroundCompat()
                     stopSelf()
@@ -204,20 +271,17 @@ class CreatorMediaProjectionService : Service() {
                 while (isActive) {
                     val read = record.read(buffer, 0, buffer.size)
                     if (read > 0) {
-                        val amplitude = buffer.take(read)
-                            .chunked(2)
-                            .mapNotNull { bytes ->
-                                if (bytes.size < 2) {
-                                    null
-                                } else {
-                                    (bytes[1].toInt() shl 8 or (bytes[0].toInt() and 0xFF))
-                                        .toShort()
-                                        .toInt()
-                                }
-                            }
-                            .map { kotlin.math.abs(it).toFloat() }
-                            .average()
-                            .toFloat()
+                        // Zero-allocation RMS calculation to avoid GC pressure in high-frequency audio loop
+                        var sum = 0.0
+                        var count = 0
+                        var i = 0
+                        while (i + 1 < read) {
+                            val sample = (buffer[i + 1].toInt() shl 8 or (buffer[i].toInt() and 0xFF)).toShort().toInt()
+                            sum += if (sample >= 0) sample.toDouble() else -sample.toDouble()
+                            count++
+                            i += 2
+                        }
+                        val amplitude = if (count > 0) (sum / count).toFloat() else 0f
                         val normalizedRms = (amplitude / 2184f).coerceIn(0f, 15f)
                         CreatorAudioCaptureManager.emitAmplitude(normalizedRms)
                         NativeBridgeEventSink.sendRms(normalizedRms)
@@ -236,6 +300,12 @@ class CreatorMediaProjectionService : Service() {
         captureJob?.cancel()
         transcriptJob?.cancel()
         devModeWatchdogJob?.cancel()
+        // Bug #7 fix: unregister our callback BEFORE stopping the projection
+        // to break the potential re-entry loop if onStop() fires during the
+        // teardown.
+        try {
+            projection?.unregisterCallback(projectionCallback)
+        } catch (_: Exception) { /* ignore */ }
         projection?.stop()
         projection = null
         CreatorAudioCaptureManager.stopCapture()

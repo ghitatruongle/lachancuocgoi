@@ -33,4 +33,5 @@ abstract class NativeBridgeInterface {
   Stream<double> get rmsStream;
   Stream<(MonitoringState, int?, String?)> get monitoringStateStream;
   Stream<CallEvent> get callEventStream;
+  Stream<String> get logsStream;
 }
