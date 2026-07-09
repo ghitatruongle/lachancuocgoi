@@ -77,6 +77,7 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
       final items = await db.getAllPaginated(limit: limit, offset: 0);
       final current = state.value;
       if (current == null || current.searchQuery.isNotEmpty) return;
+      if (!ref.mounted) return;
       state = AsyncData(
         current.copyWith(items: items, hasMore: items.length == limit),
       );
@@ -95,6 +96,7 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
     if (query.isEmpty) {
       _subscribeToDb(db);
       final items = await db.getAllPaginated(limit: _pageSize, offset: 0);
+      if (!ref.mounted) return;
       state = AsyncData(
         _HistoryState(
           items: items,
@@ -107,6 +109,7 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
     await _dbSubscription?.cancel();
     _dbSubscription = null;
     final results = await db.search(query, limit: _pageSize);
+    if (!ref.mounted) return;
     state = AsyncData(
       _HistoryState(
         items: results,
@@ -130,6 +133,7 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
               limit: _pageSize,
               offset: s.items.length,
             );
+      if (!ref.mounted) return;
       state = AsyncData(
         s.copyWith(
           items: [...s.items, ...next],
@@ -138,6 +142,7 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
         ),
       );
     } on Exception catch (_) {
+      if (!ref.mounted) return;
       final cur = state.value;
       if (cur != null) {
         state = AsyncData(cur.copyWith(isLoadingMore: false));
@@ -198,6 +203,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Quay lại',
           onPressed: () => context.go('/'),
         ),
         title: const Text('Lịch sử giám sát'),
@@ -235,6 +241,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                       suffixIcon: query.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.close),
+                              tooltip: 'Xóa tìm kiếm',
                               onPressed: () {
                                 _searchDebounce?.cancel();
                                 _searchController.clear();

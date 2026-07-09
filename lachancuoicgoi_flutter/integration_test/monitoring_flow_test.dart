@@ -92,10 +92,7 @@ void main() {
         bridge.sendMonitoringState('STARTED');
         await tester.pump();
 
-        for (var i = 0; i < 5; i++) {
-          bridge.emitRms(0.0);
-          await tester.pump(const Duration(milliseconds: 110));
-        }
+        await tester.pump(const Duration(milliseconds: 550));
 
         bridge.sendMonitoringState('STOPPED:5:');
         for (var i = 0; i < 10; i++) {

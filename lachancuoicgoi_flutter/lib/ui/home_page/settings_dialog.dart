@@ -67,6 +67,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
+                  tooltip: 'Đóng',
                   icon: const Icon(Icons.close),
                 ),
               ],
@@ -352,6 +353,7 @@ class _DevPasswordDialogState extends ConsumerState<_DevPasswordDialog> {
                 icon: Icon(
                   _showPassword ? Icons.visibility_off : Icons.visibility,
                 ),
+                tooltip: _showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu',
                 onPressed: () {
                   setState(() => _showPassword = !_showPassword);
                 },

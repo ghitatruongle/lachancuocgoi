@@ -123,10 +123,10 @@ void main() {
   });
 
   group('Phase 6 WFSA and SafetyFilter', () {
-    test('default graph set tracks 24 scam scenarios with active stage', () {
+    test('default graph set tracks 38 scam scenarios with active stage', () {
       final engine = WfsaEngine(ScamGraphBuilder.buildDefaultGraphs());
 
-      expect(engine.graphs.length, 24);
+      expect(engine.graphs.length, 38);
       final firstScore = engine.analyzeSegment(
         'cục cảnh sát đang điều tra',
         const <IntentPrediction>[],

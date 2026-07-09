@@ -22,6 +22,7 @@ object NativeBridgeEventSink {
     @Volatile var rmsSink: EventChannel.EventSink? = null
     @Volatile var monitoringStateSink: EventChannel.EventSink? = null
     @Volatile var callEventSink: EventChannel.EventSink? = null
+    @Volatile var logsSink: EventChannel.EventSink? = null
 
     // Buffers for events that arrive while sinks are null (Activity recreate).
     // Each buffer is capped to avoid unbounded memory growth.
@@ -37,6 +38,7 @@ object NativeBridgeEventSink {
     private val transcriptBuffer = ConcurrentLinkedQueue<BufferedTranscript>()
     private val monitoringStateBuffer = ConcurrentLinkedQueue<String>()
     private val callEventBuffer = ConcurrentLinkedQueue<Map<String, Any?>>()
+    private val logsBuffer = ConcurrentLinkedQueue<String>()
 
     /**
      * Call from MainActivity after configuring EventChannel listeners.
@@ -66,6 +68,13 @@ object NativeBridgeEventSink {
             if (cSink != null) {
                 while (callEventBuffer.isNotEmpty()) {
                     cSink.success(callEventBuffer.poll())
+                }
+            }
+            // Replay buffered logs
+            val lSink = logsSink
+            if (lSink != null) {
+                while (logsBuffer.isNotEmpty()) {
+                    lSink.success(logsBuffer.poll())
                 }
             }
         }
@@ -98,11 +107,38 @@ object NativeBridgeEventSink {
     }
 
     fun sendRms(value: Float) {
-        mainHandler.post {
-            rmsSink?.success(value.toDouble())
-            // RMS is high-frequency — do not buffer (stale data is useless)
+        // Bug #42 fix: do NOT post each RMS event individually. RMS events
+        // arrive at ~10 Hz from the audio read loop and posting each one
+        // separately floods the main looper with microtasks. Instead, store
+        // the latest value and use a single posted runnable that drains to
+        // the sink at most once per frame.
+        //
+        // Bug fix (review): synchronized block prevents data loss when IO
+        // thread writes a new value while main thread is reading+clearing.
+        // Without synchronization:
+        //   1. IO thread: latestRmsValue = 0.8
+        //   2. Main thread: val v = latestRmsValue (reads 0.5 — stale!)
+        //   3. Main thread: latestRmsValue = null (drops 0.8)
+        synchronized(rmsLock) {
+            latestRmsValue = value
+            if (!rmsFlushScheduled) {
+                rmsFlushScheduled = true
+                mainHandler.post {
+                    val v: Float
+                    synchronized(rmsLock) {
+                        v = latestRmsValue ?: return@post
+                        latestRmsValue = null
+                        rmsFlushScheduled = false
+                    }
+                    rmsSink?.success(v.toDouble())
+                }
+            }
         }
     }
+
+    private val rmsLock = Any()
+    private var latestRmsValue: Float? = null
+    private var rmsFlushScheduled = false
 
     fun sendMonitoringState(state: String) {
         mainHandler.post {
@@ -117,13 +153,32 @@ object NativeBridgeEventSink {
     }
 
     fun sendCallEvent(event: Map<String, Any?>) {
+        // Bug #45 fix: stamp every event with the platform-side timestamp
+        // so Dart doesn't have to rely on DateTime.now() (which drifts
+        // from the actual moment the system signal arrived, especially
+        // when the call event is buffered and replayed after an Activity
+        // recreate).
+        val stamped = event + ("timestampMs" to System.currentTimeMillis())
         mainHandler.post {
             val sink = callEventSink
             if (sink != null) {
-                sink.success(event)
+                sink.success(stamped)
             } else {
                 if (callEventBuffer.size >= MAX_BUFFER_SIZE) callEventBuffer.poll()
-                callEventBuffer.offer(event)
+                callEventBuffer.offer(stamped)
+            }
+        }
+    }
+
+    fun sendLog(tag: String, message: String, level: String = "INFO") {
+        val raw = "$level|$tag|$message"
+        mainHandler.post {
+            val sink = logsSink
+            if (sink != null) {
+                sink.success(raw)
+            } else {
+                if (logsBuffer.size >= MAX_BUFFER_SIZE) logsBuffer.poll()
+                logsBuffer.offer(raw)
             }
         }
     }

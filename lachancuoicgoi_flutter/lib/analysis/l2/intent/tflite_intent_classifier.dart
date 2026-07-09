@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
 import '../../../core/asset_loader.dart';
+import '../../../core/noop_asset_loader.dart';
 import '../../../core/logger.dart';
 import 'bert_intent_tokenizer.dart';
 import 'intent_classifier.dart';
@@ -19,10 +20,10 @@ class TFLiteIntentClassifier implements IntentClassifier {
     AppLogger? logger,
     this.modelAsset = 'assets/ghitav3.tflite',
     this.vocabAsset = 'assets/vocab.txt',
-  }) : _assetLoader = assetLoader,
+  }) : _assetLoader = assetLoader ?? const NoopAssetLoader(),
        _logger = logger;
 
-  final AssetLoader? _assetLoader;
+  final AssetLoader _assetLoader;
   final AppLogger? _logger;
   final String modelAsset;
   final String vocabAsset;
@@ -30,7 +31,13 @@ class TFLiteIntentClassifier implements IntentClassifier {
   Isolate? _isolate;
   SendPort? _isolateSendPort;
   bool _isReady = false;
-  bool _hasAttemptedInit = false;
+  // BUG FIX (Bug #3): Use a Future to serialize concurrent calls AND allow
+  // retry on failure. Previously a simple `_hasAttemptedInit` boolean could
+  // never be reset, so a single failed init would permanently disable the
+  // TFLite classifier for the whole session — requiring an app restart.
+  // Now concurrent callers share the same in-flight Future, and a failed
+  // init clears the cached future so the next caller gets a fresh attempt.
+  Future<void>? _initializingFuture;
 
   int _lastInputHash = 0;
   int _lastInputLength = 0;
@@ -46,23 +53,35 @@ class TFLiteIntentClassifier implements IntentClassifier {
 
   @override
   Future<void> initialize() async {
-    if (_hasAttemptedInit) return;
-    _hasAttemptedInit = true;
+    // BUG FIX (Bug #3): Use a Future-based guard so concurrent callers share
+    // a single init attempt AND so a failed init can be retried. The previous
+    // boolean flag (`_hasAttemptedInit`) was set true once and never cleared,
+    // meaning any failed init permanently disabled this classifier.
+    if (_isReady) return;
+    final pending = _initializingFuture;
+    if (pending != null) return pending;
+    final future = _doInitialize();
+    _initializingFuture = future;
+    return future;
+  }
 
+  Future<void> _doInitialize() async {
+    // BUG-L2-ISOLATE-LEAK-1 fix: Track resources outside try-block so the
+    // finally clause can guarantee cleanup even if init partially succeeds.
+    // Previously a failure between Isolate.spawn() and receiving SendPort
+    // would leak the spawned isolate (no kill) and the handshake ReceivePort.
+    ReceivePort? mainReceivePort;
+    ReceivePort? responsePort;
     try {
       final vocab = await _loadVocab();
-      if (_assetLoader == null) {
-        throw StateError(
-          'AssetLoader is null. Phải cung cấp AssetLoader để load model $modelAsset.',
-        );
-      }
+      // BUG-L2-5 fix: _assetLoader now non-nullable with NoopAssetLoader default.
       final ByteData modelData = await _assetLoader.load(modelAsset);
       final Uint8List modelBytes = modelData.buffer.asUint8List(
         modelData.offsetInBytes,
         modelData.lengthInBytes,
       );
 
-      final mainReceivePort = ReceivePort();
+      mainReceivePort = ReceivePort();
       _isolate = await Isolate.spawn(
         _isolateMain,
         mainReceivePort.sendPort,
@@ -76,7 +95,7 @@ class TFLiteIntentClassifier implements IntentClassifier {
         throw StateError('Failed to get SendPort from background Isolate.');
       }
 
-      final responsePort = ReceivePort();
+      responsePort = ReceivePort();
       _isolateSendPort!.send(
         _IsolateInitRequest(
           modelBytes: modelBytes,
@@ -86,7 +105,6 @@ class TFLiteIntentClassifier implements IntentClassifier {
       );
 
       final dynamic initResponse = await responsePort.first;
-      responsePort.close();
 
       if (initResponse is _IsolateInitResponse) {
         if (initResponse.isReady) {
@@ -101,8 +119,26 @@ class TFLiteIntentClassifier implements IntentClassifier {
       }
     } on Object catch (e) {
       _logger?.warning('[TFLiteIntentClassifier] Initialization failed: $e');
-      close();
+      // BUG-L2-ISOLATE-LEAK-1 fix: Force-kill isolate if it was spawned but
+      // init failed. The previous code called close() which only kills via
+      // 'CLOSE' message when _isolateSendPort != null — so a failure BEFORE
+      // receiving SendPort would leak the isolate forever.
+      final isolate = _isolate;
+      if (isolate != null) {
+        isolate.kill(priority: Isolate.immediate);
+        _isolate = null;
+      }
+      _isolateSendPort = null;
       _isReady = false;
+      // BUG FIX (Bug #3): Clear the cached future so the next call to
+      // initialize() will trigger a fresh attempt instead of permanently
+      // short-circuiting with the previous failure.
+      _initializingFuture = null;
+    } finally {
+      // BUG-L2-ISOLATE-LEAK-1 fix: Always close handshake ports. Previously
+      // mainReceivePort was never closed even on success path.
+      mainReceivePort?.close();
+      responsePort?.close();
     }
   }
 
@@ -164,6 +200,7 @@ class TFLiteIntentClassifier implements IntentClassifier {
   void close() {
     // Prevent new inference requests
     _isReady = false;
+    _initializingFuture = null;
 
     if (_isolateSendPort != null) {
       // Send 'CLOSE' message - isolate will finish current inference and exit gracefully
@@ -186,11 +223,7 @@ class TFLiteIntentClassifier implements IntentClassifier {
   }
 
   Future<Map<String, int>> _loadVocab() async {
-    if (_assetLoader == null) {
-      throw StateError(
-        'AssetLoader is null. Phải cung cấp AssetLoader để load vocab $vocabAsset.',
-      );
-    }
+    // BUG-L2-5 fix: _assetLoader now non-nullable with NoopAssetLoader default.
     final vocabText = await _assetLoader.loadString(vocabAsset);
     final vocab = <String, int>{};
     var index = 0;

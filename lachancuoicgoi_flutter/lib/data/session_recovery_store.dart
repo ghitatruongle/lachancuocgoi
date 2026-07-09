@@ -124,8 +124,15 @@ abstract final class SessionRecoveryStore {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_key);
-    } on Exception {
-      // ignore
+    } on Exception catch (e) {
+      // BUG-CODE-2 fix: log instead of silently swallowing — if prefs.remove
+      // fails repeatedly (corrupt storage), the stale snapshot accumulates.
+      // Log at debug level so production logs aren't noisy.
+      assert(() {
+        // ignore: avoid_print
+        print('[SessionRecoveryStore] Failed to clear snapshot: $e');
+        return true;
+      }());
     }
   }
 

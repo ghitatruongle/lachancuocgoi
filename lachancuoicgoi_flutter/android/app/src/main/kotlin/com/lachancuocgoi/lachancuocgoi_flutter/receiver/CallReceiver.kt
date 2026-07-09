@@ -15,6 +15,26 @@ import com.lachancuocgoi.lachancuocgoi_flutter.R
 import com.lachancuocgoi.lachancuocgoi_flutter.services.BackgroundMonitoringService
 import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeEventSink
 
+/**
+ * Listens for `PHONE_STATE` broadcasts and shows an "incoming call detected"
+ * notification.
+ *
+ * Bug #6 fix: on Android 13+ (`Build.VERSION_CODES.TIRAMISU`) the
+ * `EXTRA_INCOMING_NUMBER` extra is often `null` because the system strips it
+ * for privacy unless the app is the default dialer or holds `READ_PHONE_NUMBERS`.
+ * The previous code fell back to a hard-coded `"Số lạ"` (unknown number)
+ * label, which was indistinguishable from a legitimate unknown caller.
+ *
+ * The fix:
+ *  1. Explicitly distinguish `null` (system didn't deliver the number, often
+ *     due to privacy) from a real unknown caller by tagging the event with
+ *     `numberAvailable=false`.
+ *  2. Still display "Số lạ" in the UI so the user gets a usable label, but
+ *     Flutter side can now check the flag and prompt the user to manually
+ *     enter the number if needed.
+ *  3. Document that the real fix is for the user to grant the
+ *     `READ_PHONE_NUMBERS` permission via Settings.
+ */
 class CallReceiver : BroadcastReceiver() {
     private val TAG = "CallReceiver"
 
@@ -28,31 +48,50 @@ class CallReceiver : BroadcastReceiver() {
 
         if (intent.action == TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
             val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
+            // Bug #6 fix: on Android 13+ (API 33) the EXTRA_INCOMING_NUMBER is
+            // often null because the system hides the number from non-default
+            // dialer apps. We now distinguish between:
+            //   - phoneNumber == null  → system stripped it (numberAvailable = false)
+            //   - phoneNumber == ""    → genuinely empty (shouldn't happen but defensive)
+            //   - phoneNumber == "Số lạ" (literal) → never set; we always emit either the
+            //                                          real number or the placeholder.
             @Suppress("DEPRECATION")
             val phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+            val numberAvailable = !phoneNumber.isNullOrBlank()
+            val displayNumber = phoneNumber?.takeIf { it.isNotBlank() } ?: "Số lạ"
 
-            Log.d(TAG, "Phone state changed: $state, number: $phoneNumber")
+            Log.d(TAG, "Phone state changed: $state, number: $phoneNumber, available: $numberAvailable")
 
             if (state == TelephonyManager.EXTRA_STATE_RINGING) {
-                Log.d(TAG, "Incoming call detected! Showing Notification")
+                Log.d(TAG, "Incoming call detected! Showing Notification (numberAvailable=$numberAvailable)")
                 try {
-                    showIncomingCallNotification(context, phoneNumber ?: "Số lạ")
-                    // Notify Flutter about incoming call
-                    NativeBridgeEventSink.sendCallEvent(mapOf(
-                        "type" to "RINGING",
-                        "phoneNumber" to (phoneNumber ?: "Số lạ")
-                    ))
+                    showIncomingCallNotification(context, displayNumber)
+                    // Bug #6 fix: emit numberAvailable flag so Flutter can decide
+                    // whether to ask the user for the number manually.
+                    NativeBridgeEventSink.sendCallEvent(
+                        mapOf(
+                            "type" to "RINGING",
+                            "phoneNumber" to displayNumber,
+                            "numberAvailable" to numberAvailable,
+                        )
+                    )
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to show notification", e)
                 }
             } else if (state == TelephonyManager.EXTRA_STATE_IDLE) {
-                NativeBridgeEventSink.sendCallEvent(mapOf(
-                    "type" to "IDLE"
-                ))
+                NativeBridgeEventSink.sendCallEvent(
+                    mapOf(
+                        "type" to "IDLE",
+                        "numberAvailable" to numberAvailable,
+                    )
+                )
             } else if (state == TelephonyManager.EXTRA_STATE_OFFHOOK) {
-                NativeBridgeEventSink.sendCallEvent(mapOf(
-                    "type" to "OFFHOOK"
-                ))
+                NativeBridgeEventSink.sendCallEvent(
+                    mapOf(
+                        "type" to "OFFHOOK",
+                        "numberAvailable" to numberAvailable,
+                    )
+                )
             }
         }
     }
@@ -86,7 +125,8 @@ class CallReceiver : BroadcastReceiver() {
 
         val fullScreenIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("NAVIGATE_TO_MONITORING", true)
+            putExtra("NAVIGATE_TO_MONITORING", true) // Bug #5: forward to MainActivity.onNewIntent
+            putExtra("PHONE_NUMBER", callerInfo)
         }
         val fullScreenPendingIntent = PendingIntent.getActivity(
             context, 0, fullScreenIntent,

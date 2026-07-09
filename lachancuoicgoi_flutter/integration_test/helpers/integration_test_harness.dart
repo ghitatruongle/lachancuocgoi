@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/src/internals.dart' show Override;
 import 'package:go_router/go_router.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_mode.dart';
 import 'package:lachancuocgoi_flutter/app/lachancuocgoi_app.dart';
@@ -10,6 +11,7 @@ import 'package:lachancuocgoi_flutter/app/router.dart';
 import 'package:lachancuocgoi_flutter/app/settings_controller.dart';
 import 'package:lachancuocgoi_flutter/data/app_database.dart';
 import 'package:lachancuocgoi_flutter/data/call_history.dart';
+import 'package:lachancuocgoi_flutter/data/session_recovery_store.dart';
 import 'package:lachancuocgoi_flutter/services/developer_mode_manager.dart';
 import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
 import 'package:lachancuocgoi_flutter/services/permission_controller.dart';
@@ -19,13 +21,15 @@ import 'package:lachancuocgoi_flutter/ui/monitoring_page/monitoring_page.dart';
 import 'package:lachancuocgoi_flutter/ui/result_page/result_page.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as path;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// In-memory database helper for integration tests.
 class TestDb {
-  TestDb._(this.database);
+  TestDb._(this.database, this.dbPath);
 
   final AppDatabase database;
+  final String? dbPath;
 
   static Future<TestDb> openInMemory() async {
     if (!kIsWeb &&
@@ -35,8 +39,19 @@ class TestDb {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
-    final db = await AppDatabase.open(inMemory: true);
-    return TestDb._(db);
+    final String? resolvedDbPath;
+    if (kIsWeb) {
+      resolvedDbPath = null;
+    } else {
+      final databasesPath = await getDatabasesPath();
+      resolvedDbPath = path.join(databasesPath, 'test_db_${DateTime.now().microsecondsSinceEpoch}.db');
+    }
+
+    final db = await AppDatabase.open(
+      databasePath: resolvedDbPath,
+      inMemory: kIsWeb,
+    );
+    return TestDb._(db, resolvedDbPath);
   }
 
   Future<List<CallHistory>> all() => database.getAll();
@@ -45,7 +60,14 @@ class TestDb {
 
   Future<int> insert(CallHistory row) => database.insert(row);
 
-  Future<void> close() => database.close();
+  Future<void> close() async {
+    await database.close();
+    if (dbPath != null) {
+      try {
+        await databaseFactory.deleteDatabase(dbPath!);
+      } catch (_) {}
+    }
+  }
 }
 
 /// Fake [NativeBridgeInterface] used by integration tests.
@@ -60,6 +82,8 @@ class FakeIntegrationBridge implements NativeBridgeInterface {
       StreamController<(MonitoringState, int?, String?)>.broadcast();
   final StreamController<CallEvent> _callEvents =
       StreamController<CallEvent>.broadcast();
+  final StreamController<String> _logs =
+      StreamController<String>.broadcast();
 
   final List<String> methodCallList = <String>[];
   final List<({String method, Map<String, Object?> args})>
@@ -114,6 +138,9 @@ class FakeIntegrationBridge implements NativeBridgeInterface {
 
   @override
   Stream<CallEvent> get callEventStream => _callEvents.stream;
+
+  @override
+  Stream<String> get logsStream => _logs.stream;
 
   int startMonitoringCalls = 0;
   int stopMonitoringCalls = 0;
@@ -243,6 +270,7 @@ class FakeIntegrationBridge implements NativeBridgeInterface {
     await _rms.close();
     await _monitoringState.close();
     await _callEvents.close();
+    await _logs.close();
   }
 }
 
@@ -318,8 +346,12 @@ Override _devModeOverride() => developerModeProvider.overrideWith(
 /// provider's `PermissionController` type is preserved; the notifier
 /// methods are no-ops.
 class _TestPermissionController extends PermissionController {
-  _TestPermissionController(super.bridge, PermissionState initial) {
-    state = initial;
+  _TestPermissionController(super.bridge, this._initial);
+  final PermissionState _initial;
+
+  @override
+  PermissionState build() {
+    return _initial;
   }
 }
 
@@ -378,6 +410,8 @@ class IntegrationTestHarness {
     final fake = bridge ?? FakeIntegrationBridge();
     fake.setPermissionSnapshot(initialPermissions);
     final db = await TestDb.openInMemory();
+    await db.database.deleteAll();
+    await SessionRecoveryStore.clear();
 
     final permissionState = PermissionState(
       snapshot: initialPermissions,

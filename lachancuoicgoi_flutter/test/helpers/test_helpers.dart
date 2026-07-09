@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -101,4 +102,49 @@ AnalysisResult createOrangeResult({String reason = 'Nội dung đáng ngờ'}) {
     analysisLevel: AnalysisLevel.l1,
     alertEnabled: true,
   );
+}
+
+/// Sets up a mock handler for the permission_handler MethodChannel.
+///
+/// Returns a [VoidCallback] that removes the mock when called (use in tearDown).
+///
+/// BUG-TEST-INFRA-1 fix: Extracted from bug_hunt_simulator_script_test.dart and
+/// permission_controller_test.dart to avoid duplicating the mock setup. Expanded
+/// to cover `requestPermissions`, `shouldShowRequestPermissionRationale`, and
+/// `openAppSettings` for comprehensive permission testing.
+///
+/// [statuses] maps permission codes to status codes (1 = granted, 0 = denied).
+/// If null, all permissions default to granted.
+VoidCallback setupPermissionHandlerMock({
+  Map<int, int>? statuses,
+}) {
+  const channel = MethodChannel('flutter.baseflow.com/permissions/methods');
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(channel, (call) async {
+    if (call.method == 'checkPermissionStatus') {
+      final permission = call.arguments as int?;
+      if (statuses != null && permission != null) {
+        return statuses[permission] ?? 0; // default denied if not in map
+      }
+      return 1; // PermissionStatus.granted
+    }
+    if (call.method == 'requestPermissions') {
+      final permissions = (call.arguments as List<dynamic>?) ?? [];
+      return <int, int>{
+        for (final p in permissions)
+          p as int: statuses?[p] ?? 1, // default granted
+      };
+    }
+    if (call.method == 'shouldShowRequestPermissionRationale') {
+      return false; // default: don't show rationale
+    }
+    if (call.method == 'openAppSettings') {
+      return true; // simulate success
+    }
+    return null;
+  });
+  return () {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
+  };
 }

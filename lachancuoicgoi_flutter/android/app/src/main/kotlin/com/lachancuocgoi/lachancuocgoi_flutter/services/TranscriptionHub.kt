@@ -9,7 +9,11 @@ object TranscriptionHub {
     val transcriptFlow = _transcriptFlow.asStateFlow()
 
     private var fullHistory = ""
-    private const val MAX_COMPARE_LENGTH = 1000
+    // Bug fix (review): MAX_COMPARE_LENGTH was 1000 but takeLast was bumped
+    // to 20 words (Bug #38). With 20 words × ~50 chars/word = ~1000 chars,
+    // the 1000-char window was barely enough. Increased to 2000 to ensure
+    // the full 20-word tail is always available for overlap detection.
+    private const val MAX_COMPARE_LENGTH = 2000
     private const val MAX_HISTORY_RETAIN = 5000
     // Pre-compile regex to avoid re-compilation on every postTranscript call.
     private val WHITESPACE_REGEX = Regex("\\s+")
@@ -36,10 +40,14 @@ object TranscriptionHub {
             fullHistory
         }
 
-        val wordsHistory = historyToCompare.split(WHITESPACE_REGEX).filter { it.isNotBlank() }.takeLast(10)
+        val wordsHistory = historyToCompare.split(WHITESPACE_REGEX).filter { it.isNotBlank() }.takeLast(20)
         val wordsNew = cleanedNewText.split(WHITESPACE_REGEX).filter { it.isNotBlank() }
 
         var overlapIndex = 0
+        // Bug #38 fix: 10 → 20. Same reasoning as SpeechToTextManager — long
+        // Vietnamese sentences (accessibility captions from system Live
+        // Caption) often exceed 10 words, so 10 was missing real overlaps
+        // and showing the same caption twice.
         for (i in 1..wordsNew.size.coerceAtMost(wordsHistory.size)) {
             val historySub = wordsHistory.takeLast(i).joinToString(" ").lowercase(Locale.ROOT)
             val newSub = wordsNew.take(i).joinToString(" ").lowercase(Locale.ROOT)

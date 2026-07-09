@@ -81,6 +81,7 @@ class SimulationController extends Notifier<SimulationUiState> {
   }
 
   void _recompute({bool? isDevMode}) {
+    if (!ref.mounted) return;
     final scenarios = _allScenarios;
     if (scenarios == null) {
       state = const SimulationUiState();

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../core/risk_level.dart';
+import '../core/system_logger.dart';
 import 'analysis_fallback.dart';
 import 'analysis_fusion.dart';
 import 'analysis_level.dart';
@@ -24,6 +25,11 @@ class AnalysisCoordinator {
   static const int _minDeltaDefault = 50;
   static const int _minDeltaOrange = 30;
   static const int _minDeltaRed = 20;
+
+  /// Maximum wall-clock time the parallel pipeline waits for L3 (Gemini)
+  /// before falling back to a default L3 result. Tuned so end-to-end UI
+  /// latency stays under ~1s even on slow networks.
+  static const Duration _l3Timeout = Duration(milliseconds: 800);
 
   final L1Analyzer _l1Analyzer;
   final L2Analyzer _l2Analyzer;
@@ -49,9 +55,12 @@ class AnalysisCoordinator {
     String fullText,
     AnalysisMode mode,
   ) async {
+    SystemLogger.instance.log(LogCategory.analysis, 'Bắt đầu phân tích. Chế độ: ${mode.name}, độ dài văn bản: ${fullText.length} kí tự.');
     if (mode == AnalysisMode.gDetection && !_l2Analyzer.isReady) {
+      SystemLogger.instance.log(LogCategory.model, 'Đang khởi tạo L2 Analyzer (Local Vocabulary & Regex)...');
       await _l2Analyzer.initialize();
       if (!_l2Analyzer.isReady) {
+        SystemLogger.instance.log(LogCategory.model, 'L2 Analyzer khởi tạo thất bại.', level: LogLevel.error);
         return const AnalysisResult(
           overallRiskLevel: RiskLevel.green,
           matches: <KeywordMatch>[],
@@ -59,6 +68,7 @@ class AnalysisCoordinator {
           analysisLevel: AnalysisLevel.l2,
         );
       }
+      SystemLogger.instance.log(LogCategory.model, 'L2 Analyzer khởi tạo thành công.');
     }
     return switch (mode) {
       AnalysisMode.normal => _l1Analyzer.analyzeStream(fullText),
@@ -122,44 +132,23 @@ class AnalysisCoordinator {
     required String incrementalText,
     required String fullText,
   }) async {
-    final l1Future = _l1Analyzer.analyzeStream(fullText);
-
-    if (!_l2Analyzer.isReady) {
-      await _l2Analyzer.initialize();
-    }
-    final l2Future = _l2Analyzer.isReady
-        ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
-        : Future.value(
-            AnalysisFallback.defaultForMode(AnalysisMode.gDetection),
-          );
-
-    final results = await Future.wait([l1Future, l2Future]);
-    final l1Result = results[0];
-    final l2Result = results[1];
-
-    if (l1Result.overallRiskLevel.index >= RiskLevel.orange.index) {
-      return l1Result;
-    }
-    if (l2Result.overallRiskLevel.index >= RiskLevel.orange.index) {
-      return l2Result;
-    }
-
-    final l3Future = _analyzeL3WithFallback(
+    final (l1Result, l2Result) = await _runL1L2Parallel(
       incrementalText: incrementalText,
       fullText: fullText,
     );
-    try {
-      final l3Result = await l3Future.timeout(
-        const Duration(milliseconds: 800),
-      );
-      return AnalysisFusion.fuse(l1Result, l2Result, l3Result);
-    } on TimeoutException {
-      return AnalysisFusion.fuse(
-        l1Result,
-        l2Result,
-        AnalysisFallback.defaultForMode(AnalysisMode.geminiApi),
-      );
+
+    final fastTrack = _parallelFastTrack(l1Result, l2Result);
+    if (fastTrack != null) {
+      return fastTrack;
     }
+
+    final l3Result = await _runL3WithTimeout(
+      _analyzeL3WithFallback(
+        incrementalText: incrementalText,
+        fullText: fullText,
+      ),
+    );
+    return AnalysisFusion.fuse(l1Result, l2Result, l3Result);
   }
 
   Future<AnalysisResult> _analyzeIncrementalParallel(String fullText) async {
@@ -190,9 +179,46 @@ class AnalysisCoordinator {
     }
 
     final incrementalText = fullText.substring(processedLength);
+    final (l1Result, l2Result) = await _runL1L2Parallel(
+      incrementalText: incrementalText,
+      fullText: fullText,
+    );
+
+    // Fast-track: orange+ from L1 or L2 short-circuits past L3.
+    final fastTrack = _parallelFastTrack(l1Result, l2Result);
+    if (fastTrack != null) {
+      _lastParallelResult = fastTrack;
+      return fastTrack;
+    }
+
+    // L3 with timeout; falls back to a default green result on timeout/null.
+    final l3Result = await _runL3WithTimeout(analyzeIncrementalL3(fullText));
+
+    final fusionResult = AnalysisFusion.fuse(l1Result, l2Result, l3Result);
+    _lastParallelResult = fusionResult;
+    return fusionResult;
+  }
+
+  // ─── Shared parallel-pipeline helpers ─────────────────────────────────────
+  //
+  // [_analyzeParallel] and [_analyzeIncrementalParallel] share three steps:
+  //   1. Fan out L1 (stream) and L2 (after lazy init) in parallel.
+  //   2. Fast-track: if either hits orange+, return it without waiting for L3.
+  //   3. Run L3 with an [_l3Timeout] guard, then fuse L1+L2+L3.
+  // Extracted to remove ~100 lines of duplication between the two entry points.
+
+  /// Runs L1 (full-text stream) and L2 (incremental + full-text) in parallel,
+  /// lazily initializing L2 first if needed. Falls back to a default L2 green
+  /// result when L2 cannot be initialized.
+  Future<(AnalysisResult, AnalysisResult)> _runL1L2Parallel({
+    required String incrementalText,
+    required String fullText,
+  }) async {
     final l1Future = _l1Analyzer.analyzeStream(fullText);
 
-    if (!_l2Analyzer.isReady) await _l2Analyzer.initialize();
+    if (!_l2Analyzer.isReady) {
+      await _l2Analyzer.initialize();
+    }
     final l2Future = _l2Analyzer.isReady
         ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
         : Future.value(
@@ -200,33 +226,36 @@ class AnalysisCoordinator {
           );
 
     final results = await Future.wait([l1Future, l2Future]);
-    final l1Result = results[0];
-    final l2Result = results[1];
+    return (results[0], results[1]);
+  }
 
-    // Fast-track
+  /// Returns the first orange+ result for fast-track short-circuit, or `null`
+  /// when neither L1 nor L2 reach the alert threshold (so L3 should run).
+  AnalysisResult? _parallelFastTrack(
+    AnalysisResult l1Result,
+    AnalysisResult l2Result,
+  ) {
     if (l1Result.overallRiskLevel.index >= RiskLevel.orange.index) {
-      _lastParallelResult = l1Result;
       return l1Result;
     }
     if (l2Result.overallRiskLevel.index >= RiskLevel.orange.index) {
-      _lastParallelResult = l2Result;
       return l2Result;
     }
+    return null;
+  }
 
-    // L3
-    final l3Future = analyzeIncrementalL3(fullText);
-    AnalysisResult l3Result;
+  /// Awaits [l3Future] with an [_l3Timeout] guard. On timeout returns a default
+  /// L3 result so the pipeline fuses with a graceful green fallback instead of
+  /// stalling the UI. A `null` L3 result is treated the same as a timeout.
+  Future<AnalysisResult> _runL3WithTimeout(
+    Future<AnalysisResult?> l3Future,
+  ) async {
     try {
-      final result = await l3Future.timeout(const Duration(milliseconds: 800));
-      l3Result =
-          result ?? AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
+      final result = await l3Future.timeout(_l3Timeout);
+      return result ?? AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
     } on TimeoutException {
-      l3Result = AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
+      return AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
     }
-
-    final fusionResult = AnalysisFusion.fuse(l1Result, l2Result, l3Result);
-    _lastParallelResult = fusionResult;
-    return fusionResult;
   }
 
   AnalysisResult fuseResultsForTesting(
@@ -304,9 +333,15 @@ class AnalysisCoordinator {
 
   Future<AnalysisResult?> analyzeIncrementalL3(String fullText) async {
     if (!_l3Analyzer.isReady) {
+      SystemLogger.instance.log(LogCategory.model, 'Đang khởi tạo L3 Analyzer (Gemini API)...');
       await _l3Analyzer.initialize();
+      if (_l3Analyzer.isReady) {
+        SystemLogger.instance.log(LogCategory.model, 'L3 Analyzer đã sẵn sàng.');
+      } else {
+        SystemLogger.instance.log(LogCategory.model, 'L3 Analyzer khởi tạo thất bại.', level: LogLevel.error);
+      }
     }
-    if (_l3Analyzer.processedTextLength == 0) {
+    if (!_l3Analyzer.hasActiveSession) {
       createL3Session();
     }
     final result = await _l3Analyzer.analyzeIncremental(fullText);
@@ -316,12 +351,14 @@ class AnalysisCoordinator {
     if (!result.isError) {
       return result;
     }
+    final fallbackReason = result.reason ?? 'L3 lỗi, chuyển sang L2.';
+    SystemLogger.instance.log(LogCategory.analysis, 'L3 Analyzer gặp lỗi: $fallbackReason. Tiến hành hạ cấp xuống L2...', level: LogLevel.warning);
     return AnalysisFallback.fallbackToL2(
       incrementalText: fullText.substring(
         _l3Analyzer.processedTextLength.clamp(0, fullText.length),
       ),
       fullText: fullText,
-      fallbackReason: result.reason ?? 'L3 lỗi, chuyển sang L2.',
+      fallbackReason: fallbackReason,
       isL2Ready: () => _l2Analyzer.isReady,
       initializeL2: () => _l2Analyzer.initialize(),
       runL2Analysis: _l2Analyzer.analyze,
@@ -345,9 +382,16 @@ class AnalysisCoordinator {
     required String fullText,
   }) async {
     if (!_l3Analyzer.isReady) {
+      SystemLogger.instance.log(LogCategory.model, 'Đang khởi tạo L3 Analyzer (Gemini API)...');
       await _l3Analyzer.initialize();
+      if (_l3Analyzer.isReady) {
+        SystemLogger.instance.log(LogCategory.model, 'L3 Analyzer đã sẵn sàng.');
+      } else {
+        SystemLogger.instance.log(LogCategory.model, 'L3 Analyzer khởi tạo thất bại.', level: LogLevel.error);
+      }
     }
     if (!_l3Analyzer.isReady) {
+      SystemLogger.instance.log(LogCategory.analysis, 'L3 không sẵn sàng. Tiến hành hạ cấp xuống L2...', level: LogLevel.warning);
       return AnalysisFallback.fallbackToL2(
         incrementalText: incrementalText,
         fullText: fullText,
@@ -361,10 +405,12 @@ class AnalysisCoordinator {
     if (!result.isError) {
       return result;
     }
+    final fallbackReason = result.reason ?? 'L3 lỗi, chuyển sang L2.';
+    SystemLogger.instance.log(LogCategory.analysis, 'L3 Analyzer gặp lỗi: $fallbackReason. Tiến hành hạ cấp xuống L2...', level: LogLevel.warning);
     return AnalysisFallback.fallbackToL2(
       incrementalText: incrementalText,
       fullText: fullText,
-      fallbackReason: result.reason ?? 'L3 lỗi, chuyển sang L2.',
+      fallbackReason: fallbackReason,
       isL2Ready: () => _l2Analyzer.isReady,
       initializeL2: () => _l2Analyzer.initialize(),
       runL2Analysis: _l2Analyzer.analyze,

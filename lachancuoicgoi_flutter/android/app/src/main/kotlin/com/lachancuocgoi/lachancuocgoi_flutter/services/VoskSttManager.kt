@@ -76,6 +76,7 @@ class VoskSttManager(
         if (isDestroyed) return
         _modelLoadState.value = ModelLoadState.Loading
         val sourcePath = MODEL_ASSET_PATHS[assetPathIndex]
+        NativeBridgeEventSink.sendLog(TAG, "Đang tải mô hình Vosk offline từ asset $sourcePath...", "INFO")
         
         modelScope.launch(Dispatchers.IO) {
             StorageService.unpack(
@@ -109,10 +110,12 @@ class VoskSttManager(
                                 retryCount = 0
                                 _modelLoadState.value = ModelLoadState.Ready(16000.0f)
                                 Log.d(TAG, "Vosk model initialized successfully")
+                                NativeBridgeEventSink.sendLog(TAG, "Mô hình Vosk offline đã sẵn sàng.", "INFO")
                             }
                         } catch (e: Exception) {
                             try { unpackedModel.close() } catch (_: Exception) {}
                             Log.e(TAG, "Failed to create Vosk Recognizer in background", e)
+                            NativeBridgeEventSink.sendLog(TAG, "Lỗi tạo Vosk Recognizer: ${e.message}", "ERROR")
                             handler.post {
                                 if (isDestroyed) return@post
                                 val nextAssetPathIndex = assetPathIndex + 1
@@ -122,6 +125,7 @@ class VoskSttManager(
                                         "Failed to load Vosk model from $sourcePath, trying fallback",
                                         e,
                                     )
+                                    NativeBridgeEventSink.sendLog(TAG, "Lỗi tải Vosk model từ $sourcePath, đang thử fallback...", "WARN")
                                     initModel(nextAssetPathIndex)
                                 } else {
                                     retryCount++
@@ -147,6 +151,7 @@ class VoskSttManager(
                             "Failed to unpack Vosk model from $sourcePath, trying fallback",
                             exception,
                         )
+                        NativeBridgeEventSink.sendLog(TAG, "Lỗi giải nén Vosk model từ $sourcePath, đang thử fallback...", "WARN")
                         initModel(nextAssetPathIndex)
                         return@unpack
                     }
@@ -158,6 +163,7 @@ class VoskSttManager(
                         retriesRemaining,
                     )
                     Log.e(TAG, "Failed to unpack Vosk model", exception)
+                    NativeBridgeEventSink.sendLog(TAG, "Lỗi giải nén Vosk model: ${exception?.message}", "ERROR")
                     if (retryCount < MAX_RETRIES) {
                         handler.postDelayed({ initModel() }, RETRY_DELAY_MS)
                     }
@@ -231,16 +237,22 @@ class VoskSttManager(
 
     fun destroy() {
         isDestroyed = true
+        // Bug #37 fix: route close() calls through the main looper so they
+        // serialize with any in-flight model init (which also posts on the
+        // main handler). Previously, calling close() from a non-main thread
+        // while modelScope was still running could close the model WHILE
+        // init was loading it → JNI native crash. By posting close() to the
+        // main handler we ensure strict ordering.
         handler.removeCallbacksAndMessages(null)
-        try {
-            modelScope.cancel()
-        } catch (_: Exception) {}
-        recognizer?.close()
-        recognizer = null
-        model?.close()
-        model = null
-        _isReady.value = false
-        _isProcessing.value = false
-        _modelLoadState.value = ModelLoadState.Loading
+        handler.post {
+            try { modelScope.cancel() } catch (_: Exception) {}
+            try { recognizer?.close() } catch (_: Exception) {}
+            recognizer = null
+            try { model?.close() } catch (_: Exception) {}
+            model = null
+            _isReady.value = false
+            _isProcessing.value = false
+            _modelLoadState.value = ModelLoadState.Loading
+        }
     }
 }

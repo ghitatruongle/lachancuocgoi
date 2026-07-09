@@ -109,13 +109,20 @@ class SafetyFilter {
       final String text;
       if (assetProvider != null) {
         text = await assetProvider(configFile);
+      } else if (assetLoader != null) {
+        text = await assetLoader.loadString('assets/$configFile');
       } else {
-        if (assetLoader == null) {
-          throw StateError(
-            'AssetLoader is null. Phải cung cấp AssetLoader để load config.',
+        // BUG-L2-5 fix: Neither assetLoader nor assetProvider provided.
+        // Instead of throwing StateError (which disables the entire safety
+        // filter), gracefully fall back to the hardcoded defaults already
+        // defined as static fields. Log so callers can diagnose missing deps.
+        if (logger != null) {
+          logger.warning(
+            '[SafetyFilter] No AssetLoader provided — using hardcoded defaults',
           );
         }
-        text = await assetLoader.loadString('assets/$configFile');
+        _rebuildNormalizedLists();
+        return;
       }
       final decoded = jsonDecode(text);
       if (decoded is! Map) return;

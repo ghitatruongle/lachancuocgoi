@@ -43,27 +43,21 @@ void main() {
       expect(longCCCD.tokensMap, isEmpty);
     });
 
-    test('prevents memory leak by capping tokensMap at 200 entries', () {
-      // Generate a string with 210 unique phone numbers.
-      // E.g., "0900000001, 0900000002, ..."
+    test('throws StateError when tokensMap exceeds 500 entries', () {
+      // Generate a string with 510 unique phone numbers to exceed the new 500 limit.
       final buffer = StringBuffer();
-      for (int i = 1; i <= 210; i++) {
+      for (int i = 1; i <= 510; i++) {
         final numStr = i.toString().padLeft(7, '0');
         buffer.write('09$numStr ');
       }
 
-      final res = PIIStripper.redactPII(buffer.toString());
-
-      // Check that tokensMap length is capped at 200
-      expect(res.tokensMap.length, lessThanOrEqualTo(200));
-      expect(res.tokensMap.length, equals(200));
-
-      // The first few numbers (1 to 10) should have been evicted to make room.
-      expect(res.tokensMap.values, isNot(contains('090000001')));
-      expect(res.tokensMap.values, isNot(contains('090000010')));
-      // The last few numbers should be present
-      expect(res.tokensMap.values, contains('090000200'));
-      expect(res.tokensMap.values, contains('090000210'));
+      // BUG FIX (Bug #5): The old behavior silently evicted the oldest tokens,
+      // causing placeholders like [SO_DIEN_THOAI_1] to leak into restored text.
+      // The new behavior throws a clear StateError instead.
+      expect(
+        () => PIIStripper.redactPII(buffer.toString()),
+        throwsA(isA<StateError>()),
+      );
     });
   });
 }

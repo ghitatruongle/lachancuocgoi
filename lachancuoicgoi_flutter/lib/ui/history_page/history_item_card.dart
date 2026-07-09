@@ -69,14 +69,18 @@ class HistoryItemCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
 
-                      // Summary
-                      Text(
-                        item.summary,
-                        style: tt.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+                      // Summary — wrap in Semantics so screen reader reads
+                      // the full text even when visually truncated.
+                      Semantics(
+                        label: item.summary,
+                        child: Text(
+                          item.summary,
+                          style: tt.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
 

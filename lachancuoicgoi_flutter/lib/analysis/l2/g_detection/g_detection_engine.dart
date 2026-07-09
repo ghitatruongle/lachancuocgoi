@@ -4,6 +4,7 @@ import 'dart:isolate';
 
 import '../../../core/risk_level.dart';
 import '../../../core/asset_loader.dart';
+import '../../../core/noop_asset_loader.dart';
 import '../../../core/logger.dart';
 import '../../../core/lru_cache.dart';
 import '../../analysis_result.dart';
@@ -21,7 +22,7 @@ class GDetectionEngine {
     AssetLoader? assetLoader,
     AppLogger? logger,
     GDetectionAssetProvider? assetProvider,
-  }) : _assetLoader = assetLoader,
+  }) : _assetLoader = assetLoader ?? const NoopAssetLoader(),
        _logger = logger,
        _assetProvider = assetProvider;
 
@@ -36,7 +37,7 @@ class GDetectionEngine {
 
   static const int _topicConfirmationThreshold = 3;
 
-  final AssetLoader? _assetLoader;
+  final AssetLoader _assetLoader;
   final AppLogger? _logger;
   GDetectionAssetProvider? _assetProvider;
 
@@ -564,11 +565,7 @@ class GDetectionEngine {
       final result = await provider(fileName);
       return result;
     }
-    if (_assetLoader == null) {
-      throw StateError(
-        'AssetLoader is null. Phải cung cấp AssetLoader hoặc provider cho $fileName.',
-      );
-    }
+    // BUG-L2-5 fix: _assetLoader now non-nullable with NoopAssetLoader default.
     return _assetLoader.loadString('assets/$fileName');
   }
 }

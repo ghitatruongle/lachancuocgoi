@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -73,6 +74,12 @@ class BackgroundMonitoringService : Service() {
 
     @Volatile private var isMonitoringActive = false
     @Volatile private var isStopping = false
+
+    // Bug #15 fix: per-source last-update timestamps. Used by the transcript
+    // combine block to drop stale partials when switching engines mid-call.
+    @Volatile private var lastSttUpdateMs: Long = 0L
+    @Volatile private var lastPartialUpdateMs: Long = 0L
+    @Volatile private var lastAccUpdateMs: Long = 0L
 
     // Audio focus management
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -146,15 +153,43 @@ class BackgroundMonitoringService : Service() {
 
         when (intent?.action) {
             ACTION_START -> {
-                // ALWAYS call startForeground immediately to satisfy Android requirements when launched via startForegroundService
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    startForeground(
+                // Bug #8 fix: on Android 13+ (TIRAMISU), if the user has not
+                // granted POST_NOTIFICATIONS, calling startForeground crashes
+                // with MissingForegroundServiceTypeException or
+                // ForegroundServiceStartNotAllowedException. Check upfront
+                // (best-effort) and fall back to a heads-up notification if
+                // missing.
+                val hasNotifPerm = checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+                    PackageManager.PERMISSION_GRANTED
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotifPerm) {
+                    Log.w(TAG, "POST_NOTIFICATIONS not granted — service will run in degraded mode without foreground promotion")
+                    NativeBridgeEventSink.sendLog(
+                        TAG,
+                        "Thiếu quyền thông báo — service sẽ chạy ở chế độ degraded.",
+                        "WARN",
+                    )
+                    // Skip startForeground entirely. The Service will keep
+                    // running but Android may kill it sooner than with a
+                    // foreground promotion. Surface this state to Flutter so
+                    // the UI can warn the user.
+                    NativeBridgeEventSink.sendMonitoringState("DEGRADED_NO_NOTIFICATION")
+                } else {
+                    // ALWAYS call startForeground immediately to satisfy Android
+                    // requirements when launched via startForegroundService.
+                    val foregroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                    } else {
+                        0
+                    }
+                    val promoted = ForegroundServiceLauncher.safeStartForeground(
+                        this,
                         NOTIFICATION_ID,
                         createMonitoringNotification("Đang sẵn sàng bảo vệ..."),
-                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                        foregroundType,
                     )
-                } else {
-                    startForeground(NOTIFICATION_ID, createMonitoringNotification("Đang sẵn sàng bảo vệ..."))
+                    if (!promoted) {
+                        Log.w(TAG, "startForeground failed — service is running but not as foreground")
+                    }
                 }
 
                 if (isMonitoringActive || isStopping) {
@@ -183,6 +218,7 @@ class BackgroundMonitoringService : Service() {
     @Suppress("DEPRECATION")
     private fun startMonitoring() {
         Log.d(TAG, "Starting dual-source monitoring.")
+        NativeBridgeEventSink.sendLog(TAG, "Khởi chạy dịch vụ bảo vệ cuộc gọi ngầm (Google STT + Vosk)...", "INFO")
         isMonitoringActive = true
         isRunning = true
         isStopping = false
@@ -227,30 +263,51 @@ class BackgroundMonitoringService : Service() {
             hadAudioFocus = false
         }
 
+        // Bug #20 fix: snapshot the speakerphone state BEFORE any audio
+        // mode change. The previous code captured it after the focus
+        // request, which can flip the audio mode from MODE_NORMAL to
+        // MODE_IN_COMMUNICATION and back, leaving isSpeakerphoneOn in an
+        // unstable state. Capture early so the restore at stopMonitoring()
+        // is deterministic.
         wasSpeakerphoneOn = audioManager.isSpeakerphoneOn
         speakerphoneChangedByService = false
-        if (shouldEnableSpeakerphone) {
-            enableSpeakerphone()
-            Log.d(TAG, "Speakerphone enabled for monitoring")
-        }
 
         monitoringJob = serviceScope.launch {
             // Reduced from 1000ms to 100ms — just enough for service to stabilize
             // without losing the first second of the call.
             delay(100)
 
+            // Bug #9 fix: removed the redundant enableSpeakerphone() call that
+            // used to run before this launch block. Only enable once, here,
+            // after the audio mode has had time to settle. The pre-launch
+            // call was duplicating work AND sometimes racing with the audio
+            // mode switch (would silently fail then succeed a moment later).
             if (shouldEnableSpeakerphone) {
                 enableSpeakerphone()
+                Log.d(TAG, "Speakerphone enabled for monitoring")
+                NativeBridgeEventSink.sendLog(
+                    TAG,
+                    "Bật loa ngoài để giám sát cuộc gọi.",
+                    "INFO",
+                )
             }
 
-            // Speakerphone enforcement loop
+            // Speakerphone enforcement loop — Bug #9 fix: increased from 2s
+            // to 5s. The 2s cadence was wasteful CPU on long calls (a 1h call
+            // = 1800 needless polls). 5s is responsive enough that the user
+            // won't notice any gap.
             launch {
                 while (isActive) {
                     if (shouldEnableSpeakerphone && !audioManager.isSpeakerphoneOn) {
                         Log.w(TAG, "Speakerphone was disabled! Re-enabling...")
+                        NativeBridgeEventSink.sendLog(
+                            TAG,
+                            "Phát hiện loa ngoài bị tắt. Tiến hành tự động kích hoạt lại...",
+                            "WARN",
+                        )
                         enableSpeakerphone()
                     }
-                    delay(2000)
+                    delay(SPEAKERPHONE_ENFORCEMENT_INTERVAL_MS)
                 }
             }
 
@@ -296,40 +353,63 @@ class BackgroundMonitoringService : Service() {
             // displayed text is "<cumulative>\n<partial>" when a partial is
             // present, otherwise just the cumulative. The isPartial flag tells
             // the UI that the result may still change.
+            //
+            // Bug #15 fix: track per-source timestamps and ignore a partial
+            // whose source has gone stale (e.g. user switched from Google STT
+            // to Vosk — the old Google partial shouldn't suddenly appear in
+            // the Vosk session). Each tick captures `now`; partials older than
+            // [MAX_PARTIAL_AGE_MS] are dropped from the composed output.
             transcriptCollectorJob = launch {
+                // Bug #15 fix (revised): removed separate timestamp observer
+                // coroutines. They caused an infinite loop: combine emits →
+                // Flutter updates TranscriptionHub → TranscriptionHub emits
+                // → observer updates timestamp → combine fires again.
+                // Instead, track timestamps inline: each time a new value
+                // arrives from a source, update its timestamp. The combine
+                // lambda receives the new value AND the timestamp in the
+                // same invocation, so staleness is always evaluated on the
+                // value that triggered the emission.
                 combine(
                     speechToTextManager.fullTranscriptFlow,
                     speechToTextManager.textResults,
-                    TranscriptionHub.transcriptFlow
+                    TranscriptionHub.transcriptFlow,
                 ) { stt, partial, acc ->
-                    // Build the cumulative string from STT (Google) or
-                    // TranscriptionHub (accessibility) — whichever is longer.
+                    val now = System.currentTimeMillis()
+                    // Update per-source timestamp when a new value arrives.
+                    if (stt.isNotBlank()) lastSttUpdateMs = now
+                    if (partial.isNotBlank()) lastPartialUpdateMs = now
+                    if (acc.isNotBlank()) lastAccUpdateMs = now
+
+                    val sttFresh = (now - lastSttUpdateMs) < MAX_PARTIAL_AGE_MS
+                    val partialFresh = (now - lastPartialUpdateMs) < MAX_PARTIAL_AGE_MS
+                    val accFresh = (now - lastAccUpdateMs) < MAX_PARTIAL_AGE_MS
+
+                    val safeStt = if (sttFresh) stt else ""
+                    val safeAcc = if (accFresh) acc else ""
+                    val safePartial = if (partialFresh) partial else ""
+
                     val cumulative = when {
-                        stt.isNotBlank() && acc.isNotBlank() -> {
-                            if (stt.length >= acc.length) stt else acc
-                        }
-                        stt.isNotBlank() -> stt
-                        acc.isNotBlank() -> acc
+                        safeStt.isNotBlank() && safeAcc.isNotBlank() ->
+                            if (safeStt.length >= safeAcc.length) safeStt else safeAcc
+                        safeStt.isNotBlank() -> safeStt
+                        safeAcc.isNotBlank() -> safeAcc
                         else -> ""
                     }
-                    // Compose final display: cumulative + (partial on a new line).
-                    // If both are blank we return null and skip the emit.
                     val composed = if (cumulative.isNotBlank()) {
-                        if (partial.isNotBlank()) "$cumulative\n$partial" else cumulative
+                        if (safePartial.isNotBlank()) "$cumulative\n$safePartial" else cumulative
                     } else {
-                        partial
+                        safePartial
                     }
                     if (composed.isBlank()) {
                         null
                     } else {
-                        TranscriptUpdate(text = composed, isPartial = partial.isNotBlank())
+                        TranscriptUpdate(text = composed, isPartial = safePartial.isNotBlank())
                     }
                 }.collect { update ->
                     val u = update ?: return@collect
                     synchronized(transcriptLock) {
                         currentTranscript = u.text
                     }
-                    // Stream transcript to Flutter with partial flag
                     NativeBridgeEventSink.sendTranscript(u.text, u.isPartial)
                 }
             }
@@ -432,6 +512,16 @@ class BackgroundMonitoringService : Service() {
             disableSpeakerphone()
         }
         releaseWakeLock()
+        // Bug #10 fix: also cancel the watchdog alarm here. Previously,
+        // onDestroy() left both PendingIntents scheduled (request codes 0
+        // and 1) even though the service was going away. The alarm kept
+        // firing every 5 min, waking the device from Doze, just to see
+        // isRunning=false and no-op. Wasted battery.
+        // Cancel only if we're NOT intentionally stopping — if the user
+        // requested stop, stopMonitoring() already cancelled.
+        if (!isStopping) {
+            cancelWatchdogAlarm()
+        }
         // If we're being destroyed but not intentionally stopped, the watchdog
         // will detect the stale persisted flag and restart us.
     }
@@ -458,9 +548,9 @@ class BackgroundMonitoringService : Service() {
         if (isMonitoringActive && !isStopping) {
             updateNotification("Lá chắn vẫn đang hoạt động...")
             persistMonitoringActive(true)
-            scheduleWatchdogAlarm()
-            // Also use setAlarmClock which has higher priority than setInexactRepeating
-            // and is not subject to background restrictions.
+            // Bug fix: only use setAlarmClock (higher priority, exempt from permission)
+            // Previously both setInexactRepeating and setAlarmClock were scheduled,
+            // causing duplicate alarms to fire every 5 minutes.
             scheduleExactWatchdogAlarm()
         }
     }
@@ -476,17 +566,13 @@ class BackgroundMonitoringService : Service() {
         )
         val triggerAt = System.currentTimeMillis() + WATCHDOG_INTERVAL_MINUTES * 60 * 1000L
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                // Fall back to inexact if exact alarms not permitted
-                alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent
-                )
-            } else {
-                alarmManager.setAlarmClock(
-                    AlarmManager.AlarmClockInfo(triggerAt, pendingIntent),
-                    pendingIntent
-                )
-            }
+            // Bug fix: always use setAlarmClock (exempt from SCHEDULE_EXACT_ALARM permission)
+            // Previously, code checked canScheduleExactAlarms() which is redundant for
+            // setAlarmClock() and caused fallback to less reliable setAndAllowWhileIdle().
+            alarmManager.setAlarmClock(
+                AlarmManager.AlarmClockInfo(triggerAt, pendingIntent),
+                pendingIntent
+            )
         } catch (e: SecurityException) {
             Log.w(TAG, "Cannot schedule exact alarm, falling back", e)
             alarmManager.setAndAllowWhileIdle(
@@ -608,6 +694,10 @@ class BackgroundMonitoringService : Service() {
                                 transientFocusLoss = false
                                 wasListeningBeforeTransientLoss = false
                                 speechToTextManager.stopListening()
+                                
+                                // Bug fix: abandon focus request to prevent listener leak
+                                // (previously only set hadAudioFocus=false, leaving request in AudioManager)
+                                releaseAudioFocus()
                             }
                         }
                     }
@@ -673,16 +763,15 @@ class BackgroundMonitoringService : Service() {
         getSharedPreferences(WATCHDOG_PREFS, Context.MODE_PRIVATE)
 
     private fun persistMonitoringActive(active: Boolean) {
-        getWatchdogPrefs().edit().putBoolean(KEY_MONITORING_WAS_ACTIVE, active).apply()
+        val editor = getWatchdogPrefs().edit().putBoolean(KEY_MONITORING_WAS_ACTIVE, active)
         if (!active) {
             // Sprint 2 (B6): also clear the last-known start params so
             // the watchdog does not resurrect a stale session.
-            getWatchdogPrefs().edit()
-                .remove(KEY_WATCHDOG_PHONE_NUMBER)
+            editor.remove(KEY_WATCHDOG_PHONE_NUMBER)
                 .remove(KEY_WATCHDOG_SPEAKERPHONE)
-                .apply()
             cancelWatchdogAlarm()
         }
+        editor.apply()
     }
 
     /**
@@ -712,29 +801,12 @@ class BackgroundMonitoringService : Service() {
         )
         // Check every 5 minutes; use inexact to be battery-friendly
         val intervalMs = WATCHDOG_INTERVAL_MINUTES * 60 * 1000L
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            alarmManager.setInexactRepeating(
-                AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + intervalMs,
-                intervalMs,
-                pendingIntent
-            )
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            alarmManager.setInexactRepeating(
-                AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + intervalMs,
-                intervalMs,
-                pendingIntent
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            alarmManager.setRepeating(
-                AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + intervalMs,
-                intervalMs,
-                pendingIntent
-            )
-        }
+        alarmManager.setInexactRepeating(
+            AlarmManager.RTC_WAKEUP,
+            System.currentTimeMillis() + intervalMs,
+            intervalMs,
+            pendingIntent
+        )
         Log.d(TAG, "Watchdog alarm scheduled every ${WATCHDOG_INTERVAL_MINUTES}m.")
     }
 
@@ -771,6 +843,21 @@ class BackgroundMonitoringService : Service() {
         private const val FOCUS_RESUME_COOLDOWN_MS = 500L
         /** Delay before actually resuming STT after focus gain. */
         private const val FOCUS_RESUME_DELAY_MS = 600L
+        /** Bug #9 fix: speakerphone enforcement loop interval (was 2000ms). */
+        private const val SPEAKERPHONE_ENFORCEMENT_INTERVAL_MS = 5000L
+        /**
+         * Bug #15 fix: maximum age of a partial transcript before it is
+         * considered stale and dropped from the composed output. When the
+         * user switches STT engine mid-call (Google → Vosk, or vice versa)
+         * the previous engine's last partial can briefly leak through; this
+         * window ensures we drop it within a reasonable time.
+         *
+         * Bug fix (review): 3s was too short — Google STT can take 5-10s
+         * to emit a partial on slow networks. Increased to 10s to avoid
+         * dropping legitimate partials while still catching stale ones from
+         * engine switches.
+         */
+        private const val MAX_PARTIAL_AGE_MS = 10_000L
 
         /**
          * Tuple produced by the transcript-collector combine block. Emitted to

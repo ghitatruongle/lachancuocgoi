@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:permission_handler/permission_handler.dart';
+import '../core/system_logger.dart';
 import 'native_bridge_interface.dart';
 import 'simulator/simulator_scripts.dart';
 
@@ -22,6 +23,7 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
       StreamController<TranscriptUpdate>.broadcast();
   final _iosRmsController = StreamController<double>.broadcast();
   final _iosCallEventController = StreamController<CallEvent>.broadcast();
+  final _iosLogsController = StreamController<String>.broadcast();
 
   void _startSimulation() {
     _iosSimulationTimer?.cancel();
@@ -94,6 +96,7 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
     if (!_iosTranscriptController.isClosed) _iosTranscriptController.close();
     if (!_iosRmsController.isClosed) _iosRmsController.close();
     if (!_iosCallEventController.isClosed) _iosCallEventController.close();
+    if (!_iosLogsController.isClosed) _iosLogsController.close();
   }
 
   @override
@@ -153,19 +156,19 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
 
   @override
   Future<bool> showRedAlert(String reason) async {
-    debugPrint('iOS Simulation: RED ALERT displayed - \$reason');
+    SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: RED ALERT displayed - $reason');
     return true;
   }
 
   @override
   Future<bool> showOrangeAlert(String reason) async {
-    debugPrint('iOS Simulation: ORANGE ALERT displayed - \$reason');
+    SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: ORANGE ALERT displayed - $reason');
     return true;
   }
 
   @override
   Future<bool> dismissAlert() async {
-    debugPrint('iOS Simulation: Alert dismissed');
+    SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: Alert dismissed');
     return true;
   }
 
@@ -207,12 +210,12 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
 
   @override
   Future<void> showIncomingCallOverlay(String callerInfo) async {
-    debugPrint('iOS Simulation: Incoming Call Overlay shown - \$callerInfo');
+    SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: Incoming Call Overlay shown - $callerInfo');
   }
 
   @override
   Future<void> dismissIncomingCallOverlay() async {
-    debugPrint('iOS Simulation: Incoming Call Overlay dismissed');
+    SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: Incoming Call Overlay dismissed');
   }
 
   @override
@@ -228,4 +231,7 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
 
   @override
   Stream<CallEvent> get callEventStream => _iosCallEventController.stream;
+
+  @override
+  Stream<String> get logsStream => _iosLogsController.stream;
 }

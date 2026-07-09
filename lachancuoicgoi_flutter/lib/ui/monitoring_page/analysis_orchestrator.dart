@@ -1,12 +1,11 @@
 import 'dart:async' show Completer, Timer, Future;
 
-import 'package:flutter/foundation.dart' show debugPrint;
-
 import '../../analysis/analysis_coordinator.dart';
 import '../../analysis/analysis_level.dart';
 import '../../analysis/analysis_mode.dart';
 import '../../analysis/analysis_result.dart';
 import '../../core/risk_level.dart';
+import '../../core/system_logger.dart';
 
 /// Manages analysis debouncing, execution, and re-analysis queue.
 ///
@@ -37,14 +36,17 @@ class AnalysisOrchestrator {
   String? _pendingReanalysisText;
   Completer<void>? _analysisCompleter;
   int _analysisGeneration = 0;
+  bool _disposed = false;
 
   /// Whether an analysis is currently in-flight.
   bool _isAnalyzing = false;
   bool get isAnalyzing => _isAnalyzing;
+  bool get disposed => _disposed;
 
   /// Runs a single full analysis of the current transcript.
   /// Uses Completer to deduplicate concurrent calls.
   Future<void> ensureAnalysisComplete() async {
+    if (_disposed) return;
     final text = _getTranscript();
     if (text.trim().isEmpty) return;
     _analysisDebounce?.cancel();
@@ -54,9 +56,16 @@ class AnalysisOrchestrator {
       try {
         await existing.future;
       } on Exception {
-        // Swallow
+        // Swallow — we still want to attempt a fresh analysis below with
+        // the latest transcript.
       }
-      return;
+      // BUG FIX (Bug #2): Previously this method returned immediately
+      // after waiting for the existing analysis, which meant the final
+      // transcript text (which may have changed since the in-flight
+      // analysis started) was never analyzed before persisting to history.
+      // Now we fall through to run a fresh analysis on the latest text
+      // when the existing analysis was for an older snapshot.
+      if (_disposed) return;
     }
     final completer = Completer<void>();
     _analysisCompleter = completer;
@@ -74,8 +83,10 @@ class AnalysisOrchestrator {
 
   /// Schedules debounced real-time incremental analysis.
   void scheduleRealTimeAnalysis(String text) {
+    if (_disposed) return;
     _analysisDebounce?.cancel();
     _analysisDebounce = Timer(const Duration(milliseconds: 1200), () async {
+      if (_disposed) return;
       final textForRun = text;
       final effectiveMode = _getEffectiveMode();
       if (textForRun.trim().isEmpty) return;
@@ -93,7 +104,7 @@ class AnalysisOrchestrator {
           effectiveMode,
         );
 
-        if (myGeneration != _analysisGeneration) return;
+        if (_disposed || myGeneration != _analysisGeneration) return;
 
         _onResult(result, effectiveMode);
 
@@ -104,7 +115,8 @@ class AnalysisOrchestrator {
           scheduleRealTimeAnalysis(pendingText);
         }
       } on Object catch (e) {
-        debugPrint('AnalysisOrchestrator._runRealTimeAnalysis failed: $e');
+        if (_disposed) return;
+        SystemLogger.instance.log(LogCategory.analysis, 'AnalysisOrchestrator._runRealTimeAnalysis failed: $e', level: LogLevel.error);
         // Propagate fallback result on error
         _onError(
           const AnalysisResult(
@@ -127,6 +139,7 @@ class AnalysisOrchestrator {
   }
 
   Future<void> _runFullAnalysis() async {
+    if (_disposed) return;
     final myGeneration = ++_analysisGeneration;
     _isAnalyzing = true;
     try {
@@ -134,11 +147,11 @@ class AnalysisOrchestrator {
         _getTranscript(),
         _getEffectiveMode(),
       );
-      if (myGeneration == _analysisGeneration) {
-        _onResult(result, _getEffectiveMode());
-      }
+      if (_disposed || myGeneration != _analysisGeneration) return;
+      _onResult(result, _getEffectiveMode());
     } on Object catch (e) {
-      debugPrint('AnalysisOrchestrator._runAnalysis failed: $e');
+      if (_disposed) return;
+      SystemLogger.instance.log(LogCategory.analysis, 'AnalysisOrchestrator._runAnalysis failed: $e', level: LogLevel.error);
       if (myGeneration == _analysisGeneration) {
         _onError(
           const AnalysisResult(
@@ -167,5 +180,12 @@ class AnalysisOrchestrator {
     _pendingReanalysisText = null;
     _analysisCompleter = null;
     _isAnalyzing = false;
+  }
+
+  /// Disposes resources and cancels callbacks.
+  void dispose() {
+    _disposed = true;
+    _analysisDebounce?.cancel();
+    _analysisDebounce = null;
   }
 }

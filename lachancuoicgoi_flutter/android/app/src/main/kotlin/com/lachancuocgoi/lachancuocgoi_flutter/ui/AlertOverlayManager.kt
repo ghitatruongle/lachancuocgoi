@@ -15,6 +15,7 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -27,19 +28,14 @@ import android.widget.TextView
 
 object AlertOverlayManager {
 
-    private var windowManager: WindowManager? = null
-    private var alertOverlayView: View? = null
+    // Bug #11, #12 fix: use OverlayWindow helper for view lifecycle + use
+    // MediaPlayer guarded with try/finally to ensure release() runs even if
+    // prepare() throws.
+    private val overlayWindow = OverlayWindow()
 
     private var alarmPlayer: MediaPlayer? = null
     private val heavyVibrationHandler = Handler(Looper.getMainLooper())
     private var heavyVibrationRunnable: Runnable? = null
-
-    private fun getWindowManager(context: Context): WindowManager {
-        if (windowManager == null) {
-            windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        }
-        return windowManager!!
-    }
 
     private fun dpToPx(context: Context, dp: Int): Int {
         return TypedValue.applyDimension(
@@ -60,23 +56,11 @@ object AlertOverlayManager {
     private fun showAlert(context: Context, color: Int, title: String, summary: String, isRed: Boolean) {
         removeAlertOverlay(context)
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
-            },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.CENTER }
-
         val rootLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(dpToPx(context, 24), dpToPx(context, 24), dpToPx(context, 24), dpToPx(context, 24))
-            
+
             // Slide down animation setup
             translationY = -200f
             alpha = 0f
@@ -150,42 +134,49 @@ object AlertOverlayManager {
             ))
         }
 
-        alertOverlayView = rootLayout
-        try {
-            getWindowManager(context).addView(rootLayout, params)
-            
-            // Animation
-            ObjectAnimator.ofFloat(rootLayout, "translationY", 0f).apply {
-                duration = 300
-                interpolator = DecelerateInterpolator()
-                start()
-            }
-            ObjectAnimator.ofFloat(rootLayout, "alpha", 1f).apply {
-                duration = 300
-                start()
-            }
-
-            if (isRed) {
-                startHeavyVibration(context)
-                playAlarmSound(context)
-            } else {
-                vibrate(context)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("AlertOverlayManager", "Failed to show alert overlay", e)
-            alertOverlayView = null
+        // Bug #11, #12 fix: route through OverlayWindow helper which handles
+        // addView failures and the weak reference. On attach failure we
+        // explicitly stop the alarm sound (Bug #12 fix) to avoid the audio
+        // playing without a visible overlay.
+        val attached = overlayWindow.attachOverlay(
+            context,
+            rootLayout,
+            height = WindowManager.LayoutParams.WRAP_CONTENT,
+            gravity = Gravity.CENTER,
+            flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        )
+        if (!attached) {
+            android.util.Log.e("AlertOverlayManager", "Failed to attach alert overlay — stopping alarm")
             stopAlarmSound()
             stopHeavyVibration(context)
+            return
+        }
+
+        // Animation
+        ObjectAnimator.ofFloat(rootLayout, "translationY", 0f).apply {
+            duration = 300
+            interpolator = DecelerateInterpolator()
+            start()
+        }
+        ObjectAnimator.ofFloat(rootLayout, "alpha", 1f).apply {
+            duration = 300
+            start()
+        }
+
+        if (isRed) {
+            startHeavyVibration(context)
+            playAlarmSound(context)
+        } else {
+            vibrate(context)
         }
     }
 
     fun removeAlertOverlay(context: Context) {
         stopAlarmSound()
         stopHeavyVibration(context)
-        alertOverlayView?.let {
-            try { getWindowManager(context).removeView(it) } catch (_: Exception) {}
-            alertOverlayView = null
-        }
+        overlayWindow.detach()
     }
 
     private fun vibrate(context: Context) {
@@ -233,12 +224,17 @@ object AlertOverlayManager {
 
     private fun playAlarmSound(context: Context) {
         stopAlarmSound()
-        try {
-            val alarmUri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                ?: return
+        val alarmUri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            ?: return
 
-            alarmPlayer = MediaPlayer().apply {
+        // Bug #12 fix: wrap MediaPlayer construction + setDataSource + prepare
+        // in try/finally so `release()` runs even if `prepare()` throws
+        // (which can happen on devices where the alarm URI is invalid or
+        // the codec fails). Previously the catch block set alarmPlayer=null
+        // but the partially-constructed MediaPlayer leaked.
+        val player = try {
+            MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ALARM)
@@ -249,23 +245,34 @@ object AlertOverlayManager {
                 isLooping = true
                 setVolume(1.0f, 1.0f)
                 prepare()
-                start()
             }
         } catch (e: Exception) {
-            alarmPlayer = null
+            Log.w("AlertOverlayManager", "Failed to create MediaPlayer for alarm", e)
+            null
+        }
+        if (player == null) return
+
+        // Set the field BEFORE start() so any racing stopAlarmSound() call
+        // sees the player and can release it.
+        alarmPlayer = player
+        try {
+            player.start()
+        } catch (e: Exception) {
+            Log.w("AlertOverlayManager", "MediaPlayer.start() failed — releasing", e)
+            stopAlarmSound()
         }
     }
 
     private fun stopAlarmSound() {
-        alarmPlayer?.let { player ->
-            try {
-                if (player.isPlaying) player.stop()
-            } catch (_: Exception) {}
-            try {
-                player.release()
-            } catch (_: Exception) {}
-        }
+        val player = alarmPlayer
         alarmPlayer = null
+        if (player == null) return
+        try {
+            if (player.isPlaying) player.stop()
+        } catch (_: Exception) { /* ignore */ }
+        try {
+            player.release()
+        } catch (_: Exception) { /* ignore */ }
     }
 
     private fun getVibrator(context: Context): Vibrator? {

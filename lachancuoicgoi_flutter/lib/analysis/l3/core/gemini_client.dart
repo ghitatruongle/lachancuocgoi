@@ -7,6 +7,7 @@ import 'gemini_config.dart';
 import 'gemini_metrics.dart';
 import 'key_health_tracker.dart';
 import 'operation_result.dart';
+import '../../../../core/system_logger.dart';
 
 typedef GeminiRequestExecutor =
     Future<String> Function({
@@ -109,6 +110,11 @@ class GeminiClient {
         List<int>.generate(keys.length, (index) => index);
     if (activeIndices.isEmpty) {
       _notifyAllKeysExhausted();
+      SystemLogger.instance.log(
+        LogCategory.model,
+        'Tất cả các API key của Gemini đều hết hạn mức (Quota) hoặc lỗi.',
+        level: LogLevel.error,
+      );
       return Result.failure(
         StateError(
           'All API keys are in COOLDOWN/EXHAUSTED. Quota resets at 00:00.',
@@ -130,6 +136,7 @@ class GeminiClient {
       ) {
         final modelName = _fallbackModels[modelIndex];
         try {
+          SystemLogger.instance.log(LogCategory.model, 'Đang gửi prompt phân tích tới Gemini ($modelName)...');
           final responseText = await _requestExecutor(
             apiKey: apiKey,
             config: config,
@@ -144,6 +151,7 @@ class GeminiClient {
           keyHealthTracker?.recordTokenUsage(keyIndex, estimatedTokens);
 
           _recordSuccess();
+          SystemLogger.instance.log(LogCategory.model, 'Gemini phản hồi thành công ($modelName).');
           GeminiMetrics.instance.recordCall(
             success: true,
             latencyMs: DateTime.now().difference(startTime).inMilliseconds,
@@ -156,6 +164,11 @@ class GeminiClient {
           _recordFailure();
 
           final errorType = _classifyError(error);
+          SystemLogger.instance.log(
+            LogCategory.model,
+            'Lỗi gọi Gemini ($modelName): ${error.toString().split('\n').first}. Loại: ${errorType.name}',
+            level: LogLevel.warning,
+          );
           if (errorType == GeminiErrorType.auth) {
             keyHealthTracker?.markInvalid(keyIndex, error.toString());
             break;

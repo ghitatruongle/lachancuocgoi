@@ -82,6 +82,7 @@ class TipsLessonPage extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Quay lại',
           onPressed: () => context.go('/'),
         ),
         title: Row(

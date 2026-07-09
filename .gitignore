@@ -86,3 +86,10 @@ tailieu/
 .cursor/
 .cline/
 .windsurf/
+
+# Sensitive files and local backups
+lachancuoicgoi_flutter/hoso/
+hoso/
+.git-backup-pre-bfg/
+thuyet_trinh.html
+*.html
