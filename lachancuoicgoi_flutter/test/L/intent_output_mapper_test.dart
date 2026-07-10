@@ -303,6 +303,110 @@ void main() {
     });
   });
 
+  group('IntentOutputMapper - name-based labelOrder (model 23-class)', () {
+    /// The real model order from accuracy_per_label.md + stage34 CSV.
+    /// 23 classes — fakeEcommerce/cryptoDrain are NOT in the model.
+    final modelLabelOrder = <ScamIntent>[
+      ScamIntent.authPoliceLawsuit,   // 0
+      ScamIntent.taxGovApp,           // 1
+      ScamIntent.telecomLock,         // 2
+      ScamIntent.techSupportHijack,   // 3
+      ScamIntent.hospitalEmergency,   // 4
+      ScamIntent.virtualKidnapping,   // 5
+      ScamIntent.ceoFraudB2b,         // 6
+      ScamIntent.socialDeepfakeLoan,  // 7
+      ScamIntent.romanceScam,         // 8
+      ScamIntent.sextortionBlackmail, // 9
+      ScamIntent.charityDonation,     // 10
+      ScamIntent.investmentScam,      // 11
+      ScamIntent.jobTaskScam,         // 12
+      ScamIntent.giftLottery,         // 13
+      ScamIntent.gamblingPrediction,  // 14
+      ScamIntent.immigrationVisaScam, // 15
+      ScamIntent.bankCardFraud,       // 16
+      ScamIntent.deliveryCod,         // 17
+      ScamIntent.fakeSubscription,    // 18
+      ScamIntent.blackCreditTerror,   // 19
+      ScamIntent.recoveryScam,        // 20
+      ScamIntent.genericScam,         // 21 ← NOT fakeEcommerce
+      ScamIntent.safe,                // 22 ← NOT cryptoDrain
+    ];
+
+    test('predictionsFromLogits with labelOrder: index 16 → bankCardFraud', () {
+      final logits = List<double>.filled(modelLabelOrder.length, 0.0);
+      logits[16] = 10.0; // Model says BANK_CARD_FRAUD
+
+      final predictions = IntentOutputMapper.predictionsFromLogits(
+        logits,
+        labelOrder: modelLabelOrder,
+      );
+
+      expect(predictions.first.intent, ScamIntent.bankCardFraud);
+      expect(predictions.first.confidence, greaterThan(0.9));
+    });
+
+    test('predictionsFromLogits with labelOrder: index 21 → genericScam (not fakeEcommerce)', () {
+      final logits = List<double>.filled(modelLabelOrder.length, 0.0);
+      logits[21] = 10.0; // Model says GENERIC_SCAM
+
+      final predictions = IntentOutputMapper.predictionsFromLogits(
+        logits,
+        labelOrder: modelLabelOrder,
+      );
+
+      expect(predictions.first.intent, ScamIntent.genericScam);
+      expect(predictions.first.intent, isNot(ScamIntent.fakeEcommerce));
+    });
+
+    test('predictionsFromLogits with labelOrder: index 22 → safe (not cryptoDrain)', () {
+      final logits = List<double>.filled(modelLabelOrder.length, 0.0);
+      logits[22] = 10.0; // Model says SAFE
+
+      final predictions = IntentOutputMapper.predictionsFromLogits(
+        logits,
+        labelOrder: modelLabelOrder,
+      );
+
+      expect(predictions.first.intent, ScamIntent.safe);
+      expect(predictions.first.intent, isNot(ScamIntent.cryptoDrain));
+    });
+
+    test('labelOrder=null falls back to global intentLabels (25 entries)', () {
+      final logits = List<double>.filled(intentLabels.length, 0.0);
+      logits[0] = 10.0;
+
+      final predictions = IntentOutputMapper.predictionsFromLogits(logits);
+
+      expect(predictions.length, intentLabels.length); // 25, not 23
+      expect(predictions.first.intent, intentLabels[0]);
+    });
+
+    test('calibratedPredictions with labelOrder: index 16 → bankCardFraud', () {
+      final raw = List<num>.filled(modelLabelOrder.length, 0);
+      raw[16] = 200; // uint8 for BANK_CARD_FRAUD
+
+      final predictions = IntentOutputMapper.calibratedPredictions(
+        raw,
+        outputType: IntentOutputType.uint8,
+        scale: 0.1,
+        zeroPoint: 128,
+        labelOrder: modelLabelOrder,
+      );
+
+      expect(predictions.first.intent, ScamIntent.bankCardFraud);
+    });
+
+    test('decodeFlatOutput with labelOrder uses modelLabelOrder length', () {
+      final shortTensor = List<num>.filled(modelLabelOrder.length, 1.0);
+      final result = IntentOutputMapper.decodeFlatOutput(
+        shortTensor,
+        labelOrder: modelLabelOrder,
+      );
+      // When labelOrder is provided, output length = labelOrder.length (23)
+      expect(result.length, modelLabelOrder.length);
+    });
+  });
+
   group('IntentOutputMapper full pipeline', () {
     test(
       'decodeFlatOutput + predictionsFromLogits produces sorted predictions',

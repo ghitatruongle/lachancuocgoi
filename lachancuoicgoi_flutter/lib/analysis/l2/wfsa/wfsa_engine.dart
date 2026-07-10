@@ -106,6 +106,68 @@ class WfsaEngine {
   String? activeScenarioName;
   int? activeScenarioStage;
 
+  /// Graph ID of the active (highest-scoring) scenario, tracked alongside
+  /// [activeScenarioName] for intent lookup via [_graphIdToIntent].
+  String? activeScenarioGraphId;
+
+  /// Maps graph ID prefixes to their primary [ScamIntent].
+  /// Used by [activeScenarioIntent] for context-priority fusion in L2.
+  /// Keyed by prefix so that e.g. 'G_BANK_01' matches 'G_BANK'.
+  static const Map<String, ScamIntent> _graphPrefixToIntent = {
+    'G_POLICE': ScamIntent.authPoliceLawsuit,
+    'G_VNEID': ScamIntent.taxGovApp,
+    'G_TELECOM': ScamIntent.telecomLock,
+    'G_TECH': ScamIntent.techSupportHijack,
+    'G_HOSPITAL': ScamIntent.hospitalEmergency,
+    'G_KIDNAP': ScamIntent.virtualKidnapping,
+    'G_CEO': ScamIntent.ceoFraudB2b,
+    'G_DEEPFAKE': ScamIntent.socialDeepfakeLoan,
+    'G_ROMANCE': ScamIntent.romanceScam,
+    'G_SEXTORT': ScamIntent.sextortionBlackmail,
+    'G_CHARITY': ScamIntent.charityDonation,
+    'G_INVEST': ScamIntent.investmentScam,
+    'G_JOB': ScamIntent.jobTaskScam,
+    'G_LOTTERY': ScamIntent.giftLottery,
+    'G_GAMBLE': ScamIntent.gamblingPrediction,
+    'G_VISA': ScamIntent.immigrationVisaScam,
+    'G_BANK': ScamIntent.bankCardFraud,
+    'G_SHIP': ScamIntent.deliveryCod,
+    'G_SUB': ScamIntent.fakeSubscription,
+    'G_CREDIT': ScamIntent.blackCreditTerror,
+    'G_RECOVERY': ScamIntent.recoveryScam,
+    'G_GENERIC': ScamIntent.genericScam,
+    'G_ECOMMERCE': ScamIntent.fakeEcommerce,
+    'G_CRYPTO': ScamIntent.cryptoDrain,
+    'INV_FOREX': ScamIntent.investmentScam,
+    'INV_CRYPTO': ScamIntent.cryptoDrain,
+    'INV_MLM': ScamIntent.investmentScam,
+    'INV_JOB': ScamIntent.jobTaskScam,
+    'INV_STOCK': ScamIntent.investmentScam,
+    'INV_ICO': ScamIntent.cryptoDrain,
+    'INV_SKIN': ScamIntent.investmentScam,
+    'INV_PONZI': ScamIntent.investmentScam,
+    'ROM_DATING': ScamIntent.romanceScam,
+    'ROM_GIFT': ScamIntent.romanceScam,
+    'ROM_INVEST': ScamIntent.romanceScam,
+    'ROM_EMERGENCY': ScamIntent.romanceScam,
+    'ROM_PASSPORT': ScamIntent.romanceScam,
+    'ROM_CUSTOMS': ScamIntent.romanceScam,
+  };
+
+  /// Returns the primary [ScamIntent] of the active scenario, or null if no
+  /// scenario is active or its graph ID has no known intent mapping.
+  ScamIntent? get activeScenarioIntent {
+    final graphId = activeScenarioGraphId;
+    if (graphId == null) return null;
+    // Try exact match first (handles full graph IDs like 'G_BANK_01').
+    for (final entry in _graphPrefixToIntent.entries) {
+      if (graphId.startsWith(entry.key)) {
+        return entry.value;
+      }
+    }
+    return null;
+  }
+
   void resetSession() {
     _currentSessionStates.clear();
     _graphScores.clear();
@@ -336,6 +398,7 @@ class WfsaEngine {
     if (bestEntry == null || bestEntry.value <= 0) {
       activeScenarioName = null;
       activeScenarioStage = null;
+      activeScenarioGraphId = null;
       return;
     }
 
@@ -347,6 +410,7 @@ class WfsaEngine {
       }
     }
     activeScenarioName = graph?.name;
+    activeScenarioGraphId = bestEntry.key;
     final currentStateId = _currentSessionStates[bestEntry.key];
     final stateNode = graph?.states[currentStateId];
     activeScenarioStage = stateNode == null ? null : stateNode.stage.index + 1;
