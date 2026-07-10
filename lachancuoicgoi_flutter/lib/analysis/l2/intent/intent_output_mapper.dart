@@ -22,6 +22,37 @@ class MultiLabelResult {
 class IntentOutputMapper {
   const IntentOutputMapper._();
 
+  /// Parse a labels.txt file (one ScamIntent name per line, matching the
+  /// TFLite model's output tensor class order) into a [ScamIntent] list.
+  ///
+  /// This is the critical bridge between the trained model's class ordering
+  /// and the app's [ScamIntent] enum. Without it, the code assumes
+  /// `intentLabels[i] == model neuron i`, which breaks when intents are added
+  /// to the enum without retraining the model.
+  ///
+  /// Lines starting with `#` or empty lines are ignored.
+  /// Throws [ArgumentError] if any line is not a valid [ScamIntent] name.
+  static List<ScamIntent> parseLabelFile(String content) {
+    final labels = <ScamIntent>[];
+    for (final rawLine in content.split(RegExp(r'\r?\n'))) {
+      final line = rawLine.trim();
+      if (line.isEmpty || line.startsWith('#')) continue;
+      final intent = ScamIntent.values.cast<ScamIntent?>().firstWhere(
+        (e) => e?.name == line,
+        orElse: () => null,
+      );
+      if (intent == null) {
+        throw ArgumentError.value(
+          line,
+          'label',
+          'Unknown ScamIntent name in labels file',
+        );
+      }
+      labels.add(intent);
+    }
+    return labels;
+  }
+
   /// Platt scaling parameters (sigmoid calibration).
   /// calibrated = 1 / (1 + exp(a * logit + b))
   /// Default a=-1.2, b=0.3 — gentle calibration that reduces overconfidence
@@ -93,14 +124,15 @@ class IntentOutputMapper {
     IntentOutputType outputType = IntentOutputType.float32,
     double scale = 1,
     int zeroPoint = 0,
+    List<ScamIntent>? labelOrder,
   }) {
-    // Use min(rawOutput, intentLabels) to handle model/intent count mismatch.
-    // New intents added to intentLabels that the model doesn't know about
-    // will simply not get logits (default 0).
-    final classCount = math.min(rawOutput.length, intentLabels.length);
+    // When labelOrder is provided (from model_labels.txt), use it to size the
+    // output. Otherwise fall back to intentLabels for backward compatibility.
+    final labels = labelOrder ?? intentLabels;
+    final classCount = math.min(rawOutput.length, labels.length);
     if (classCount == 0) return const <double>[];
 
-    final logits = List<double>.filled(intentLabels.length, 0);
+    final logits = List<double>.filled(labels.length, 0);
     for (var i = 0; i < classCount; i++) {
       final rawValue = rawOutput[i];
       logits[i] = switch (outputType) {
@@ -113,14 +145,18 @@ class IntentOutputMapper {
     return logits;
   }
 
-  static List<IntentPrediction> predictionsFromLogits(List<double> logits) {
+  static List<IntentPrediction> predictionsFromLogits(
+    List<double> logits, {
+    List<ScamIntent>? labelOrder,
+  }) {
     if (logits.isEmpty) return const <IntentPrediction>[];
-    final classCount = math.min(logits.length, intentLabels.length);
+    final labels = labelOrder ?? intentLabels;
+    final classCount = math.min(logits.length, labels.length);
     final probabilities = softmax(logits.take(classCount).toList());
     final predictions = <IntentPrediction>[];
     for (var i = 0; i < classCount; i++) {
       predictions.add(
-        IntentPrediction(intent: intentLabels[i], confidence: probabilities[i]),
+        IntentPrediction(intent: labels[i], confidence: probabilities[i]),
       );
     }
     predictions.sort((a, b) => b.confidence.compareTo(a.confidence));
@@ -133,19 +169,22 @@ class IntentOutputMapper {
     IntentOutputType outputType = IntentOutputType.float32,
     double scale = 1,
     int zeroPoint = 0,
+    List<ScamIntent>? labelOrder,
   }) {
+    final labels = labelOrder ?? intentLabels;
     final logits = decodeFlatOutput(
       rawOutput,
       outputType: outputType,
       scale: scale,
       zeroPoint: zeroPoint,
+      labelOrder: labelOrder,
     );
     if (logits.isEmpty) return const <IntentPrediction>[];
     final calibrated = plattCalibrate(logits);
     final predictions = <IntentPrediction>[];
-    for (var i = 0; i < calibrated.length; i++) {
+    for (var i = 0; i < calibrated.length && i < labels.length; i++) {
       predictions.add(
-        IntentPrediction(intent: intentLabels[i], confidence: calibrated[i]),
+        IntentPrediction(intent: labels[i], confidence: calibrated[i]),
       );
     }
     predictions.sort((a, b) => b.confidence.compareTo(a.confidence));

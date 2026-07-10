@@ -1,7 +1,7 @@
 name: lachancuocgoi_flutter
 description: Flutter port dự kiến của dự án La Chắn Cuộc Gọi.
 publish_to: "none"
-version: 1.5.0+11
+version: 1.5.1+12
 
 environment:
   sdk: ">=3.9.0 <4.0.0"
@@ -44,6 +44,7 @@ flutter:
     - assets/logo.png
     - assets/ghitav3.tflite
     - assets/vocab.txt
+    - assets/model_labels.txt
     - assets/vocabulary_ai_check.json
     - assets/bigram_corrections.json
     - assets/phrase_patterns.json

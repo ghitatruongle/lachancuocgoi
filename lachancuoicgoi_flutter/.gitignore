@@ -67,6 +67,7 @@ env.json
 .cursor/
 .cline/
 .windsurf/
+.zcode/
 
 # Sensitive files - never push to git
 hoso/

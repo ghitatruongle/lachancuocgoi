@@ -464,6 +464,7 @@ class L2Analyzer implements Analyzer {
     );
 
     return _tryCrossValidationOverride(fusionCtx) ??
+        _tryContextPriorityOverride(fusionCtx) ??
         _tryAiHighConfidence(fusionCtx) ??
         _tryAiDirectWinner(fusionCtx) ??
         _tryFuseWithContext(fusionCtx) ??
@@ -508,7 +509,54 @@ class L2Analyzer implements Analyzer {
     );
   }
 
-  /// #2 Priority — AI High Confidence (≥ 80%): AI tự tin scam → trực tiếp
+  /// #2 Priority — Context-Priority Override: WFSA đã match scenario cụ thể
+  /// (score >= 50) với intent khác AI, và AI không nói safe → dùng label của
+  /// WFSA scenario (context) thay vì AI label. Defense-in-depth: ngay cả khi
+  /// model misclassify (e.g. bank fraud → cryptoDrain), context đúng vẫn thắng
+  /// cho LABEL. Risk level = max(aiRisk, contextRisk).
+  AnalysisResult? _tryContextPriorityOverride(_IntentFusionContext ctx) {
+    final wfsaIntent = _wfsaEngine.activeScenarioIntent;
+    if (wfsaIntent == null) return null;
+
+    // Only override when WFSA has a strong match (score >= 50 → RED).
+    if (_wfsaEngine.currentRiskScore < 50.0) return null;
+
+    // Don't fire if AI agrees with context (no conflict to resolve).
+    if (ctx.prediction.intent == wfsaIntent) return null;
+
+    // Don't fire if AI says safe — that's handled by Cross-validation Override.
+    final isSafeIntent =
+        ctx.prediction.intent == ScamIntent.safe ||
+        ctx.intentRisk == RiskLevel.green;
+    if (isSafeIntent) return null;
+
+    final wfsaLabel = wfsaIntent.displayName;
+    final wfsaRisk = wfsaIntent.baseRiskLevel;
+    final aiLabel = ctx.intentLabel;
+    final mergedRisk = _maxRisk(wfsaRisk, ctx.result2.overallRiskLevel);
+
+    final overrideMatches = <KeywordMatch>[
+      KeywordMatch(
+        keyword: wfsaLabel,
+        level: mergedRisk,
+        category:
+            'Context ưu tiên (WFSA ≥ 50) — AI đề xuất: $aiLabel (${(ctx.prediction.confidence * 100).toInt()}%)',
+      ),
+      ...ctx.result2.matches,
+    ];
+    return AnalysisResult(
+      overallRiskLevel: _maxRisk(mergedRisk, ctx.intentRisk),
+      matches: _distinctMatches(overrideMatches),
+      reason:
+          '⚠️ ${wfsaLabel.toUpperCase()} — ${wfsaIntent.description.toUpperCase()} '
+          '(Context ưu tiên, AI đề xuất: ${aiLabel.toUpperCase()})',
+      analysisLevel: AnalysisLevel.l2Fused,
+      alertEnabled: true,
+      confidence: ctx.prediction.confidence,
+    );
+  }
+
+  /// #3 Priority — AI High Confidence (≥ 80%): AI tự tin scam → trực tiếp
   /// quyết định, merge keyword matches.
   AnalysisResult? _tryAiHighConfidence(_IntentFusionContext ctx) {
     final isSafeIntent =

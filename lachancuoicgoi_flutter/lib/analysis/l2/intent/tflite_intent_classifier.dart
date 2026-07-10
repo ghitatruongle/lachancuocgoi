@@ -20,6 +20,7 @@ class TFLiteIntentClassifier implements IntentClassifier {
     AppLogger? logger,
     this.modelAsset = 'assets/ghitav3.tflite',
     this.vocabAsset = 'assets/vocab.txt',
+    this.labelsAsset = 'assets/model_labels.txt',
   }) : _assetLoader = assetLoader ?? const NoopAssetLoader(),
        _logger = logger;
 
@@ -27,6 +28,7 @@ class TFLiteIntentClassifier implements IntentClassifier {
   final AppLogger? _logger;
   final String modelAsset;
   final String vocabAsset;
+  final String labelsAsset;
 
   Isolate? _isolate;
   SendPort? _isolateSendPort;
@@ -74,6 +76,7 @@ class TFLiteIntentClassifier implements IntentClassifier {
     ReceivePort? responsePort;
     try {
       final vocab = await _loadVocab();
+      final modelLabelOrder = await _loadModelLabels();
       // BUG-L2-5 fix: _assetLoader now non-nullable with NoopAssetLoader default.
       final ByteData modelData = await _assetLoader.load(modelAsset);
       final Uint8List modelBytes = modelData.buffer.asUint8List(
@@ -100,6 +103,7 @@ class TFLiteIntentClassifier implements IntentClassifier {
         _IsolateInitRequest(
           modelBytes: modelBytes,
           vocab: vocab,
+          modelLabelOrder: modelLabelOrder ?? const <ScamIntent>[],
           replyPort: responsePort.sendPort,
         ),
       );
@@ -234,6 +238,29 @@ class TFLiteIntentClassifier implements IntentClassifier {
     }
     return vocab;
   }
+
+  /// Load model_labels.txt — the explicit model output class ordering.
+  /// This replaces the fragile positional mapping (intentLabels[i] == neuron i)
+  /// that broke when fakeEcommerce/cryptoDrain were inserted into the enum,
+  /// shifting genericScam/safe out of the model's 23-class range.
+  ///
+  /// Returns null if the file is missing/empty → falls back to intentLabels
+  /// (legacy positional mapping). A non-null result with wrong count triggers
+  /// a hard guard in the isolate (see _isolateMain).
+  Future<List<ScamIntent>?> _loadModelLabels() async {
+    try {
+      final labelsText = await _assetLoader.loadString(labelsAsset);
+      final parsed = IntentOutputMapper.parseLabelFile(labelsText);
+      if (parsed.isEmpty) return null;
+      return parsed;
+    } on Object catch (e) {
+      _logger?.warning(
+        '[TFLiteIntentClassifier] Failed to load model labels ($labelsAsset): $e. '
+        'Falling back to positional intentLabels mapping.',
+      );
+      return null;
+    }
+  }
 }
 
 /// Isolate entry point
@@ -247,10 +274,14 @@ void _isolateMain(SendPort mainSendPort) async {
   double outputScale = 1;
   int outputZeroPoint = 0;
   int numClasses = 0;
+  List<ScamIntent> modelLabelOrder = const <ScamIntent>[];
+  bool isModelAligned = false;
 
   await for (final dynamic message in isolateReceivePort) {
     if (message is _IsolateInitRequest) {
       try {
+        modelLabelOrder = message.modelLabelOrder;
+
         final threadCount = Platform.numberOfProcessors.clamp(1, 4).toInt();
         final options = InterpreterOptions()..threads = threadCount;
         interpreter = Interpreter.fromBuffer(
@@ -261,11 +292,27 @@ void _isolateMain(SendPort mainSendPort) async {
         final outputTensor = interpreter.getOutputTensor(0);
         numClasses = outputTensor.shape.isEmpty ? 0 : outputTensor.shape.last;
 
-        if (numClasses != intentLabels.length) {
+        // HARD GUARD: If the model's class count doesn't match the label file,
+        // the index→intent mapping is unreliable. Disable AI predictions to
+        // prevent misclassification (e.g. bank fraud → crypto drain).
+        // Previously this only logged a warning and continued with a
+        // positional mapping that silently shifted when intents were added.
+        if (modelLabelOrder.isEmpty) {
           debugPrint(
-            '[TFLiteIntent] Model output classes ($numClasses) != app intents (${intentLabels.length}). '
-            'Using min($numClasses, ${intentLabels.length}) classes.',
+            '[TFLiteIntent] No model labels provided — cannot safely map '
+            'output indices to intents. AI path disabled.',
           );
+          isModelAligned = false;
+        } else if (numClasses != modelLabelOrder.length) {
+          debugPrint(
+            '[TFLiteIntent] FATAL: Model output classes ($numClasses) != '
+            'label file (${modelLabelOrder.length}). '
+            'Index→intent mapping is unreliable — AI path DISABLED to prevent '
+            'misclassification.',
+          );
+          isModelAligned = false;
+        } else {
+          isModelAligned = true;
         }
 
         outputType = switch (outputTensor.type) {
@@ -281,7 +328,12 @@ void _isolateMain(SendPort mainSendPort) async {
 
         tokenizer = BertIntentTokenizer(message.vocab);
 
-        message.replyPort.send(const _IsolateInitResponse(isReady: true));
+        // Only report ready when model output classes match the label file.
+        // If misaligned, isModelAligned is false → _isReady stays false →
+        // AI path falls back to GDetection/WFSA (Luồng 2) automatically.
+        message.replyPort.send(
+          _IsolateInitResponse(isReady: isModelAligned),
+        );
       } on Object catch (e) {
         interpreter?.close();
         interpreter = null;
@@ -296,6 +348,18 @@ void _isolateMain(SendPort mainSendPort) async {
           const _IsolateInferenceResponse(
             predictions: <IntentPrediction>[],
             errorMessage: 'Interpreter or Tokenizer is not initialized.',
+          ),
+        );
+        continue;
+      }
+      // HARD GUARD: If the model's class count doesn't match the label file,
+      // predictions would be mapped to wrong intents. Return empty → AI path
+      // falls back to context (GDetection + WFSA).
+      if (!isModelAligned) {
+        message.replyPort.send(
+          const _IsolateInferenceResponse(
+            predictions: <IntentPrediction>[],
+            errorMessage: 'Model labels not aligned — AI path disabled.',
           ),
         );
         continue;
@@ -341,7 +405,10 @@ void _isolateMain(SendPort mainSendPort) async {
           scale: outputScale,
           zeroPoint: outputZeroPoint,
         );
-        final predictions = IntentOutputMapper.predictionsFromLogits(logits);
+        final predictions = IntentOutputMapper.predictionsFromLogits(
+          logits,
+          labelOrder: modelLabelOrder.isNotEmpty ? modelLabelOrder : null,
+        );
 
         message.replyPort.send(
           _IsolateInferenceResponse(predictions: predictions),
@@ -368,10 +435,12 @@ class _IsolateInitRequest {
   const _IsolateInitRequest({
     required this.modelBytes,
     required this.vocab,
+    required this.modelLabelOrder,
     required this.replyPort,
   });
   final Uint8List modelBytes;
   final Map<String, int> vocab;
+  final List<ScamIntent> modelLabelOrder;
   final SendPort replyPort;
 }
 

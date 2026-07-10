@@ -98,6 +98,6 @@ lachancuocgoi/                    # Repo root (monorepo)
 ## Phiên bản
 
 - **SDK**: Dart `>=3.9.0 <4.0.0` (Flutter stable)
-- **Version**: 1.5.0+11
+- **Version**: 1.5.1+12
 - **Platform chính**: Android (nhờ native overlay + Vosk STT)
 - **Platform phụ trợ**: iOS/Web/Desktop (qua simulator bridge với multi-scenario catalog + creator mode)
