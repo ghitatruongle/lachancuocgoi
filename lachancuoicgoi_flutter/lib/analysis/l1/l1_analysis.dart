@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show compute;
+
 import '../../core/risk_level.dart';
 import '../../core/logger.dart';
 import '../../core/asset_loader.dart';
@@ -10,11 +12,15 @@ import '../analysis_result.dart';
 import '../analyzer.dart';
 import '../common/fuzzy_matcher.dart';
 import '../common/text_normalizer.dart';
+import '../fallback_tracker.dart';
 import '../health_check.dart';
 import 'flat_trie.dart';
 import 'helpers/bigram_corrections_loader.dart';
 import 'l1_result.dart';
 import 'l1_safety_filter.dart';
+
+/// Top-level JSON decode function for compute() — isolates can't capture closures.
+Object? _jsonDecode(String text) => jsonDecode(text);
 
 class L1Analyzer implements Analyzer {
   L1Analyzer({
@@ -284,7 +290,9 @@ class L1Analyzer implements Analyzer {
         'assets/risk_model_vocabulary.json',
         _vocabularyProvider,
       );
-      final decoded = jsonDecode(jsonText);
+      // Offload JSON decode to a background isolate — risk_model_vocabulary.json
+      // is ~68KB and parsing it synchronously causes jank on low-end devices.
+      final decoded = await compute(_jsonDecode, jsonText);
       if (decoded is! Map<String, dynamic>) {
         _buildFallbackTrie();
         return;
@@ -321,6 +329,7 @@ class L1Analyzer implements Analyzer {
         }
       }
     } on Object catch (e) {
+      FallbackTracker.instance.increment('l1_trie');
       _logger?.warning('Failed to build trie: $e. Using fallback keywords.');
       _buildFallbackTrie();
     }
@@ -344,6 +353,7 @@ class L1Analyzer implements Analyzer {
       // Wave 3 refactor: delegated to BigramCorrectionsLoader.
       BigramCorrectionsLoader.loadFromJson(jsonText, _corrections, _logger);
     } on Object catch (e) {
+      FallbackTracker.instance.increment('l1_bigram');
       _logger?.warning('Failed to load bigram corrections: $e');
       // Already cleared at start, so _corrections remains empty on failure.
     }
@@ -372,6 +382,7 @@ class L1Analyzer implements Analyzer {
         );
       }
     } on Object catch (e) {
+      FallbackTracker.instance.increment('l1_critical_keywords');
       _logger?.warning('Failed to load critical keywords: $e. Using defaults.');
       _criticalKeywords = L1ResultParser.defaultCriticalKeywords;
     }

@@ -17,6 +17,7 @@ import androidx.annotation.NonNull
 import androidx.core.content.ContextCompat
 import com.lachancuocgoi.lachancuocgoi_flutter.audio.CreatorAudioCaptureManager
 import com.lachancuocgoi.lachancuocgoi_flutter.services.BackgroundMonitoringService
+import com.lachancuocgoi.lachancuocgoi_flutter.services.CallScreeningServiceImpl
 import com.lachancuocgoi.lachancuocgoi_flutter.services.CreatorMediaProjectionService
 import com.lachancuocgoi.lachancuocgoi_flutter.services.ForegroundServiceLauncher
 import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeEventSink
@@ -268,6 +269,28 @@ class MainActivity : FlutterActivity() {
                     }
                     "isCreatorMonitoringActive" -> {
                         result.success(isServiceRunning(CreatorMediaProjectionService::class.java))
+                    }
+                    // Phase 2 (P2-4): call screening opt-in bridge methods.
+                    "setCallScreeningBlockEnabled" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        val prefs = getSharedPreferences(
+                            CallScreeningServiceImpl.PREFS_NAME, MODE_PRIVATE
+                        )
+                        prefs.edit().putBoolean(
+                            CallScreeningServiceImpl.KEY_BLOCK_ENABLED, enabled
+                        ).apply()
+                        result.success(true)
+                    }
+                    "setBlockedNumbers" -> {
+                        val numbers = call.argument<List<String>>("numbers") ?: emptyList()
+                        val prefs = getSharedPreferences(
+                            CallScreeningServiceImpl.PREFS_NAME, MODE_PRIVATE
+                        )
+                        prefs.edit().putStringSet(
+                            CallScreeningServiceImpl.KEY_BLOCKED_NUMBERS,
+                            numbers.toSet()
+                        ).apply()
+                        result.success(true)
                     }
                     else -> {
                         result.notImplemented()

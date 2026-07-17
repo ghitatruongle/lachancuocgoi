@@ -91,6 +91,7 @@ void main() {
 
       const newState = SettingsState(
         isDarkTheme: true,
+    followSystemTheme: false,
         analysisMode: AnalysisMode.geminiApi,
         audioBoost: true,
         autoEnableSpeakerphone: true,
@@ -137,6 +138,7 @@ void main() {
     test('copies with no changes returns identical values', () {
       const state = SettingsState(
         isDarkTheme: true,
+    followSystemTheme: false,
         analysisMode: AnalysisMode.normal,
         audioBoost: true,
         autoEnableSpeakerphone: false,
@@ -154,12 +156,14 @@ void main() {
     test('copies with changes only modifies specified fields', () {
       const state = SettingsState(
         isDarkTheme: false,
+    followSystemTheme: false,
         analysisMode: AnalysisMode.normal,
         audioBoost: false,
         autoEnableSpeakerphone: false,
         creatorAudioCapture: false,
       );
-      final copy = state.copyWith(isDarkTheme: true, audioBoost: true);
+      final copy = state.copyWith(isDarkTheme: true,
+    followSystemTheme: false, audioBoost: true);
 
       expect(copy.isDarkTheme, isTrue);
       expect(copy.analysisMode, AnalysisMode.normal);

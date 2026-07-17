@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lachancuocgoi_flutter/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_mode.dart';
@@ -10,13 +11,19 @@ import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
 Widget testWrap(Widget child, {List<Override> overrides = const []}) {
   return ProviderScope(
     overrides: overrides,
-    child: MaterialApp(home: child),
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: child,
+    ),
   );
 }
 
 /// Wraps a dialog widget for testing (shows it via a button tap).
 Widget dialogWrap(Widget dialog) {
   return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
       body: Builder(
         builder: (context) {
@@ -82,6 +89,12 @@ class FakeNativeBridge implements NativeBridgeInterface {
   @override
   Future<void> dismissIncomingCallOverlay() async {}
 
+  // Phase 2 (P2-4): Call screening opt-in stubs.
+  @override
+  Future<void> setCallScreeningBlockEnabled(bool enabled) async {}
+  @override
+  Future<void> setBlockedNumbers(List<String> numbers) async {}
+
   @override
   Stream<TranscriptUpdate> get transcriptStream => const Stream.empty();
   @override
@@ -112,6 +125,7 @@ class _FakeSettingsController extends Notifier<SettingsState>
   @override
   SettingsState build() => const SettingsState(
     isDarkTheme: false,
+    followSystemTheme: false,
     analysisMode: AnalysisMode.gDetection,
     audioBoost: false,
     autoEnableSpeakerphone: false,

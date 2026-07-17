@@ -1,0 +1,142 @@
+{
+  "version": "1.1",
+  "description": "Cấu hình từ khóa phân cấp rủi ro (Tiered Risk) cho GThinking L2 — v1.1 tăng precision",
+
+  "tier1_topics": [
+    "cong an", "kiem sat", "vien kiem sat", "toa an", "bo cong an", "can bo dieu tra",
+    "lenh trieu tap", "co quan dieu tra", "canh sat dieu tra",
+    "co quan canh sat dieu tra",
+
+    "dai uy", "thieu ta", "trung ta", "thuong ta", "dai ta", "tuong",
+    "si quan", "chien si", "thu truong", "giam doc cong an",
+    "phong canh sat", "doi canh sat", "ban chuyen an",
+
+    "vneid", "dinh danh", "dinh danh dien tu", "cuc thue", "dich vu cong",
+    "cap nhat sinh trac", "nang cap dinh danh", "bao hiem xa hoi", "nfc",
+    "sinh trac", "quet khuon mat",
+
+    "khóa sim", "nhà mạng", "viễn thông", "chế độ hai chiều", "thuê bao",
+    "chặn một chiều", "cắt sim", "mạng di động",
+
+    "hỗ trợ kỹ thuật", "bộ phận kỹ thuật", "zalo bị hack", "facebook bị hack",
+    "tài khoản bị khóa", "mở khóa tài khoản", "đội ngũ bảo mật",
+
+    "cấp cứu", "tai nạn", "viện phí", "phẫu thuật", "cần mổ gấp",
+    "người nhà nhập viện", "bệnh viện gọi",
+
+    "bắt cóc", "tính mạng", "tiền chuộc", "campuchia", "bị giữ", "chuộc về",
+
+    "giám đốc đây", "sếp đây", "lãnh đạo gọi", "giám đốc đang họp",
+    "chuyển cho tài khoản đối tác", "chuyển khoản cho đối tác",
+    "hợp đồng gấp", "làm chứng từ sau",
+
+    "mượn tiền gấp", "chuyển đỡ", "mai trả", "tối trả", "đừng nói cho ai",
+    "mình kẹt tiền", "giải thích sau",
+
+    "bưu kiện từ nước ngoài", "lệ phí hải quan", "phí thông quan", "quà từ nước ngoài",
+
+    "ảnh nóng", "clip nhạy cảm", "phát tán", "tống tiền", "lộ clip",
+    "video nhạy cảm", "gửi cho danh bạ", "tung lên mạng", "đăng lên mạng",
+
+    "quyên góp", "quỹ hỗ trợ trẻ em", "tình nguyện viên", "ủng hộ từ thiện",
+    "không cần biên lai", "chuyển khoản bao nhiêu cũng được",
+
+    "sàn đầu tư", "lợi nhuận cam kết", "tiền ảo", "crypto", "forex",
+    "sàn giao dịch", "kéo lệnh", "bitcoin", "coin", "không rủi ro",
+
+    "cộng tác viên", "việc làm tại nhà", "chốt đơn", "hoa hồng",
+    "nhiệm vụ trực tuyến", "phím hàng", "like video", "đánh giá sản phẩm",
+    "nạp tiền thử nhiệm vụ", "hệ thống hoàn tiền", "kiếm hoa hồng online",
+
+    "trúng thưởng", "giải đặc biệt", "tri ân khách hàng",
+    "phần thưởng 200 triệu", "phí kiểm duyệt hồ sơ", "đóng phí nhận giải",
+    "chuyển phí trước để nhận thưởng",
+
+    "lô đề", "số đề", "cầu đề", "dự đoán xổ số", "bạch thủ",
+    "nuôi lô", "đánh đề", "soi cầu",
+
+    "visa", "xuất khẩu lao động", "xklđ", "du học", "định cư",
+    "bao đậu visa", "giấy phép lao động", "hồ sơ visa",
+
+    "giao dịch bất thường", "tài khoản bị trừ", "nâng hạn mức tín dụng",
+
+    "bưu phẩm bị giữ", "thiếu phí kiểm tra", "phí bưu điện",
+    "gói hàng bị tịch thu", "đơn hàng bị giữ",
+
+    "gói vip tự động", "trừ tiền tự động", "tự động gia hạn",
+
+    "tín dụng đen", "đòi nợ", "gọi danh bạ", "khủng bố điện thoại",
+    "tung ảnh lên mạng",
+
+    "lấy lại tiền bị lừa", "thu hồi tiền", "hỗ trợ nạn nhân lừa đảo",
+    "dịch vụ hoàn tiền", "chuyên gia thu hồi", "đóng phí luật sư",
+    "phí hỗ trợ thu hồi"
+  ],
+
+  "tier2_urgency": [
+    "khong duoc tat may", "khong duoc cat may", "giu may", "khong duoc noi voi ai",
+    "giu bi mat tuyet doi", "khong bao gia dinh", "khong duoc ra ngoai",
+    "dung de ai biet", "bi mat dieu tra",
+
+    "gấp", "ngay lập tức", "hạn chót", "quá hạn", "trong vòng",
+    "còn 24 giờ", "hết hạn", "hôm nay thôi", "còn kịp",
+    "không kịp", "sắp hết giờ",
+
+    "bị phong tỏa", "bị đóng băng", "bị tịch thu", "bị thu hồi",
+    "sẽ bị khóa", "nguy hiểm tính mạng",
+
+    "lệnh bắt", "truy nã", "khởi tố", "bắt giam",
+    "phạt tù", "trát tòa", "lệnh triệu tập khẩn",
+
+    "bắt buộc", "không được gác máy", "giữ bí mật",
+    "không được nói cho ai",
+
+    "sẽ phát tán", "gửi cho toàn bộ", "gọi hết danh bạ",
+    "khủng bố điện thoại", "sẽ bôi nhọ",
+
+    "mất trắng", "hết cơ hội", "phải nộp ngay", "phí phạt",
+    "đặt cọc giữ chỗ", "nạp tiền trước",
+
+    "phải chuyển ngay", "chuyển trước đi", "chuyển hôm nay nhận thưởng",
+    "đóng phí ngay", "nộp phí trước", "hoàn tiền sau",
+
+    "em nạp 2 triệu", "chuyển 500k trước", "chuyển vào số này",
+    "bất kỳ số tiền nào", "bao nhiêu cũng được",
+    "đóng phí làm thủ tục", "chi phí thủ tục", "đóng phí",
+    "trả phí trước", "chuyển ngay hôm nay còn kịp", "làm ngay kẻo hết hạn",
+
+    "đặt cọc", "phí luật sư",
+    "trong 2 tiếng", "trong 1 tiếng", "tự chịu", "tự chịu hậu quả"
+  ],
+
+  "tier3_pii": [
+    "mã otp", "đọc mã otp", "otp vừa gửi", "mã xác thực",
+    "mật khẩu ngân hàng", "mã pin thẻ",
+    "internet banking", "smart banking", "tài khoản ngân hàng",
+
+    "cung cấp cccd qua điện thoại", "đọc số cmnd", "chụp 2 mặt cmnd",
+    "gửi ảnh cccd", "số hộ chiếu",
+
+    "tải ứng dụng hỗ trợ", "cài app lạ", "truy cập link này",
+    "bấm vào link", "teamviewer", "anydesk", "remote desktop",
+    "chia sẻ màn hình", "cấp quyền trợ năng",
+
+    "quét khuôn mặt xác thực", "xác thực sinh trắc học",
+    "gửi ảnh selfie xác minh", "video call xác minh",
+
+    "so tai khoan de chuyen", "chuyen vao so tai khoan", "stk nhan",
+    "tai khoan tam giu", "tai khoan xac minh", "tai khoan cua co quan",
+    "chuyen vao tai khoan tam giu", "tien xac minh",
+    "tien dam bao", "dat coc xac minh",
+
+    "số tài khoản để chuyển", "chuyển vào số tài khoản", "stk nhận",
+    "tài khoản tạm giữ",
+
+    "tiền chuộc", "chuyển tiền chuộc", "chuyển ngay kẻo",
+    "nếu không chuyển",
+
+    "chuyển 500 triệu", "chuyển 100 triệu", "chuyển 50 triệu",
+    "chuyển 30 triệu", "tài khoản nhận tiền",
+    "không chuyển không gặp lại"
+  ]
+}

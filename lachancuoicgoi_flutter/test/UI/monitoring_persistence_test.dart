@@ -26,8 +26,9 @@ class ManualMockAnalysisCoordinator implements AnalysisCoordinator {
   @override
   Future<AnalysisResult> analyzeIncremental(
     String fullText,
-    AnalysisMode mode,
-  ) async => const AnalysisResult(
+    AnalysisMode mode, {
+    double? speechRate,
+  }) async => const AnalysisResult(
     overallRiskLevel: RiskLevel.green,
     matches: [],
     analysisLevel: AnalysisLevel.l1,
@@ -69,6 +70,14 @@ class ManualMockAnalysisCoordinator implements AnalysisCoordinator {
   @override
   Map<String, HealthReport> runAllHealthChecks() => {};
   @override
+  void setNetworkAvailable(bool available) {}
+  @override
+  void setSpeechRate(double charsPerSecond) {}
+  @override
+  void recordL3Rtt(Duration rtt) {}
+  @override
+  Map<String, String> healthSummary() => const {};
+  @override
   void syncProcessedTextLength(int length, [AnalysisMode? mode]) {}
 }
 
@@ -100,6 +109,11 @@ class ManualMockNativeBridge implements NativeBridgeInterface {
   Future<bool> isMonitoringActive() async => false;
   @override
   Future<bool> stopMonitoring() async => true;
+  // Phase 2 (P2-4): Call screening opt-in stubs.
+  @override
+  Future<void> setCallScreeningBlockEnabled(bool enabled) async {}
+  @override
+  Future<void> setBlockedNumbers(List<String> numbers) async {}
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

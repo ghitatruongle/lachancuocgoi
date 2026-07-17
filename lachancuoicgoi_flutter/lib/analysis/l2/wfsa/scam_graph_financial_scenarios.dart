@@ -167,7 +167,6 @@ List<ScenarioGraph> _financialScenarios() {
       ],
       triggers: <_TriggerSpec>[
         ScamGraphBuilder._tr(<String>[
-          'nợ',
           'khoản vay',
           'app vay',
           'tín dụng đen',
@@ -281,7 +280,6 @@ List<ScenarioGraph> _financialScenarios() {
           'có chuyện này',
           'ưu đãi',
           'bí mật',
-          'nghe nè',
         ], ScamIntent.genericScam),
         ScamGraphBuilder._tr(<String>[
           'tin tôi đi',

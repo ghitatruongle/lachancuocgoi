@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:vibration/vibration.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 /// Shared full-screen warning dialog used by both RedWarning and OrangeWarning.
 ///
 /// When [isUrgent] is true (RED alert), the widget plays a repeating
@@ -22,6 +24,7 @@ class FullScreenWarning extends StatefulWidget {
     required this.buttonColor,
     required this.onDismiss,
     this.isUrgent = false,
+    this.reduceMotion = false,
   });
 
   final Color color;
@@ -34,6 +37,11 @@ class FullScreenWarning extends StatefulWidget {
   /// When true, plays heavy haptic feedback in a loop to break the
   /// scammer's psychological hold on the victim (RED alert).
   final bool isUrgent;
+
+  /// Phase 2 (P2-7): when true, vibration/haptic patterns are suppressed
+  /// to respect the user's reduce-motion / accessibility setting. The
+  /// ringtone (sound) still plays — only motion/tactile feedback is skipped.
+  final bool reduceMotion;
 
   @override
   State<FullScreenWarning> createState() => _FullScreenWarningState();
@@ -49,6 +57,8 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
   }
 
   Future<void> _startAlerts() async {
+    // Phase 2 (P2-7): skip vibration/haptics when reduce-motion is active.
+    // The ringtone (sound) still plays — only tactile feedback is suppressed.
     if (widget.isUrgent) {
       // Mức độ nguy hiểm (Đỏ): Chuông báo động + Rung liên tục
       try {
@@ -59,21 +69,23 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
         // Fallback
       }
 
-      final bool hasVibrator = await Vibration.hasVibrator();
-      if (hasVibrator == true) {
-        unawaited(
-          Vibration.vibrate(
-            pattern: [0, 500, 200, 500, 200, 500],
-            intensities: [0, 255, 0, 255, 0, 255],
-            repeat: 1,
-          ),
-        );
-      } else {
-        _playHapticOnce();
-        _hapticTimer = Timer.periodic(
-          const Duration(milliseconds: 600),
-          (_) => _playHapticOnce(),
-        );
+      if (!widget.reduceMotion) {
+        final bool hasVibrator = await Vibration.hasVibrator();
+        if (hasVibrator == true) {
+          unawaited(
+            Vibration.vibrate(
+              pattern: [0, 500, 200, 500, 200, 500],
+              intensities: [0, 255, 0, 255, 0, 255],
+              repeat: 1,
+            ),
+          );
+        } else {
+          _playHapticOnce();
+          _hapticTimer = Timer.periodic(
+            const Duration(milliseconds: 600),
+            (_) => _playHapticOnce(),
+          );
+        }
       }
     } else {
       // Mức độ cảnh báo (Cam): Âm thanh thông báo + Rung 1 lần
@@ -83,11 +95,13 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
         // Fallback
       }
 
-      final bool hasVibrator = await Vibration.hasVibrator();
-      if (hasVibrator == true) {
-        unawaited(Vibration.vibrate(duration: 500));
-      } else {
-        unawaited(HapticFeedback.mediumImpact());
+      if (!widget.reduceMotion) {
+        final bool hasVibrator = await Vibration.hasVibrator();
+        if (hasVibrator == true) {
+          unawaited(Vibration.vibrate(duration: 500));
+        } else {
+          unawaited(HapticFeedback.mediumImpact());
+        }
       }
     }
   }
@@ -155,7 +169,7 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
                       ),
                     ),
                     child: Text(
-                      'ĐÃ HIỂU',
+                      AppLocalizations.of(context)!.warningDismissButton,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: widget.buttonColor,

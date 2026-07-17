@@ -79,7 +79,11 @@ class ScamGraphBuilder {
       name: name,
       states: <String, StateNode>{for (final state in states) state.id: state},
       transitions: transitions,
-      initialStateId: states.first.id,
+      initialStateId: states.isNotEmpty
+          ? states.first.id
+          : throw ArgumentError(
+              'Cannot build scam graph "$id" with empty states list.',
+            ),
     );
   }
 

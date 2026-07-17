@@ -14,6 +14,7 @@ class _FakeSettingsController extends Notifier<SettingsState>
   @override
   SettingsState build() => const SettingsState(
     isDarkTheme: false,
+    followSystemTheme: false,
     analysisMode: AnalysisMode.gDetection,
     audioBoost: false,
     autoEnableSpeakerphone: false,

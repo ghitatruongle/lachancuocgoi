@@ -1,0 +1,608 @@
+{
+  "title": "risk_model_sentences_22_groups",
+  "version": "2.5",
+  "riskLevels": [
+    {
+      "level": 0,
+      "vietnameseName": "An toàn",
+      "sentences": [
+        "Dạ, [Tên công ty] xin nghe ạ.",
+        "Em chào anh/chị, em là [Tên nhân viên] từ bộ phận [Tên bộ phận].",
+        "Em có thể hỗ trợ anh/chị vấn đề gì ạ?",
+        "Hôm nay em có thể giúp gì cho anh/chị?",
+        "Dạ, để em xác nhận lại thông tin có đúng không ạ...",
+        "Như vậy, vấn đề anh/chị đang gặp phải là... có đúng không ạ?",
+        "Anh/chị có thể vui lòng cung cấp thêm... được không ạ?",
+        "Em đã hiểu rõ vấn đề của mình rồi ạ.",
+        "Dạ vâng, em sẽ kiểm tra thông tin này ngay ạ.",
+        "Em sẽ hỗ trợ anh/chị xử lý vấn đề này.",
+        "Về vấn đề này, hướng giải quyết của chúng ta sẽ là...",
+        "Quá trình này có thể mất khoảng [Thời gian], anh/chị vui lòng chờ trong giây lát được không ạ?",
+        "Dạ, vâng ạ.",
+        "Em hiểu ạ.",
+        "Cảm ơn anh/chị đã cung cấp thông tin.",
+        "Em rất tiếc về trải nghiệm chưa tốt của anh/chị.",
+        "Cảm ơn anh/chị đã kiên nhẫn chờ đợi.",
+        "Em đã ghi nhận/xử lý xong yêu cầu của anh/chị.",
+        "Anh/chị có cần em hỗ trợ thêm vấn đề nào khác không ạ?",
+        "Cảm ơn anh/chị đã liên hệ đến [Tên công ty].",
+        "Chúc anh/chị một ngày làm việc hiệu quả / một ngày tốt lành.",
+        "Em chào anh/chị ạ.",
+        "Alo, mẹ đây, con ăn cơm chưa?",
+        "Bố ơi, con đang ở trường, chiều bố đón con nhé.",
+        "Tối nay đi ăn ở đâu vậy anh?",
+        "Mai gặp nhé, chúc ngủ ngon.",
+        "Em gửi tiền trọ tháng này cho anh rồi nhé.",
+        "Anh ơi, chiều nay họp lúc mấy giờ vậy?",
+        "Dạ em đã nhận được đơn hàng rồi ạ, cảm ơn anh.",
+        "Cuối tuần này mình đi cafe nhé?",
+        "Chị ơi, cho em hỏi giờ làm việc của bên mình.",
+        "Em đang trên đường về, khoảng 30 phút nữa tới.",
+        "Alo, đây là phòng khám [Tên], nhắc lịch tái khám của anh/chị.",
+        "Em gọi xác nhận đơn hàng số [mã đơn], giao ngày mai ạ.",
+        "Anh/chị vui lòng mang theo CCCD gốc khi đến giao dịch tại quầy.",
+        "Dạ, bên em sẽ gửi email xác nhận trong vòng 24 giờ ạ.",
+        "Tối nay mình hẹn ở quán cũ nhé.",
+        "Con gái đang ngủ rồi, mẹ đừng lo.",
+        "Anh gửi tiền xăng cho em nha, em cảm ơn.",
+        "Shipper đây ạ, em giao hàng cho anh/chị, xuống cổng nhận giùm.",
+        "Em là nhân viên bên bảo hiểm [Tên], gọi nhắc anh lịch đóng phí quý này.",
+        "Bên em gửi báo giá qua email rồi ạ, anh/chị kiểm tra giúp em.",
+        "Dạ cuộc hẹn của anh/chị vào thứ Ba tuần sau, lúc 9 giờ sáng.",
+        "Em gọi xin phép nghỉ sáng nay ạ, em bị ốm.",
+        "Alo anh, em mới chuyển khoản tiền cơm trưa cho anh rồi nha.",
+        "Dạ, em chào anh A, em là B gọi từ [Tên công ty]. Em gọi để xác nhận lịch hẹn của mình vào lúc 3 giờ chiều mai có đúng không ạ?",
+        "Chào chị B, em là nhân viên ngân hàng ABC. Bên em đang có chương trình ưu đãi lãi suất cho khách hàng thân thiết, chị có muốn nghe thêm thông tin chi tiết không ạ?",
+        "Alo, em là shipper của [Đơn vị vận chuyển]. Em đang có đơn hàng giao đến địa chỉ XYZ cho anh C. Anh có ở nhà không ạ?",
+        "(Giọng máy) Thông báo từ Viettel. Cước tháng 10 của quý khách là 150.000 đồng. Vui lòng thanh toán trước ngày 20/11. Xin cảm ơn.",
+        "Alo, D đây. Dạo này khỏe không mày? Cuối tuần rảnh không đi cà phê?"
+      ]
+    },
+    {
+      "level": 1,
+      "vietnameseName": "Chú ý",
+      "threats": {
+        "INVESTMENT_SCAM": [
+          "Anh quan tâm đến chứng khoán không?",
+          "Anh có muốn tham gia khóa học đầu tư không?",
+          "Em có cơ hội đầu tư crypto sinh lời, anh có muốn tìm hiểu không?",
+          "Chào anh, em là nhân viên tư vấn đầu tư. Anh có thể lưu số em lại để sau này có nhu cầu em hỗ trợ được không ạ?",
+          "Bên em bao lời, bao lỗ cho mình luôn."
+        ],
+        "TELECOM_LOCK": [
+          "Chào anh, em là nhân viên nhà mạng Viettel, bên em có gói cước 4G siêu rẻ chỉ 70k/tháng, anh có muốn đăng ký không ạ?",
+          "Chào anh/chị, em là nhân viên của trung tâm khảo sát ABC. Cho em hỏi gia đình mình có đang sử dụng dịch vụ internet nhà mạng nào không ạ?"
+        ],
+        "JOB_TASK_SCAM": [
+          "Ok chốt đơn cho mình nha.",
+          "Bên em tuyển cộng tác viên làm việc tại nhà.",
+          "Anh/chị có muốn kiếm thêm thu nhập online không?"
+        ],
+        "GIFT_LOTTERY": [
+          "Bên em đang có chương trình khảo sát nhanh về dịch vụ, chỉ mất một phút và có quà tặng ạ.",
+          "Chúc mừng anh đã trúng thưởng của chúng tôi.",
+          "(Giọng máy) \"Chúc mừng bạn đã trở thành khách hàng may mắn của chúng tôi. Vui lòng nhấn phím 9 để nhận quà.\"",
+          "Chào chị, em gọi từ công ty quà tặng. Cho em hỏi chị đã kết hôn chưa ạ?"
+        ],
+        "DELIVERY_COD": [
+          "Alo, em có một bưu phẩm quan trọng gửi cho anh/chị nhưng không có tên người gửi.",
+          "Chào anh, bên em có bưu kiện chuyển phát đến cho mình. Anh có ở nhà không để em giao hàng ạ?"
+        ],
+        "ROMANCE_SCAM": [
+          "Em thấy hình anh dễ thương quá, muốn làm quen.",
+          "Anh ơi, em đang ở nước ngoài, muốn gửi quà cho anh."
+        ],
+        "GAMBLING_PREDICTION": [
+          "Anh có muốn biết số đề hôm nay không?",
+          "Nhóm soi cầu bách thủ uy tín, cam kết trúng."
+        ],
+        "FAKE_SUBSCRIPTION": [
+          "Gói cước VIP của anh sắp tự động gia hạn.",
+          "Thông báo anh/chị đã đăng ký dịch vụ trả phí.",
+          "Thông báo dịch vụ xem phim trực tuyến của bạn đã được gia hạn thành công.",
+          "Tài khoản Netflix/Youtube Premium của quý khách sẽ tự động gia hạn cước phí 250k."
+        ],
+        "BLACK_CREDIT_TERROR": [
+          "Anh/chị có khoản vay chưa thanh toán.",
+          "Thông báo nợ quá hạn, vui lòng liên hệ."
+        ],
+        "RECOVERY_SCAM": [
+          "Bên em chuyên hỗ trợ lấy lại tiền cho nạn nhân lừa đảo.",
+          "Anh bị mất tiền do lừa đảo? Em có thể giúp thu hồi."
+        ],
+        "GENERIC_SCAM": [
+          "(Bạn bắt máy, đầu dây bên kia im lặng).",
+          "(Không có lời thoại, chỉ là cuộc gọi nhỡ từ số lạ +84xx hoặc quốc tế).",
+          "Alo, cho em hỏi anh/chị có phải là anh A, chủ của số điện thoại 09xx.xxx.xxx không ạ?",
+          "Alo, em đang nói chuyện với ai vậy ạ?",
+          "Alo...alo... em nghe...alo... bên em là...alo... không rõ lắm...",
+          "Anh chỉ cần chuyển khoản một ít tiền cọc để giữ chỗ thôi.",
+          "Anh chỉ cần đặt cọc một khoản tiền nhỏ để tham gia chương trình.",
+          "Anh có nhu cầu vay tiền không?",
+          "Anh/chị có thể vui lòng tham gia bình chọn cho cuộc thi... để ủng hộ không ạ?",
+          "Anh/chị yêu quý ơi...",
+          "Bên em có chương trình ưu đãi đặc biệt cho anh.",
+          "Bố/Mẹ ơi, con đây...",
+          "Cho em xin ít thông tin để em tư vấn cho anh.",
+          "Chào anh, bên em có chương trình ưu đãi đặc biệt cho các khách hàng thân thiết, anh có muốn nghe giới thiệu không ạ?",
+          "Chào anh, chúng tôi có chương trình khuyến mãi đặc biệt chỉ trong hôm nay...",
+          "Chào anh, em gọi từ trung tâm bảo hiểm. Cho em hỏi anh đang đi loại xe máy gì ạ?",
+          "Chào anh/chị, em là nhân viên chăm sóc khách hàng của [Thương hiệu bạn hay dùng].",
+          "Chào bạn, chúng tôi cần xác nhận địa chỉ email abc@email.com có phải của bạn không?",
+          "Chào bạn, mời bạn tham gia cuộc thi trí tuệ nhanh của chúng tôi để có cơ hội nhận thưởng.",
+          "Chào bạn, trung tâm chúng tôi vừa gửi một tin nhắn mã xác nhận, bạn có nhận được chưa?",
+          "Chào chị Thu, phòng khám Nha khoa ABC nhắc nhở chị lịch hẹn tái khám vào 3 giờ chiều mai nhé.",
+          "Cuộc gọi nhỡ ngắn (nháy máy) từ số lạ.",
+          "Cái này thì chắc kèo luôn anh ạ.",
+          "Câu cú lủng củng, sai chính tả trong tin nhắn.",
+          "Em giới thiệu cho anh một cơ hội kiếm tiền online.",
+          "Em gái ơi, nghe anh nói này...",
+          "Em gọi để xác nhận một thông tin rất quan trọng liên quan đến anh/chị.",
+          "Hệ thống sẽ hướng dẫn anh từng bước rất đơn giản.",
+          "Lâu rồi không gặp, anh/chị dạo này khỏe không ạ?",
+          "Phát âm sai các thuật ngữ chuyên ngành.",
+          "Ê, mày không nhớ tao à? Lúc trước mình học chung mà!"
+        ],
+        "BANK_CARD_FRAUD": [
+          "Chào chị Lan ạ, em là nhân viên ngân hàng...\" (Bạn không tên Lan)."
+        ],
+        "WORLDCUP_BETTING": [
+          "Nhóm VIP soi kèo World Cup 2026 cam kết thắng 100%, anh nhấp vào link để tham gia.",
+          "Anh có muốn mua vé xem World Cup giá rẻ không?"
+        ],
+        "CHILD_GAMING": [
+          "Cháu đưa máy cho bố mẹ hoặc đọc mã OTP gửi về máy mẹ để nhận quà game nhé."
+        ],
+        "FAKE_TOURISM": [
+          "Bên em đang xả lỗ combo du lịch Phú Quốc 3 ngày 2 đêm chỉ 999k, anh/chị cần chuyển cọc trước 50% để giữ chỗ."
+        ],
+        "AI_CHATBOT": [
+          "Alo, hệ thống chatbot AI của ngân hàng xin thông báo tài khoản của quý khách có dấu hiệu bất thường..."
+        ]
+      }
+    },
+    {
+      "level": 2,
+      "vietnameseName": "Nguy cơ",
+      "threats": {
+        "AUTH_POLICE_LAWSUIT": [
+          "Cần phải xử lý ngay bây giờ để tránh sự cố.",
+          "Số điện thoại của anh/chị bị khiếu nại là đã phát tán tin nhắn rác.",
+          "Mỗi lượt tương tác được 10.000đ, thanh toán trong ngày.",
+          "Đại úy Nguyễn Văn A đang thụ lý hồ sơ của anh/chị.",
+          "Cơ quan điều tra cần xác minh lại nhân thân của anh.",
+          "Chào chị A, em là nhân viên ngân hàng XYZ. Hệ thống của chúng tôi phát hiện một giao dịch 15 triệu từ tài khoản của chị. Để khóa giao dịch, chị vui lòng đọc giúp em số CCCD trên mặt sau ạ.",
+          "Anh D ạ, em là tổng đài VinaPhone. Sim của anh vừa bị báo cáo phát tán tin nhắn lừa đảo. Để khóa tài khoản gốc, anh cần ra cửa hàng gần nhất làm lại sim với CCCD ạ.",
+          "Chị E ạ, em gọi từ cơ quan điều tra. Tài khoản của chị có dấu hiệu liên quan đến một đường dây rửa tiền. Để tránh bị đóng băng, chị cần hợp tác với chúng tôi.",
+          "Chào chị, em là luật sư Q. Chồng của chị vừa bị công an bắt vì liên quan đến vụ án kinh doanh trái phép. Gia đình cần chuẩn bị 50 triệu để chi phí luật sư và lo lót."
+        ],
+        "BLACK_CREDIT_TERROR": [
+          "Quý khách có một khoản nợ cước chưa thanh toán, nếu không xử lý sẽ bị khóa số.",
+          "Chào anh, công ty chúng tôi đã mua lại khoản nợ của anh tại công ty F. Anh vui lòng xác nhận số dư nợ là 10 triệu và cung cấp tài khoản ngân hàng để chúng tôi gửi thông tin thanh toán mới.",
+          "Trả nợ ngay, không thì tao gọi hết danh bạ nhà mày.",
+          "Mày còn 24h để trả, không thì ảnh mày lên mạng hết."
+        ],
+        "TAX_GOV_APP": [
+          "Anh cần cập nhật hồ sơ định danh cá nhân trên ứng dụng tổng cục thuế.",
+          "Anh cần cập nhật định danh mức 2, tôi sẽ hướng dẫn qua điện thoại.",
+          "Anh thuộc diện được hoàn thuế thu nhập cá nhân.",
+          "Chi cục thuế thông báo anh có tên trong danh sách giảm thuế, nhấp vào link dịch vụ công này.",
+          "Chúc mừng anh B đã trúng giải nhất chương trình của chúng tôi là 1 chiếc xe máy Honda Vision. Để nhận prize, anh chỉ cần chuyển khoản 500.000đ tiền phí trước bạ cho bên em.",
+          "Tài khoản VNeID của anh chưa cập nhật sinh trắc học, cần làm ngay.",
+          "Tôi là công an phường, thông báo tài khoản định danh VNeID của anh bị lỗi.",
+          "Tải về phần mềm dịch vụ công tại đường link này.",
+          "Đây là thông báo liên quan đến hồ sơ thuế/bảo hiểm xã hội của quý vị."
+        ],
+        "FAKE_SUBSCRIPTION": [
+          "Chào chị, bên em là trung tâm Anh ngữ ABC. Chị đã đăng ký khóa học online của bên em. Bây giờ chị muốn hủy thì phải đóng phạt 2 triệu đồng.",
+          "Tài khoản anh sẽ bị trừ 500k/tháng nếu không hủy dịch vụ ngay.",
+          "Anh đã đăng ký gói VIP Premium, soạn NH gửi 8088 để hủy."
+        ],
+        "INVESTMENT_SCAM": [
+          "Anh chỉ cần nạp 5 triệu vào sàn là có thể bắt đầu giao dịch.",
+          "Cam kết lợi nhuận 30% mỗi tháng, không rủi ro.",
+          "Chào anh, em là chuyên gia phân tích của sàn I. Dự án X của chúng tôi sắp tăng giá gấp 10 lần. Anh nạp tiền vào tài khoản ngay hôm nay để không bỏ lỡ cơ hội.",
+          "Chúng tôi cam kết bảo hiểm vốn đầu tư chứng khoán, cam kết hoàn tiền nếu lỗ.",
+          "Chúng tôi có đội ngũ chuyên gia phân tích kèo crypto bao lời, bảo hiểm vốn 100%.",
+          "Tham gia khóa học làm giàu của thầy X để nhận tài liệu phím mã cổ phiếu tăng trần.",
+          "Tham gia phòng VIP đầu tư chứng khoán quốc tế cam kết lợi nhuận 20% mỗi tuần không rủi ro."
+        ],
+        "TELECOM_LOCK": [
+          "Chào anh/chị, chúng tôi gọi đến từ tổng đài của nhà mạng [Viettel/Mobifone/Vinaphone].",
+          "Thông báo từ Cục Viễn thông Việt Nam.",
+          "Đây là bộ phận chăm sóc khách hàng/kỹ thuật của nhà mạng.",
+          "SIM của anh sẽ bị chuyển sang chế độ hai chiều nếu không xác thực.",
+          "Thuê bao của anh bị phát hiện phát tán tin nhắn rác, cần chuẩn hóa ngay."
+        ],
+        "TECH_SUPPORT_HIJACK": [
+          "Anh cần cài ứng dụng hỗ trợ để bảo vệ tài khoản.",
+          "Bộ phận kỹ thuật phát hiện tài khoản của anh bị xâm nhập.",
+          "Chúng tôi phát hiện tài khoản của bạn đang gửi thư rác, vui lòng nhập mã OTP để xác nhận chính chủ.",
+          "Facebook của bạn vừa gửi tin nhắn yêu cầu bình chọn cuộc thi ảnh, vui lòng nhấp vào liên kết sau.",
+          "Nhân viên hỗ trợ kỹ thuật Zalo xin hướng dẫn khôi phục tài khoản bị khóa.",
+          "Tài khoản Zalo/Facebook của anh đang bị đăng nhập lạ.",
+          "Tài khoản của anh bị nghi vấn đăng nhập từ thiết bị lạ, nhấp vào đây xác nhận chính chủ."
+        ],
+        "HOSPITAL_EMERGENCY": [
+          "Bệnh viện [Tên] gọi, người nhà anh vừa nhập viện cấp cứu.",
+          "Con của anh/chị đang ở phòng cấp cứu, cần đóng viện phí gấp.",
+          "Mày là bạn của Tài phải không? Tài nó bị tai nạn đang ở bệnh viện, cần tiền gấp, mày chuyển khoản giúp tao cái.",
+          "Mẹ là mẹ của bé An lớp 3A phải không? Bé bị ngã ở trường, cần tiền đưa đi bệnh viện. Mẹ chuyển ngay cho cô giáo 2 triệu nhé."
+        ],
+        "VIRTUAL_KIDNAPPING": [
+          "Con của ông/bà đang bị giữ, không được báo công an.",
+          "Chúng tôi có con anh/chị, nếu muốn an toàn thì hợp tác."
+        ],
+        "CEO_FRAUD_B2B": [
+          "Đây là giám đốc, anh chuyển khoản gấp cho đối tác.",
+          "Tôi đang bận họp, em chuyển tiền trước đi, tối tôi duyệt."
+        ],
+        "SOCIAL_DEEPFAKE_LOAN": [
+          "Alo, em đang kẹt tiền đóng tiền cọc nhà, anh chuyển tạm cho em vài triệu nhé.",
+          "Camera máy em đang bị hỏng nên mờ, anh chuyển khoản tạm giúp em đóng viện phí.",
+          "Mai trả liền, giờ ATM bận quá không rút được.",
+          "Ơi đang kẹt tiền quá, chuyển đỡ cho anh/chị ít được không?"
+        ],
+        "GIFT_LOTTERY": [
+          "Anh vui lòng vào CH Play, tìm và cài đặt ứng dụng tên là 'Support Team' để em có thể truy cập và hướng dẫn anh nhận quà nhé.",
+          "Chúc mừng anh trúng giải đặc biệt xe SH, cần đóng phí nhận thưởng.",
+          "Chúc mừng chị đã trúng thưởng tivi 55 inch, chị nộp phí vận chuyển 500k để nhận thưởng.",
+          "Chương trình tri ân khách hàng thân thiết tặng thẻ cào và quà may mắn hoàn toàn miễn phí.",
+          "Giao dịch trúng thưởng của quý khách sẽ bị hủy bỏ nếu không nộp lệ phí."
+        ],
+        "SEXTORTION_BLACKMAIL": [
+          "Tôi có clip nhạy cảm của anh, nếu không muốn phát tán thì liên hệ.",
+          "Ảnh nóng của em sẽ bị gửi cho tất cả bạn bè nếu không hợp tác.",
+          "Alo, em nhầm số ạ... Nhưng giọng anh hay quá. Cho em làm quen được không?"
+        ],
+        "ROMANCE_SCAM": [
+          "Anh gửi bưu kiện quà cho em từ Mỹ, cần đóng phí hải quan.",
+          "Em cần tiền gấp để mua vé máy bay về gặp anh."
+        ],
+        "JOB_TASK_SCAM": [
+          "Anh chỉ cần like các video trên tiktok này là có ngay 50k mỗi video, làm nhiệm vụ nhận thêm tiền.",
+          "Anh/chị chỉ cần hoàn thành nhiệm vụ xem video youtube và like sản phẩm để nhận lương ngày 300k.",
+          "Chào bạn, bên mình đang tuyển CTV like video TikTok. Mỗi like bạn nhận 10k. Bạn chỉ cần làm nhiệm vụ đơn giản là có tiền ngay.",
+          "Chị cần nạp tiền nâng cấp gói thành viên vip để rút tiền về.",
+          "Công việc chỉ cần like video TikTok là nhận tiền ngay.",
+          "Công việc giật đơn hàng online, nạp tiền mua hàng nhận hoa hồng 15% hoàn tiền ngay lập tức.",
+          "Nhiệm vụ hôm nay: đặt cọc 2 triệu để mở khóa đơn hàng.",
+          "Tuyển cộng tác viên xử lý đơn hàng ảo cho Tiki, Shopee ăn chia hoa hồng 10% mỗi đơn."
+        ],
+        "GAMBLING_PREDICTION": [
+          "Kênh chia sẻ thuật toán soi cầu lô đề tỷ lệ chuẩn xác đến 95%.",
+          "Nhóm VIP cung cấp bạch thủ lô miền Bắc hôm nay chắc chắn trúng, liên hệ nhận số.",
+          "Nhóm VIP soi cầu lô đề, phí tham gia chỉ 500k.",
+          "Số đề hôm nay chuẩn 100%, anh đánh đi, bao trúng."
+        ],
+        "IMMIGRATION_VISA_SCAM": [
+          "Bao đậu visa Hàn Quốc, chỉ cần đặt cọc trước.",
+          "Chương trình xuất khẩu lao động Nhật Bản, đăng ký ngay kẻo hết chỗ."
+        ],
+        "RECOVERY_SCAM": [
+          "Bên em sẽ liên hệ ngân hàng thu hồi tiền cho anh, chỉ cần đóng phí hồ sơ.",
+          "Luật sư mạng sẽ truy vết giao dịch và lấy lại tiền cho anh."
+        ],
+        "BANK_CARD_FRAUD": [
+          "Alo, đây là Ngân hàng [Tên ngân hàng], chúng tôi gọi để hỗ trợ quý khách.",
+          "Thông báo từ Trung tâm Thông tin tín dụng Quốc gia (CIC).",
+          "Tôi là nhân viên từ bộ phận an ninh/quản lý rủi ro của ngân hàng.",
+          "Tài khoản của quý khách đang có giao dịch bất thường và sẽ bị tạm khóa để xác minh.",
+          "Hệ thống phát hiện tài khoản của quý khách có dấu hiệu bị xâm nhập.",
+          "Hồ sơ tín dụng của quý khách bị ghi nhận điểm xấu/bị lỗi.",
+          "Tài khoản của quý khách sắp bị đóng băng do chưa cập nhật thông tin.",
+          "Chào anh, đây là tổng đài ngân hàng ABC.",
+          "Tài khoản của anh có giao dịch bất thường cần xác minh.",
+          "Tài khoản của quý khách cần nâng cấp ngay hôm nay.",
+          "Chào anh, em là tình nguyện viên của quỹ bảo trợ trẻ em H. Chúng tôi đang kêu gọi ủng hộ cho cháu bé bị ung thư. Anh có thể chuyển một chút tấm lòng vào tài khoản 123456789 của chị P ạ.",
+          "Chào chị, chị vừa đặt một đơn hàng iPhone 15 Pro Max trị giá 30 triệu trên sàn Tiki. Để xác nhận, chị vui lòng đọc giúp em mã OTP vừa được gửi về điện thoại."
+        ],
+        "DELIVERY_COD": [
+          "Anh có gói hàng quốc tế COD cần thanh toán phí thông quan trước khi nhận.",
+          "Anh có đơn hàng COD từ Shopee trị giá 250 ngàn, anh không có nhà thì chuyển khoản vào tài khoản cá nhân này nhé.",
+          "Bên hải quan sân bay Nội Bài đây. Chúng tôi giữ một kiện hàng quốc tế gửi cho chị C, bên trong có chất cấm. Chị cần cung cấp họ tên, địa chỉ và số CCCD để chúng tôi xác minh.",
+          "Bưu phẩm của anh bị giữ lại do có vấn đề hải quan.",
+          "Bưu phẩm của quý khách sẽ bị hoàn trả nếu không xác nhận thông tin người nhận.",
+          "Bộ phận xử lý bưu phẩm quốc tế có một kiện hàng đang chờ xác nhận.",
+          "Chào chị, em giao bưu phẩm quốc tế thu hộ 150k, chị chuyển khoản qua số này rồi em gửi bảo vệ.",
+          "Chúng tôi từ công ty chuyển phát nhanh, thông báo về một bưu phẩm gửi cho anh/chị.",
+          "Em giao đơn hàng 300k thu hộ COD, anh không có nhà thì chuyển khoản em gửi bảo vệ giữ hộ."
+        ],
+        "CHARITY_DONATION": [
+          "Chuyển khoản ủng hộ trẻ em nghèo vùng cao, mỗi suất chỉ 200k.",
+          "Hội bảo trợ trẻ em mồ côi đang quyên góp tiền mua sách vở, mong anh chị chuyển khoản ủng hộ.",
+          "Quỹ từ thiện [Tên] kêu gọi quyên góp hỗ trợ đồng bào bão lũ.",
+          "Ủng hộ đồng bào bị bão lụt thiên tai, mỗi tấm lòng vàng xin gửi về tài khoản quỹ từ thiện sau."
+        ],
+        "GENERIC_SCAM": [
+          "Chúng tôi là bộ phận xử lý khiếu nại/chuẩn hóa thông tin thuê bao.",
+          "Quý khách đã được lựa chọn tham gia chương trình tri ân/đổi điểm thưởng của chúng tôi.",
+          "Chào anh/chị, Bưu điện Thành phố [Tên thành phố] gọi.",
+          "Thông báo từ Sở Thông tin và Truyền thông.",
+          "Chúng tôi gọi từ bộ phận xử lý vi phạm hành chính.",
+          "Anh/chị chỉ còn hai giờ để thực hiện.",
+          "Nếu không xác nhận trong vòng 15 phút, hệ thống sẽ tự động xử lý.",
+          "Thời hạn cuối cùng là [giờ/ngày cụ thể].",
+          "Chương trình ưu đãi sẽ kết thúc ngay hôm nay.",
+          "Yêu cầu thực hiện ngay lập tức.",
+          "Quý khách vui lòng thao tác ngay trong cuộc gọi này.",
+          "Mọi sự chậm trễ sẽ gây bất lợi cho quý khách.",
+          "Nếu quý khách ngắt máy, chúng tôi sẽ không chịu trách nhiệm.",
+          "Đây là cơ hội cuối cùng để giải quyết.",
+          "Số điện thoại của quý khách sẽ bị khóa hai chiều.",
+          "Thông tin thuê bao của quý khách không chính xác, sẽ bị tạm ngưng dịch vụ.",
+          "SIM của quý khách bị xác định là SIM rác và sẽ bị thu hồi.",
+          "Có một kiện hàng chứa hàng cấm đứng tên quý khách, cần phải làm rõ.",
+          "Anh/chị có liên quan đến một vụ vi phạm hành chính.",
+          "Thông tin căn cước công dân của anh/chị đang bị sử dụng cho một đăng ký trái phép.",
+          "Để được hỗ trợ trực tiếp, vui lòng bấm phím 9.",
+          "Bấm phím 1 để nghe thông tin chi tiết, bấm phím 2 để gặp nhân viên.",
+          "Vui lòng bấm phím thăng (#) để xác nhận yêu cầu.",
+          "Để đảm bảo an toàn, vui lòng gác máy và gọi đến số tổng đài xử lý sự cố của chúng tôi là [số điện thoại giả].",
+          "Chúng tôi sẽ nối máy cho anh/chị đến gặp bộ phận chuyên trách.",
+          "Vui lòng truy cập vào đường link chúng tôi gửi qua tin nhắn để cập nhật thông tin.",
+          "Anh/chị cần tải ứng dụng của chúng tôi để chuẩn hóa thông tin thuê bao.",
+          "Soạn tin nhắn theo cú pháp [cú pháp lạ] và gửi đến [đầu số lạ] để xác nhận.",
+          "Chúng tôi cần xác nhận thông tin của anh.",
+          "SIM của anh sẽ bị khóa nếu không chuẩn hóa thông tin.",
+          "Anh có bưu kiện cần nộp phí để nhận hàng.",
+          "Chúng tôi thông báo quý khách đã vi phạm giao thông.",
+          "Anh cần cập nhật mức 2 ngay, tôi sẽ hướng dẫn làm online không cần ra phường.",
+          "Cài đặt ứng dụng eTax Mobile tại link này để làm thủ tục nhận tiền.",
+          "Chào anh, em là kỹ thuật viên Microsoft. Hệ thống của chúng tôi phát hiện máy tính của anh bị nhiễm virus. Anh vui lòng truy cập vào trang web www.support123.com để em hỗ trợ nhé.",
+          "Chào chị, em là phòng nhân sự công ty G. CV của chị đã được duyệt. Bây giờ em xin hỏi một vài câu hỏi phỏng vấn nhanh. Chị vui lòng cho em biết số CCCD và địa chỉ thường trú của chị.",
+          "Chị ơi, em là bạn của anh K gửi quà cho chị. Em đang ở dưới chung cư, chị chuyển giúp em 200k tiền phí gửi xe để em lên giao quà ạ.",
+          "Yêu cầu tất cả khách hàng có đầu số 09x phải cập nhật lại thông tin thuê bao theo quy định mới. Vui lòng nhấn phím 1 để được nhân viên hỗ trợ.",
+          "Chào anh, em là nhân viên BHXH. Hệ thống của chúng tôi thấy sổ BHXH của anh bị sai thông tin năm sinh. Anh vui lòng cung cấp lại số sổ và CCCD để em kiểm tra lại."
+        ],
+        "WORLDCUP_BETTING": [
+          "Anh đăng ký tài khoản cá độ World Cup qua link này để được tặng 2 triệu đồng trải nghiệm.",
+          "Nhà cái uy tín world cup 2026, nạp rút nhanh chóng trong 30 giây.",
+          "Nhóm Telegram soi kèo bóng đá World Cup 2026 hôm nay có kèo chắc thắng 99%.",
+          "Đăng ký tài khoản cược world cup nhận ngay khuyến mãi 100% nạp đầu."
+        ],
+        "FAKE_TOURISM": [
+          "Bên em mở bán voucher du lịch nghỉ dưỡng 5 sao Nha Trang trọn gói chỉ 1.9 triệu, cần chuyển cọc trước 30%.",
+          "Chào chị, em là nhân viên đại lý du lịch, phòng resort Phú Quốc sắp hết rồi, chị chuyển cọc giữ phòng nhé."
+        ]
+      }
+    },
+    {
+      "level": 3,
+      "vietnameseName": "Nguy hiểm",
+      "threats": {
+        "AUTH_POLICE_LAWSUIT": [
+          "(Công an) \"Chúng tôi chuyển máy cho Viện kiểm sát để họ giải quyết.\" -> (Viện kiểm sát) \"Vụ án của chị đã được chuyển lên Tòa án. Đây là số của Thẩm phán U.\" -> (Thẩm phán) \"Để được tại ngoại, chị phải đặt cọc 200 triệu vào tài khoản của tòa.\"",
+          "Anh có liên quan đến đường dây buôn bán ma túy.",
+          "Anh cần chuyển tiền vào tài khoản của cơ quan để xác minh.",
+          "Anh vừa vượt đèn đỏ và gây tai nạn trên cao tốc, camera đã ghi lại. Tổng tiền phạt và bồi thường là 50 triệu. Anh phải chuyển tiền vào tài khoản này trong 1 giờ, nếu không chúng tôi sẽ ra lệnh truy nã.",
+          "Anh/chị bị xác định là đối tượng trong chuyên án hình sự số [số hiệu giả].",
+          "Chuyển tiền vào tài khoản của cơ quan để xác minh.",
+          "Chúng tôi có lệnh bắt tạm giam của Viện kiểm sát nhân dân tối cao đối với ông/bà.",
+          "Chị chỉ cần mua bộ sản phẩm 50 triệu và giới thiệu thêm 2 người, mỗi tháng chị sẽ có thu nhập hàng chục triệu.",
+          "Chồng của chị đang bị chúng tôi tạm giữ vì liên quan đến vụ án buôn lậu. Nếu trong 30 phút chị không chuyển 500 triệu vào tài khoản này để xử lý, chúng tôi sẽ tiến hành các thủ tục khởi tố và bắt giam luôn.",
+          "Chụp ảnh hai mặt của Căn cước công dân và gửi qua Zalo cho cán bộ.",
+          "Hồ sơ vụ án của anh đã được chuyển sang viện kiểm sát tối cao để khởi tố hình sự.",
+          "Nếu anh không hợp tác chúng tôi sẽ ra lệnh bắt tạm giam.",
+          "Nếu không làm theo, mọi hậu quả ông/bà phải tự gánh chịu.",
+          "Tài khoản của anh đang bị điều tra vì liên quan đến vụ án nghiêm trọng.",
+          "Tôi có nguồn hổ thịt, tê tê nguyên chất. Ai có nhu cầu liên hệ, giá cả thương lượng.",
+          "Tôi cần tiền gấp nên bán gấp lô đất 100m2 ở khu X giá rẻ. Anh đặt cọc 50 triệu ngay hôm nay tôi giữ đất cho anh.",
+          "Tôi là Thiếu tá M, Phòng Cảnh sát hình sự. Chúng tôi bắt được một nghi phạm mang ma túy, và trong điện thoại của nó có số của anh. Anh phải chuyển 100 triệu vào tài khoản 987654321 của chúng tôi để chúng tôi kiểm tra xem anh có dính líu không. Nếu không, chúng tôi sẽ đến bắt anh ngay.",
+          "Tôi là thiếu tá cảnh sát hình sự điều tra, anh có liên quan đến đường dây rửa tiền ma túy xuyên quốc gia.",
+          "Tôi là đại úy cơ quan cảnh sát điều tra anh có liên quan đến đường dây buôn bán ma túy.",
+          "Yêu cầu quay video khuôn mặt đọc rõ họ tên và ngày tháng năm sinh để xác minh đặc điểm nhận dạng.",
+          "Yêu cầu đối tượng giữ bảo mật tuyệt đối thông tin cuộc gọi phục vụ chuyên án mật.",
+          "Yêu cầu đối tượng tải app bảo mật của bộ công an về điện thoại để quét bảo mật tài khoản phục vụ điều tra.",
+          "Ông/bà sẽ bị khởi tố về tội rửa tiền và buôn bán ma túy.",
+          "Đây là Viện kiểm sát nhân dân tỉnh X. Chúng tôi đang ra lệnh bắt giam chị T về tội rửa tiền quốc tế. Chị phải khai báo toàn bộ số tiền trong tất cả các tài khoản ngân hàng và chuyển hết vào tài khoản của cơ quan điều tra để phong tỏa chứng cứ.",
+          "Đây là vụ án liên quan đến an ninh quốc gia anh không được nói cho ai biết.",
+          "Đây là vụ án mật cấp quốc gia. Chị phải tự mình ra ngân hàng, không được nói cho chồng con, không được nói cho nhân viên ngân hàng lý do. Chỉ cần nói là chuyển tiền cho người thân. Chúng tôi đang theo dõi chị."
+        ],
+        "VIRTUAL_KIDNAPPING": [
+          "An toàn của con cái và người thân của ông/bà phụ thuộc vào sự hợp tác này.",
+          "Chuyển 200 triệu vào tài khoản này trong 1 tiếng, không có lần thứ hai.",
+          "Cháu bán xe ô tô của chú cháu, chú mới đi nước ngoài. Xe zin 100%. Anh thích xe thì đặt cọc 20 triệu cháu giữ lại.",
+          "Con của anh đang nợ tiền giang hồ bên Campuchia và bị giam giữ, chuyển tiền chuộc ngay không thì chúng tôi xử nó.",
+          "Con của bà đang trong tay chúng tôi, chuyển tiền chuộc ngay.",
+          "Con gái bà bị tai nạn giao thông chấn thương sọ não, bệnh viện Chợ Rẫy yêu cầu chuyển gấp 30 triệu tạm ứng mổ.",
+          "Con mày đang bị tao giam giữ, chuyển ngay tiền chuộc nếu không tao không bảo toàn mạng sống.",
+          "Con ông/bà đang nằm trong tay chúng tôi, chuyển tiền chuộc ngay nếu không muốn nó bị bán sang Campuchia.",
+          "Người nhà của mày đã bị bắt cóc sang Campuchia, không chuyển tiền tao bán nội tạng.",
+          "Nếu anh/chị báo công an, tính mạng của người thân sẽ gặp nguy hiểm.",
+          "Tôi là công an quốc tế. Tài khoản của bạn vừa nhận tiền từ một đường dây bắt cóc ở nước ngoài. Đồng thời, chúng tôi phát hiện bạn có liên quan đến một vụ rửa tiền. Ngay bây giờ, bạn phải ra ngân hàng, chuyển toàn bộ tiền vào tài khoản an toàn của chúng tôi, mua thẻ cào đọc mã, và không được nói cho ai biết. Chúng tôi đang theo dõi bạn 24/7."
+        ],
+        "GIFT_LOTTERY": [
+          "Để xác minh danh tính, anh phải ra cửa hàng tiện lợi mua 5 thẻ Viettel 1 triệu. Sau đó đọc mã số dưới lớp tráng bạc cho tôi để hệ thống đối chiếu.",
+          "Nộp phí vận chuyển 2 triệu để nhận giải thưởng xe SH 150i.",
+          "Bấm vào link này để nhận quà trúng thưởng của bạn."
+        ],
+        "BANK_CARD_FRAUD": [
+          "(Nhắn tin từ tài khoản bị hack) \"Mày ơi, tao đang cần gấp 5 triệu. Chuyển giúp tao vào tài khoản này nhé, mai tao trả lại.\"",
+          "(Tiếng trẻ con khóc) \"Mẹ ơi... cứu con...\" -> (Giọng nam trầm, đe dọa) \"Con gái bà đây! Nó đang khóc đấy! Chuyển ngay 1 tỷ vào tài khoản này nếu không muốn thấy xác nó!\"",
+          "(Video call hình ảnh mờ, giọng chập chờn) Mẹ ơi, mạng con lag quá. Con đang cần tiền gấp để lo việc này, mẹ chuyển luôn 20 triệu vào số tài khoản lạ này giúp con nhé.",
+          "Bây giờ anh phải cung cấp mã OTP để chúng tôi xác minh.",
+          "Bên em là Mặt trận Tổ quốc tỉnh A, đang kêu gọi ủng hộ đồng bào bị lũ lụt. Anh có thể ủng hộ qua tài khoản của chúng tôi được không ạ?",
+          "Chúc mừng chị là khách hàng may mắn của ngân hàng ABC, chị đã trúng 50 triệu. Để nhận thưởng, chị cần nộp 5 triệu vào tài khoản của ngân hàng để chúng tôi giữ trong 24h, sau đó tiền sẽ được trả lại kèm tiền thưởng.",
+          "Chúng tôi là trung tâm du học uy tín nhất. Chỉ cần đóng 200 triệu, chúng tôi cam kết visa 100% cho con chị đi du học Mỹ.",
+          "Chúng tôi phát hiện giao dịch bất thường 20 triệu từ tài khoản của anh, vui lòng đọc mã OTP để hủy giao dịch.",
+          "Chị vào ngay trang web [link giả mạo]. Đó là trang internet banking mới của ngân hàng. Chị đăng nhập vào và đổi mật khẩu ngay để tài khoản được bảo mật.",
+          "Chị ơi, tài khoản của chị đang bị hacker tấn công. Ngay bây giờ sẽ có một mã OTP gửi về điện thoại chị, chị đọc ngay cho em để em chặn giao dịch trái phép lại.",
+          "Con trai chị đang du học ở Úc, nó bị tai nạn và cần tiền phẫu thuật. Chị chuyển tiền sang tài khoản USD này ngay nhé.",
+          "Cung cấp mật khẩu đăng nhập vào ứng dụng ngân hàng điện tử để chúng tôi kiểm tra.",
+          "Cung cấp tên đăng nhập và mật khẩu của email cá nhân để nhận công văn.",
+          "Cần cung cấp số thẻ tín dụng và mã pin để nâng hạn mức thẻ lên 100 triệu.",
+          "Hệ thống đang chuyển tiền hoàn thuế vào tài khoản của chị, vui lòng cung cấp mã CVV phía sau thẻ để liên kết.",
+          "Sim của anh đã bị kẻ xấu sim ghép để thực hiện các hành vi phạm pháp. Anh phải chuyển tiền vào tài khoản của chúng tôi để theo dõi và bắt bọn chúng.",
+          "Thẻ Visa của chị đã bị khóa do giao dịch bất thường. Chị đọc giúp em số thẻ, ngày tháng hết hạn và 3 số ở mặt sau để em mở khóa ngay.",
+          "Thẻ tín dụng của quý khách bị quá hạn mức và khóa, cung cấp số CVV để chúng tôi hỗ trợ mở khóa.",
+          "Tài khoản Grab của bạn đã bị khóa do vi phạm chính sách. Để mở khóa, vui lòng cung cấp mật khẩu và mã OTP để chúng tôi xác minh.",
+          "Tài khoản của anh đã nhận 2 tỷ tiền từ một đường dây buôn người. Để chứng minh sự trong sạch, anh phải chuyển toàn bộ số tiền trong tài khoản ra một tài khoản an toàn của chúng tôi.",
+          "Tài khoản ngân hàng của anh sẽ bị đóng băng vĩnh viễn.",
+          "Tài khoản ngân hàng của anh đang có giao dịch trừ tiền lạ, đọc mã OTP gửi về máy để hủy.",
+          "Tôi có nhu cầu đổi 1 tỷ tiền Việt ra đô. Tôi sẽ cho tỷ giá cao hơn ngân hàng 500đ. Giao dịch mặt đối mặt.",
+          "Tôi đã đặt một quả bom ở trung tâm thương mại X. Chuyển 1 tỷ vào tài khoản này trong 1 giờ, nếu không tôi sẽ kích hoạt nó.",
+          "Tất cả các tài khoản ngân hàng của ông/bà sẽ bị đóng băng vĩnh viễn.",
+          "Yêu cầu cung cấp mã PIN của thẻ để xác thực chủ tài khoản.",
+          "Để hủy dịch vụ, anh/chị cần cung cấp mật khẩu và mã xác thực.",
+          "Đọc ngay lập tức mã OTP vừa được gửi đến số điện thoại của anh/chị.",
+          "Đọc toàn bộ dãy số in trên thẻ tín dụng và ba con số bảo mật ở mặt sau.",
+          "Đọc đầy đủ họ tên, ngày sinh và số thẻ Căn cước công dân để đối chiếu."
+        ],
+        "INVESTMENT_SCAM": [
+          "Anh đã đặt lệnh mua cổ phiếu X với giá 50k nhưng hệ thống lỗi thực hiện ở giá 100k. Bây giờ anh phải bù ngay 50 triệu cho công ty, nếu không chúng tôi sẽ khởi kiện.",
+          "Kết nối ví MetaMask và approve token để nhận airdrop miễn phí.",
+          "Nạp thêm 10 triệu nữa để kéo lệnh, nếu không sẽ cháy tài khoản.",
+          "Em à, anh đang đầu tư trên sàn vàng này, lãi rất ổn. Em cũng nên đầu tư đi để chúng ta có tương lai. Anh sẽ hướng dẫn em nạp tiền."
+        ],
+        "BLACK_CREDIT_TERROR": [
+          "Chị gái chị đang bị chủ quán bar giữ lại vì nợ thua bài. Chị chuyển 20 triệu trả nợ cho nó đi, không thì nó bị làm bậy.",
+          "Công ty chúng tôi được ủy quyền thu hồi nợ cho công ty Y. Anh đã quá hạn 3 tháng. Nếu hôm nay không thanh toán, chúng tôi sẽ làm thủ tục pháp lý để tịch thu tài sản.",
+          "Hạn chót trả khoản nợ 5 triệu hôm nay, nếu không chúng tôi sẽ đăng ảnh bêu riếu lên mạng xã hội.",
+          "Không trả nợ giang hồ sẽ đến tận nhà quấy phá và khủng bố gia đình.",
+          "Mày mà không trả trong 24h, tao gọi hết danh bạ, tung ảnh mày lên mạng.",
+          "Mày nợ công ty chúng mày 10 triệu. Hôm nay không trả thì tụi tao sẽ ra tận nhà, cho công an xã biết, dán ảnh mày lên cột điện. Gia đình mày đỡ được yên đâu.",
+          "Siết nợ, mày không trốn được, biết nhà mày ở đâu rồi."
+        ],
+        "TAX_GOV_APP": [
+          "Anh phải tải ứng dụng hỗ trợ này và cấp quyền truy cập để cán bộ xác thực.",
+          "Chào anh, anh thuộc diện được hoàn thuế thu nhập cá nhân năm nay. Anh truy cập vào link này tải ứng dụng Tổng cục thuế về, đăng nhập để nhận tiền hoàn thuế nhé.",
+          "Chào anh, phần mềm VNeID của anh bị lỗi định danh cấp 2, anh nhấp vào link này cài ứng dụng cập nhật ngay.",
+          "Chúc mừng anh, số điện thoại của anh đã trúng một chiếc iPhone 14. Anh vui lòng ra cửa hàng của chúng tôi và nộp 2 triệu tiền thuế trước bạ để nhận máy.",
+          "Chúc mừng bạn đã trúng tour du lịch Singapore 4 ngày 3 đêm. Bạn chỉ cần đóng 5 triệu tiền visa và thuế là có thể đi ngay.",
+          "Cán bộ chi cục thuế yêu cầu anh chụp ảnh khuôn mặt qua app dịch vụ công này để cập nhật thông tin.",
+          "Cơ quan thuế yêu cầu anh tải file cài đặt thuế thu nhập cá nhân này để quyết toán thuế năm nay.",
+          "Cục thuế thông báo anh có sai lệch thông tin cá nhân trên VNeID, tải ngay phần mềm cập nhật thuế này về điện thoại để sửa đổi.",
+          "Quét khuôn mặt ngay tại đây để hoàn tất thủ tục sinh trắc học.",
+          "Tôi là công an phường X. Tài khoản định danh mức 2 của anh bị lỗi hệ thống. Anh không cần ra phường đâu, tôi hướng dẫn anh tải app này về cập nhật lại thông tin ngay nhé.",
+          "Tôi là doanh nhân V. Tôi thấy hoàn cảnh của bạn đáng thương nên muốn giúp. Nhưng để tôi chuyển tiền từ tài khoản công ty, bạn phải nộp trước 10% tiền thuế.",
+          "Tổng cục thuế thông báo anh cần quét sinh trắc học NFC bằng cách tải ứng dụng thuế mới nhất qua link này."
+        ],
+        "TELECOM_LOCK": [
+          "(Trước khi chuyển) \"Chị chuyển tiền đi em gửi hàng liền.\" -> (Sau khi chuyển) (Bị chặn số điện thoại, Zalo).",
+          "Cung cấp mã OTP vừa nhận được để xác thực chủ thuê bao.",
+          "Cục viễn thông thông báo thuê bao của quý khách vi phạm quy định và sẽ bị khóa hai chiều.",
+          "SIM của anh sẽ bị khóa 2 chiều ngay lập tức, soạn tin nhắn hủy theo cú pháp này.",
+          "Số điện thoại của quý khách sẽ bị thu hồi vĩnh viễn sau 2 giờ do chưa hoàn thành chuẩn hóa."
+        ],
+        "GAMBLING_PREDICTION": [
+          "Tôi có công nghệ nghe vị, bài bịp chắc thắng 100%. Anh chuyển tiền cọc, tôi sẽ gửi hàng và hướng dẫn sử dụng.",
+          "Chuyển 500k phí nhóm VIP, số đề hôm nay bao trúng 100%.",
+          "Kéo tài xỉu về bờ, nạp tiền vào sàn Sunwin ngay."
+        ],
+        "TECH_SUPPORT_HIJACK": [
+          "Tải ứng dụng TeamViewer/AnyDesk để nhân viên kỹ thuật hỗ trợ từ xa.",
+          "Chia sẻ màn hình ngay để bộ phận bảo mật kiểm tra.",
+          "Cấp quyền truy cập toàn bộ cho ứng dụng hỗ trợ."
+        ],
+        "HOSPITAL_EMERGENCY": [
+          "Bác sĩ yêu cầu đóng tạm ứng 50 triệu, chuyển vào số tài khoản cá nhân này.",
+          "Bệnh viện Bạch Mai đây. Mẹ của anh đang được cấp cứu vì nhồi máu cơ tim. Anh phải nộp ngay 30 triệu tiền viện phí để chúng tôi mổ.",
+          "Chúng tôi là công ty luật, đại diện cho một số nạn nhân trong vụ tai nạn giao thông mà chị gây ra. Chị cần bồi thường 100 triệu, nếu không chúng tôi sẽ khởi kiện.",
+          "Con chị vừa bị ngã cầu thang trường học chấn thương sọ não, cần chuyển gấp 20 triệu viện phí.",
+          "Con của ông/bà đang cấp cứu ở bệnh viện, cần chuyển tiền ngay để phẫu thuật.",
+          "Con trai ông vừa đâm xe ngã người ta, người ta đang giữ nó đòi 200 triệu tiền bồi thường. Ông chuyển tiền đi rồi chúng tôi sẽ thả nó về.",
+          "Gia đình anh năm nay có sao hạn nặng, dễ gặp tai nạn. Anh cần chuyển 10 triệu tiền lễ vật để tôi làm lễ giải hạn cho anh.",
+          "Người nhà của anh vừa nhập viện cấp cứu do tai nạn, yêu cầu nộp tạm ứng viện phí gấp."
+        ],
+        "CEO_FRAUD_B2B": [
+          "Anh đang họp khẩn, em chuyển tiền gấp sang số tài khoản đối tác này để duyệt hợp đồng.",
+          "Tổng giám đốc yêu cầu kế toán giải ngân gấp khoản tiền 200 triệu cho đối tác ngoại giao.",
+          "Việc này bảo mật, không báo ai, tôi đang bận họp quan trọng.",
+          "Đây là giám đốc, chuyển gấp 500 triệu cho đối tác theo số tài khoản tôi gửi."
+        ],
+        "SOCIAL_DEEPFAKE_LOAN": [
+          "Alo, em đang kẹt tiền quá, anh chuyển đỡ cho em 5 triệu qua số tài khoản này nhé, camera em bị hỏng nên mờ.",
+          "Anh ơi em đang bị giữ ở đồn công an do va chạm xe, anh chuyển khoản tạm giúp em đóng tiền phạt đóng bảo lãnh.",
+          "Gọi video call thấy mặt em bị đơ và đứng hình là do mạng yếu, anh chuyển khoản mượn tạm em vài triệu đi.",
+          "Mạng bên con hơi yếu, mẹ chuyển tiền luôn vào số này nhé.",
+          "Mặt con bị mờ do cam hỏng đấy, mẹ cứ chuyển đi.",
+          "Mẹ ơi, con đang đi đường bị hỏng xe cần mượn gấp 3 triệu đóng tiền sửa, con gọi video call bị chập chờn do sóng yếu.",
+          "Đang có việc gấp lắm, mẹ chuyển khoản ngay vào số này, tý con giải thích sau."
+        ],
+        "SEXTORTION_BLACKMAIL": [
+          "Clip nóng của anh sẽ được gửi cho toàn bộ danh bạ nếu không chuyển 10 triệu.",
+          "Hình ảnh nóng của cô sẽ được đăng công khai lên mạng xã hội nếu không chuyển khoản ngay.",
+          "Tao có video nhạy cảm của mày, chuyển tiền vào ví này nếu không tao sẽ gửi cho toàn bộ bạn bè.",
+          "Tôi có những hình ảnh và video nhạy cảm của chị khi chúng ta video call. Chị chuyển 50 triệu cho tôi, nếu không tôi sẽ gửi tất cả cho bạn bè và gia đình chị.",
+          "Tôi có ảnh nhạy cảm của anh/chị, phát tán hay chuyển tiền?"
+        ],
+        "ROMANCE_SCAM": [
+          "Anh gửi cho em một thùng quà giá trị và 50.000 USD, em đóng phí hải quan để nhận nhé.",
+          "Anh gửi tiền giúp em mua vé máy bay, sẽ trả khi gặp mặt.",
+          "Em phải nộp phí hải quan 5000 USD để nhận bưu kiện quà từ Mỹ.",
+          "Kiện hàng quà tặng chứa trang sức đắt tiền của bạn đang bị hải quan giữ do thiếu thuế."
+        ],
+        "JOB_TASK_SCAM": [
+          "Nạp 5 triệu phí kích hoạt tài khoản để bắt đầu nhận nhiệm vụ.",
+          "Đặt cọc 3 triệu để nâng cấp VIP, hoa hồng sẽ cao gấp đôi.",
+          "Chỉ cần nạp 10 triệu vào sàn của chúng tôi, mỗi ngày anh sẽ được hưởng 2% lãi. Mời thêm người được hưởng hoa hồng. Làm giàu không khó!"
+        ],
+        "IMMIGRATION_VISA_SCAM": [
+          "Cam kết đậu visa du học và việc làm Úc bao trọn gói, anh nộp cọc hồ sơ trước 30 triệu.",
+          "Dịch vụ xuất khẩu lao động cam kết bao đậu phỏng vấn, yêu cầu đóng phí đặt chỗ trước.",
+          "Phí làm visa bao đậu 30 triệu, ký hợp đồng online luôn.",
+          "Đặt cọc 50 triệu chống trốn cho chương trình XKLĐ Nhật Bản."
+        ],
+        "FAKE_SUBSCRIPTION": [
+          "Tài khoản anh bị trừ tự động 990k/tháng, soạn HUY gửi 9099 để hủy ngay.",
+          "Gói Premium tự đứt, nếu không hủy sẽ trừ thêm 2 triệu tuần sau."
+        ],
+        "RECOVERY_SCAM": [
+          "Cam kết lấy lại tiền bị treo trên các sàn đầu tư lừa đảo, anh nộp phí dịch vụ hồ sơ.",
+          "Chuyển phí lập hồ sơ cơ quan an ninh mạng để thu hồi vốn bị lừa.",
+          "Cơ quan hỗ trợ thu hồi tiền lừa đảo qua mạng, anh đóng trước phí luật sư 5% để làm thủ tục.",
+          "Nộp 5 triệu phí luật sư mạng, bên em sẽ truy vết blockchain lấy lại tiền."
+        ],
+        "GENERIC_SCAM": [
+          "Chúng tôi đã xác định được địa chỉ nhà của anh/chị, sẽ có người tìm đến tận nơi.",
+          "Đừng để chúng tôi phải sử dụng biện pháp mạnh.",
+          "Nếu không hợp tác, lệnh truy nã toàn quốc sẽ được phát đi ngay lập tức.",
+          "Toàn bộ tài sản của gia đình sẽ bị niêm phong để phục vụ điều tra.",
+          "Tội chống đối người thi hành công vụ sẽ khiến tình hình nghiêm trọng hơn.",
+          "Kê khai toàn bộ tài sản hiện có, bao gồm tiền mặt, sổ tiết kiệm và các tài sản giá trị khác.",
+          "Phải làm ngay lập tức, không được chậm trễ một giây nào.",
+          "Anh/chị không có lựa chọn nào khác ngoài việc hợp tác.",
+          "Yêu cầu giữ bí mật tuyệt đối, không được nói chuyện với bất kỳ ai, kể cả người nhà.",
+          "Tuyệt đối không được ngắt máy, cuộc gọi đang được ghi âm để làm bằng chứng.",
+          "Làm theo chính xác từng bước hướng dẫn của chúng tôi.",
+          "Đây là cơ hội cuối cùng để chứng minh sự trong sạch.",
+          "Mày có muốn đi tù không?",
+          "Có nghe rõ lệnh không? Đừng có giả điếc.",
+          "Thời gian không còn nhiều, quyết định nhanh lên.",
+          "Thái độ của anh/chị sẽ quyết định tất cả.",
+          "Anh phải chuyển tiền ngay bây giờ, không được trì hoãn.",
+          "Nếu không làm theo, chúng tôi sẽ đến tận nhà.",
+          "Anh phải giữ bí mật, không được nói cho ai biết.",
+          "Chúng tôi có lệnh bắt giữ anh, hãy hợp tác ngay.",
+          "Nếu không chuyển tiền trong 1 giờ, chúng tôi sẽ khởi tố.",
+          "Tôi là cảnh sát, anh phải làm theo lệnh của tôi.",
+          "Chúng tôi có lệnh 'bắt khẩn cấp' và 'lệnh phong tỏa tài sản' số 123/2023 của Cơ quan điều tra. Anh phải tuân thủ tuyệt đối.",
+          "Chị vào Zalo của tôi, tôi đã gửi ảnh lệnh bắt của chị. Chị nhìn đi, giờ chị còn hoài nghi gì nữa?",
+          "Anh tải ngay ứng dụng AnyDesk về và cấp quyền truy cập cho tôi. Tôi sẽ vào kiểm tra trực tiếp trên máy tính của anh xem virus ở đâu và chặn nó lại.",
+          "Chúc mừng anh đã được duyệt khoản vay 200 triệu không cần chứng minh thu nhập. Anh chỉ cần chuyển 3 triệu tiền phí tư vấn để chúng tôi giải ngân.",
+          "Em trai anh bị bắt trong sòng bài. Anh đưa 100 triệu cho chúng tôi, chúng tôi sẽ giúp anh ấy ra khỏi đây.",
+          "My love, I'm at the airport in Vietnam, but my wallet and passport were stolen. I need money to pay the hotel and get a new passport. Please send me $2000 now.",
+          "Em ơi, anh vừa đi khám bệnh và phát hiện mình bị ung thư giai đoạn cuối. Anh không có tiền để chữa trị. Em giúp anh được không?",
+          "Tôi có bằng chứng chị ngoại tình. Nếu chị không chuyển 100 triệu cho tôi, tôi sẽ đăng tất cả lên Facebook.",
+          "Chúc mừng chị đã trúng tuyển vị trí nhân viên văn phòng. Để nhận việc, chị cần đặt cọc 2 triệu tiền đồng phục và phí đào tạo.",
+          "Mày không đi học hôm nay à? Tao cho người ra nhà dạy dỗ mày bây giờ!",
+          "Cháu muốn vào làm việc tại Sở X thì phải có 'chi phí' chạy chọt. Chú có quen người bên đó, cháu đưa 150 triệu thì chú lo.",
+          "Anh ơi, em gửi anh file báo cáo qua Zalo rồi. Anh mở ra xem giúp em đi ạ.\" (File thực chất là virus).",
+          "Chúc mừng bạn đã vào vòng 2. Để tiếp tục, bạn cần nộp phí thi 500.000đ.",
+          "Tôi có năng lượng chữa bệnh. Chị chỉ cần chuyển tiền 'bảo chứng' và cung cấp ảnh, tôi sẽ điều trị căn bệnh ung thư của chị từ xa.",
+          "Alo, anh ơi, em xin lỗi em nhầm số. Nhưng mà giọng nói anh hay quá... em làm quen được không?\" (Sau một thời gian sẽ bắt đầu câu chuyện lừa đảo).",
+          "Chúng tôi đã thắng kiện công ty X cho chị. Công ty phải bồi thường cho chị 200 triệu. Chị chỉ cần đóng 10% phí luật sư là chúng tôi sẽ chuyển tiền cho chị.",
+          "Điện thoại của anh đang chứa 10 tài liệu mật cấp quốc gia. Anh phải làm theo hướng dẫn của tôi để tiêu hủy chúng, nếu không anh sẽ bị xử lý tội tiết lộ bí mật nhà nước."
+        ],
+        "DELIVERY_COD": [
+          "Anh có đặt hàng trên Shopee phải không? Bọn em là đơn vị vận chuyển. Anh phải chuyển cước trước 50k thì bọn em mới giao hàng được ạ."
+        ],
+        "CHILD_GAMING": [
+          "Bác là AD game Free Fire, cháu lấy điện thoại của mẹ để quét mã nhận 10.000 kim cương miễn phí.",
+          "Cháu bấm vào link này, sau đó chụp ảnh tin nhắn OTP gửi về máy mẹ gửi qua đây bác hướng dẫn nhận quà."
+        ]
+      }
+    }
+  ]
+}

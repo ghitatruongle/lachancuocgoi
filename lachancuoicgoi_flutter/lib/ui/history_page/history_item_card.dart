@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/risk_level.dart';
 import '../../data/call_history.dart';
+import '../theme/risk_level_colors.dart';
 
 /// History item card matching Kotlin HistoryItemCard.kt
 class HistoryItemCard extends StatelessWidget {
@@ -16,12 +17,7 @@ class HistoryItemCard extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     final riskLevel = RiskLevel.fromString(item.riskLevel);
 
-    final riskColor = switch (riskLevel) {
-      RiskLevel.green => const Color(0xFF4CAF50),
-      RiskLevel.yellow => const Color(0xFFFFEB3B),
-      RiskLevel.orange => const Color(0xFFFF9800),
-      RiskLevel.red => const Color(0xFFF44336),
-    };
+    final riskColor = riskLevel.color;
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

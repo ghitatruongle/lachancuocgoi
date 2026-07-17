@@ -1,0 +1,794 @@
+{
+    "patterns": [
+        {
+            "id": "impersonate_authority_urgent",
+            "description": "Giả danh cơ quan chức năng yêu cầu gấp",
+            "risk_bonus": 0.8,
+            "min_gap": 0,
+            "max_gap": 5,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "AUTHORITY"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "URGENCY"
+                }
+            ]
+        },
+        {
+            "id": "financial_threat",
+            "description": "Đe dọa khóa tài khoản/tài sản",
+            "risk_bonus": 0.7,
+            "max_gap": 6,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "THREAT"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "ACCOUNT"
+                }
+            ]
+        },
+        {
+            "id": "transfer_request",
+            "description": "Yêu cầu chuyển tiền để giải quyết",
+            "risk_bonus": 0.9,
+            "max_gap": 4,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "chuyển tiền"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "SAFE"
+                }
+            ]
+        },
+        {
+            "id": "authority_urgency_money",
+            "description": "Giả danh cơ quan + Khẩn cấp + Yêu cầu tiền",
+            "risk_bonus": 1.0,
+            "min_gap": 0,
+            "max_gap": 8,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "AUTHORITY"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "URGENCY"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "MONEY"
+                }
+            ]
+        },
+        {
+            "id": "threat_consequence_solution",
+            "description": "Đe dọa + Hậu quả + Giải pháp bắt buộc",
+            "risk_bonus": 0.9,
+            "min_gap": 0,
+            "max_gap": 10,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "THREAT"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "CONSEQUENCE"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "SOLUTION"
+                }
+            ]
+        },
+        {
+            "id": "benefit_urgency_action",
+            "description": "Lợi ích hấp dẫn + Khẩn cấp + Yêu cầu hành động",
+            "risk_bonus": 0.7,
+            "min_gap": 0,
+            "max_gap": 6,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "BENEFIT"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "URGENCY"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "ACTION"
+                }
+            ]
+        },
+        {
+            "id": "identity_problem_solution",
+            "description": "Giả danh + Vấn đề nghiêm trọng + Giải pháp",
+            "risk_bonus": 0.85,
+            "min_gap": 0,
+            "max_gap": 7,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "IDENTITY"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "PROBLEM"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "SOLUTION"
+                }
+            ]
+        },
+        {
+            "id": "verification_info_request",
+            "description": "Yêu cầu xác minh + Thông tin nhạy cảm",
+            "risk_bonus": 0.95,
+            "min_gap": 0,
+            "max_gap": 5,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "xác minh"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "SENSITIVE_INFO"
+                }
+            ]
+        },
+        {
+            "id": "emergency_family_money",
+            "description": "Khẩn cấp + Người thân + Yêu cầu tiền",
+            "risk_bonus": 1.0,
+            "min_gap": 0,
+            "max_gap": 8,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "EMERGENCY"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "FAMILY"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "MONEY"
+                }
+            ]
+        },
+        {
+            "id": "prize_fee_payment",
+            "description": "Trúng thưởng + Phí + Thanh toán",
+            "risk_bonus": 0.8,
+            "min_gap": 0,
+            "max_gap": 6,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "trúng thưởng"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "phí"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "PAYMENT"
+                }
+            ]
+        },
+        {
+            "id": "account_lock_verify",
+            "description": "Tài khoản bị khóa + Yêu cầu xác minh",
+            "risk_bonus": 0.9,
+            "min_gap": 0,
+            "max_gap": 5,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "ACCOUNT"
+                },
+                {
+                    "type": "keyword",
+                    "value": "khóa"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "xác minh"
+                }
+            ]
+        },
+        {
+            "id": "investment_guarantee_profit",
+            "description": "Đầu tư + Cam kết + Lợi nhuận",
+            "risk_bonus": 0.75,
+            "min_gap": 0,
+            "max_gap": 7,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "đầu tư"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "cam kết"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "lợi nhuận"
+                }
+            ]
+        },
+        {
+            "id": "job_deposit_commission",
+            "description": "Tuyển dụng + Đặt cọc + Hoa hồng",
+            "risk_bonus": 0.7,
+            "min_gap": 0,
+            "max_gap": 8,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "JOB"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "đặt cọc"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "hoa hồng"
+                }
+            ]
+        },
+        {
+            "id": "authority_secret_urgent",
+            "description": "Cơ quan chức năng + Bí mật + Gấp",
+            "risk_bonus": 1.0,
+            "min_gap": 0,
+            "max_gap": 6,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "AUTHORITY"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "bí mật"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "URGENCY"
+                }
+            ]
+        },
+        {
+            "id": "link_login_password",
+            "description": "Link lạ + Đăng nhập + Mật khẩu",
+            "risk_bonus": 0.95,
+            "min_gap": 0,
+            "max_gap": 5,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "link"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "đăng nhập"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "mật khẩu"
+                }
+            ]
+        },
+        {
+            "id": "otp_transfer_immediately",
+            "description": "OTP + Chuyển khoản + Ngay lập tức",
+            "risk_bonus": 1.0,
+            "min_gap": 0,
+            "max_gap": 4,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "otp"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "chuyển"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "URGENCY"
+                }
+            ]
+        },
+        {
+            "id": "penalty_payment_account",
+            "description": "Phạt/Nợ + Thanh toán + Tài khoản cá nhân",
+            "risk_bonus": 0.85,
+            "min_gap": 0,
+            "max_gap": 6,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "PENALTY"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "PAYMENT"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "tài khoản cá nhân"
+                }
+            ]
+        },
+        {
+            "id": "package_customs_fee",
+            "description": "Bưu phẩm + Hải quan + Phí",
+            "risk_bonus": 0.8,
+            "min_gap": 0,
+            "max_gap": 5,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "bưu phẩm"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "hải quan"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "phí"
+                }
+            ]
+        },
+        {
+            "id": "sim_standardize_info",
+            "description": "SIM + Chuẩn hóa + Thông tin",
+            "risk_bonus": 0.85,
+            "min_gap": 0,
+            "max_gap": 5,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "sim"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "chuẩn hóa"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "thông tin"
+                }
+            ]
+        },
+        {
+            "id": "love_help_money",
+            "description": "Tình cảm + Giúp đỡ + Tiền",
+            "risk_bonus": 0.7,
+            "min_gap": 0,
+            "max_gap": 10,
+            "template": [
+                {
+                    "type": "category",
+                    "value": "LOVE"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "giúp"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "MONEY"
+                }
+            ]
+        },
+        {
+            "id": "tech_support_remote_control",
+            "description": "Hỗ trợ kỹ thuật + Cài app + Chia sẻ màn hình",
+            "risk_bonus": 0.95,
+            "min_gap": 0,
+            "max_gap": 6,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "hỗ trợ kỹ thuật"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "cài"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "chia sẻ màn hình"
+                }
+            ]
+        },
+        {
+            "id": "deepfake_loan_urgent",
+            "description": "Mượn tiền + Gấp + Chuyển khoản",
+            "risk_bonus": 0.85,
+            "min_gap": 0,
+            "max_gap": 6,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "mượn tiền"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "category",
+                    "value": "URGENCY"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "chuyển khoản"
+                }
+            ]
+        },
+        {
+            "id": "sextortion_blackmail_flow",
+            "description": "Clip nhạy cảm + Phát tán + Chuyển tiền",
+            "risk_bonus": 1.0,
+            "min_gap": 0,
+            "max_gap": 7,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "clip"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "phát tán"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "chuyển tiền"
+                }
+            ]
+        },
+        {
+            "id": "recovery_scam_flow",
+            "description": "Lấy lại tiền + Phí hồ sơ + Chuyển khoản",
+            "risk_bonus": 0.9,
+            "min_gap": 0,
+            "max_gap": 7,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "lấy lại tiền"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "phí"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "chuyển khoản"
+                }
+            ]
+        },
+        {
+            "id": "vneid_update_scam",
+            "description": "VNeID/Sinh trắc + Tải app + Cấp quyền",
+            "risk_bonus": 0.9,
+            "min_gap": 0,
+            "max_gap": 7,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "sinh trắc"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "tải"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "cấp quyền"
+                }
+            ]
+        },
+        {
+            "id": "telecom_sim_lock",
+            "description": "Nhà mạng + Khóa SIM + Cung cấp OTP",
+            "risk_bonus": 0.85,
+            "min_gap": 0,
+            "max_gap": 6,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "nhà mạng"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "khóa"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "otp"
+                }
+            ]
+        },
+        {
+            "id": "gambling_prediction_bait",
+            "description": "Lô đề + Cam kết + Nạp tiền",
+            "risk_bonus": 0.8,
+            "min_gap": 0,
+            "max_gap": 7,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "lô đề"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "cam kết"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "nạp tiền"
+                }
+            ]
+        },
+        {
+            "id": "fake_subscription_cancel",
+            "description": "Trừ tiền tự động + Soạn tin + Mã xác nhận",
+            "risk_bonus": 0.85,
+            "min_gap": 0,
+            "max_gap": 5,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "trừ tiền"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "soạn tin"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "gửi"
+                }
+            ]
+        },
+        {
+            "id": "kidnapping_ransom_flow",
+            "description": "Bắt cóc/Con bị giữ + Tiền chuộc + Không báo công an",
+            "risk_bonus": 1.0,
+            "min_gap": 0,
+            "max_gap": 8,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "con"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "tiền chuộc"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "công an"
+                }
+            ]
+        },
+        {
+            "id": "nfc_scan_scam",
+            "description": "Quét NFC + Áp lưng điện thoại",
+            "risk_bonus": 0.95,
+            "min_gap": 0,
+            "max_gap": 6,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "áp thẻ"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "lưng điện thoại"
+                }
+            ]
+        },
+        {
+            "id": "face_scan_scam",
+            "description": "Đưa mặt vào để quét",
+            "risk_bonus": 0.95,
+            "min_gap": 0,
+            "max_gap": 4,
+            "template": [
+                {
+                    "type": "keyword",
+                    "value": "đưa mặt"
+                },
+                {
+                    "type": "wildcard"
+                },
+                {
+                    "type": "keyword",
+                    "value": "quét"
+                }
+            ]
+        }
+    ]
+}

@@ -1,6 +1,15 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
+/// Top-level decode function for compute() — must be top-level or static.
+Map<String, dynamic>? _decodeJsonMap(String raw) {
+  final decoded = jsonDecode(raw);
+  if (decoded is Map<String, dynamic>) return decoded;
+  if (decoded is Map) return decoded.cast<String, dynamic>();
+  return null;
+}
 
 class VocabularyRepository {
   const VocabularyRepository({AssetBundle? assetBundle})
@@ -16,9 +25,9 @@ class VocabularyRepository {
 
   Future<Map<String, dynamic>> loadJsonMap(String assetPath) async {
     final raw = await loadString(assetPath);
-    final decoded = jsonDecode(raw);
-    if (decoded is Map<String, dynamic>) return decoded;
-    if (decoded is Map) return decoded.cast<String, dynamic>();
+    // Offload JSON decode to background isolate for large files.
+    final decoded = await compute(_decodeJsonMap, raw);
+    if (decoded != null) return decoded;
     throw const FormatException('Asset JSON root must be an object');
   }
 

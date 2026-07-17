@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lachancuocgoi_flutter/l10n/app_localizations.dart';
 import 'package:lachancuocgoi_flutter/services/developer_mode_manager.dart';
 import 'package:lachancuocgoi_flutter/ui/home_page/settings_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,6 +18,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Builder(
             builder: (context) {
               return ElevatedButton(
@@ -34,7 +37,10 @@ void main() {
     // Tap the button to show the dialog
     await tester.tap(find.text('Open'));
     await tester.pump();
+    // Phase 2 (P2-6): localization delegates load asynchronously, so we
+    // need extra pumps before the dialog content is fully rendered.
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
   }
 
   // ─── Basic rendering ─────────────────────────────────────────────────
@@ -84,11 +90,17 @@ void main() {
       // Initially light
       expect(find.text('Giao diện sáng'), findsOneWidget);
 
-      // Find the Switch widget and toggle it
+      // Find the Switch widgets — there are multiple (follow-system + theme).
+      // The theme toggle is the second Switch (after the follow-system toggle).
       final switches = find.byType(Switch);
-      expect(switches, findsAtLeastNWidgets(1));
+      expect(switches, findsAtLeastNWidgets(2));
 
+      // First, disable "follow system" so the theme switch becomes interactive.
       await tester.tap(switches.first);
+      await tester.pumpAndSettle();
+
+      // Now tap the theme toggle (second switch).
+      await tester.tap(switches.at(1));
       await tester.pumpAndSettle();
 
       // Should now show dark label

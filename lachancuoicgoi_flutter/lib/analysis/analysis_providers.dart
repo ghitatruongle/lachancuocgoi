@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/asset_loader.dart';
 import '../core/logger.dart';
 import '../core/system_logger.dart';
+import '../data/remote_config_store.dart';
 import '../services/flutter_services_impl.dart';
 import 'analysis_coordinator.dart';
 import 'l1/l1_analysis.dart';
@@ -21,10 +22,19 @@ import 'l2/g_detection/g_detection_engine.dart';
 import 'l2/l2_analysis.dart';
 import 'l3/l3_analysis.dart';
 
-/// Providers for core abstraction services
-final assetLoaderProvider = Provider<AssetLoader>(
-  (ref) => const FlutterAssetLoader(),
-);
+/// Phase 2 (P2-3): Composite asset loader — disk-first (OTA downloads),
+/// falls back to the Flutter asset bundle when no OTA file is present.
+/// Wrapped in CachingAssetLoader so JSON/config files are parsed once.
+final assetLoaderProvider = Provider<AssetLoader>((ref) {
+  const flutterLoader = FlutterAssetLoader();
+  final diskLoader = DiskAssetLoader();
+  final remoteStore = ref.watch(remoteConfigStoreProvider);
+  if (remoteStore != null) {
+    ref.onDispose(remoteStore.dispose);
+  }
+  final composite = CompositeAssetLoader(primary: diskLoader, fallback: flutterLoader);
+  return CachingAssetLoader(composite);
+});
 
 /// Unified logger: SystemLogger implements AppLogger, so all analysis-layer
 /// logs are also visible in the UI System Log viewer.

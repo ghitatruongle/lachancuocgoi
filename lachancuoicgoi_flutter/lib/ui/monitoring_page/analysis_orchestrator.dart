@@ -102,6 +102,8 @@ class AnalysisOrchestrator {
         final result = await coordinator.analyzeIncremental(
           textForRun,
           effectiveMode,
+          // speechRate is kept on the coordinator via setSpeechRate from
+          // MonitoringController transcript updates.
         );
 
         if (_disposed || myGeneration != _analysisGeneration) return;

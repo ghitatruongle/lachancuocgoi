@@ -5,13 +5,11 @@ import 'monitoring_state.dart';
 // ─── Monitoring Event Router ───────────────────────────────────────────
 //
 // Interprets [MonitoringState] events from the native bridge and updates
-// the [MonitoringPageState] accordingly (network changes, STT fallback,
-// stopped events).
-//
-// Extracted from [MonitoringController] to reduce class size.
+// the [MonitoringPageState] accordingly (network, STT, degraded modes).
 
 typedef StateUpdater = void Function(
-    MonitoringPageState Function(MonitoringPageState) updater);
+  MonitoringPageState Function(MonitoringPageState) updater,
+);
 
 class MonitoringEventRouter {
   MonitoringEventRouter({
@@ -19,26 +17,39 @@ class MonitoringEventRouter {
     required MonitoringPageState Function() getState,
     required void Function() onStoppedEvent,
     required void Function() endSession,
-  })  : _updateState = updateState,
-        _getState = getState,
-        _onStoppedEvent = onStoppedEvent,
-        _endSession = endSession;
+    void Function(bool networkAvailable)? onNetworkChanged,
+  }) : _updateState = updateState,
+       _getState = getState,
+       _onStoppedEvent = onStoppedEvent,
+       _endSession = endSession,
+       _onNetworkChanged = onNetworkChanged;
 
   final StateUpdater _updateState;
   final MonitoringPageState Function() _getState;
   final void Function() _onStoppedEvent;
   final void Function() _endSession;
+  final void Function(bool networkAvailable)? _onNetworkChanged;
 
   /// Routes a monitoring state event to the appropriate handler.
   void handleMonitoringStateEvent((MonitoringState, int?, String?) stateData) {
     final monitoringState = stateData.$1;
-    if (monitoringState == MonitoringState.networkAvailable ||
-        monitoringState == MonitoringState.networkLost) {
-      _handleNetworkChange(monitoringState);
-    } else if (monitoringState == MonitoringState.sttFallbackVosk) {
-      _handleSttFallback(stateData.$3);
-    } else if (monitoringState == MonitoringState.stopped) {
-      _handleStopped(stateData.$3);
+    switch (monitoringState) {
+      case MonitoringState.networkAvailable:
+      case MonitoringState.networkLost:
+        _handleNetworkChange(monitoringState);
+      case MonitoringState.sttFallbackVosk:
+        _handleSttFallback(stateData.$3);
+      case MonitoringState.sttUnavailable:
+        _handleSttUnavailable(stateData.$3);
+      case MonitoringState.degradedNoNotification:
+        _handleDegradedNoNotification();
+      case MonitoringState.watchdogRestartFailed:
+        _handleWatchdogRestartFailed();
+      case MonitoringState.stopped:
+        _handleStopped(stateData.$3);
+      case MonitoringState.idle:
+      case MonitoringState.started:
+        break;
     }
   }
 
@@ -49,6 +60,7 @@ class MonitoringEventRouter {
       currentState.selectedMode,
       isAvailable,
     );
+    _onNetworkChanged?.call(isAvailable);
     _updateState(
       (s) => s.copyWith(
         networkAvailable: runtime.networkAvailable,
@@ -64,8 +76,29 @@ class MonitoringEventRouter {
         isSttFallback: true,
         sttFallbackReason: reason,
         sttFallbackBannerId: s.sttFallbackBannerId + 1,
+        isSttUnavailable: false,
+        clearSttUnavailableReason: true,
       ),
     );
+  }
+
+  void _handleSttUnavailable(String? reason) {
+    _updateState(
+      (s) => s.copyWith(
+        isSttUnavailable: true,
+        sttUnavailableReason: reason,
+        isSttFallback: false,
+        clearSttFallbackReason: true,
+      ),
+    );
+  }
+
+  void _handleDegradedNoNotification() {
+    _updateState((s) => s.copyWith(isDegradedNoNotification: true));
+  }
+
+  void _handleWatchdogRestartFailed() {
+    _updateState((s) => s.copyWith(isWatchdogRestartFailed: true));
   }
 
   void _handleStopped(String? finalTranscript) {

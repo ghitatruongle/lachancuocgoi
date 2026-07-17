@@ -22,6 +22,11 @@ List<ScenarioGraph> _socialScenarios() {
         ScamGraphBuilder._s(
           'RANSOM_DEMAND',
           'Đòi tiền chuộc',
+          ScamStage.stage3Urgency,
+        ),
+        ScamGraphBuilder._s(
+          'URGENCY_THREAT',
+          'Đe dọa khẩn cấp',
           ScamStage.stage4Command,
         ),
       ],
@@ -36,9 +41,17 @@ List<ScenarioGraph> _socialScenarios() {
         ], ScamIntent.virtualKidnapping),
         ScamGraphBuilder._tr(<String>[
           'tiền chuộc',
+          'chuộc con',
+          'chuộc về',
           'chuyển tiền',
-          'nếu không',
           'giết',
+        ], ScamIntent.virtualKidnapping),
+        ScamGraphBuilder._tr(<String>[
+          'nếu không',
+          'không gặp lại',
+          'không chuyển',
+          'trong 1 tiếng',
+          'trong 2 tiếng',
         ], ScamIntent.virtualKidnapping),
       ],
     ),
@@ -104,7 +117,6 @@ List<ScenarioGraph> _socialScenarios() {
       ],
       triggers: <_TriggerSpec>[
         ScamGraphBuilder._tr(<String>[
-          'ơi',
           'nhờ chút',
           'giúp anh',
           'giúp chị',
@@ -241,7 +253,6 @@ List<ScenarioGraph> _socialScenarios() {
           'bão lũ',
         ], ScamIntent.charityDonation),
         ScamGraphBuilder._tr(<String>[
-          'gấp',
           'sắp hết hạn',
           'cần ngay',
           'bé đang chờ mổ',

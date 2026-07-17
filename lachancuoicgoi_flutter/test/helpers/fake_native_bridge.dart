@@ -144,6 +144,12 @@ class FakeNativeBridge implements NativeBridgeInterface {
     dismissIncomingCallOverlayCalls++;
   }
 
+  // Phase 2 (P2-4): Call screening opt-in stubs.
+  @override
+  Future<void> setCallScreeningBlockEnabled(bool enabled) async {}
+  @override
+  Future<void> setBlockedNumbers(List<String> numbers) async {}
+
   /// Dispose all stream controllers. Call in tearDown.
   void dispose() {
     _transcriptController.close();

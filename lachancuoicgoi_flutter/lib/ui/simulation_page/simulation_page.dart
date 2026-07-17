@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/risk_level.dart';
 import '../theme/app_theme.dart';
+import '../theme/risk_level_colors.dart';
 import 'simulation_controller.dart';
 import 'simulation_data.dart';
 
@@ -228,12 +229,7 @@ class _ScenarioCardState extends State<_ScenarioCard> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final risk = RiskLevel.fromString(widget.scenario.riskLevel);
-    final riskColor = switch (risk) {
-      RiskLevel.green => const Color(0xFF4CAF50),
-      RiskLevel.yellow => const Color(0xFFFFEB3B),
-      RiskLevel.orange => const Color(0xFFFF9800),
-      RiskLevel.red => const Color(0xFFF44336),
-    };
+    final riskColor = risk.color;
 
     return Card(
       clipBehavior: Clip.antiAlias,

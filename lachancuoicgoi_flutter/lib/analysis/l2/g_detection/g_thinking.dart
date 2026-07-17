@@ -475,7 +475,7 @@ class GThinking {
             'CẢNH BÁO: Yêu cầu thông tin nhạy cảm (${tier.tier3Matches.map((kw) => kw.keyword).join(', ')})',
         allMatchedKeywords: upgradedKeywords,
         confirmedSituation: hasGoodScenarioMatch
-            ? scenarioMatch!.situationName
+            ? scenarioMatch?.situationName
             : (tier.hasTier1 ? 'Chủ đề nhạy cảm' : null),
         matchedPatterns: matchedPatterns,
         mostLikelyScenario: scenarioMatch,
@@ -500,7 +500,7 @@ class GThinking {
       reason: reason,
       allMatchedKeywords: upgradedKeywords,
       confirmedSituation: hasGoodScenarioMatch
-          ? scenarioMatch!.situationName
+          ? scenarioMatch?.situationName
           : (tier.hasTier1 ? 'Chủ đề nhạy cảm' : null),
       matchedPatterns: matchedPatterns,
       mostLikelyScenario: scenarioMatch,

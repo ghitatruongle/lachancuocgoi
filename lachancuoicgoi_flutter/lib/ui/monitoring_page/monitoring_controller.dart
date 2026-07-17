@@ -52,7 +52,16 @@ class MonitoringController extends Notifier<MonitoringPageState> {
 
   // Coordinator — resolved lazily in initAfterFrame.
   AnalysisCoordinator? _coordinatorInstance;
-  AnalysisCoordinator get coordinator => _coordinatorInstance!;
+  AnalysisCoordinator get coordinator {
+    final instance = _coordinatorInstance;
+    if (instance == null) {
+      throw StateError(
+        'MonitoringController.coordinator accessed before initAfterFrame(). '
+        'Ensure initAfterFrame() has completed before reading coordinator.',
+      );
+    }
+    return instance;
+  }
 
   bool get hasTestAnalyzerOverride => _l1AnalyzerOverride != null;
 
@@ -130,6 +139,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
         _sessionEnder.onStoppedEvent();
       },
       endSession: () => endSession(),
+      onNetworkChanged: (available) {
+        _coordinatorInstance?.setNetworkAvailable(available);
+      },
     );
 
     sessionManager = MonitoringSessionManager(this);
@@ -272,6 +284,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   void initAfterFrame() {
     if (_disposed || hasTestAnalyzerOverride) return;
     _coordinatorInstance = ref.read(analysisCoordinatorProvider);
+    _coordinatorInstance?.setNetworkAvailable(state.networkAvailable);
 
     // Create orchestrator now that coordinator is available.
     _ensureOrchestratorCreated();
@@ -290,13 +303,32 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   }
 
   void updateTranscriptFromSimulation(String newTranscript) {
+    _updateSpeechRate(newTranscript);
     state = state.copyWith(transcript: newTranscript);
     _orch.scheduleRealTimeAnalysis(state.transcript);
   }
 
   void updateTranscriptFromStream(String newTranscript) {
+    _updateSpeechRate(newTranscript);
     state = state.copyWith(transcript: newTranscript);
     _orch.scheduleRealTimeAnalysis(newTranscript);
+  }
+
+  DateTime? _lastSpeechSampleAt;
+  int _lastSpeechLength = 0;
+
+  void _updateSpeechRate(String newTranscript) {
+    final now = DateTime.now();
+    final prevAt = _lastSpeechSampleAt;
+    final prevLen = _lastSpeechLength;
+    _lastSpeechSampleAt = now;
+    _lastSpeechLength = newTranscript.length;
+    if (prevAt == null || prevLen <= 0) return;
+    final elapsedSec = now.difference(prevAt).inMilliseconds / 1000.0;
+    if (elapsedSec <= 0.05) return;
+    final deltaChars = (newTranscript.length - prevLen).clamp(0, 10000);
+    final rate = deltaChars / elapsedSec;
+    _coordinatorInstance?.setSpeechRate(rate);
   }
 
   void handleRmsEvent(double rms) => _audioHandler.handleRmsEvent(rms);
@@ -338,6 +370,21 @@ class MonitoringController extends Notifier<MonitoringPageState> {
 
   void dismissSttFallbackBanner() {
     state = state.copyWith(isSttFallback: false, clearSttFallbackReason: true);
+  }
+
+  void dismissSttUnavailableBanner() {
+    state = state.copyWith(
+      isSttUnavailable: false,
+      clearSttUnavailableReason: true,
+    );
+  }
+
+  void dismissDegradedNotificationBanner() {
+    state = state.copyWith(isDegradedNoNotification: false);
+  }
+
+  void dismissWatchdogBanner() {
+    state = state.copyWith(isWatchdogRestartFailed: false);
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────
@@ -425,9 +472,13 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       isAnalyzing: false,
     );
 
+    // Phase 2 (P2-7): trigger haptic for ALL risk levels (including yellow),
+    // not just alertEnabled. The AlertManager internally gates haptics by
+    // risk level and reduceMotion.
+    _alertManager.triggerNativeAlert(result);
+
     if (result.alertEnabled) {
       _alertManager.processResult(result);
-      _alertManager.triggerNativeAlert(result);
       // Sync alert history from AlertManager to state for persistence.
       state = state.copyWith(alertHistory: _alertManager.alertHistory);
     }
@@ -468,6 +519,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _simulatedTranscript = null;
     _simulatedScriptLines = null;
     _l1AnalyzerOverride = null;
+    // Reset singleton analyzer state (L1/L2/L3 + WFSA + GDetection) so stale
+    // scores from the previous call/simulation don't leak into the new session.
+    _coordinatorInstance?.reset();
     _coordinatorInstance = null;
     _orchInstance?.dispose();
     _orchInstance = null;

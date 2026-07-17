@@ -101,6 +101,7 @@ void main() {
       // Update settings
       const newState = SettingsState(
         isDarkTheme: true,
+    followSystemTheme: false,
         analysisMode: AnalysisMode.geminiApi,
         audioBoost: true,
         autoEnableSpeakerphone: true,
@@ -130,6 +131,7 @@ void main() {
       // Update settings
       const newState = SettingsState(
         isDarkTheme: true,
+    followSystemTheme: false,
         analysisMode: AnalysisMode.normal,
         audioBoost: false,
         autoEnableSpeakerphone: false,
@@ -148,6 +150,7 @@ void main() {
     test('copyWith works correctly', () {
       const state = SettingsState(
         isDarkTheme: false,
+    followSystemTheme: false,
         analysisMode: AnalysisMode.gDetection,
         audioBoost: false,
         autoEnableSpeakerphone: false,
@@ -163,6 +166,7 @@ void main() {
     test('copyWith preserves unmodified fields', () {
       const state = SettingsState(
         isDarkTheme: true,
+    followSystemTheme: false,
         analysisMode: AnalysisMode.geminiApi,
         audioBoost: true,
         autoEnableSpeakerphone: true,

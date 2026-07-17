@@ -1,7 +1,7 @@
 name: lachancuocgoi_flutter
 description: Flutter port dự kiến của dự án La Chắn Cuộc Gọi.
 publish_to: "none"
-version: 1.5.1+12
+version: 1.5.3+13
 
 environment:
   sdk: ">=3.9.0 <4.0.0"
@@ -28,6 +28,7 @@ dependencies:
   flutter_ringtone_player: ^4.0.0+4
   vibration: ^3.2.0
   crypto: ^3.0.7
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
@@ -39,6 +40,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
   assets:
     - env.json
     - assets/logo.png

@@ -15,14 +15,13 @@ class AnalysisRuntimeState {
   final AnalysisMode selectedMode;
 
   /// The mode actually used for analysis (may differ from [selectedMode]
-  /// when network is unavailable and Gemini falls back to gDetection).
+  /// when network is unavailable and cloud tiers fall back).
   final AnalysisMode effectiveMode;
 
   /// Whether the device currently has network connectivity.
   final bool networkAvailable;
 
-  /// Whether a fallback from [AnalysisMode.geminiApi] to
-  /// [AnalysisMode.gDetection] is active due to network loss.
+  /// Whether a network-driven fallback is active.
   final bool isFallbackActive;
 
   @override
@@ -53,19 +52,15 @@ class AnalysisRuntimeState {
 
 /// Stateless policy that resolves the effective [AnalysisMode] based on
 /// user selection and network availability.
-///
-/// Extracted from inline logic in [MonitoringController] so it can be
-/// unit-tested independently and reused across the codebase.
-///
-/// Mirrors the Kotlin `AnalysisModePolicy` object.
 abstract final class AnalysisModePolicy {
   /// Given the user's [selectedMode] and current [networkAvailable] status,
   /// returns the mode that should actually be used for analysis.
   ///
   /// Rules:
-  /// - If [selectedMode] is [AnalysisMode.geminiApi] and network is
-  ///   unavailable, falls back to [AnalysisMode.gDetection].
-  /// - In all other cases, returns [selectedMode] unchanged.
+  /// - [AnalysisMode.geminiApi] offline → [AnalysisMode.gDetection]
+  /// - [AnalysisMode.parallel] offline → stays parallel but L3 is skipped
+  ///   by the coordinator (see [shouldSkipCloudTier])
+  /// - Otherwise returns [selectedMode] unchanged.
   static AnalysisMode resolveEffectiveMode(
     AnalysisMode selectedMode,
     bool networkAvailable,
@@ -73,26 +68,37 @@ abstract final class AnalysisModePolicy {
     if (selectedMode == AnalysisMode.geminiApi && !networkAvailable) {
       return AnalysisMode.gDetection;
     }
+    // Parallel stays parallel offline — coordinator runs L1+L2 only.
     return selectedMode;
   }
 
+  /// Whether cloud (L3/Gemini) analysis should be skipped.
+  static bool shouldSkipCloudTier(
+    AnalysisMode effectiveMode,
+    bool networkAvailable,
+  ) {
+    if (!networkAvailable) {
+      return effectiveMode == AnalysisMode.parallel ||
+          effectiveMode == AnalysisMode.geminiApi;
+    }
+    return false;
+  }
+
   /// Creates a full [AnalysisRuntimeState] snapshot from the given inputs.
-  ///
-  /// This is the single source of truth for computing all four runtime
-  /// fields at once, ensuring [isFallbackActive] is always consistent
-  /// with [selectedMode] and [effectiveMode].
   static AnalysisRuntimeState createRuntimeState(
     AnalysisMode selectedMode,
     bool networkAvailable,
   ) {
     final effectiveMode = resolveEffectiveMode(selectedMode, networkAvailable);
+    final fallbackActive =
+        (selectedMode == AnalysisMode.geminiApi &&
+            effectiveMode != AnalysisMode.geminiApi) ||
+        (selectedMode == AnalysisMode.parallel && !networkAvailable);
     return AnalysisRuntimeState(
       selectedMode: selectedMode,
       effectiveMode: effectiveMode,
       networkAvailable: networkAvailable,
-      isFallbackActive:
-          selectedMode == AnalysisMode.geminiApi &&
-          effectiveMode != AnalysisMode.geminiApi,
+      isFallbackActive: fallbackActive,
     );
   }
 }

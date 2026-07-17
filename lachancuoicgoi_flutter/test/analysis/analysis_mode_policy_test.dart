@@ -37,6 +37,21 @@ void main() {
         AnalysisMode.gDetection,
       );
     });
+
+    test('parallel stays parallel offline (L3 skipped by coordinator)', () {
+      expect(
+        AnalysisModePolicy.resolveEffectiveMode(AnalysisMode.parallel, false),
+        AnalysisMode.parallel,
+      );
+      expect(
+        AnalysisModePolicy.shouldSkipCloudTier(AnalysisMode.parallel, false),
+        isTrue,
+      );
+      expect(
+        AnalysisModePolicy.shouldSkipCloudTier(AnalysisMode.parallel, true),
+        isFalse,
+      );
+    });
   });
 
   group('AnalysisModePolicy.createRuntimeState', () {
@@ -105,6 +120,15 @@ void main() {
       expect(state.networkAvailable, false);
       expect(state.isFallbackActive, true);
     });
+
+    test('parallel offline marks fallback active but keeps parallel mode', () {
+      final state = AnalysisModePolicy.createRuntimeState(
+        AnalysisMode.parallel,
+        false,
+      );
+      expect(state.effectiveMode, AnalysisMode.parallel);
+      expect(state.isFallbackActive, true);
+    });
   });
 
   group('AnalysisRuntimeState equality', () {
@@ -160,9 +184,8 @@ void main() {
 
   group('fallback consistency invariant', () {
     test(
-      'isFallbackActive is true iff selected is geminiApi and effective is not',
+      'isFallbackActive tracks gemini remaps and offline parallel cloud skip',
       () {
-        // Test all 9 combinations of 3 modes x {network on, off}
         for (final selected in AnalysisMode.values) {
           for (final network in [true, false]) {
             final state = AnalysisModePolicy.createRuntimeState(
@@ -170,8 +193,9 @@ void main() {
               network,
             );
             final expectedFallback =
-                selected == AnalysisMode.geminiApi &&
-                state.effectiveMode != AnalysisMode.geminiApi;
+                (selected == AnalysisMode.geminiApi &&
+                    state.effectiveMode != AnalysisMode.geminiApi) ||
+                (selected == AnalysisMode.parallel && !network);
             expect(
               state.isFallbackActive,
               expectedFallback,

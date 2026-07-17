@@ -42,6 +42,12 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         private const val VOSK_SAMPLE_RATE = 16000
         private const val VOSK_CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
         private const val VOSK_AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
+        // RMS throttle: the dB reading feeds only the monitoring UI and
+        // tolerates ~1Hz updates. Computing RMS on every ~320ms read iterates
+        // ~5000 byte pairs and competes with the Vosk JNI on weak arm32
+        // devices (e.g. SM-J610F). Skip N-1 of every N reads to cut the loop
+        // cost ~3x without any perceptible UI change.
+        private const val VOSK_RMS_THROTTLE_READS = 3
     }
 
     override val name = "Google"
@@ -540,6 +546,25 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         _textResults.value = ""
     }
 
+    /**
+     * Release the heavy Vosk native model early — called from the host
+     * service's onDestroy() before the service scope cancels — so the
+     * acoustic model (potentially 100s of MB) is reclaimed promptly
+     * instead of waiting for the full teardown chain.
+     *
+     * Idempotent: after this runs, [voskFallback] is nulled so the later
+     * [destroy] call is a no-op for the Vosk side. Safe to call from any
+     * thread: VoskSttManager.destroy() routes close() through the main
+     * looper to serialize with in-flight model init.
+     */
+    fun releaseVoskModel() {
+        if (voskFallback == null) return
+        stopVoskMicReading()
+        voskFallback?.destroy()
+        voskFallback = null
+        Log.i(TAG, "Vosk native model released early in host onDestroy")
+    }
+
     override fun destroy() {
         shouldBeListening = false
         stopListening()
@@ -663,25 +688,29 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
 
         voskMicJob = voskScope.launch {
             val buffer = ByteArray(bufferSize)
+            var readsSinceLastRms = 0
             try {
                 while (isActive && isVoskFallbackActive) {
                     val read = record.read(buffer, 0, buffer.size)
                     if (read > 0) {
                         vosk.processAudioBuffer(buffer, read)
-                        // Zero-allocation RMS: iterate byte pairs directly
-                        // instead of creating List/Chunked/MapNotNull/Map chains.
-                        var sum = 0.0
-                        var count = 0
-                        var i = 0
-                        while (i + 1 < read) {
-                            val sample = (buffer[i + 1].toInt() shl 8 or (buffer[i].toInt() and 0xFF)).toShort().toInt()
-                            sum += if (sample >= 0) sample.toDouble() else -sample.toDouble()
-                            count++
-                            i += 2
+                        if (++readsSinceLastRms >= VOSK_RMS_THROTTLE_READS) {
+                            readsSinceLastRms = 0
+                            // Zero-allocation RMS: iterate byte pairs directly
+                            // instead of creating List/Chunked/MapNotNull/Map chains.
+                            var sum = 0.0
+                            var count = 0
+                            var i = 0
+                            while (i + 1 < read) {
+                                val sample = (buffer[i + 1].toInt() shl 8 or (buffer[i].toInt() and 0xFF)).toShort().toInt()
+                                sum += if (sample >= 0) sample.toDouble() else -sample.toDouble()
+                                count++
+                                i += 2
+                            }
+                            val amplitude = if (count > 0) (sum / count).toFloat() else 0f
+                            val normalizedRms = (amplitude / 2184f).coerceIn(0f, 15f)
+                            _rmsDbFlow.value = normalizedRms
                         }
-                        val amplitude = if (count > 0) (sum / count).toFloat() else 0f
-                        val normalizedRms = (amplitude / 2184f).coerceIn(0f, 15f)
-                        _rmsDbFlow.value = normalizedRms
                     } else if (read < 0) {
                         break
                     }

@@ -14,7 +14,8 @@ object TranscriptionHub {
     // the 1000-char window was barely enough. Increased to 2000 to ensure
     // the full 20-word tail is always available for overlap detection.
     private const val MAX_COMPARE_LENGTH = 2000
-    private const val MAX_HISTORY_RETAIN = 5000
+    // Longer retain so early scam setup (authority intro) survives long calls.
+    private const val MAX_HISTORY_RETAIN = 12000
     // Pre-compile regex to avoid re-compilation on every postTranscript call.
     private val WHITESPACE_REGEX = Regex("\\s+")
 

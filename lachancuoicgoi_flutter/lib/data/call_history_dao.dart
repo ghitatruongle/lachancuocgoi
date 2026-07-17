@@ -54,6 +54,7 @@ class CallHistoryDao {
     final result = await _db.rawQuery(
       'SELECT COUNT(*) as cnt FROM call_history',
     );
+    if (result.isEmpty) return 0;
     return (result.first['cnt'] as int?) ?? 0;
   }
 
@@ -93,6 +94,7 @@ class CallHistoryDao {
       r"OR dateTime LIKE ? ESCAPE '\' OR analysisType LIKE ? ESCAPE '\'",
       [like, like, like, like, like],
     );
+    if (result.isEmpty) return 0;
     return (result.first['cnt'] as int?) ?? 0;
   }
 

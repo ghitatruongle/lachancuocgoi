@@ -5,6 +5,7 @@ import 'dart:isolate';
 import '../../../core/asset_loader.dart';
 import '../../../core/noop_asset_loader.dart';
 import '../../../core/logger.dart';
+import '../../fallback_tracker.dart';
 import 'g_flash.dart';
 import 'g_models.dart';
 import 'g_thinking.dart';
@@ -54,6 +55,7 @@ class GDetectionAssetLoader {
         );
       }
     } on Object catch (e) {
+      FallbackTracker.instance.increment('g_detection_assets');
       _logger?.warning('[GDetectionAssetLoader] Failed to load $fileName: $e');
       GFlash.loadSlangConfig(const <String, String>{});
     }
@@ -65,6 +67,7 @@ class GDetectionAssetLoader {
     try {
       return ScoringConfig.fromJson(await loadJsonMap(fileName));
     } on Object catch (e) {
+      FallbackTracker.instance.increment('g_detection_assets');
       _logger?.warning('[GDetectionAssetLoader] Failed to load $fileName: $e');
       return const ScoringConfig();
     }
@@ -81,6 +84,7 @@ class GDetectionAssetLoader {
         tier3: (config.tier3Pii ?? const <String>[]).toSet(),
       );
     } on Object catch (e) {
+      FallbackTracker.instance.increment('g_detection_assets');
       _logger?.warning('[GDetectionAssetLoader] Failed to load $fileName: $e');
       GThinking.loadTierConfig(
         tier1: const <String>{},
@@ -98,6 +102,7 @@ class GDetectionAssetLoader {
       return config.patterns?.map((pattern) => pattern.toDomain()).toList() ??
           const <ScamPattern>[];
     } on Object catch (e) {
+      FallbackTracker.instance.increment('g_detection_assets');
       _logger?.warning('[GDetectionAssetLoader] Failed to load $fileName: $e');
       return const <ScamPattern>[];
     }
@@ -112,6 +117,7 @@ class GDetectionAssetLoader {
       );
       return ScenarioMatcher(masterModel);
     } on Object catch (e) {
+      FallbackTracker.instance.increment('g_detection_assets');
       _logger?.warning('[GDetectionAssetLoader] Failed to load $fileName: $e');
       return null;
     }
@@ -126,6 +132,7 @@ class GDetectionAssetLoader {
       );
       return SentenceMatcher(sentencesModel);
     } on Object catch (e) {
+      FallbackTracker.instance.increment('g_detection_assets');
       _logger?.warning('[GDetectionAssetLoader] Failed to load $fileName: $e');
       return null;
     }

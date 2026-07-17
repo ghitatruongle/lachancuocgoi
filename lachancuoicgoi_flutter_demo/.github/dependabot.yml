@@ -1,0 +1,39 @@
+version: 2
+# Keep Flutter/Dart dependencies and GitHub Actions current.
+#
+# Two ecosystems are watched:
+#   - pub (pubspec.yaml): Flutter & Dart packages. Grouped so a single PR
+#     bumps minor versions together, which keeps the changelog reviewable.
+#     Major versions still come as individual PRs by default via
+#     `update-types` ignore on `major` for the grouped minor stream.
+#   - github-actions: pins on the workflow files above stay up to date.
+
+updates:
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # Group minor/patch bumps into one PR per week; major bumps get their
+    # own PR so they can be reviewed and tested individually.
+    groups:
+      flutter-dependencies:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: 'deps(pub)'
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'deps(ci)'
+      include: scope

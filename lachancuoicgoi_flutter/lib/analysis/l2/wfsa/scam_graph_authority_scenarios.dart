@@ -138,7 +138,7 @@ List<ScenarioGraph> _authorityScenarios() {
         ScamGraphBuilder._s(
           'VERIFY_CMD',
           'Yêu cầu xác thực/cài app',
-          ScamStage.stage3Urgency,
+          ScamStage.stage4Command,
         ),
       ],
       triggers: <_TriggerSpec>[
@@ -153,15 +153,21 @@ List<ScenarioGraph> _authorityScenarios() {
         ScamGraphBuilder._tr(<String>[
           'khóa sim',
           'hai chiều',
+          '2 chiều',
           'chặn một chiều',
           'vi phạm',
           'thuê bao lạ',
+          'gian lận',
+          'báo cáo',
         ], ScamIntent.telecomLock),
         ScamGraphBuilder._tr(<String>[
           'xác thực',
+          'xác minh',
           'cài app',
           'bấm phím',
           'nhập mã',
+          'link đăng ký',
+          'gửi link',
         ], ScamIntent.techSupportHijack),
       ],
     ),

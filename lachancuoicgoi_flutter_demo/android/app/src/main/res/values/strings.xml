@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lá chắn cuộc gọi</string>
+    <string name="desc_call_detection">Giám sát nội dung cuộc gọi để phát hiện rủi ro lừa đảo.</string>
+</resources>
