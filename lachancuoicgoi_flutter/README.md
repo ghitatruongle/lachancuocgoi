@@ -98,6 +98,43 @@ lachancuocgoi/                    # Repo root (monorepo)
 ## Phiên bản
 
 - **SDK**: Dart `>=3.9.0 <4.0.0` (Flutter stable)
-- **Version**: 1.5.1+12
+- **Version**: 1.6.0+12
 - **Platform chính**: Android (nhờ native overlay + Vosk STT)
 - **Platform phụ trợ**: iOS/Web/Desktop (qua simulator bridge với multi-scenario catalog + creator mode)
+
+## Tính năng theo nền tảng (Platform Honesty)
+
+| Nền tảng | STT (Vosk) | Overlay cảnh báo | Call Screening | Phiên đầy đủ |
+|----------|:----------:|:----------------:|:--------------:|:------------:|
+| **Android** | ✅ Thật | ✅ Thật | ✅ Thật | ✅ |
+| **iOS** | ❌ Mô phỏng | ❌ Mô phỏng | ❌ Không | ❌ |
+| **Web/Desktop** | ❌ Mô phỏng | ❌ Mô phỏng | ❌ Không | ❌ |
+
+> **⚠️ Quan trọng (iOS):** iOS là **bản xem trước AI** (AI preview). Bản đầy đủ
+> (STT thực, overlay cảnh báo, call screening) chỉ có trên **Android**. Trên iOS,
+> app chạy kịch bản giả lập để thử nghiệm AI. Không sử dụng app iOS để bảo vệ
+> cuộc gọi thật. Apple không cho phép ứng dụng bên thứ ba nghe nội dung cuộc
+> gọi hoặc chặn số như Android CallScreeningService.
+
+> **App Store / Google Play:** mô tả cửa hàng phải nêu rõ giới hạn iOS. Không
+> claim "chặn cuộc gọi lừa đảo" trên metadata iOS. Xem `fastlane/metadata/` cho
+> listing template.
+
+## Phase 2 — Hoàn thành
+
+| Mục | Trạng thái | Mô tả |
+|-----|-----------|-------|
+| **P2-1** Eval harness | ✅ | Corpus JSONL + precision/recall/F1 regression gate (`flutter test --tags eval`) |
+| **P2-2** L2 early-exit | ✅ | Incremental cache cho green results — bỏ re-run GDetection khi delta không chứa risk token |
+| **P2-3** OTA vocab/scenario | ✅ | `RemoteConfigStore` + `DiskAssetLoader` + `CompositeAssetLoader` (disk-first) + Settings UI |
+| **P2-4** Call screening opt-in | ✅ | Block/reject known scam numbers — default OFF, consent UI bắt buộc |
+| **P2-5** model-vn-small | ✅ (infra) | Pubspec entry + `useSmallSttModel` setting toggle + docs (cần file model thật) |
+| **P2-6** i18n / gen-l10n | ✅ | `app_vi.arb` + `AppLocalizations` + Home/Monitoring migrated |
+| **P2-7** Haptics/motion | ✅ | Yellow=light, orange=medium, red=heavy + `MediaQuery.disableAnimations` respect |
+| **P2-8** Simulator bridge | ✅ | Factory `NativeBridgeInterface.create()` — single `SimulatorCallShieldBridge` cho non-Android |
+| **P2-9** iOS honesty | ✅ (Branch A) | README + store listing metadata (`fastlane/metadata/`) |
+| **P2-SEC** API key proxy | ✅ | `ProxyL3Client` abstraction + `docs/API_KEY_SECURITY.md` |
+
+Chi tiết eval: `docs/eval_corpus_readme.md`
+Chi tiết security: `docs/API_KEY_SECURITY.md`
+Chi tiết model: `docs/MODEL_VN_SMALL.md`

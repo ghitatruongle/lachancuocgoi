@@ -1,0 +1,644 @@
+import 'dart:async';
+import 'dart:convert';
+
+import '../../core/risk_level.dart';
+import '../../core/logger.dart';
+import '../../core/asset_loader.dart';
+import '../analysis_config.dart';
+import '../analysis_level.dart';
+import '../analysis_result.dart';
+import '../analyzer.dart';
+import '../common/fuzzy_matcher.dart';
+import '../common/text_normalizer.dart';
+import '../health_check.dart';
+import 'flat_trie.dart';
+import 'helpers/bigram_corrections_loader.dart';
+import 'l1_result.dart';
+import 'l1_safety_filter.dart';
+
+class L1Analyzer implements Analyzer {
+  L1Analyzer({
+    this.config = const L1Config(),
+    AssetLoader? assetLoader,
+    AppLogger? logger,
+    FutureOr<String> Function()? vocabularyProvider,
+    FutureOr<String> Function()? bigramCorrectionsProvider,
+    FutureOr<String> Function()? criticalKeywordsProvider,
+  }) : _assetLoader = assetLoader,
+       _logger = logger,
+       _vocabularyProvider = vocabularyProvider,
+       _bigramCorrectionsProvider = bigramCorrectionsProvider,
+       _criticalKeywordsProvider = criticalKeywordsProvider;
+
+  final AssetLoader? _assetLoader;
+  final AppLogger? _logger;
+  FutureOr<String> Function()? _vocabularyProvider;
+  FutureOr<String> Function()? _bigramCorrectionsProvider;
+  final FutureOr<String> Function()? _criticalKeywordsProvider;
+
+  /// Critical keywords loaded from JSON asset (or fallback defaults).
+  Set<String> _criticalKeywords = const {};
+
+  @override
+  AnalysisLevel get level => AnalysisLevel.l1;
+
+  FlatTrie _trie = FlatTrie();
+  final Map<String, List<TokenCorrection>> _corrections = {};
+  final Map<String, KeywordMatch> _singleTokenFuzzyCandidates = {};
+
+  final L1Config config;
+
+  bool _hasInitialized = false;
+  Future<void>? _initializingFuture;
+
+  List<String> _cachedCorrectedTokens = [];
+  List<int> _stateHistory = [FlatTrie.rootId];
+  String _lastFullTranscript = '';
+  int _processedTextLength = 0;
+  AnalysisResult _lastResult = const AnalysisResult(
+    overallRiskLevel: RiskLevel.green,
+    matches: [],
+    analysisLevel: AnalysisLevel.l1,
+    alertEnabled: false,
+  );
+
+  void setVocabularyProvider(FutureOr<String> Function() provider) {
+    _vocabularyProvider = provider;
+    _resetInitialization();
+  }
+
+  void setBigramCorrectionsProvider(FutureOr<String> Function() provider) {
+    _bigramCorrectionsProvider = provider;
+    _resetInitialization();
+  }
+
+  @override
+  Future<void> initialize() => _initializeIfNeeded();
+
+  @override
+  bool get isReady => _hasInitialized;
+
+  @override
+  void resetSession() {
+    _cachedCorrectedTokens.clear();
+    _stateHistory = [FlatTrie.rootId];
+    _lastFullTranscript = '';
+    _processedTextLength = 0;
+    _lastResult = const AnalysisResult(
+      overallRiskLevel: RiskLevel.green,
+      matches: [],
+      analysisLevel: AnalysisLevel.l1,
+      alertEnabled: false,
+    );
+  }
+
+  @override
+  int get processedTextLength => _processedTextLength;
+
+  @override
+  void syncProcessedTextLength(int length) {
+    _processedTextLength = length < 0 ? 0 : length;
+  }
+
+  @override
+  AnalysisResult get lastResult => _lastResult;
+
+  @override
+  HealthReport healthCheck() {
+    final hasKeywords = _trie.nodesCount > 1;
+    final hasCorrections = _corrections.isNotEmpty;
+
+    if (!hasKeywords) {
+      return const HealthReport(
+        status: HealthStatus.down,
+        component: 'L1',
+        message: 'Trie rỗng. Keywords JSON có thể bị lỗi hoặc chưa load.',
+      );
+    }
+    if (!hasCorrections) {
+      return HealthReport(
+        status: HealthStatus.degraded,
+        component: 'L1',
+        message:
+            'Trie OK (${_trie.nodesCount} nodes) nhưng không có bigram corrections.',
+      );
+    }
+    final correctionCount = _corrections.values.fold<int>(
+      0,
+      (sum, list) => sum + list.length,
+    );
+    return HealthReport(
+      status: HealthStatus.healthy,
+      component: 'L1',
+      message:
+          'Trie OK (${_trie.nodesCount} nodes, $correctionCount corrections).',
+    );
+  }
+
+  Future<AnalysisResult> analyze(String text) async {
+    await _initializeIfNeeded();
+    final rawTokens = _tokenize(text);
+    final tokens = applyBigramCorrections(rawTokens);
+    final matches = await _findMatchesLinear(tokens);
+    final filteredMatches = _filterSafeMatches(matches, tokens);
+    final denseMatches = _applyRiskDensity(filteredMatches, tokens.length);
+    return L1ResultParser.parse(denseMatches, tokens.length, _criticalKeywords);
+  }
+
+  Future<AnalysisResult> analyzeStream(String fullTranscript) async {
+    await _initializeIfNeeded();
+
+    if (fullTranscript.length < _lastFullTranscript.length ||
+        !_isTailAppend(fullTranscript)) {
+      _cachedCorrectedTokens.clear();
+      _stateHistory = [FlatTrie.rootId];
+      _lastFullTranscript = '';
+    }
+
+    final rawTokens = _tokenize(fullTranscript);
+    final fullCorrected = applyBigramCorrections(rawTokens);
+
+    int commonLen = 0;
+    while (commonLen < _cachedCorrectedTokens.length &&
+        commonLen < fullCorrected.length &&
+        _cachedCorrectedTokens[commonLen] == fullCorrected[commonLen]) {
+      commonLen++;
+    }
+
+    if (commonLen == fullCorrected.length &&
+        commonLen == _cachedCorrectedTokens.length) {
+      _lastFullTranscript = fullTranscript;
+      _processedTextLength = fullTranscript.length;
+      return _lastResult;
+    }
+
+    if (commonLen < _cachedCorrectedTokens.length) {
+      _cachedCorrectedTokens.removeRange(
+        commonLen,
+        _cachedCorrectedTokens.length,
+      );
+      _stateHistory.removeRange(commonLen + 1, _stateHistory.length);
+    }
+
+    int currentState = _stateHistory.last;
+    final matches = <KeywordMatch>{};
+    final unmatchedTokens = <_UnmatchedToken>[];
+
+    for (var index = commonLen; index < fullCorrected.length; index++) {
+      final token = fullCorrected[index];
+
+      while (currentState != FlatTrie.rootId &&
+          _trie.getChildId(currentState, token) == null) {
+        currentState = _trie.failureLinks[currentState];
+      }
+      currentState = _trie.getChildId(currentState, token) ?? FlatTrie.rootId;
+      _stateHistory.add(currentState);
+
+      final found = _collectMatchesAtState(
+        stateId: currentState,
+        matches: matches,
+        wordIndex: index,
+      );
+      if (!found) {
+        unmatchedTokens.add(_UnmatchedToken(token, index));
+      }
+    }
+
+    _cachedCorrectedTokens = fullCorrected;
+    _lastFullTranscript = fullTranscript;
+    _processedTextLength = fullTranscript.length;
+
+    _addFuzzyMatches(unmatchedTokens, matches);
+    final filteredMatches = _filterSafeMatches(matches, fullCorrected);
+    final denseMatches = _applyRiskDensity(
+      filteredMatches,
+      fullCorrected.length,
+    );
+    _lastResult = L1ResultParser.parse(
+      denseMatches,
+      fullCorrected.length,
+      _criticalKeywords,
+    );
+    return _lastResult;
+  }
+
+  List<String> applyBigramCorrections(List<String> tokens) {
+    if (tokens.length < 2 || _corrections.isEmpty) return tokens;
+
+    final result = <String>[];
+    var index = 0;
+    while (index < tokens.length) {
+      TokenCorrection? matchedCorrection;
+      final currentWord = tokens[index];
+      final possibleCorrections = _corrections[currentWord];
+
+      if (possibleCorrections != null) {
+        for (final correction in possibleCorrections) {
+          if (_matchesCorrection(tokens, index, correction.from)) {
+            matchedCorrection = correction;
+            break;
+          }
+        }
+      }
+
+      if (matchedCorrection != null) {
+        result.addAll(matchedCorrection.to);
+        index += matchedCorrection.from.length;
+      } else {
+        result.add(currentWord);
+        index++;
+      }
+    }
+    return result;
+  }
+
+  Future<void> _initializeIfNeeded() {
+    if (_hasInitialized) return Future<void>.value();
+    return _initializingFuture ??= _doInitialize();
+  }
+
+  Future<void> _doInitialize() async {
+    _trie = FlatTrie();
+    await _buildTrie();
+    // Yield to event loop — prevents 48 skipped frames during first analysis.
+    await Future<void>.delayed(Duration.zero);
+    await _loadBigramCorrections();
+    await Future<void>.delayed(Duration.zero);
+    await _loadCriticalKeywords();
+    await Future<void>.delayed(Duration.zero);
+    await _computeAhoCorasickLinks();
+    _hasInitialized = true;
+  }
+
+  void _resetInitialization() {
+    _hasInitialized = false;
+    _initializingFuture = null;
+    _questionPatterns = null;
+    resetSession();
+  }
+
+  Future<void> _buildTrie() async {
+    _singleTokenFuzzyCandidates.clear();
+    try {
+      final jsonText = await _loadString(
+        'assets/risk_model_vocabulary.json',
+        _vocabularyProvider,
+      );
+      final decoded = jsonDecode(jsonText);
+      if (decoded is! Map<String, dynamic>) {
+        _buildFallbackTrie();
+        return;
+      }
+
+      final riskLevels = decoded['riskLevels'];
+      if (riskLevels is! List) {
+        _buildFallbackTrie();
+        return;
+      }
+
+      for (final rawLevel in riskLevels) {
+        if (rawLevel is! Map) continue;
+        final levelValue = (rawLevel['level'] as num?)?.toInt() ?? 0;
+        if (levelValue <= RiskLevel.green.index) continue;
+
+        final threats = rawLevel['threats'];
+        if (threats is Map) {
+          for (final entry in threats.entries) {
+            final category = entry.key.toString();
+            final keywords = entry.value;
+            if (keywords is! List) continue;
+            for (final keyword in keywords) {
+              _insertKeyword(keyword.toString(), levelValue, category);
+            }
+          }
+        }
+
+        final keywords = rawLevel['keywords'];
+        if (keywords is List) {
+          for (final keyword in keywords) {
+            _insertKeyword(keyword.toString(), levelValue, 'Chung');
+          }
+        }
+      }
+    } on Object catch (e) {
+      _logger?.warning('Failed to build trie: $e. Using fallback keywords.');
+      _buildFallbackTrie();
+    }
+  }
+
+  void _buildFallbackTrie() {
+    _insertKeyword('lừa đảo', 3, 'Chung');
+    _insertKeyword('chuyển tiền', 2, 'Chung');
+    _insertKeyword('mã otp', 3, 'Chung');
+    _insertKeyword('công an', 2, 'Chung');
+  }
+
+  Future<void> _loadBigramCorrections() async {
+    // BUG-L1-FUZZY-CACHE-LEAK fix: Clear existing corrections before loading.
+    _corrections.clear();
+    try {
+      final jsonText = await _loadString(
+        'assets/bigram_corrections.json',
+        _bigramCorrectionsProvider,
+      );
+      // Wave 3 refactor: delegated to BigramCorrectionsLoader.
+      BigramCorrectionsLoader.loadFromJson(jsonText, _corrections, _logger);
+    } on Object catch (e) {
+      _logger?.warning('Failed to load bigram corrections: $e');
+      // Already cleared at start, so _corrections remains empty on failure.
+    }
+  }
+
+  /// Load critical keywords from JSON asset (config-driven).
+  /// Falls back to [L1ResultParser.defaultCriticalKeywords] on failure.
+  Future<void> _loadCriticalKeywords() async {
+    try {
+      final jsonText = await _loadString(
+        'assets/l1_critical_keywords.json',
+        _criticalKeywordsProvider,
+      );
+      final decoded = jsonDecode(jsonText);
+      if (decoded is! Map<String, dynamic>) return;
+
+      final keywords = decoded['criticalKeywords'];
+      if (keywords is List) {
+        _criticalKeywords = keywords
+            .whereType<String>()
+            .map((k) => k.toLowerCase().trim())
+            .where((k) => k.isNotEmpty)
+            .toSet();
+        _logger?.info(
+          'Loaded ${_criticalKeywords.length} critical keywords from JSON.',
+        );
+      }
+    } on Object catch (e) {
+      _logger?.warning('Failed to load critical keywords: $e. Using defaults.');
+      _criticalKeywords = L1ResultParser.defaultCriticalKeywords;
+    }
+  }
+
+  void _insertKeyword(String keyword, int levelValue, String category) {
+    final tokens = _tokenize(keyword);
+    if (tokens.isEmpty) return;
+    if (tokens.length == 1 && tokens.single.length >= config.fuzzyMinLength) {
+      _singleTokenFuzzyCandidates[tokens.single] = KeywordMatch(
+        keyword: keyword,
+        level: RiskLevel.fromInt(levelValue),
+        category: category,
+      );
+    }
+
+    var currentNodeId = FlatTrie.rootId;
+    for (final token in tokens) {
+      final existingChildId = _trie.getChildId(currentNodeId, token);
+      if (existingChildId != null) {
+        currentNodeId = existingChildId;
+      } else {
+        final nextNodeId = _trie.createNode();
+        _trie.setChildId(currentNodeId, token, nextNodeId);
+        currentNodeId = nextNodeId;
+      }
+    }
+
+    _trie.packMetadata(
+      level: levelValue,
+      category: category,
+      keyword: keyword,
+      nodeId: currentNodeId,
+    );
+  }
+
+  Future<void> _computeAhoCorasickLinks() async {
+    final queue = <int>[];
+    _trie.childrenMaps[FlatTrie.rootId]?.forEach((_, childId) {
+      _trie.failureLinks[childId] = FlatTrie.rootId;
+      queue.add(childId);
+    });
+
+    var head = 0;
+    var processed = 0;
+    const yieldInterval = 200; // yield every 200 nodes
+
+    while (head < queue.length) {
+      final currentId = queue[head++];
+      _trie.childrenMaps[currentId]?.forEach((token, childId) {
+        var failureId = _trie.failureLinks[currentId];
+        while (failureId != FlatTrie.rootId &&
+            _trie.getChildId(failureId, token) == null) {
+          failureId = _trie.failureLinks[failureId];
+        }
+
+        _trie.failureLinks[childId] =
+            _trie.getChildId(failureId, token) ?? FlatTrie.rootId;
+
+        final linkedFailureId = _trie.failureLinks[childId];
+        _trie.dictionaryLinks[childId] = _trie.isMatchNode(linkedFailureId)
+            ? linkedFailureId
+            : _trie.dictionaryLinks[linkedFailureId];
+        queue.add(childId);
+      });
+
+      processed++;
+      if (processed % yieldInterval == 0) {
+        await Future<void>.delayed(Duration.zero); // yield to event loop
+      }
+    }
+  }
+
+  Future<Set<KeywordMatch>> _findMatchesLinear(List<String> tokens) async {
+    if (tokens.isEmpty) return <KeywordMatch>{};
+
+    final matches = <KeywordMatch>{};
+    final unmatchedTokens = <_UnmatchedToken>[];
+    var currentStateId = FlatTrie.rootId;
+    const yieldInterval = 200;
+
+    for (var wordIndex = 0; wordIndex < tokens.length; wordIndex++) {
+      final token = tokens[wordIndex];
+
+      while (currentStateId != FlatTrie.rootId &&
+          _trie.getChildId(currentStateId, token) == null) {
+        currentStateId = _trie.failureLinks[currentStateId];
+      }
+      currentStateId =
+          _trie.getChildId(currentStateId, token) ?? FlatTrie.rootId;
+
+      final found = _collectMatchesAtState(
+        stateId: currentStateId,
+        matches: matches,
+        wordIndex: wordIndex,
+      );
+      if (!found) unmatchedTokens.add(_UnmatchedToken(token, wordIndex));
+
+      // Yield every N tokens to avoid blocking the UI on long transcripts.
+      if (wordIndex > 0 && wordIndex % yieldInterval == 0) {
+        // Await a micro-task yield to unblock the event loop for
+        // UI frames and stream events while scanning a long transcript.
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
+    _addFuzzyMatches(unmatchedTokens, matches);
+    return matches;
+  }
+
+  void _addFuzzyMatches(
+    List<_UnmatchedToken> unmatchedTokens,
+    Set<KeywordMatch> matches,
+  ) {
+    if (!config.fuzzyEnabled || _singleTokenFuzzyCandidates.isEmpty) return;
+
+    for (final unmatched in unmatchedTokens) {
+      if (unmatched.token.length < config.fuzzyMinLength) continue;
+      final closest = FuzzyMatcher.findClosest(
+        unmatched.token,
+        _singleTokenFuzzyCandidates.keys,
+        maxDistance: config.fuzzyMaxDistance,
+      );
+      if (closest == null) continue;
+      final candidate = _singleTokenFuzzyCandidates[closest];
+      if (candidate == null || candidate.level == RiskLevel.green) continue;
+      matches.add(
+        candidate.copyWith(
+          startIndex: unmatched.wordIndex,
+          endIndex: unmatched.wordIndex,
+          isFuzzy: true,
+        ),
+      );
+    }
+  }
+
+  bool _collectMatchesAtState({
+    required int stateId,
+    required Set<KeywordMatch> matches,
+    int? wordIndex,
+  }) {
+    var found = false;
+    var tempStateId = stateId;
+    final visitedDictNodes = <int>{};
+
+    while (tempStateId != FlatTrie.rootId &&
+        visitedDictNodes.add(tempStateId)) {
+      if (_trie.isMatchNode(tempStateId)) {
+        final keyword = _trie.nodeOriginalKeywords[tempStateId] ?? '';
+        final keywordTokenCount = _tokenize(keyword).length;
+        final endIndex = wordIndex ?? -1;
+        final startIndex = wordIndex == null
+            ? -1
+            : wordIndex - (keywordTokenCount <= 0 ? 1 : keywordTokenCount) + 1;
+
+        matches.add(
+          KeywordMatch(
+            keyword: keyword,
+            level: RiskLevel.fromInt(_trie.getRiskLevel(tempStateId)),
+            category: _trie.getCategoryName(tempStateId),
+            startIndex: startIndex,
+            endIndex: endIndex,
+          ),
+        );
+        found = true;
+      }
+      tempStateId = _trie.dictionaryLinks[tempStateId];
+    }
+
+    return found;
+  }
+
+  bool _matchesCorrection(List<String> tokens, int start, List<String> from) {
+    if (start + from.length > tokens.length) return false;
+    for (var offset = 0; offset < from.length; offset++) {
+      if (tokens[start + offset] != from[offset]) return false;
+    }
+    return true;
+  }
+
+  bool _isTailAppend(String fullTranscript) {
+    return fullTranscript.startsWith(_lastFullTranscript);
+  }
+
+  List<String> _tokenize(String text) {
+    return TextNormalizer.tokenize(
+      text,
+      applySlang: true,
+      noiseMode: NoiseMode.space,
+    );
+  }
+
+  Future<String> _loadString(
+    String assetKey,
+    FutureOr<String> Function()? provider,
+  ) async {
+    if (provider != null) {
+      // Must await — provider returns FutureOr<String>, and wrapping a
+      // Future in Future.value() creates a nested future, causing
+      // jsonDecode to receive a Future object instead of a String.
+      final result = await provider();
+      return result;
+    }
+    if (_assetLoader == null) {
+      throw StateError(
+        'AssetLoader is null. Phải cung cấp AssetLoader hoặc provider cho $assetKey.',
+      );
+    }
+    return _assetLoader.loadString(assetKey);
+  }
+
+  @override
+  void dispose() {
+    // Release session-scoped state first (token history, Aho-Corasick state).
+    resetSession();
+    // Release the large static structures so they can be GC'd when the
+    // analyzer is torn down. Previously dispose() only cleared _fuzzyCache,
+    // leaving the trie (potentially thousands of nodes) + bigram corrections
+    // map + initialization future reachable.
+    _corrections.clear();
+    _singleTokenFuzzyCandidates.clear();
+    _trie = FlatTrie();
+    _questionPatterns = null;
+    _hasInitialized = false;
+    _initializingFuture = null;
+  }
+
+  // ── Cached compiled question patterns (built once per config) ────────
+  List<RegExp>? _questionPatterns;
+
+  List<RegExp> _getQuestionPatterns() {
+    return _questionPatterns ??= config.questionContextPatterns
+        .map((p) => RegExp(p, caseSensitive: false))
+        .toList();
+  }
+
+  Set<KeywordMatch> _filterSafeMatches(
+    Set<KeywordMatch> matches,
+    List<String> tokens,
+  ) {
+    return L1SafetyFilter.filterSafeMatches(
+      matches: matches,
+      tokens: tokens,
+      config: config,
+      logger: _logger,
+      getQuestionPatterns: _getQuestionPatterns,
+    );
+  }
+
+  Set<KeywordMatch> _applyRiskDensity(
+    Set<KeywordMatch> matches,
+    int totalTokens,
+  ) {
+    return L1SafetyFilter.applyRiskDensity(matches, totalTokens);
+  }
+
+  Set<KeywordMatch> applyRiskDensityForTesting(
+    Set<KeywordMatch> matches,
+    int totalTokens,
+  ) {
+    return _applyRiskDensity(matches, totalTokens);
+  }
+}
+
+class _UnmatchedToken {
+  const _UnmatchedToken(this.token, this.wordIndex);
+
+  final String token;
+  final int wordIndex;
+}

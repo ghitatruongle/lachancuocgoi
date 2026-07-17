@@ -17,6 +17,8 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.lachancuocgoi.lachancuocgoi_flutter.helpers.MonitoringNotificationBuilder
+import com.lachancuocgoi.lachancuocgoi_flutter.helpers.WatchdogScheduler
 import com.lachancuocgoi.lachancuocgoi_flutter.R
 import com.lachancuocgoi.lachancuocgoi_flutter.receiver.ServiceWatchdogReceiver
 import kotlinx.coroutines.CoroutineScope
@@ -51,6 +53,13 @@ class BackgroundMonitoringService : Service() {
     private lateinit var speechToTextManager: SpeechToTextManager
     private lateinit var audioManager: AudioManager
     private lateinit var connectivityMonitor: ConnectivityMonitor
+    // Wave 3: notification lifecycle extracted to a dedicated helper. Built once
+    // in onCreate(); every later updateNotification() call delegates to it.
+    private lateinit var notificationBuilder: MonitoringNotificationBuilder
+    // Wave 3: AlarmManager scheduling extracted to a dedicated helper. Lazy so
+    // it is created only when first needed (onCreate does not call any watchdog
+    // method; the alarm path runs on onStartCommand / onTaskRemoved / onDestroy).
+    private val watchdogScheduler by lazy { WatchdogScheduler(this) }
 
     private var currentTranscript = ""
     private var startTime: Long = 0
@@ -112,6 +121,10 @@ class BackgroundMonitoringService : Service() {
         speechToTextManager = SpeechToTextManager(application)
         connectivityMonitor = ConnectivityMonitor(application)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        // Wave 3: notification + watchdog scheduling extracted into helpers so
+        // this service body focuses on lifecycle and STT orchestration.
+        notificationBuilder = MonitoringNotificationBuilder(this, BackgroundMonitoringService::class.java)
+        // watchdogScheduler is `by lazy` — initialized on first use.
         
         speechToTextManager.onEngineSwitched = { isVosk ->
             if (isVosk) {
@@ -325,6 +338,14 @@ class BackgroundMonitoringService : Service() {
                         TAG,
                         "Neither Google nor Vosk STT is ready — transcript will be empty"
                     )
+                    // Surface a first-class fatal monitoring state so Flutter
+                    // can show a retry banner instead of a silent empty transcript.
+                    NativeBridgeEventSink.sendMonitoringState("STT_UNAVAILABLE:no_engine")
+                    NativeBridgeEventSink.sendLog(
+                        TAG,
+                        "Mic/STT không sẵn sàng — transcript trống.",
+                        "ERROR",
+                    )
                 }
             } else {
                 try {
@@ -463,39 +484,21 @@ class BackgroundMonitoringService : Service() {
         }
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Giám sát cuộc gọi",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
-        }
-    }
-
     private fun createMonitoringNotification(text: String): android.app.Notification {
-        createNotificationChannel()
-        val stopIntent = Intent(this, BackgroundMonitoringService::class.java).apply { action = ACTION_STOP }
-        val stopPendingIntent = PendingIntent.getService(this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE)
-
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Lá chắn cuộc gọi")
-            .setContentText(text)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setOngoing(true)
-            .addAction(0, "Dừng", stopPendingIntent)
-            .build()
+        // Channel creation is idempotent; ensure it exists before every build
+        // to preserve the original contract (the old inlined version called
+        // createNotificationChannel() unconditionally here).
+        notificationBuilder.ensureChannel(CHANNEL_ID, "Giám sát cuộc gọi")
+        return notificationBuilder.build(CHANNEL_ID, ACTION_STOP, text)
     }
 
     private fun updateNotification(text: String) {
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID, createMonitoringNotification(text))
+        notificationBuilder.update(CHANNEL_ID, ACTION_STOP, NOTIFICATION_ID, text)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        speechToTextManager.releaseVoskModel()
         isMonitoringActive = false
         isRunning = false
         // Cancel any pending focus-resume callback
@@ -555,32 +558,8 @@ class BackgroundMonitoringService : Service() {
         }
     }
 
-    private fun scheduleExactWatchdogAlarm() {
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(this, ServiceWatchdogReceiver::class.java).apply {
-            action = ServiceWatchdogReceiver.ACTION_CHECK_SERVICE
-        }
-        val pendingIntent = PendingIntent.getBroadcast(
-            this, 1, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        val triggerAt = System.currentTimeMillis() + WATCHDOG_INTERVAL_MINUTES * 60 * 1000L
-        try {
-            // Bug fix: always use setAlarmClock (exempt from SCHEDULE_EXACT_ALARM permission)
-            // Previously, code checked canScheduleExactAlarms() which is redundant for
-            // setAlarmClock() and caused fallback to less reliable setAndAllowWhileIdle().
-            alarmManager.setAlarmClock(
-                AlarmManager.AlarmClockInfo(triggerAt, pendingIntent),
-                pendingIntent
-            )
-        } catch (e: SecurityException) {
-            Log.w(TAG, "Cannot schedule exact alarm, falling back", e)
-            alarmManager.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent
-            )
-        }
-        Log.d(TAG, "Exact watchdog alarm scheduled at +${WATCHDOG_INTERVAL_MINUTES}m.")
-    }
+    private fun scheduleExactWatchdogAlarm() =
+        watchdogScheduler.scheduleExact(WATCHDOG_INTERVAL_MINUTES)
 
     /**
      * Acquire a PARTIAL_WAKE_LOCK for the whole monitoring session. The mic
@@ -790,49 +769,10 @@ class BackgroundMonitoringService : Service() {
         editor.apply()
     }
 
-    private fun scheduleWatchdogAlarm() {
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(this, ServiceWatchdogReceiver::class.java).apply {
-            action = ServiceWatchdogReceiver.ACTION_CHECK_SERVICE
-        }
-        val pendingIntent = PendingIntent.getBroadcast(
-            this, 0, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        // Check every 5 minutes; use inexact to be battery-friendly
-        val intervalMs = WATCHDOG_INTERVAL_MINUTES * 60 * 1000L
-        alarmManager.setInexactRepeating(
-            AlarmManager.RTC_WAKEUP,
-            System.currentTimeMillis() + intervalMs,
-            intervalMs,
-            pendingIntent
-        )
-        Log.d(TAG, "Watchdog alarm scheduled every ${WATCHDOG_INTERVAL_MINUTES}m.")
-    }
+    private fun scheduleWatchdogAlarm() =
+        watchdogScheduler.scheduleInexact(WATCHDOG_INTERVAL_MINUTES)
 
-    private fun cancelWatchdogAlarm() {
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(this, ServiceWatchdogReceiver::class.java).apply {
-            action = ServiceWatchdogReceiver.ACTION_CHECK_SERVICE
-        }
-        // Cancel BOTH request codes used by this service:
-        //   0 = setInexactRepeating (scheduleWatchdogAlarm)
-        //   1 = setAlarmClock       (scheduleExactWatchdogAlarm)
-        // Previously only code 0 was cancelled, leaking the higher-priority
-        // setAlarmClock PendingIntent — it kept firing after stop and burning
-        // battery / waking the device from Doze.
-        for (requestCode in intArrayOf(0, 1)) {
-            val pendingIntent = PendingIntent.getBroadcast(
-                this, requestCode, intent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_NO_CREATE
-            )
-            pendingIntent?.let {
-                alarmManager.cancel(it)
-                it.cancel()
-            }
-        }
-        Log.d(TAG, "Watchdog alarm cancelled (request codes 0 and 1).")
-    }
+    private fun cancelWatchdogAlarm() = watchdogScheduler.cancel()
 
     companion object {
         private const val TAG = "BackgroundMonitoringSvc"

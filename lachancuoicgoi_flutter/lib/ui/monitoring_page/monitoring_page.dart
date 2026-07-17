@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../analysis/l1/l1_analysis.dart';
+import '../../l10n/app_localizations.dart';
 import '../home_page/settings_dialog.dart';
 import '../theme/risk_level_colors.dart';
 import 'audio_waveform.dart';
@@ -155,6 +156,12 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
     final state = ref.watch(monitoringControllerProvider);
     final controller = ref.read(monitoringControllerProvider.notifier);
 
+    // Phase 2 (P2-7): propagate the user's reduce-motion / accessibility
+    // preference to the AlertManager so haptics are suppressed when needed.
+    controller.alertManager.reduceMotion =
+        MediaQuery.disableAnimationsOf(context) ||
+        MediaQuery.accessibleNavigationOf(context);
+
     final hasScenarioTitle =
         (widget.simulatedScenarioTitle?.trim().isNotEmpty ?? false);
     final isSimulation = state.isSimulationMode;
@@ -175,6 +182,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
     bool hasScenarioTitle,
     MonitoringPageState state,
   ) {
+    final l10n = AppLocalizations.of(context)!;
     return AppBar(
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,9 +193,11 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                 child: Text(
                   isSimulation
                       ? (hasScenarioTitle
-                            ? 'Mô phỏng: ${widget.simulatedScenarioTitle}'
-                            : 'Mô phỏng')
-                      : 'Lá chắn cuộc gọi',
+                            ? l10n.monitoringSimulationPrefix(
+                                widget.simulatedScenarioTitle!,
+                              )
+                            : l10n.monitoringSimulationDefault)
+                      : l10n.appTitle,
                   style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -225,13 +235,13 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                 ),
             ],
           ),
-          Text('Phát hiện Lừa đảo & Bạo lực', style: tt.bodySmall),
+          Text(l10n.monitoringSubtitle, style: tt.bodySmall),
         ],
       ),
       actions: [
         IconButton(
           icon: const Icon(Icons.settings),
-          tooltip: 'Cài đặt',
+          tooltip: l10n.settings,
           onPressed: () {
             // Import kept in controller for dialog, but we show from page
             // since it needs context.
@@ -251,11 +261,12 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
     MonitoringPageState state,
     MonitoringController controller,
   ) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Semantics(
         button: true,
-        label: 'Kết thúc cuộc gọi và lưu kết quả',
+        label: l10n.monitoringEndCallSemantic,
         child: ElevatedButton(
           onPressed: state.isEndingSession
               ? null
@@ -286,8 +297,8 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
               const SizedBox(width: 8),
               Text(
                 state.isEndingSession
-                    ? 'Đang lưu kết quả...'
-                    : 'Kết thúc cuộc gọi',
+                    ? l10n.monitoringSavingResult
+                    : l10n.monitoringEndCall,
                 style: tt.titleMedium?.copyWith(color: cs.onError),
               ),
             ],
@@ -305,6 +316,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
     MonitoringPageState state,
     MonitoringController controller,
   ) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -318,7 +330,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 
                   // Waveform card
                   Semantics(
-                    label: 'Biểu đồ sóng âm thanh cuộc gọi trực tiếp',
+                    label: l10n.monitoringWaveformSemantic,
                     child: Card(
                       elevation: 2,
                       child: Padding(
@@ -346,8 +358,8 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                   Card(
                     elevation: 4,
                     child: Semantics(
-                      label:
-                          'Mức độ rủi ro cuộc gọi hiện tại: ${state.riskLevel.vietnameseName}',
+                    label: l10n.monitoringRiskSemantic(
+                        state.riskLevel.vietnameseName),
                       liveRegion: true,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -420,15 +432,17 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                               child: Row(
                                 children: [
                                   _StatusBadge(
-                                    label:
-                                        'Đích: ${MonitoringController.modeLabel(state.selectedMode)}',
+                                    label: l10n.monitoringModeTarget(
+                                      MonitoringController.modeLabel(state.selectedMode),
+                                    ),
                                     backgroundColor: cs.surfaceContainerHighest,
                                     textColor: cs.onSurfaceVariant,
                                   ),
                                   const SizedBox(width: 8),
                                   _StatusBadge(
-                                    label:
-                                        'Chạy: ${MonitoringController.modeLabel(state.effectiveMode)}',
+                                    label: l10n.monitoringModeRunning(
+                                      MonitoringController.modeLabel(state.effectiveMode),
+                                    ),
                                     backgroundColor: state.isFallbackActive
                                         ? cs.tertiaryContainer
                                         : cs.secondaryContainer,
@@ -439,8 +453,8 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                                   const SizedBox(width: 8),
                                   _StatusBadge(
                                     label: state.networkAvailable
-                                        ? 'Mạng: OK'
-                                        : 'Mạng: Lỗi',
+                                        ? l10n.monitoringNetworkOk
+                                        : l10n.monitoringNetworkError,
                                     backgroundColor: state.networkAvailable
                                         ? cs.surfaceContainerHighest
                                         : cs.errorContainer,
@@ -458,6 +472,41 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                   ),
 
                   const SizedBox(height: 8),
+
+                  // STT unavailable (fatal) — highest priority
+                  if (state.isSttUnavailable)
+                    _StatusBanner(
+                      icon: Icons.mic_off,
+                      background: cs.errorContainer,
+                      foreground: cs.onErrorContainer,
+                      message: state.sttUnavailableReason != null &&
+                              state.sttUnavailableReason!.isNotEmpty
+                          ? l10n.monitoringSttFatalWithReason(
+                              state.sttUnavailableReason!,
+                            )
+                          : l10n.monitoringSttFatal,
+                      onDismiss: controller.dismissSttUnavailableBanner,
+                    ),
+
+                  // Degraded without notification permission
+                  if (state.isDegradedNoNotification)
+                    _StatusBanner(
+                      icon: Icons.notifications_off_outlined,
+                      background: cs.tertiaryContainer,
+                      foreground: cs.onTertiaryContainer,
+                      message: l10n.monitoringNotificationDegraded,
+                      onDismiss: controller.dismissDegradedNotificationBanner,
+                    ),
+
+                  // Watchdog restart failed
+                  if (state.isWatchdogRestartFailed)
+                    _StatusBanner(
+                      icon: Icons.restart_alt,
+                      background: cs.errorContainer,
+                      foreground: cs.onErrorContainer,
+                      message: l10n.monitoringWatchdogFailed,
+                      onDismiss: controller.dismissWatchdogBanner,
+                    ),
 
                   // STT fallback banner
                   if (state.isSttFallback)
@@ -491,12 +540,12 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                         children: [
                           _buildTabButton(
                             0,
-                            isSimulation ? 'Kịch bản mô phỏng' : 'Cuộc hội thoại trực tiếp',
+                            isSimulation ? l10n.monitoringSimulationTranscript : l10n.monitoringLiveConversation,
                             cs,
                             tt,
                           ),
                           const SizedBox(width: 20),
-                          _buildTabButton(1, 'Nhật ký hệ thống', cs, tt),
+                          _buildTabButton(1, l10n.monitoringSystemLog, cs, tt),
                         ],
                       ),
                     ),
@@ -599,38 +648,66 @@ class _SttFallbackBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    return _StatusBanner(
+      icon: Icons.mic_none,
+      background: cs.tertiaryContainer,
+      foreground: cs.onTertiaryContainer,
+      message: reason != null && reason!.isNotEmpty
+          ? l10n.monitoringSttFallbackWithReason(reason!)
+          : l10n.monitoringSttFallbackOffline,
+      onDismiss: onDismiss,
+    );
+  }
+}
+
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner({
+    required this.icon,
+    required this.background,
+    required this.foreground,
+    required this.message,
+    required this.onDismiss,
+  });
+
+  final IconData icon;
+  final Color background;
+  final Color foreground;
+  final String message;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: cs.tertiaryContainer,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              Icon(Icons.mic_off, size: 18, color: cs.onTertiaryContainer),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  reason != null && reason!.isNotEmpty
-                      ? 'STT offline (Vosk): $reason'
-                      : 'STT đã chuyển sang chế độ offline (Vosk)',
-                  style: TextStyle(fontSize: 12, color: cs.onTertiaryContainer),
-                ),
-              ),
-              InkWell(
-                onTap: onDismiss,
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(
-                    Icons.close,
-                    size: 16,
-                    color: cs.onTertiaryContainer,
+      child: Semantics(
+        liveRegion: true,
+        label: message,
+        child: Material(
+          color: background,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: foreground),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: TextStyle(fontSize: 12, color: foreground),
                   ),
                 ),
-              ),
-            ],
+                InkWell(
+                  onTap: onDismiss,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.close, size: 16, color: foreground),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

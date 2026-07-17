@@ -9,6 +9,7 @@ import '../../data/call_history.dart';
 import '../home_page/settings_dialog.dart';
 import '../monitoring_page/alert_history_section.dart';
 import '../theme/app_theme.dart';
+import '../theme/risk_level_colors.dart';
 
 final _callHistoryFutureProvider = FutureProvider.family<CallHistory?, int>((
   ref,
@@ -59,12 +60,7 @@ class ResultPage extends ConsumerWidget {
         }
 
         final risk = RiskLevel.fromString(item.riskLevel);
-        final riskColor = switch (risk) {
-          RiskLevel.green => const Color(0xFF4CAF50),
-          RiskLevel.yellow => const Color(0xFFFFEB3B),
-          RiskLevel.orange => const Color(0xFFFF9800),
-          RiskLevel.red => const Color(0xFFF44336),
-        };
+        final riskColor = risk.color;
 
         return Scaffold(
           appBar: AppBar(

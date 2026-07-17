@@ -1,0 +1,67 @@
+name: lachancuocgoi_flutter
+description: Flutter port dự kiến của dự án La Chắn Cuộc Gọi.
+publish_to: "none"
+version: 1.5.1+12
+
+environment:
+  sdk: ">=3.9.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  collection: ^1.18.0
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^3.0.0
+  go_router: ^17.0.0
+  google_generative_ai: ^0.4.6
+  path: ^1.9.0
+  path_provider: ^2.1.5
+  permission_handler: ^12.0.0
+  share_plus: ^13.1.0
+  shared_preferences: ^2.5.5
+  sqflite: ^2.3.3
+  sqflite_common_ffi: ^2.3.5
+  tflite_flutter: ^0.12.1
+  clock: ^1.1.1
+  flutter_ringtone_player: ^4.0.0+4
+  vibration: ^3.2.0
+  crypto: ^3.0.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  fake_async: ^1.3.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - env.json
+    - assets/logo.png
+    - assets/ghitav3.tflite
+    - assets/vocab.txt
+    - assets/model_labels.txt
+    - assets/vocabulary_ai_check.json
+    - assets/bigram_corrections.json
+    - assets/phrase_patterns.json
+    - assets/risk_model_sentences.json
+    - assets/risk_model_vocabulary.json
+    - assets/risk_scenarios_master.json
+    - assets/safety_keywords.json
+    - assets/scoring_config.json
+    - assets/context_rules.json
+    - assets/risk_model_situation.json
+    - assets/situation_test.json
+    - assets/slang_config.json
+    - assets/tier_config.json
+    - assets/l1_critical_keywords.json
+    - assets/model-vn/
+    - assets/model-vn/am/
+    - assets/model-vn/conf/
+    - assets/model-vn/graph/
+    - assets/model-vn/graph/phones/
+    - assets/model-vn/ivector/

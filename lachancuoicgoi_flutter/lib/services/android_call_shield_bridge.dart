@@ -20,6 +20,7 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
   static const _callEventChannel = EventChannel(
     'com.lachancuocgoi/call_events',
   );
+  static const _logsChannel = EventChannel('com.lachancuocgoi/logs');
 
   // Bug #22 fix: timeout wrapper. If the MainActivity is busy (e.g. still
   // showing a permission dialog) and the platform-thread is blocked, the
@@ -234,6 +235,31 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
     }
   }
 
+  // Phase 2 (P2-4): Call screening opt-in bridge methods.
+  @override
+  Future<void> setCallScreeningBlockEnabled(bool enabled) async {
+    try {
+      await _methodChannel.invokeMethod<void>(
+        'setCallScreeningBlockEnabled',
+        {'enabled': enabled},
+      );
+    } on PlatformException catch (e) {
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.setCallScreeningBlockEnabled error: $e', level: LogLevel.error);
+    }
+  }
+
+  @override
+  Future<void> setBlockedNumbers(List<String> numbers) async {
+    try {
+      await _methodChannel.invokeMethod<void>(
+        'setBlockedNumbers',
+        {'numbers': numbers},
+      );
+    } on PlatformException catch (e) {
+      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.setBlockedNumbers error: $e', level: LogLevel.error);
+    }
+  }
+
   late final Stream<TranscriptUpdate> _cachedTranscriptStream =
       _transcriptChannel
           .receiveBroadcastStream()
@@ -275,6 +301,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
       })
       .asBroadcastStream();
 
+  late final Stream<String> _cachedLogsStream = _logsChannel
+      .receiveBroadcastStream()
+      .map((event) => event?.toString() ?? '')
+      .asBroadcastStream();
+
   @override
   Stream<TranscriptUpdate> get transcriptStream => _cachedTranscriptStream;
 
@@ -289,5 +320,5 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
   Stream<CallEvent> get callEventStream => _cachedCallEventStream;
 
   @override
-  Stream<String> get logsStream => const Stream.empty();
+  Stream<String> get logsStream => _cachedLogsStream;
 }

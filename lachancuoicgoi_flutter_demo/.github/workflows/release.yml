@@ -1,0 +1,56 @@
+name: Release CD
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags (e.g. v1.0.0, v1.3.0+8)
+
+jobs:
+  release:
+    name: Build & Release Unsigned APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Provide env.json stub for asset bundling
+        run: |
+          if [ ! -f env.json ]; then
+            printf '{\n  "gemini_api_keys": [],\n  "model": "gemini-1.5-flash"\n}\n' > env.json
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Unsigned Release APK
+        run: flutter build apk --release --no-codesign
+
+      - name: Rename APK
+        run: |
+          mv build/app/outputs/flutter-apk/app-release-unsigned.apk build/app/outputs/flutter-apk/lachancuocgoi-release-unsigned.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/lachancuocgoi-release-unsigned.apk
+          name: Release ${{ github.ref_name }}
+          body: |
+            Bản phát hành tự động cho phiên bản ${{ github.ref_name }}.
+            
+            **Lưu ý:** Đây là bản build unsigned (chưa được ký bằng keystore chính thức). Bạn có thể cần bật tính năng "Cài đặt từ nguồn không xác định" trên thiết bị Android để cài đặt tệp APK này.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

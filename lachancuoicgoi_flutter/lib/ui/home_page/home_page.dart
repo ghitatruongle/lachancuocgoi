@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/platform_capabilities.dart';
 import '../../services/permission_controller.dart';
 import '../theme/app_theme.dart';
 import 'instruct_dialog.dart';
@@ -56,24 +58,25 @@ class _HomePageState extends ConsumerState<HomePage> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final permissionState = ref.watch(permissionControllerProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lá chắn cuộc gọi'),
+        title: Text(l10n.appTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            tooltip: 'Cài đặt',
+            tooltip: l10n.settings,
             onPressed: () => _showSettingsDialog(context),
           ),
           IconButton(
             icon: const Icon(Icons.shield_outlined),
-            tooltip: 'Quyền',
+            tooltip: l10n.permissions,
             onPressed: () => _showRightsDialog(context),
           ),
           IconButton(
             icon: const Icon(Icons.info_outlined),
-            tooltip: 'Hướng dẫn',
+            tooltip: l10n.instructions,
             onPressed: () => _showInstructDialog(context),
           ),
         ],
@@ -88,9 +91,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                 children: [
                   const Spacer(flex: 1),
 
+                  if (PlatformCapabilities.current.isDemoMode) ...[
+                    _DemoModeBanner(cs: cs, tt: tt),
+                    const SizedBox(height: AppSpacing.sm),
+                    _FeatureMatrixCard(cs: cs, tt: tt),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+
                   // ── Hero card ──
                   Semantics(
-                    label: 'Thông tin ứng dụng Lá chắn cuộc gọi',
+                    label: l10n.appInfoSemantic,
                     child: Card(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
@@ -117,13 +127,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                             ),
                             const SizedBox(height: AppSpacing.sm),
                             Text(
-                              'Lá chắn cuộc gọi',
+                              l10n.appTitle,
                               style: tt.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
-                              'Phân tích cuộc gọi theo thời gian thực để phát hiện lừa đảo.',
+                              l10n.homeSubtitle,
                               style: tt.bodyMedium?.copyWith(
                                 color: cs.onSurfaceVariant,
                               ),
@@ -154,7 +164,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         const SizedBox(width: AppSpacing.xxs),
                         Flexible(
                           child: Text(
-                            'Khuyên dùng: Bật Phụ đề trực tiếp để bảo vệ tốt nhất',
+                            l10n.homeLiveCaptionTip,
                             style: tt.bodySmall?.copyWith(
                               color: cs.onSurfaceVariant,
                             ),
@@ -172,9 +182,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                     height: 56,
                     child: Semantics(
                       button: true,
-                      label: 'Bắt đầu giám sát cuộc gọi',
+                      label: l10n.startMonitoringSemantic,
                       child: ElevatedButton(
-                        onPressed: permissionState.snapshot.recordAudio
+                        // Demo platforms: allow open monitoring (scripted STT).
+                        // Android: require microphone.
+                        onPressed:
+                            PlatformCapabilities.current.isDemoMode ||
+                                permissionState.snapshot.recordAudio
                             ? () => context.push('/monitoring')
                             : null,
                         style: ElevatedButton.styleFrom(
@@ -191,7 +205,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             const Icon(Icons.shield_outlined, size: 24),
                             const SizedBox(width: AppSpacing.xxs),
                             Text(
-                              'Bắt đầu giám sát',
+                              l10n.startMonitoring,
                               style: tt.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: cs.onPrimary,
@@ -225,7 +239,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
-                              'Một số quyền chưa được cấp — hiệu quả giám sát có thể bị giảm.',
+                              l10n.homePermissionWarning,
                               style: tt.bodySmall?.copyWith(color: cs.error),
                             ),
                           ),
@@ -241,7 +255,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       Expanded(
                         child: _QuickActionCard(
                           icon: Icons.science_outlined,
-                          label: 'Chế độ giả lập',
+                          label: l10n.simulationMode,
                           onTap: () => context.push('/simulation'),
                           colorScheme: cs,
                           textTheme: tt,
@@ -251,7 +265,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       Expanded(
                         child: _QuickActionCard(
                           icon: Icons.history_outlined,
-                          label: 'Lịch sử',
+                          label: l10n.history,
                           onTap: () => context.push('/history'),
                           colorScheme: cs,
                           textTheme: tt,
@@ -265,7 +279,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   // ── Tips lesson button ──
                   Semantics(
                     button: true,
-                    label: 'Nút mẹo chống lừa đảo',
+                    label: l10n.antiScamTips,
                     child: Material(
                       color: cs.tertiaryContainer.withValues(alpha: 0.5),
                       shape: RoundedRectangleBorder(
@@ -289,7 +303,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                               ),
                               const SizedBox(width: AppSpacing.xxs),
                               Text(
-                                'Mẹo chống lừa đảo',
+                                l10n.antiScamTips,
                                 style: tt.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: cs.tertiary,
@@ -324,6 +338,103 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   void _showInstructDialog(BuildContext context) {
     showDialog<void>(context: context, builder: (_) => const InstructDialog());
+  }
+}
+
+class _DemoModeBanner extends StatelessWidget {
+  const _DemoModeBanner({required this.cs, required this.tt});
+
+  final ColorScheme cs;
+  final TextTheme tt;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Semantics(
+      label: l10n.demoModeSemantic,
+      child: Material(
+        color: cs.tertiaryContainer,
+        borderRadius: BorderRadius.circular(AppBorderRadius.md),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.science_outlined, color: cs.onTertiaryContainer),
+              const SizedBox(width: AppSpacing.xxs),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.demoMode,
+                      style: tt.titleSmall?.copyWith(
+                        color: cs.onTertiaryContainer,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      l10n.demoModeDescription,
+                      style: tt.bodySmall?.copyWith(
+                        color: cs.onTertiaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeatureMatrixCard extends StatelessWidget {
+  const _FeatureMatrixCard({required this.cs, required this.tt});
+
+  final ColorScheme cs;
+  final TextTheme tt;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final caps = PlatformCapabilities.current;
+    return Card(
+      elevation: 0,
+      color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppBorderRadius.md),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.featuresOnThisDevice,
+              style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            for (final row in caps.featureMatrix)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Icon(
+                      row.supported ? Icons.check_circle : Icons.cancel,
+                      size: 16,
+                      color: row.supported ? cs.tertiary : cs.outline,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(row.label, style: tt.bodySmall)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

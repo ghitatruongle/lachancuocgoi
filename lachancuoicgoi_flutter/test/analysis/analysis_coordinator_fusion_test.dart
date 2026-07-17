@@ -165,5 +165,56 @@ void main() {
       expect(fused.reason, equals('L3 red reason'));
       expect(fused.analysisLevel, AnalysisLevel.l3);
     });
+
+    test('soft-fuses L1-only orange to yellow without alert', () {
+      const l1 = AnalysisResult(
+        overallRiskLevel: RiskLevel.orange,
+        matches: [
+          KeywordMatch(
+            keyword: 'khuyến mãi',
+            level: RiskLevel.orange,
+            category: 'Marketing',
+          ),
+        ],
+        reason: 'L1 orange only',
+        analysisLevel: AnalysisLevel.l1,
+        alertEnabled: true,
+      );
+      const green = AnalysisResult(
+        overallRiskLevel: RiskLevel.green,
+        matches: [],
+        reason: 'safe',
+        analysisLevel: AnalysisLevel.l2,
+      );
+
+      final fused = coordinator.fuseResultsForTesting(l1, green, green);
+      expect(fused.overallRiskLevel, RiskLevel.yellow);
+      expect(fused.alertEnabled, isFalse);
+    });
+
+    test('keeps L1 red hard path without soft-fuse', () {
+      const l1 = AnalysisResult(
+        overallRiskLevel: RiskLevel.red,
+        matches: [
+          KeywordMatch(
+            keyword: 'mã otp',
+            level: RiskLevel.red,
+            category: 'OTP',
+          ),
+        ],
+        reason: 'L1 red',
+        analysisLevel: AnalysisLevel.l1,
+        alertEnabled: true,
+      );
+      const green = AnalysisResult(
+        overallRiskLevel: RiskLevel.green,
+        matches: [],
+        analysisLevel: AnalysisLevel.l2,
+      );
+
+      final fused = coordinator.fuseResultsForTesting(l1, green, green);
+      expect(fused.overallRiskLevel, RiskLevel.red);
+      expect(fused.alertEnabled, isTrue);
+    });
   });
 }

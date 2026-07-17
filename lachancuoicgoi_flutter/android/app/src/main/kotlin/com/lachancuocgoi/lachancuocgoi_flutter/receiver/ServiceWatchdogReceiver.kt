@@ -77,13 +77,27 @@ class ServiceWatchdogReceiver : BroadcastReceiver() {
             }
             putExtra("ENABLE_SPEAKERPHONE", enableSpeakerphone)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            @Suppress("DEPRECATION")
-            context.startService(intent)
+        val launched = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                @Suppress("DEPRECATION")
+                context.startService(intent)
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to restart monitoring service", e)
+            NativeBridgeEventSink.sendMonitoringState("WATCHDOG_RESTART_FAILED")
+            NativeBridgeEventSink.sendLog(
+                TAG,
+                "Watchdog restart failed: ${e.message}",
+                "ERROR",
+            )
+            false
         }
-        Log.i(TAG, "Auto-restart intent sent (phone=${phoneNumber != null}, spk=$enableSpeakerphone).")
+        if (launched) {
+            Log.i(TAG, "Auto-restart intent sent (phone=${phoneNumber != null}, spk=$enableSpeakerphone).")
+        }
     }
 
     companion object {

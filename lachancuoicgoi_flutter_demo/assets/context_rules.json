@@ -1,0 +1,162 @@
+{
+  "title": "context_rules",
+  "version": "2.0",
+  "description": "Tài liệu tham chiếu quy tắc phân tích ngữ cảnh cho L2 GDetection Engine. TIER data được quản lý trong GThinking.kt. File này phản ánh đúng logic runtime để dễ dàng update.",
+  "integration_note": "REFERENCE ONLY — Dữ liệu TIER1/TIER2/TIER3 được hard-code trong GThinking.kt để tối ưu hiệu năng (whole-word matching, Set<> lookups). Mọi thay đổi cần cập nhật đồng thời trong GThinking.kt.",
+  "tier_classification": {
+    "TIER1_TOPICS": {
+      "description": "Từ khóa chủ đề nhạy cảm — phát hiện → YELLOW (cần chú ý)",
+      "categories": {
+        "AUTH_POLICE_LAWSUIT": ["công an", "kiểm sát", "viện kiểm sát", "tòa án", "bộ công an", "cán bộ điều tra", "phạt nguội", "lệnh triệu tập", "biên bản", "nhân thân"],
+        "TAX_GOV_APP": ["vneid", "định danh", "định danh điện tử", "cục thuế", "dịch vụ công", "cập nhật sinh trắc", "nâng cấp", "bảo hiểm xã hội", "nfc", "sinh trắc", "quét khuôn mặt"],
+        "TELECOM_SIM_LOCK": ["khóa sim", "nhà mạng", "viễn thông", "chế độ hai chiều", "thuê bao", "chặn một chiều", "cắt sim", "mạng di động"],
+        "TECH_SUPPORT_HIJACK": ["hỗ trợ kỹ thuật", "bộ phận kỹ thuật", "zalo bị hack", "facebook bị hack", "tài khoản bị khóa", "mở khóa tài khoản", "đội ngũ bảo mật"],
+        "HOSPITAL_EMERGENCY": ["bệnh viện", "cấp cứu", "tai nạn", "viện phí", "phẫu thuật", "người nhà", "nhập viện"],
+        "VIRTUAL_KIDNAPPING": ["bắt cóc", "con cái", "tính mạng", "chuộc", "campuchia", "bị giữ"],
+        "CEO_FRAUD_B2B": ["giám đốc", "sếp", "công ty", "doanh nghiệp", "đối tác", "hợp đồng", "chuyển trước"],
+        "SOCIAL_DEEPFAKE_LOAN": ["deepfake", "bạn bè", "mượn tiền", "chuyển đỡ", "video call giả", "giả mặt", "giả giọng"],
+        "ROMANCE_SCAM": ["hẹn hò", "tình cảm", "yêu đương", "kết hôn", "bưu kiện tình cảm", "quà từ nước ngoài", "lệ phí hải quan"],
+        "SEXTORTION_BLACKMAIL": ["ảnh nóng", "clip nhạy cảm", "phát tán", "tống tiền", "tình dục", "lộ clip", "video nhạy cảm"],
+        "CHARITY_DONATION": ["từ thiện", "quyên góp", "ủng hộ", "quỹ hỗ trợ", "bão lũ", "trẻ em nghèo"],
+        "INVESTMENT_SCAM": ["đầu tư", "chứng khoán", "lợi nhuận", "tiền ảo", "crypto", "forex", "sàn giao dịch", "kéo lệnh", "bitcoin", "coin"],
+        "JOB_TASK_SCAM": ["cộng tác viên", "việc làm tại nhà", "chốt đơn", "hoa hồng", "nhiệm vụ", "phím hàng", "like video", "đánh giá sản phẩm"],
+        "GIFT_LOTTERY": ["trúng thưởng", "tri ân", "quà tặng", "miễn phí", "voucher", "quay số", "may mắn", "nhận quà", "giải đặc biệt"],
+        "GAMBLING_PREDICTION": ["lô đề", "số đề", "cầu đề", "dự đoán xổ số", "bạch thủ", "nuôi lô", "đánh đề"],
+        "IMMIGRATION_VISA_SCAM": ["visa", "xuất khẩu lao động", "xklđ", "du học", "định cư", "bao đậu", "giấy phép lao động", "hồ sơ visa"],
+        "BANK_CARD_FRAUD": ["ngân hàng", "thẻ tín dụng", "nâng hạn mức", "vay tiền", "tín dụng", "lãi suất", "giải ngân", "ví điện tử", "hồ sơ vay"],
+        "DELIVERY_COD": ["bưu phẩm", "hải quan", "giao hàng", "shipper", "cod", "kiện hàng", "phí vận chuyển", "bưu điện"],
+        "FAKE_SUBSCRIPTION": ["gói cước", "gói vip", "trừ tiền tự động", "dịch vụ trả phí", "hủy gói", "thuê bao", "thanh toán tự động"],
+        "BLACK_CREDIT_TERROR": ["tín dụng đen", "nợ", "đòi nợ", "trả nợ", "chửi bới", "khủng bố", "danh bạ"],
+        "RECOVERY_SCAM": ["lấy lại tiền", "thu hồi tiền", "hỗ trợ nạn nhân", "truy vết", "dịch vụ hoàn tiền"]
+      }
+    },
+    "TIER2_URGENCY": {
+      "description": "Từ khóa thúc ép/đe dọa — kết hợp TIER1 → ORANGE (cảnh báo)",
+      "time_pressure": ["gấp", "ngay", "ngay lập tức", "hạn chót", "quá hạn", "trong vòng", "còn 24 giờ", "hết hạn", "trước ngày"],
+      "threat_actions": ["khóa", "chặn", "cắt", "xóa", "thu hồi", "tịch thu", "bị trừ tiền", "phong tỏa", "đóng băng"],
+      "legal_threats": ["điều tra", "lệnh bắt", "truy nã", "khởi tố", "bắt giam", "phạt tù", "trát tòa", "lệnh triệu tập"],
+      "coercive_behavior": ["phải làm", "bắt buộc", "không được", "cấm", "tạm ngưng", "hai chiều", "không được gác máy", "giữ bí mật"],
+      "personal_threats": ["phát tán", "tung lên mạng", "gửi cho người thân", "bôi nhọ", "chửi bới", "khủng bố điện thoại", "gọi danh bạ"],
+      "financial_pressure": ["mất trắng", "cháy tài khoản", "hết cơ hội", "lỗ nặng", "còn nợ", "phải nộp", "phí phạt", "đặt cọc"]
+    },
+    "TIER3_PII": {
+      "description": "Từ khóa yêu cầu thông tin nhạy cảm — phát hiện → RED (nguy hiểm cao)",
+      "account_credentials": ["số tài khoản", "số thẻ", "mã otp", "mật khẩu", "password", "mã pin", "số dư", "đăng nhập", "tên đăng nhập", "banking", "smart banking", "internet banking"],
+      "identity_documents": ["cccd", "cmnd", "căn cước", "chứng minh nhân dân", "số hộ chiếu", "mã số thuế"],
+      "asset_theft": ["chiếm đoạt", "mã thẻ"],
+      "remote_access": ["tải ứng dụng", "cài đặt", "cài app", "truy cập link", "bấm vào link", "teamviewer", "anydesk", "remote", "chia sẻ màn hình", "quyền truy cập"],
+      "biometric_deepfake": ["video call xác minh", "quét khuôn mặt", "xác thực sinh trắc", "gửi ảnh selfie", "chụp 2 mặt cmnd"]
+    }
+  },
+  "red_flag_combination_rules": {
+    "description": "Các tổ hợp red flag làm tăng hệ số nguy hiểm trong scoring",
+    "critical_combinations": [
+      {
+        "flags": ["authority_claim", "financial_request", "urgency"],
+        "risk_multiplier": 2.0,
+        "description": "Giả danh cơ quan + yêu cầu tiền + gấp",
+        "typical_scenario": "AUTH_POLICE_LAWSUIT"
+      },
+      {
+        "flags": ["otp_request", "financial_request"],
+        "risk_multiplier": 2.0,
+        "description": "Yêu cầu OTP + chuyển tiền",
+        "typical_scenario": "BANK_CARD_FRAUD"
+      },
+      {
+        "flags": ["remote_access", "financial_request"],
+        "risk_multiplier": 2.0,
+        "description": "Cài app / chia sẻ màn hình + chuyển tiền",
+        "typical_scenario": "TECH_SUPPORT_HIJACK"
+      },
+      {
+        "flags": ["information_request", "urgency", "threat"],
+        "risk_multiplier": 2.2,
+        "description": "Yêu cầu thông tin + gấp + đe dọa",
+        "typical_scenario": "TAX_GOV_APP"
+      },
+      {
+        "flags": ["financial_request", "secrecy", "urgency"],
+        "risk_multiplier": 1.9,
+        "description": "Yêu cầu tiền + bí mật + gấp",
+        "typical_scenario": "SOCIAL_DEEPFAKE_LOAN"
+      },
+      {
+        "flags": ["family_emergency", "financial_request"],
+        "risk_multiplier": 1.7,
+        "description": "Người thân gặp nạn + yêu cầu tiền",
+        "typical_scenario": "HOSPITAL_EMERGENCY / VIRTUAL_KIDNAPPING"
+      }
+    ],
+    "warning_combinations": [
+      {
+        "flags": ["authority_claim", "verification_request"],
+        "risk_multiplier": 1.3,
+        "description": "Giả danh + yêu cầu xác minh"
+      },
+      {
+        "flags": ["benefit_promise", "deposit_request"],
+        "risk_multiplier": 1.4,
+        "description": "Hứa hẹn lợi ích + yêu cầu đặt cọc"
+      }
+    ]
+  },
+  "psychological_tactics_rules": {
+    "urgency_tactics": {
+      "keywords": ["ngay", "gấp", "khẩn cấp", "nhanh", "lập tức", "không chậm trễ"],
+      "time_phrases": ["trong 1 giờ", "hôm nay", "bây giờ", "ngay lập tức"],
+      "risk_weight": 0.3
+    },
+    "threat_tactics": {
+      "keywords": ["bắt", "khởi tố", "phạt", "khóa", "đóng băng", "thu hồi", "tịch thu"],
+      "phrases": ["hậu quả khôn lường", "tự chịu trách nhiệm", "không còn cơ hội"],
+      "risk_weight": 0.4
+    },
+    "authority_tactics": {
+      "keywords": ["công an", "viện kiểm sát", "tòa án", "cảnh sát", "bộ", "cục"],
+      "phrases": ["lệnh của", "theo quy định", "luật pháp", "chúng tôi là"],
+      "risk_weight": 0.35
+    },
+    "secrecy_tactics": {
+      "keywords": ["bí mật", "không nói", "không được", "giữ kín"],
+      "phrases": ["không được nói cho ai", "giữ bí mật tuyệt đối", "tuyệt đối bảo mật"],
+      "risk_weight": 0.4
+    },
+    "greed_tactics": {
+      "keywords": ["lợi nhuận", "giàu", "tiền", "miễn phí", "khuyến mãi"],
+      "phrases": ["cơ hội vàng", "không rủi ro", "cam kết lợi nhuận", "bao lời"],
+      "risk_weight": 0.25
+    },
+    "fear_tactics": {
+      "keywords": ["nguy hiểm", "mất", "hại", "thiệt", "nạn"],
+      "phrases": ["gặp rắc rối", "ảnh hưởng gia đình", "mất hết", "tan nát"],
+      "risk_weight": 0.35
+    }
+  },
+  "sentiment_rules": {
+    "positive_indicators": ["cảm ơn", "tốt", "vui", "hài lòng", "đồng ý", "ok", "được", "dạ", "ạ", "chào", "xin chào"],
+    "negative_indicators": ["không", "chưa", "từ chối", "không đồng ý", "không cần", "ko", "không muốn", "thôi", "bỏ", "hủy"],
+    "aggressive_indicators": ["mày", "tao", "chết", "đồ", "ngu", "điên", "khốn", "cút", "biến", "im", "câm"],
+    "fear_indicators": ["sợ", "lo", "hoang mang", "bối rối", "không biết", "làm sao", "thế nào", "giúp", "cứu"]
+  },
+  "topic_coherence_rules": {
+    "topic_shift_threshold": 3,
+    "suspicious_topic_combinations": [
+      ["AUTHORITY", "FINANCE"],
+      ["FAMILY", "FINANCE", "URGENCY"],
+      ["HEALTH", "FINANCE", "URGENCY"],
+      ["TECH", "FINANCE", "PERSONAL_INFO"],
+      ["ROMANCE", "FINANCE", "URGENCY"]
+    ]
+  },
+  "context_scoring_rules": {
+    "window_size": 5,
+    "min_context_keywords": 2,
+    "scoring_formula": "base_score * (1 + context_bonus) * red_flag_multiplier",
+    "context_bonus_rules": [
+      { "condition": "keyword_density > 0.3", "bonus": 0.2, "description": "Mật độ từ khóa cao" },
+      { "condition": "topic_coherence < 0.5", "bonus": 0.15, "description": "Chủ đề không liên kết" },
+      { "condition": "sentiment_shift > 2", "bonus": 0.1, "description": "Thay đổi cảm xúc đột ngột" }
+    ]
+  }
+}

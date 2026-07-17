@@ -1,16 +1,20 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import '../core/risk_level.dart';
 import '../core/system_logger.dart';
 import 'analysis_fallback.dart';
 import 'analysis_fusion.dart';
+import 'fallback_tracker.dart';
 import 'analysis_level.dart';
 import 'analysis_mode.dart';
+import 'analysis_mode_policy.dart';
 import 'analysis_result.dart';
 import 'analyzer.dart';
 import 'health_check.dart';
 import 'l1/l1_analysis.dart';
 import 'l2/l2_analysis.dart';
+import 'l3/core/risk_deescalation.dart';
 import 'l3/l3_analysis.dart';
 
 class AnalysisCoordinator {
@@ -18,24 +22,95 @@ class AnalysisCoordinator {
     L1Analyzer? l1Analyzer,
     L2Analyzer? l2Analyzer,
     L3Analyzer? l3Analyzer,
+    RiskDeescalationMachine? sessionDeescalation,
+    bool Function()? networkAvailable,
   }) : _l1Analyzer = l1Analyzer ?? L1Analyzer(),
        _l2Analyzer = l2Analyzer ?? L2Analyzer(),
-       _l3Analyzer = l3Analyzer ?? L3Analyzer();
+       _l3Analyzer = l3Analyzer ?? L3Analyzer(),
+       _sessionDeescalation =
+           sessionDeescalation ?? RiskDeescalationMachine(),
+       _networkAvailableCallback = networkAvailable;
 
   static const int _minDeltaDefault = 50;
   static const int _minDeltaOrange = 30;
   static const int _minDeltaRed = 20;
 
-  /// Maximum wall-clock time the parallel pipeline waits for L3 (Gemini)
-  /// before falling back to a default L3 result. Tuned so end-to-end UI
-  /// latency stays under ~1s even on slow networks.
-  static const Duration _l3Timeout = Duration(milliseconds: 800);
+  /// L3 timeout bounds for adaptive calibration.
+  /// Instead of a fixed 1800ms, we measure actual RTT and set timeout = RTT × 2,
+  /// clamped to [min, max]. This avoids over-waiting on fast networks and
+  /// under-waiting on slow ones.
+  static const Duration _l3TimeoutMin = Duration(milliseconds: 800);
+  static const Duration _l3TimeoutMax = Duration(milliseconds: 1800);
+  static const Duration _l3TimeoutElevatedMin = Duration(milliseconds: 500);
+  static const Duration _l3TimeoutElevatedMax = Duration(milliseconds: 800);
+
+  /// Measured RTT (exponential moving average, α=0.3). Null until first
+  /// successful L3 response calibrates it.
+  Duration? _measuredRtt;
+
+  /// Returns an adaptive L3 timeout based on measured RTT.
+  /// Falls back to conservative max until first calibration.
+  Duration _l3TimeoutFor(bool elevated) {
+    final rtt = _measuredRtt;
+    if (rtt == null) {
+      return elevated ? _l3TimeoutElevatedMax : _l3TimeoutMax;
+    }
+    final doubledMs = rtt.inMilliseconds * 2;
+    if (elevated) {
+      return Duration(
+        milliseconds: doubledMs.clamp(
+          _l3TimeoutElevatedMin.inMilliseconds,
+          _l3TimeoutElevatedMax.inMilliseconds,
+        ),
+      );
+    }
+    return Duration(
+      milliseconds: doubledMs.clamp(
+        _l3TimeoutMin.inMilliseconds,
+        _l3TimeoutMax.inMilliseconds,
+      ),
+    );
+  }
+
+  /// Called after a successful L3 request to calibrate future timeouts.
+  /// Uses EMA (α=0.3) to smooth jitter.
+  void recordL3Rtt(Duration rtt) {
+    final previous = _measuredRtt;
+    if (previous == null) {
+      _measuredRtt = rtt;
+    } else {
+      _measuredRtt = Duration(
+        milliseconds:
+            (previous.inMilliseconds * 0.7 + rtt.inMilliseconds * 0.3).round(),
+      );
+    }
+  }
 
   final L1Analyzer _l1Analyzer;
   final L2Analyzer _l2Analyzer;
   final L3Analyzer _l3Analyzer;
+  final RiskDeescalationMachine _sessionDeescalation;
+  final bool Function()? _networkAvailableCallback;
 
   AnalysisResult? _lastParallelResult;
+
+  /// Optional speech rate (chars/sec) provided by the UI layer.
+  double _speechRate = 0;
+
+  /// Network flag updated by the monitoring layer (default: online).
+  bool _networkAvailableFlag = true;
+
+  void setSpeechRate(double charsPerSecond) {
+    _speechRate = charsPerSecond < 0 ? 0 : charsPerSecond;
+  }
+
+  void setNetworkAvailable(bool available) {
+    _networkAvailableFlag = available;
+  }
+
+  bool _isNetworkAvailable() {
+    return _networkAvailableCallback?.call() ?? _networkAvailableFlag;
+  }
 
   Analyzer _analyzerFor(AnalysisMode mode) {
     return switch (mode) {
@@ -55,12 +130,22 @@ class AnalysisCoordinator {
     String fullText,
     AnalysisMode mode,
   ) async {
-    SystemLogger.instance.log(LogCategory.analysis, 'Bắt đầu phân tích. Chế độ: ${mode.name}, độ dài văn bản: ${fullText.length} kí tự.');
+    SystemLogger.instance.log(
+      LogCategory.analysis,
+      'Bắt đầu phân tích. Chế độ: ${mode.name}, độ dài văn bản: ${fullText.length} kí tự.',
+    );
     if (mode == AnalysisMode.gDetection && !_l2Analyzer.isReady) {
-      SystemLogger.instance.log(LogCategory.model, 'Đang khởi tạo L2 Analyzer (Local Vocabulary & Regex)...');
+      SystemLogger.instance.log(
+        LogCategory.model,
+        'Đang khởi tạo L2 Analyzer (Local Vocabulary & Regex)...',
+      );
       await _l2Analyzer.initialize();
       if (!_l2Analyzer.isReady) {
-        SystemLogger.instance.log(LogCategory.model, 'L2 Analyzer khởi tạo thất bại.', level: LogLevel.error);
+        SystemLogger.instance.log(
+          LogCategory.model,
+          'L2 Analyzer khởi tạo thất bại.',
+          level: LogLevel.error,
+        );
         return const AnalysisResult(
           overallRiskLevel: RiskLevel.green,
           matches: <KeywordMatch>[],
@@ -68,7 +153,10 @@ class AnalysisCoordinator {
           analysisLevel: AnalysisLevel.l2,
         );
       }
-      SystemLogger.instance.log(LogCategory.model, 'L2 Analyzer khởi tạo thành công.');
+      SystemLogger.instance.log(
+        LogCategory.model,
+        'L2 Analyzer khởi tạo thành công.',
+      );
     }
     return switch (mode) {
       AnalysisMode.normal => _l1Analyzer.analyzeStream(fullText),
@@ -88,8 +176,12 @@ class AnalysisCoordinator {
 
   Future<AnalysisResult> analyzeIncremental(
     String fullText,
-    AnalysisMode mode,
-  ) async {
+    AnalysisMode mode, {
+    double? speechRate,
+  }) async {
+    if (speechRate != null) {
+      setSpeechRate(speechRate);
+    }
     if (mode == AnalysisMode.parallel) {
       return _analyzeIncrementalParallel(fullText);
     }
@@ -107,11 +199,10 @@ class AnalysisCoordinator {
     final minDelta = _adaptiveMinDelta(
       lastResult.overallRiskLevel,
       mode,
-      // Context parameters for adaptive calculation (default: no adjustment)
       transcriptLength: fullText.length,
       matchCount: lastResult.matches.length,
       lastConfidence: lastResult.confidence,
-      speechRate: 0,
+      speechRate: _speechRate,
     );
     if (deltaLength < minDelta) {
       return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
@@ -139,20 +230,44 @@ class AnalysisCoordinator {
 
     final fastTrack = _parallelFastTrack(l1Result, l2Result);
     if (fastTrack != null) {
-      return fastTrack;
+      return _applySessionDeescalation(fastTrack);
     }
 
+    if (AnalysisModePolicy.shouldSkipCloudTier(
+      AnalysisMode.parallel,
+      _isNetworkAvailable(),
+    )) {
+      final offlineFuse = AnalysisFusion.fuse(
+        l1Result,
+        l2Result,
+        AnalysisFallback.defaultForMode(AnalysisMode.geminiApi),
+      );
+      final result = offlineFuse.copyWith(
+        isFallback: true,
+        reason: offlineFuse.reason == null
+            ? 'Offline: chỉ L1+L2.'
+            : '${offlineFuse.reason} (offline L1+L2)',
+      );
+      return _applySessionDeescalation(result);
+    }
+
+    final elevated =
+        l1Result.overallRiskLevel.index >= RiskLevel.yellow.index ||
+        l2Result.overallRiskLevel.index >= RiskLevel.yellow.index;
     final l3Result = await _runL3WithTimeout(
       _analyzeL3WithFallback(
         incrementalText: incrementalText,
         fullText: fullText,
       ),
+      elevated: elevated,
     );
-    return AnalysisFusion.fuse(l1Result, l2Result, l3Result);
+    return _applySessionDeescalation(
+      AnalysisFusion.fuse(l1Result, l2Result, l3Result),
+    );
   }
 
   Future<AnalysisResult> _analyzeIncrementalParallel(String fullText) async {
-    final processedLength = _l1Analyzer.processedTextLength;
+    final processedLength = getProcessedTextLength(AnalysisMode.parallel);
     final lastResult =
         _lastParallelResult ??
         AnalysisFallback.defaultForMode(AnalysisMode.parallel);
@@ -170,7 +285,7 @@ class AnalysisCoordinator {
       transcriptLength: lastResult.matches.isNotEmpty ? fullText.length : 0,
       matchCount: lastResult.matches.length,
       lastConfidence: lastResult.confidence,
-      speechRate: 0,
+      speechRate: _speechRate,
     );
     if (deltaLength < minDelta) {
       return lastResult.overallRiskLevel.index >= RiskLevel.orange.index
@@ -178,38 +293,52 @@ class AnalysisCoordinator {
           : lastResult;
     }
 
-    final incrementalText = fullText.substring(processedLength);
+    final incrementalText = fullText.substring(
+      processedLength.clamp(0, fullText.length),
+    );
     final (l1Result, l2Result) = await _runL1L2Parallel(
       incrementalText: incrementalText,
       fullText: fullText,
     );
 
-    // Fast-track: orange+ from L1 or L2 short-circuits past L3.
     final fastTrack = _parallelFastTrack(l1Result, l2Result);
     if (fastTrack != null) {
-      _lastParallelResult = fastTrack;
-      return fastTrack;
+      final deescalated = _applySessionDeescalation(fastTrack);
+      _lastParallelResult = deescalated;
+      return deescalated;
     }
 
-    // L3 with timeout; falls back to a default green result on timeout/null.
-    final l3Result = await _runL3WithTimeout(analyzeIncrementalL3(fullText));
+    if (AnalysisModePolicy.shouldSkipCloudTier(
+      AnalysisMode.parallel,
+      _isNetworkAvailable(),
+    )) {
+      final offlineFuse = AnalysisFusion.fuse(
+        l1Result,
+        l2Result,
+        AnalysisFallback.defaultForMode(AnalysisMode.geminiApi),
+      );
+      final result = _applySessionDeescalation(
+        offlineFuse.copyWith(isFallback: true),
+      );
+      _lastParallelResult = result;
+      return result;
+    }
 
-    final fusionResult = AnalysisFusion.fuse(l1Result, l2Result, l3Result);
+    final elevated =
+        l1Result.overallRiskLevel.index >= RiskLevel.yellow.index ||
+        l2Result.overallRiskLevel.index >= RiskLevel.yellow.index;
+    final l3Result = await _runL3WithTimeout(
+      analyzeIncrementalL3(fullText),
+      elevated: elevated,
+    );
+
+    final fusionResult = _applySessionDeescalation(
+      AnalysisFusion.fuse(l1Result, l2Result, l3Result),
+    );
     _lastParallelResult = fusionResult;
     return fusionResult;
   }
 
-  // ─── Shared parallel-pipeline helpers ─────────────────────────────────────
-  //
-  // [_analyzeParallel] and [_analyzeIncrementalParallel] share three steps:
-  //   1. Fan out L1 (stream) and L2 (after lazy init) in parallel.
-  //   2. Fast-track: if either hits orange+, return it without waiting for L3.
-  //   3. Run L3 with an [_l3Timeout] guard, then fuse L1+L2+L3.
-  // Extracted to remove ~100 lines of duplication between the two entry points.
-
-  /// Runs L1 (full-text stream) and L2 (incremental + full-text) in parallel,
-  /// lazily initializing L2 first if needed. Falls back to a default L2 green
-  /// result when L2 cannot be initialized.
   Future<(AnalysisResult, AnalysisResult)> _runL1L2Parallel({
     required String incrementalText,
     required String fullText,
@@ -219,23 +348,35 @@ class AnalysisCoordinator {
     if (!_l2Analyzer.isReady) {
       await _l2Analyzer.initialize();
     }
+    // Prefer full readiness (GDetection + intent). If only GDetection is
+    // ready we still run L2 in degraded mode rather than skipping entirely.
     final l2Future = _l2Analyzer.isReady
         ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
         : Future.value(
             AnalysisFallback.defaultForMode(AnalysisMode.gDetection),
           );
 
+    if (_l2Analyzer.isReady && !_l2Analyzer.isFullyReady) {
+      SystemLogger.instance.log(
+        LogCategory.model,
+        'L2 chạy chế độ degraded (intent/TFLite chưa sẵn sàng).',
+        level: LogLevel.warning,
+      );
+    }
+
     final results = await Future.wait([l1Future, l2Future]);
     return (results[0], results[1]);
   }
 
-  /// Returns the first orange+ result for fast-track short-circuit, or `null`
-  /// when neither L1 nor L2 reach the alert threshold (so L3 should run).
+  /// Fast-track rules (Phase 1):
+  /// - L1 **red** alone → critical hard path (OTP / immediate danger).
+  /// - L2 ≥ orange → trust on-device AI without waiting for L3.
+  /// - L1 orange alone does **not** skip L3 (reduces false positives).
   AnalysisResult? _parallelFastTrack(
     AnalysisResult l1Result,
     AnalysisResult l2Result,
   ) {
-    if (l1Result.overallRiskLevel.index >= RiskLevel.orange.index) {
+    if (l1Result.overallRiskLevel == RiskLevel.red) {
       return l1Result;
     }
     if (l2Result.overallRiskLevel.index >= RiskLevel.orange.index) {
@@ -244,18 +385,36 @@ class AnalysisCoordinator {
     return null;
   }
 
-  /// Awaits [l3Future] with an [_l3Timeout] guard. On timeout returns a default
-  /// L3 result so the pipeline fuses with a graceful green fallback instead of
-  /// stalling the UI. A `null` L3 result is treated the same as a timeout.
   Future<AnalysisResult> _runL3WithTimeout(
-    Future<AnalysisResult?> l3Future,
-  ) async {
+    Future<AnalysisResult?> l3Future, {
+    bool elevated = false,
+  }) async {
+    final budget = _l3TimeoutFor(elevated);
+    final stopwatch = Stopwatch()..start();
     try {
-      final result = await l3Future.timeout(_l3Timeout);
+      final result = await l3Future.timeout(budget);
+      stopwatch.stop();
+      // Calibrate future timeouts based on this successful RTT.
+      recordL3Rtt(stopwatch.elapsed);
       return result ?? AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
     } on TimeoutException {
+      stopwatch.stop();
+      SystemLogger.instance.log(
+        LogCategory.analysis,
+        'L3 timeout after ${budget.inMilliseconds}ms — fuse without L3.',
+        level: LogLevel.warning,
+      );
       return AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
     }
+  }
+
+  AnalysisResult _applySessionDeescalation(AnalysisResult result) {
+    final level = _sessionDeescalation.process(result.overallRiskLevel);
+    if (level == result.overallRiskLevel) return result;
+    return result.copyWith(
+      overallRiskLevel: level,
+      alertEnabled: level.shouldAlert ? result.alertEnabled : false,
+    );
   }
 
   AnalysisResult fuseResultsForTesting(
@@ -290,11 +449,20 @@ class AnalysisCoordinator {
         _lastParallelResult = null;
         break;
     }
+    _sessionDeescalation.reset();
   }
 
   int getProcessedTextLength(AnalysisMode mode) {
     if (mode == AnalysisMode.parallel) {
-      return _l1Analyzer.processedTextLength;
+      // Use the max cursor so we don't re-run prematurely on a lagging tier,
+      // but never skip text that L1 has not yet consumed.
+      return math.max(
+        _l1Analyzer.processedTextLength,
+        math.max(
+          _l2Analyzer.processedTextLength,
+          _l3Analyzer.processedTextLength,
+        ),
+      );
     }
     return _analyzerFor(mode).processedTextLength;
   }
@@ -333,12 +501,22 @@ class AnalysisCoordinator {
 
   Future<AnalysisResult?> analyzeIncrementalL3(String fullText) async {
     if (!_l3Analyzer.isReady) {
-      SystemLogger.instance.log(LogCategory.model, 'Đang khởi tạo L3 Analyzer (Gemini API)...');
+      SystemLogger.instance.log(
+        LogCategory.model,
+        'Đang khởi tạo L3 Analyzer (Gemini API)...',
+      );
       await _l3Analyzer.initialize();
       if (_l3Analyzer.isReady) {
-        SystemLogger.instance.log(LogCategory.model, 'L3 Analyzer đã sẵn sàng.');
+        SystemLogger.instance.log(
+          LogCategory.model,
+          'L3 Analyzer đã sẵn sàng.',
+        );
       } else {
-        SystemLogger.instance.log(LogCategory.model, 'L3 Analyzer khởi tạo thất bại.', level: LogLevel.error);
+        SystemLogger.instance.log(
+          LogCategory.model,
+          'L3 Analyzer khởi tạo thất bại.',
+          level: LogLevel.error,
+        );
       }
     }
     if (!_l3Analyzer.hasActiveSession) {
@@ -352,7 +530,11 @@ class AnalysisCoordinator {
       return result;
     }
     final fallbackReason = result.reason ?? 'L3 lỗi, chuyển sang L2.';
-    SystemLogger.instance.log(LogCategory.analysis, 'L3 Analyzer gặp lỗi: $fallbackReason. Tiến hành hạ cấp xuống L2...', level: LogLevel.warning);
+    SystemLogger.instance.log(
+      LogCategory.analysis,
+      'L3 Analyzer gặp lỗi: $fallbackReason. Tiến hành hạ cấp xuống L2...',
+      level: LogLevel.warning,
+    );
     return AnalysisFallback.fallbackToL2(
       incrementalText: fullText.substring(
         _l3Analyzer.processedTextLength.clamp(0, fullText.length),
@@ -377,21 +559,51 @@ class AnalysisCoordinator {
     };
   }
 
+  /// Human-readable health snapshot for settings / dev panel.
+  Map<String, String> healthSummary() {
+    final reports = runAllHealthChecks();
+    final fallbackTotal = FallbackTracker.instance.total;
+    return {
+      for (final entry in reports.entries)
+        entry.key: entry.value.isHealthy
+            ? 'OK: ${entry.value.message}'
+            : 'FAIL: ${entry.value.message}',
+      'l2_full': _l2Analyzer.isFullyReady ? 'OK' : 'degraded',
+      'network': _isNetworkAvailable() ? 'online' : 'offline',
+      if (fallbackTotal > 0)
+        'fallbacks': '$fallbackTotal (${FallbackTracker.instance.allCounts.entries.map((e) => '${e.key}:${e.value}').join(', ')})',
+    };
+  }
+
   Future<AnalysisResult> _analyzeL3WithFallback({
     required String incrementalText,
     required String fullText,
   }) async {
     if (!_l3Analyzer.isReady) {
-      SystemLogger.instance.log(LogCategory.model, 'Đang khởi tạo L3 Analyzer (Gemini API)...');
+      SystemLogger.instance.log(
+        LogCategory.model,
+        'Đang khởi tạo L3 Analyzer (Gemini API)...',
+      );
       await _l3Analyzer.initialize();
       if (_l3Analyzer.isReady) {
-        SystemLogger.instance.log(LogCategory.model, 'L3 Analyzer đã sẵn sàng.');
+        SystemLogger.instance.log(
+          LogCategory.model,
+          'L3 Analyzer đã sẵn sàng.',
+        );
       } else {
-        SystemLogger.instance.log(LogCategory.model, 'L3 Analyzer khởi tạo thất bại.', level: LogLevel.error);
+        SystemLogger.instance.log(
+          LogCategory.model,
+          'L3 Analyzer khởi tạo thất bại.',
+          level: LogLevel.error,
+        );
       }
     }
     if (!_l3Analyzer.isReady) {
-      SystemLogger.instance.log(LogCategory.analysis, 'L3 không sẵn sàng. Tiến hành hạ cấp xuống L2...', level: LogLevel.warning);
+      SystemLogger.instance.log(
+        LogCategory.analysis,
+        'L3 không sẵn sàng. Tiến hành hạ cấp xuống L2...',
+        level: LogLevel.warning,
+      );
       return AnalysisFallback.fallbackToL2(
         incrementalText: incrementalText,
         fullText: fullText,
@@ -406,7 +618,11 @@ class AnalysisCoordinator {
       return result;
     }
     final fallbackReason = result.reason ?? 'L3 lỗi, chuyển sang L2.';
-    SystemLogger.instance.log(LogCategory.analysis, 'L3 Analyzer gặp lỗi: $fallbackReason. Tiến hành hạ cấp xuống L2...', level: LogLevel.warning);
+    SystemLogger.instance.log(
+      LogCategory.analysis,
+      'L3 Analyzer gặp lỗi: $fallbackReason. Tiến hành hạ cấp xuống L2...',
+      level: LogLevel.warning,
+    );
     return AnalysisFallback.fallbackToL2(
       incrementalText: incrementalText,
       fullText: fullText,
@@ -417,14 +633,6 @@ class AnalysisCoordinator {
     );
   }
 
-  /// Computes the minimum character delta required before re-analysis triggers.
-  ///
-  /// The delta adapts to:
-  /// - [riskLevel]: higher risk → smaller delta (faster reaction)
-  /// - [mode]: different modes have different cost/reward trade-offs
-  /// - [matchCount]/[transcriptLength]: match density — dense matches → smaller delta
-  /// - [lastConfidence]: high confidence in scam → smaller delta
-  /// - [speechRate]: faster speech → smaller delta
   int _adaptiveMinDelta(
     RiskLevel riskLevel,
     AnalysisMode mode, {
@@ -446,24 +654,17 @@ class AnalysisCoordinator {
       AnalysisMode.parallel => 0.6,
     };
 
-    // Match density factor: dense matches → analyze more frequently.
-    // If match count is high relative to transcript length, we likely have
-    // active scam signals needing quick reaction.
     double densityFactor = 1.0;
     if (transcriptLength > 0 && matchCount > 0) {
       final density = matchCount / transcriptLength;
       densityFactor = 1.0 - (density * 10.0).clamp(0.0, 0.3);
     }
 
-    // Confidence factor: high scam confidence → smaller delta.
-    // Low confidence → wait for more evidence.
     double confidenceFactor = 1.0;
     if (riskLevel.index >= RiskLevel.orange.index && lastConfidence > 0) {
       confidenceFactor = 1.0 - (lastConfidence * 0.2).clamp(0.0, 0.2);
     }
 
-    // Speech rate factor: faster speech → smaller delta.
-    // Prevents missed signals when scammer speaks quickly.
     double rateFactor = 1.0;
     if (speechRate > 5.0) {
       rateFactor = 0.7;

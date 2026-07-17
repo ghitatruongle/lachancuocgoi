@@ -1,0 +1,35 @@
+{"id":"bank_otp_01","text":"Tôi là nhân viên ngân hàng, tài khoản của anh đang bị khóa, đọc mã OTP ngay để xác minh.","expected":"RED","scenario":"authority_bank","notes":"classic OTP"}
+{"id":"bank_safe_01","text":"Tôi ra ngân hàng gửi tiết kiệm rồi về ăn cơm với mẹ.","expected":"YELLOW_OR_GREEN","scenario":"benign_bank_context","notes":"bank word benign"}
+{"id":"normal_01","text":"Mai mình đi ăn phở nhé, quán gần nhà đang giảm giá.","expected":"GREEN","scenario":"benign"}
+{"id":"normal_02","text":"Chiều nay họp nhóm lúc ba giờ, nhớ mang laptop.","expected":"GREEN","scenario":"benign"}
+{"id":"normal_03","text":"Em gọi hỏi thăm sức khỏe của ba mẹ thôi.","expected":"GREEN","scenario":"benign"}
+{"id":"promo_soft_01","text":"Khuyến mãi lớn cuối tuần, ghé cửa hàng nhận voucher nếu có thời gian.","expected":"YELLOW_OR_GREEN","scenario":"marketing_fp","notes":"soft marketing"}
+{"id":"promo_soft_02","text":"Bên em có chương trình ưu đãi gói cước, anh nghe tham khảo không ạ.","expected":"YELLOW_OR_GREEN","scenario":"marketing_fp"}
+{"id":"police_money_01","text":"Tôi là cán bộ công an, anh đang liên quan vụ rửa tiền, phải chuyển tiền vào tài khoản an toàn.","expected":"RED","scenario":"authority_police"}
+{"id":"police_money_02","text":"Cơ quan điều tra yêu cầu chị giữ bí mật và chuyển toàn bộ số dư để xác minh.","expected":"RED","scenario":"authority_police"}
+{"id":"police_soft_01","text":"Tôi đang đọc tin về công an cảnh báo lừa đảo qua điện thoại.","expected":"YELLOW_OR_GREEN","scenario":"education_safe"}
+{"id":"otp_02","text":"Đừng tắt máy, đọc sáu số OTP vừa gửi tới điện thoại để mở hồ sơ bảo lãnh.","expected":"RED","scenario":"otp"}
+{"id":"otp_03","text":"Mã xác thực vừa gửi về máy, cung cấp cho tôi trong hai phút nếu không tài khoản bị khóa.","expected":"ORANGE_OR_RED","scenario":"otp"}
+{"id":"transfer_01","text":"Anh chuyển khoản phí xử lý trước, sau đó bên em giải ngân khoản vay ngay.","expected":"ORANGE","scenario":"loan_fee"}
+{"id":"transfer_02","text":"Muốn nhận quà thì đóng phí vận chuyển hai triệu qua tài khoản này.","expected":"ORANGE_OR_RED","scenario":"advance_fee"}
+{"id":"transfer_safe_01","text":"Tối nay tôi chuyển khoản tiền trọ cho chủ nhà như mọi tháng.","expected":"YELLOW_OR_GREEN","scenario":"benign_transfer"}
+{"id":"loan_01","text":"Hồ sơ vay đã duyệt, chị cần nộp phí bảo hiểm khoản vay trước khi giải ngân.","expected":"ORANGE_OR_RED","scenario":"loan_fee"}
+{"id":"loan_02","text":"Bên em hỗ trợ vay nhanh không cần gặp mặt, đóng phí mở hồ sơ là nhận tiền.","expected":"ORANGE","scenario":"loan_fee"}
+{"id":"loan_safe_01","text":"Tôi đang so sánh lãi suất vay mua nhà của hai ngân hàng.","expected":"YELLOW_OR_GREEN","scenario":"benign_loan"}
+{"id":"prize_01","text":"Chúc mừng anh trúng thưởng xe máy, chỉ cần nộp thuế nhận thưởng ngay hôm nay.","expected":"ORANGE_OR_RED","scenario":"prize"}
+{"id":"prize_02","text":"Anh trúng giải hai trăm triệu, mua thẻ cào gửi mã để hoàn tất hồ sơ nhận thưởng.","expected":"RED","scenario":"prize_card"}
+{"id":"prize_safe_01","text":"Công ty tổ chức bốc thăm trúng thưởng nội bộ trong tiệc cuối năm.","expected":"YELLOW_OR_GREEN","scenario":"benign_prize"}
+{"id":"account_lock_01","text":"Tài khoản ngân hàng bị phong tỏa, bấm vào đường link này và nhập mật khẩu để mở lại.","expected":"RED","scenario":"phishing_link"}
+{"id":"account_lock_02","text":"Hệ thống phát hiện giao dịch lạ, cung cấp mật khẩu internet banking để hỗ trợ kiểm tra.","expected":"RED","scenario":"credential_theft"}
+{"id":"link_soft_01","text":"Mình gửi đường link tài liệu họp, bạn mở khi rảnh nhé.","expected":"GREEN","scenario":"benign_link"}
+{"id":"relative_01","text":"Con đang cấp cứu, chuyển tiền viện phí gấp vào số tài khoản bác sĩ gửi.","expected":"ORANGE_OR_RED","scenario":"family_emergency"}
+{"id":"relative_02","text":"Bạn của con bị tai nạn, cần tiền gấp, đừng gọi lại vì con đang ở phòng cấp cứu.","expected":"ORANGE","scenario":"family_emergency"}
+{"id":"relative_safe_01","text":"Chiều nay con ghé bệnh viện thăm bạn rồi về nhà ăn cơm.","expected":"GREEN","scenario":"benign_family"}
+{"id":"romance_01","text":"Anh đang kẹt ở sân bay, gửi giúp anh ít tiền phí hải quan rồi anh trả lại.","expected":"ORANGE","scenario":"romance"}
+{"id":"investment_01","text":"Đầu tư tiền ảo lợi nhuận ba mươi phần trăm mỗi ngày, nạp tiền ngay để giữ suất.","expected":"ORANGE_OR_RED","scenario":"investment"}
+{"id":"investment_02","text":"Sàn cam kết không lỗ, muốn rút lãi phải đóng thêm phí xác minh tài khoản.","expected":"ORANGE_OR_RED","scenario":"investment"}
+{"id":"investment_safe_01","text":"Tôi học lớp nhập môn đầu tư chứng khoán ở trường đại học.","expected":"GREEN","scenario":"benign_investment"}
+{"id":"threat_01","text":"Nếu không làm theo trong mười phút, chúng tôi sẽ bắt tạm giam và phong tỏa tài sản.","expected":"RED","scenario":"threat_urgency"}
+{"id":"threat_02","text":"Không được báo cho người thân, đây là lệnh bí mật của cơ quan điều tra.","expected":"ORANGE_OR_RED","scenario":"secrecy"}
+{"id":"delivery_safe_01","text":"Shipper gọi báo đơn hàng đã tới cổng, nhờ mình xuống nhận.","expected":"GREEN","scenario":"benign_delivery"}
+{"id":"delivery_fee_01","text":"Đơn hàng bị giữ ở kho, chuyển phí phạt ngay nếu không sẽ hủy và phạt thêm.","expected":"ORANGE","scenario":"delivery_fee"}

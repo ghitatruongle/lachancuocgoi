@@ -1,0 +1,20 @@
+#!/bin/sh
+# Block commit of env.json and any staged AIza key.
+
+# Check if env.json is being staged
+if git diff --cached --name-only | grep -qx "env.json" || git diff --cached --name-only | grep -qx "lachancuoicgoi_flutter/env.json"; then
+  echo "BLOCKED: env.json is gitignored and must never be committed."
+  echo "  If you genuinely need to (rare), use: git commit --no-verify"
+  exit 1
+fi
+
+# Check if any staged changes contain a real Gemini key pattern
+# Excluding common placeholders and test keys:
+# AIzaReplace, AIza_test, AIzaKey, AIzaTestKey, AIzaSyTestKey, AIzaSyKey
+if git diff --cached -U0 | grep -E "AIza[0-9A-Za-z_\-]{35}" | grep -vE "AIzaReplace|AIza_test|AIzaKey|AIzaTestKey|AIzaSyTestKey|AIzaSyKey|AIzaSyXReplacY123|AIzaExampleKey123|AIzaYourApiKeyHere|AIzaXaizareplaceY123|AIzaSyAaBB22CcDdEeFfGgHhIiJjKkLlMmNnOoPpQq|AIzaSyD1234567890abcdefghijklmnopqrstuvw"; then
+  echo "BLOCKED: staged change contains a Gemini API key (AIza...)."
+  echo "  Rotate the key and remove it from the diff first."
+  exit 1
+fi
+
+exit 0

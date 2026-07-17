@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/l1/l1_analysis.dart';
+import 'package:lachancuocgoi_flutter/l10n/app_localizations.dart';
 import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/monitoring_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -44,6 +45,8 @@ void main() {
         ProviderScope(
           overrides: [nativeBridgeProvider.overrideWithValue(fakeBridge)],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             debugShowCheckedModeBanner: false,
             theme: ThemeData.light(),
             home: MonitoringPage(

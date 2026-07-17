@@ -32,12 +32,59 @@ class CallScreeningServiceImpl : CallScreeningService() {
 
     companion object {
         private const val TAG = "CallScreeningSvc"
+        const val PREFS_NAME = "call_screening_prefs"
+        const val KEY_BLOCK_ENABLED = "CALL_SCREENING_BLOCK_ENABLED"
+        const val KEY_BLOCKED_NUMBERS = "blocked_numbers"
+
+        /**
+         * BUG 4 fix: Normalize a phone number to digits-only so that
+         * "+84 912 345 678", "0912345678", and "84912345678" all match.
+         */
+        fun normalizePhoneNumber(raw: String): String {
+            return raw.filter { it.isDigit() }
+        }
+
+        /**
+         * BUG 3 fix: Redact to last 4 digits for logging, avoiding PII leak.
+         */
+        fun takeLast4(raw: String): String {
+            val digits = normalizePhoneNumber(raw)
+            return if (digits.length <= 4) digits else digits.takeLast(4)
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun onScreenCall(callDetails: Call.Details) {
-        val phoneNumber = callDetails.handle?.schemeSpecificPart ?: return
-        Log.d(TAG, "onScreenCall: $phoneNumber")
+        val rawPhoneNumber = callDetails.handle?.schemeSpecificPart ?: return
+        // BUG 4 fix: normalize to digits-only so +84 912... matches 0912...
+        val phoneNumber = normalizePhoneNumber(rawPhoneNumber)
+        // BUG 3 fix: only log last 4 digits to avoid PII leak via logcat.
+        Log.d(TAG, "onScreenCall: ...${takeLast4(rawPhoneNumber)}")
+
+        // Phase 2 (P2-4): opt-in call screening — reject calls from blocklist.
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val blockEnabled = prefs.getBoolean(KEY_BLOCK_ENABLED, false)
+        if (blockEnabled) {
+            val blockedNumbersRaw = prefs.getStringSet(KEY_BLOCKED_NUMBERS, emptySet()) ?: emptySet()
+            // Normalize the stored numbers too, so comparison is consistent.
+            val blockedNumbers = blockedNumbersRaw.map { normalizePhoneNumber(it) }.toSet()
+            if (phoneNumber in blockedNumbers) {
+                Log.w(TAG, "Blocking call from ...${takeLast4(rawPhoneNumber)} (in blocklist)")
+                try {
+                    val response = CallResponse.Builder()
+                        .setDisallowCall(true)
+                        .setRejectCall(true)
+                        .build()
+                    respondToCall(callDetails, response)
+                } catch (e: Exception) {
+                    Log.w(TAG, "respondToCall (block) failed", e)
+                }
+                NativeBridgeEventSink.sendCallEvent(
+                    mapOf("type" to "SCREENING_BLOCKED", "phoneNumber" to phoneNumber)
+                )
+                return
+            }
+        }
 
         val serviceIntent = Intent(this, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_START

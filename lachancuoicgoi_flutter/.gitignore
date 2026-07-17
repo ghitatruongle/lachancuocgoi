@@ -72,6 +72,12 @@ env.json
 # Sensitive files - never push to git
 hoso/
 
+# Release signing keystore & credentials - NEVER COMMIT
+*.jks
+*.keystore
+**/key.properties
+android/key.properties
+
 # Parent folder exclusions (git-backup and presentations)
 .git-backup-pre-bfg/
 thuyet_trinh.html

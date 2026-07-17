@@ -37,8 +37,9 @@ class FakeAnalysisCoordinator extends AnalysisCoordinator {
   @override
   Future<AnalysisResult> analyzeIncremental(
     String fullText,
-    AnalysisMode mode,
-  ) async {
+    AnalysisMode mode, {
+    double? speechRate,
+  }) async {
     analyzeIncrementalCallCount++;
     lastAnalyzedText = fullText;
     lastMode = mode;

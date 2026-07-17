@@ -198,8 +198,12 @@ class WfsaEngine {
     String fullText,
     List<IntentPrediction> intentPredictions,
   ) {
+    // BUG-FIX: Khi text mới ngắn hơn text đã phân tích (phiên mới/cuộc gọi
+    // mới), phải reset toàn bộ state WFSA — không chỉ _analyzedTextLength.
+    // Nếu chỉ reset length, _graphScores từ session trước (VD: score 100 từ
+    // kịch bản lừa đảo ngân hàng) bị leak sang session mới → false positive.
     if (fullText.length < _analyzedTextLength) {
-      _analyzedTextLength = 0;
+      resetSession();
     }
     if (fullText.length <= _analyzedTextLength) {
       return currentRiskScore;
@@ -293,12 +297,14 @@ class WfsaEngine {
               );
             }
           }
-          break;
+            // Don't break — allow multiple transitions per segment so a single
+            // analyze() call with the full transcript can advance through
+            // multiple stages (stage1→stage2→stage3→stage4).
+          }
         }
       }
-    }
 
-    // --- Cross-graph correlation bonus ---
+      // --- Cross-graph correlation bonus ---
     _applyCrossGraphBonus();
 
     _updateActiveScenario();

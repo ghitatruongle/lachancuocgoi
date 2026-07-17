@@ -24,11 +24,13 @@ class MonitoringPageState {
     this.isCreatorMode = false,
     this.navigationIntent,
     this.alertHistory = const [],
-    // Sprint 2 (C1): banner flag set by the Dart-side monitoring state
-    // listener when the native side reports `STT_FALLBACK:VOSK:*`.
     this.isSttFallback = false,
     this.sttFallbackReason,
     this.sttFallbackBannerId = 0,
+    this.isSttUnavailable = false,
+    this.sttUnavailableReason,
+    this.isDegradedNoNotification = false,
+    this.isWatchdogRestartFailed = false,
   });
 
   final RiskLevel riskLevel;
@@ -44,24 +46,23 @@ class MonitoringPageState {
   final AnalysisMode selectedMode;
   final AnalysisMode effectiveMode;
   final bool isCreatorMode;
-  // Note: waveform amplitudes are intentionally NOT stored in this state.
-  // They are exposed via `amplitudesListenable` (a ChangeNotifier) to
-  // avoid excessive Riverpod rebuilds at 10+ Hz.
   final NavigationIntent? navigationIntent;
   final List<AlertHistoryEntry> alertHistory;
 
-  /// Sprint 2 (C1): true while the user should see a banner explaining
-  /// that STT fell back to Vosk.
+  /// STT fell back to Vosk offline.
   final bool isSttFallback;
-
-  /// Sprint 2 (C1): free-form reason from the native side
-  /// (e.g. `error12_loop`, `network_errors_3`).
   final String? sttFallbackReason;
-
-  /// Monotonic id incremented every time the banner is (re)shown.
-  /// Drives a banner widget keyed off this value so it animates on each
-  /// new event instead of being a no-op.
   final int sttFallbackBannerId;
+
+  /// Both STT engines failed — monitoring is blind.
+  final bool isSttUnavailable;
+  final String? sttUnavailableReason;
+
+  /// Missing POST_NOTIFICATIONS on Android 13+.
+  final bool isDegradedNoNotification;
+
+  /// Watchdog could not restart the foreground service.
+  final bool isWatchdogRestartFailed;
 
   MonitoringPageState copyWith({
     RiskLevel? riskLevel,
@@ -83,9 +84,13 @@ class MonitoringPageState {
     List<AlertHistoryEntry>? alertHistory,
     bool? isSttFallback,
     String? sttFallbackReason,
-    // Bug #9 fix: sentinel to allow clearing sttFallbackReason to null
     bool clearSttFallbackReason = false,
     int? sttFallbackBannerId,
+    bool? isSttUnavailable,
+    String? sttUnavailableReason,
+    bool clearSttUnavailableReason = false,
+    bool? isDegradedNoNotification,
+    bool? isWatchdogRestartFailed,
   }) {
     return MonitoringPageState(
       riskLevel: riskLevel ?? this.riskLevel,
@@ -112,6 +117,14 @@ class MonitoringPageState {
           ? null
           : (sttFallbackReason ?? this.sttFallbackReason),
       sttFallbackBannerId: sttFallbackBannerId ?? this.sttFallbackBannerId,
+      isSttUnavailable: isSttUnavailable ?? this.isSttUnavailable,
+      sttUnavailableReason: clearSttUnavailableReason
+          ? null
+          : (sttUnavailableReason ?? this.sttUnavailableReason),
+      isDegradedNoNotification:
+          isDegradedNoNotification ?? this.isDegradedNoNotification,
+      isWatchdogRestartFailed:
+          isWatchdogRestartFailed ?? this.isWatchdogRestartFailed,
     );
   }
 
@@ -136,7 +149,11 @@ class MonitoringPageState {
           _listEquals(alertHistory, other.alertHistory) &&
           isSttFallback == other.isSttFallback &&
           sttFallbackReason == other.sttFallbackReason &&
-          sttFallbackBannerId == other.sttFallbackBannerId;
+          sttFallbackBannerId == other.sttFallbackBannerId &&
+          isSttUnavailable == other.isSttUnavailable &&
+          sttUnavailableReason == other.sttUnavailableReason &&
+          isDegradedNoNotification == other.isDegradedNoNotification &&
+          isWatchdogRestartFailed == other.isWatchdogRestartFailed;
 
   @override
   int get hashCode => Object.hash(
@@ -158,6 +175,12 @@ class MonitoringPageState {
     isSttFallback,
     sttFallbackReason,
     sttFallbackBannerId,
+    Object.hash(
+      isSttUnavailable,
+      sttUnavailableReason,
+      isDegradedNoNotification,
+      isWatchdogRestartFailed,
+    ),
   );
 
   static bool _listEquals<T>(List<T> a, List<T> b) {

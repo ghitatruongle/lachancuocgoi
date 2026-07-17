@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lachancuocgoi_flutter/l10n/app_localizations.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_level.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_result.dart';
 import 'package:lachancuocgoi_flutter/analysis/l1/l1_analysis.dart';
@@ -18,9 +19,14 @@ L1Analyzer createEmptyL1Analyzer() {
 }
 
 /// Common ProviderScope overrides for MonitoringPage widget tests.
+///
+/// Phase 2 (P2-8): uses [NativeBridgeInterface.create()] which returns
+/// [SimulatorCallShieldBridge] on non-Android platforms (including test
+/// environment), so tests get the scripted simulation instead of relying
+/// on the old monolithic [NativeCallShieldBridge].
 List<Override> createCommonOverrides({L1Analyzer? l1AnalyzerOverride}) {
   return [
-    nativeBridgeProvider.overrideWithValue(NativeCallShieldBridge.instance),
+    nativeBridgeProvider.overrideWithValue(NativeBridgeInterface.create()),
   ];
 }
 
@@ -50,7 +56,11 @@ Widget createTestApp({
 }) {
   return ProviderScope(
     overrides: overrides,
-    child: MaterialApp(home: child),
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: child,
+    ),
   );
 }
 

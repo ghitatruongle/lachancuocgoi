@@ -16,15 +16,23 @@ enum MonitoringState {
   /// The `transcript` slot of the parsed tuple carries the reason
   /// (e.g. "error12_loop" or "network_errors_3") which the UI can
   /// surface in its banner.
-  sttFallbackVosk;
+  sttFallbackVosk,
+
+  /// Both Google and Vosk STT failed to start — monitoring is blind.
+  sttUnavailable,
+
+  /// Android 13+: missing POST_NOTIFICATIONS — FGS runs degraded.
+  degradedNoNotification,
+
+  /// Watchdog failed to restart BackgroundMonitoringService.
+  watchdogRestartFailed;
 
   /// Duration and final transcript when state is [stopped]. Reason string
-  /// when state is [sttFallbackVosk]. Otherwise null.
+  /// when state is [sttFallbackVosk] / [sttUnavailable]. Otherwise null.
   static (MonitoringState, int?, String?) parse(String raw) {
     if (raw.startsWith('STOPPED:')) {
       final parts = raw.split(':');
       final duration = parts.length > 1 ? int.tryParse(parts[1]) : null;
-      // Extract transcript — normalize empty string to null for consistency
       final rawTranscript = parts.length > 2
           ? parts.sublist(2).join(':')
           : null;
@@ -34,18 +42,34 @@ enum MonitoringState {
       return (MonitoringState.stopped, duration, transcript);
     }
     if (raw.startsWith('STT_FALLBACK:VOSK:')) {
-      // The third field is the reason (e.g. "error12_loop",
-      // "network_errors_3"). Empty string is normalised to null.
       const prefix = 'STT_FALLBACK:VOSK:';
       final reason = raw.length > prefix.length
           ? raw.substring(prefix.length)
           : null;
       return (MonitoringState.sttFallbackVosk, null, reason);
     }
+    if (raw.startsWith('STT_UNAVAILABLE:')) {
+      const prefix = 'STT_UNAVAILABLE:';
+      final reason = raw.length > prefix.length
+          ? raw.substring(prefix.length)
+          : null;
+      return (MonitoringState.sttUnavailable, null, reason);
+    }
     return switch (raw) {
       'STARTED' => (MonitoringState.started, null, null),
       'NETWORK_AVAILABLE' => (MonitoringState.networkAvailable, null, null),
       'NETWORK_LOST' => (MonitoringState.networkLost, null, null),
+      'DEGRADED_NO_NOTIFICATION' => (
+        MonitoringState.degradedNoNotification,
+        null,
+        null,
+      ),
+      'WATCHDOG_RESTART_FAILED' => (
+        MonitoringState.watchdogRestartFailed,
+        null,
+        null,
+      ),
+      'STT_UNAVAILABLE' => (MonitoringState.sttUnavailable, null, null),
       _ => (MonitoringState.idle, null, null),
     };
   }
@@ -153,12 +177,6 @@ class MonitoringStopResult {
 }
 
 /// A single transcript event from the native side.
-///
-/// `text` is either the latest cumulative final transcript (when [isPartial]
-/// is false) or the most recent partial / current-utterance text (when true).
-/// Flutter typically replaces its display transcript with [text]; the [isPartial]
-/// flag is informational and can be used to debounce analysis or to render a
-/// "đang nghe…" hint.
 class TranscriptUpdate {
   const TranscriptUpdate({required this.text, required this.isPartial});
   final String text;

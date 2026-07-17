@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lachancuocgoi_flutter/l10n/app_localizations.dart';
 import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
 import 'package:lachancuocgoi_flutter/ui/home_page/home_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,10 +19,14 @@ void main() {
         ProviderScope(
           overrides: [
             nativeBridgeProvider.overrideWithValue(
-              NativeCallShieldBridge.instance,
+              NativeBridgeInterface.create(),
             ),
           ],
-          child: const MaterialApp(home: HomePage()),
+          child: const MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: HomePage(),
+          ),
         ),
       );
 
@@ -41,10 +46,14 @@ void main() {
         ProviderScope(
           overrides: [
             nativeBridgeProvider.overrideWithValue(
-              NativeCallShieldBridge.instance,
+              NativeBridgeInterface.create(),
             ),
           ],
-          child: const MaterialApp(home: HomePage()),
+          child: const MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: HomePage(),
+          ),
         ),
       );
       await tester.pump();
@@ -61,10 +70,14 @@ void main() {
         ProviderScope(
           overrides: [
             nativeBridgeProvider.overrideWithValue(
-              NativeCallShieldBridge.instance,
+              NativeBridgeInterface.create(),
             ),
           ],
-          child: const MaterialApp(home: HomePage()),
+          child: const MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: HomePage(),
+          ),
         ),
       );
       await tester.pump();

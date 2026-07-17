@@ -137,6 +137,16 @@
 
     "chuyển 500 triệu", "chuyển 100 triệu", "chuyển 50 triệu",
     "chuyển 30 triệu", "tài khoản nhận tiền",
-    "không chuyển không gặp lại"
+    "không chuyển không gặp lại",
+
+    "phí luật sư", "bao đậu visa", "bao đậu hồ sơ visa",
+    "khủng bố điện thoại", "gọi hết danh bạ", "phẫu thuật gấp",
+    "thu hồi vốn", "lấy lại tiền bị lừa", "giao dịch bất thường",
+    "nhân viên ngân hàng", "gọi cho vợ con", "tung ảnh lên mạng",
+    "hỗ trợ lấy lại tiền lừa đảo", "chuyển viện phí",
+
+    "xác minh cccd", "khóa 2 chiều", "báo cáo gian lận",
+    "không gặp lại con", "chuộc con về", "gửi link đăng ký",
+    "không chuyển là không gặp lại"
   ]
 }

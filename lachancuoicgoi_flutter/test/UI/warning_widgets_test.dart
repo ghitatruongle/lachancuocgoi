@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lachancuocgoi_flutter/l10n/app_localizations.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/warning/full_screen_warning.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/warning/red_warning.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/warning/orange_warning.dart';
 
 void main() {
-  Widget wrap(Widget child) => MaterialApp(home: child);
+  Widget wrap(Widget child) => MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: child,
+  );
 
   group('FullScreenWarning', () {
     testWidgets('renders with titleText and subtitle', (tester) async {

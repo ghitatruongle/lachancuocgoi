@@ -1,0 +1,118 @@
+{
+  "@@locale": "vi",
+
+  "appTitle": "Lá chắn cuộc gọi",
+  "@appTitle": {"description": "Tên ứng dụng"},
+
+  "settings": "Cài đặt",
+  "@settings": {"description": "Tooltip nút cài đặt"},
+  "permissions": "Quyền",
+  "@permissions": {"description": "Tooltip nút quyền"},
+  "instructions": "Hướng dẫn",
+  "@instructions": {"description": "Tooltip nút hướng dẫn"},
+
+  "homeSubtitle": "Phân tích cuộc gọi theo thời gian thực để phát hiện lừa đảo.",
+  "@homeSubtitle": {},
+  "homeLiveCaptionTip": "Khuyên dùng: Bật Phụ đề trực tiếp để bảo vệ tốt nhất",
+  "@homeLiveCaptionTip": {},
+  "appInfoSemantic": "Thông tin ứng dụng Lá chắn cuộc gọi",
+  "@appInfoSemantic": {},
+  "startMonitoring": "Bắt đầu giám sát",
+  "@startMonitoring": {},
+  "startMonitoringSemantic": "Bắt đầu giám sát cuộc gọi",
+  "@startMonitoringSemantic": {},
+  "simulationMode": "Chế độ giả lập",
+  "@simulationMode": {},
+  "history": "Lịch sử",
+  "@history": {},
+  "antiScamTips": "Mẹo chống lừa đảo",
+  "@antiScamTips": {},
+  "homePermissionWarning": "Một số quyền chưa được cấp — hiệu quả giám sát có thể bị giảm.",
+  "@homePermissionWarning": {},
+
+  "demoMode": "Chế độ demo",
+  "@demoMode": {},
+  "demoModeDescription": "Nền tảng này không gắn cuộc gọi thật. App chạy kịch bản giả để thử AI. Bản đầy đủ (STT, overlay, call screening) trên Android.",
+  "@demoModeDescription": {},
+  "demoModeSemantic": "Chế độ demo — không gắn cuộc gọi thật",
+  "@demoModeSemantic": {},
+  "featuresOnThisDevice": "Tính năng trên máy này",
+  "@featuresOnThisDevice": {},
+
+  "monitoringSubtitle": "Phát hiện Lừa đảo & Bạo lực",
+  "@monitoringSubtitle": {},
+  "monitoringEndCall": "Kết thúc cuộc gọi",
+  "@monitoringEndCall": {},
+  "monitoringSavingResult": "Đang lưu kết quả...",
+  "@monitoringSavingResult": {},
+  "monitoringEndCallSemantic": "Kết thúc cuộc gọi và lưu kết quả",
+  "@monitoringEndCallSemantic": {},
+  "monitoringLiveConversation": "Cuộc hội thoại trực tiếp",
+  "@monitoringLiveConversation": {},
+  "monitoringSimulationTranscript": "Kịch bản mô phỏng",
+  "@monitoringSimulationTranscript": {},
+  "monitoringSystemLog": "Nhật ký hệ thống",
+  "@monitoringSystemLog": {},
+  "monitoringSimulationPrefix": "Mô phỏng: {title}",
+  "@monitoringSimulationPrefix": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "monitoringSimulationDefault": "Mô phỏng",
+  "@monitoringSimulationDefault": {},
+  "monitoringRiskSemantic": "Mức độ rủi ro cuộc gọi hiện tại: {level}",
+  "@monitoringRiskSemantic": {
+    "placeholders": {
+      "level": {"type": "String"}
+    }
+  },
+  "monitoringWaveformSemantic": "Biểu đồ sóng âm thanh cuộc gọi trực tiếp",
+  "@monitoringWaveformSemantic": {},
+  "monitoringModeTarget": "Đích: {mode}",
+  "@monitoringModeTarget": {
+    "placeholders": {
+      "mode": {"type": "String"}
+    }
+  },
+  "monitoringModeRunning": "Chạy: {mode}",
+  "@monitoringModeRunning": {
+    "placeholders": {
+      "mode": {"type": "String"}
+    }
+  },
+  "monitoringNetworkOk": "Mạng: OK",
+  "@monitoringNetworkOk": {},
+  "monitoringNetworkError": "Mạng: Lỗi",
+  "@monitoringNetworkError": {},
+
+  "monitoringSttFatal": "Mic/STT lỗi — không nghe được giọng nói. Kiểm tra quyền micro và thử lại.",
+  "@monitoringSttFatal": {},
+  "monitoringSttFatalWithReason": "Mic/STT lỗi — không nghe được giọng nói ({reason}). Kiểm tra quyền micro và thử lại.",
+  "@monitoringSttFatalWithReason": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "monitoringNotificationDegraded": "Bật thông báo để giám sát ổn định. Android có thể tắt app giữa cuộc gọi nếu thiếu quyền thông báo.",
+  "@monitoringNotificationDegraded": {},
+  "monitoringWatchdogFailed": "Không khôi phục được dịch vụ giám sát nền. Hãy dừng và bắt đầu lại phiên.",
+  "@monitoringWatchdogFailed": {},
+  "monitoringSttFallbackOffline": "STT đã chuyển sang chế độ offline (Vosk)",
+  "@monitoringSttFallbackOffline": {},
+  "monitoringSttFallbackWithReason": "STT offline (Vosk): {reason}",
+  "@monitoringSttFallbackWithReason": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+
+  "riskLevelLabel": "Mức độ rủi ro",
+  "@riskLevelLabel": {},
+  "warningDismissButton": "ĐÃ HIỂU",
+  "@warningDismissButton": {},
+  "warningRedTitle": "NGUY HIỂM",
+  "@warningRedTitle": {},
+  "warningOrangeTitle": "NGUY CƠ",
+  "@warningOrangeTitle": {}
+}

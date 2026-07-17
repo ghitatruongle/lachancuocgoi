@@ -65,7 +65,7 @@ class TestDb {
     if (dbPath != null) {
       try {
         await databaseFactory.deleteDatabase(dbPath!);
-      } catch (_) {}
+      } on Exception catch (_) {}
     }
   }
 }
@@ -265,6 +265,16 @@ class FakeIntegrationBridge implements NativeBridgeInterface {
     methodCallList.add('dismissIncomingCallOverlay');
   }
 
+  @override
+  Future<void> setCallScreeningBlockEnabled(bool enabled) async {
+    methodCallList.add('setCallScreeningBlockEnabled');
+  }
+
+  @override
+  Future<void> setBlockedNumbers(List<String> numbers) async {
+    methodCallList.add('setBlockedNumbers');
+  }
+
   Future<void> dispose() async {
     await _transcript.close();
     await _rms.close();
@@ -282,6 +292,7 @@ class _TestSettingsController extends Notifier<SettingsState>
   @override
   SettingsState build() => SettingsState(
         isDarkTheme: false,
+        followSystemTheme: true,
         analysisMode: _analysisMode,
         audioBoost: false,
         autoEnableSpeakerphone: false,

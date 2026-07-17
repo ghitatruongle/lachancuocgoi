@@ -8,6 +8,7 @@ import 'package:lachancuocgoi_flutter/analysis/common/fuzzy_matcher.dart';
 import 'package:lachancuocgoi_flutter/analysis/common/text_normalizer.dart';
 import 'package:lachancuocgoi_flutter/analysis/l1/l1_analysis.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
+import 'package:lachancuocgoi_flutter/l10n/app_localizations.dart';
 import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/monitoring_page.dart';
 
@@ -236,10 +237,12 @@ void main() {
         ProviderScope(
           overrides: [
             nativeBridgeProvider.overrideWithValue(
-              NativeCallShieldBridge.instance,
+              NativeBridgeInterface.create(),
             ),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: MonitoringPage(
               l1AnalyzerOverride: _newTestAnalyzer(),
               simulatedScenarioTitle: 'OTP test',

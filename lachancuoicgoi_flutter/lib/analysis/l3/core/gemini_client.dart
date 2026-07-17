@@ -46,11 +46,15 @@ GeminiErrorType classifyGeminiError(Object? error) {
   return GeminiErrorType.unknown;
 }
 
-/// Default fallback models for Gemini API, shared across client and session.
+/// Default model priority list for Gemini API, shared across client and session.
+/// The client tries each model in order, falling back to the next on failure.
+/// Priority: newest/most capable first → oldest/lightest last.
 const List<String> geminiFallbackModels = <String>[
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
+  'gemini-3.5-flash',        // Ưu tiên 1: Model mới nhất, mạnh nhất
+  'gemini-3.1-flash-lite',   // Ưu tiên 2: Fallback nhẹ hơn
+  'gemini-3-flash',          // Ưu tiên 3: Thế hệ 3 cơ bản
+  'gemini-2.5-flash',        // Ưu tiên 4: Thế hệ 2.5 đầy đủ
+  'gemini-2.5-flash-lite',   // Ưu tiên 5 (cuối): Nhẹ nhất, fallback an toàn
 ];
 
 class GeminiClient {

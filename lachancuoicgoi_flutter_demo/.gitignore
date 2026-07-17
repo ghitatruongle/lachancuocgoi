@@ -1,0 +1,78 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code related
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio and local build configs
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/local.properties
+/android/.gradle/
+.gradle/
+**/android/**/local.properties
+**/android/local.properties
+
+# iOS local configs and keys
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/ephemeral/
+**/.ios/
+**/ios/**/config.h
+**/ios/**/Pods/
+**/ios/.symlinks/
+
+# Environment variables
+env.json
+.env
+.env.*
+
+# Local tool/IDE config
+.openclaude/
+.qoder/
+.cursor/
+.cline/
+.windsurf/
+.zcode/
+
+# Sensitive files - never push to git
+hoso/
+
+# Parent folder exclusions (git-backup and presentations)
+.git-backup-pre-bfg/
+thuyet_trinh.html
+*.html

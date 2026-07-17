@@ -218,6 +218,13 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
     SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: Incoming Call Overlay dismissed');
   }
 
+  // Phase 2 (P2-4): Call screening opt-in — no-op on simulator platforms.
+  @override
+  Future<void> setCallScreeningBlockEnabled(bool enabled) async {}
+
+  @override
+  Future<void> setBlockedNumbers(List<String> numbers) async {}
+
   @override
   Stream<TranscriptUpdate> get transcriptStream =>
       _iosTranscriptController.stream;
