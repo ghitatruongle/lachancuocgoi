@@ -17,10 +17,14 @@ import androidx.annotation.NonNull
 import androidx.core.content.ContextCompat
 import com.lachancuocgoi.lachancuocgoi_flutter.audio.CreatorAudioCaptureManager
 import com.lachancuocgoi.lachancuocgoi_flutter.services.BackgroundMonitoringService
-import com.lachancuocgoi.lachancuocgoi_flutter.services.CallScreeningServiceImpl
+import com.lachancuocgoi.lachancuocgoi_flutter.services.CallScreeningPreferences
 import com.lachancuocgoi.lachancuocgoi_flutter.services.CreatorMediaProjectionService
 import com.lachancuocgoi.lachancuocgoi_flutter.services.ForegroundServiceLauncher
+import com.lachancuocgoi.lachancuocgoi_flutter.services.MonitoringStartResponse
+import com.lachancuocgoi.lachancuocgoi_flutter.services.MonitoringStartCoordinator
+import com.lachancuocgoi.lachancuocgoi_flutter.services.MonitoringStartStatus
 import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeEventSink
+import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeCallEvent
 import com.lachancuocgoi.lachancuocgoi_flutter.services.PendingResult
 import com.lachancuocgoi.lachancuocgoi_flutter.ui.OverlayManager
 import io.flutter.embedding.android.FlutterActivity
@@ -53,6 +57,7 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         maybeHandleDebugIntent(intent)
+        handleCallIntent(intent)
     }
 
     override fun onDestroy() {
@@ -60,6 +65,7 @@ class MainActivity : FlutterActivity() {
         // Activity destruction (e.g. config change while permission dialog is up).
         pendingPhonePermissionResult.cancel()
         pendingCreatorMonitoringResult.cancel()
+        MonitoringStartCoordinator.cancel()
         super.onDestroy()
     }
 
@@ -67,17 +73,7 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         maybeHandleDebugIntent(intent)
-        // Bug #5 fix: forward NAVIGATE_TO_MONITORING extra to Flutter so the
-        // notification's full-screen intent actually opens the monitoring page
-        // when the app is already running (was previously dropped).
-        if (intent?.getBooleanExtra("NAVIGATE_TO_MONITORING", false) == true) {
-            NativeBridgeEventSink.sendCallEvent(
-                mapOf(
-                    "type" to "NAVIGATE_TO_MONITORING",
-                    "phoneNumber" to (intent.getStringExtra("PHONE_NUMBER") ?: ""),
-                )
-            )
-        }
+        handleCallIntent(intent)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -129,19 +125,16 @@ class MainActivity : FlutterActivity() {
         pendingCreatorDevModeExpiresAtMs = 0L
 
         if (resultCode == RESULT_OK && data != null) {
-            CreatorMediaProjectionService.isRunning = true
             val intent = Intent(this, CreatorMediaProjectionService::class.java).apply {
                 action = CreatorMediaProjectionService.ACTION_START
                 putExtra("code", resultCode)
                 putExtra("data", data)
                 putExtra("devModeExpiresAtMs", devModeExpiresAtMs)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                safeStartForegroundService(intent) // Bug #2/#8 helper
-            } else {
-                startService(intent)
-            }
-            pendingCreatorMonitoringResult.success(true)
+            val launchResult = safeStartForegroundService(intent)
+            val accepted = launchResult == ForegroundServiceLauncher.LaunchResult.SUCCESS
+            if (!accepted) CreatorMediaProjectionService.isRunning = false
+            pendingCreatorMonitoringResult.success(accepted)
         } else {
             Toast.makeText(
                 this,
@@ -179,10 +172,8 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "startMonitoring" -> {
-                        val phoneNumber = call.argument<String>("phoneNumber")
                         val enableSpeakerphone = call.argument<Boolean>("enableSpeakerphone") ?: false
-                        startMonitoringService(phoneNumber, enableSpeakerphone)
-                        result.success(true)
+                        startMonitoringService(enableSpeakerphone, result)
                     }
                     "stopMonitoring" -> {
                         stopMonitoringService()
@@ -274,20 +265,20 @@ class MainActivity : FlutterActivity() {
                     "setCallScreeningBlockEnabled" -> {
                         val enabled = call.argument<Boolean>("enabled") ?: false
                         val prefs = getSharedPreferences(
-                            CallScreeningServiceImpl.PREFS_NAME, MODE_PRIVATE
+                            CallScreeningPreferences.PREFS_NAME, MODE_PRIVATE
                         )
                         prefs.edit().putBoolean(
-                            CallScreeningServiceImpl.KEY_BLOCK_ENABLED, enabled
+                            CallScreeningPreferences.KEY_BLOCK_ENABLED, enabled
                         ).apply()
                         result.success(true)
                     }
                     "setBlockedNumbers" -> {
                         val numbers = call.argument<List<String>>("numbers") ?: emptyList()
                         val prefs = getSharedPreferences(
-                            CallScreeningServiceImpl.PREFS_NAME, MODE_PRIVATE
+                            CallScreeningPreferences.PREFS_NAME, MODE_PRIVATE
                         )
                         prefs.edit().putStringSet(
-                            CallScreeningServiceImpl.KEY_BLOCKED_NUMBERS,
+                            CallScreeningPreferences.KEY_BLOCKED_NUMBERS,
                             numbers.toSet()
                         ).apply()
                         result.success(true)
@@ -377,19 +368,98 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun startMonitoringService(phoneNumber: String?, enableSpeakerphone: Boolean) {
-        BackgroundMonitoringService.isRunning = true
+    private fun startMonitoringService(enableSpeakerphone: Boolean): MonitoringStartResponse {
+        if (BackgroundMonitoringService.isRunning) {
+            return MonitoringStartResponse(
+                MonitoringStartStatus.ALREADY_RUNNING,
+                "Dịch vụ giám sát đang hoạt động.",
+            )
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return MonitoringStartResponse(
+                MonitoringStartStatus.PERMISSION_DENIED,
+                "Cần cấp quyền micro để bắt đầu giám sát.",
+            )
+        }
+
         val intent = Intent(this, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_START
-            phoneNumber?.let { putExtra("PHONE_NUMBER", it) }
             putExtra("ENABLE_SPEAKERPHONE", enableSpeakerphone)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            safeStartForegroundService(intent) // Bug #2/#8 helper
-        } else {
-            startService(intent)
+        val launchResult = safeStartForegroundService(intent)
+        return when (launchResult) {
+            ForegroundServiceLauncher.LaunchResult.SUCCESS -> {
+                Log.d(TAG, "BackgroundMonitoringService start request accepted")
+                MonitoringStartResponse(
+                    MonitoringStartStatus.STARTED,
+                    "Đã gửi yêu cầu bắt đầu giám sát.",
+                )
+            }
+            ForegroundServiceLauncher.LaunchResult.NOT_ALLOWED -> MonitoringStartResponse(
+                MonitoringStartStatus.BACKGROUND_START_DENIED,
+                "Android không cho phép khởi động dịch vụ từ nền.",
+            )
+            ForegroundServiceLauncher.LaunchResult.SECURITY_DENIED -> MonitoringStartResponse(
+                MonitoringStartStatus.PERMISSION_DENIED,
+                "Không đủ quyền để khởi động dịch vụ giám sát.",
+            )
+            ForegroundServiceLauncher.LaunchResult.UNKNOWN_ERROR -> MonitoringStartResponse(
+                MonitoringStartStatus.NATIVE_FAILURE,
+                "Không thể khởi động dịch vụ giám sát.",
+            )
         }
-        Log.d(TAG, "Started BackgroundMonitoringService")
+    }
+
+    private fun startMonitoringService(
+        enableSpeakerphone: Boolean,
+        result: MethodChannel.Result,
+    ) {
+        if (BackgroundMonitoringService.isRunning) {
+            result.success(
+                MonitoringStartResponse(
+                    MonitoringStartStatus.ALREADY_RUNNING,
+                    "Dịch vụ giám sát đang hoạt động.",
+                ).toMap()
+            )
+            return
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            result.success(
+                MonitoringStartResponse(
+                    MonitoringStartStatus.PERMISSION_DENIED,
+                    "Cần cấp quyền micro để bắt đầu giám sát.",
+                ).toMap()
+            )
+            return
+        }
+        if (!MonitoringStartCoordinator.begin(result)) {
+            result.success(
+                MonitoringStartResponse(
+                    MonitoringStartStatus.ALREADY_RUNNING,
+                    "Yêu cầu khởi động giám sát đang được xử lý.",
+                ).toMap()
+            )
+            return
+        }
+
+        val launchResponse = startMonitoringService(enableSpeakerphone)
+        // STARTED here means only that Android accepted the asynchronous
+        // service request. The service completes that response after it has
+        // successfully promoted itself and entered the active state.
+        if (launchResponse.status != MonitoringStartStatus.STARTED) {
+            MonitoringStartCoordinator.complete(launchResponse)
+        }
+    }
+
+    /** Use one parser for both the initial Activity intent and onNewIntent. */
+    private fun handleCallIntent(intent: Intent?) {
+        NativeCallEvent.fromActivityIntent(intent)?.let { event ->
+            NativeBridgeEventSink.sendCallEvent(event.toMap())
+        }
     }
 
     private fun stopMonitoringService() {
@@ -415,6 +485,12 @@ class MainActivity : FlutterActivity() {
 
     private fun startCreatorMonitoring(result: MethodChannel.Result, devModeExpiresAtMs: Long) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            result.success(false)
+            return
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
             result.success(false)
             return
         }

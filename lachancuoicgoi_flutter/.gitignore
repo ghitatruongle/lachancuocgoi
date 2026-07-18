@@ -82,3 +82,22 @@ android/key.properties
 .git-backup-pre-bfg/
 thuyet_trinh.html
 *.html
+
+# Internal docs / temp files
+docs/HANDOFF_*.md
+docs/eval_corpus_readme.md
+docs/superpowers/
+docs/RELEASE_CHECKLIST_*.md
+docs/RELEASE_NOTES_*.md
+
+# Screenshots / temp images
+screen.png
+*.png
+!assets/*.png
+
+# FVM (Flutter Version Management)
+.fvm/
+.fvmrc
+
+# Temp / debug files
+nul

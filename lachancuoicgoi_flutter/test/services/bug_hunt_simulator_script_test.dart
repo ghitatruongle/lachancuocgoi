@@ -30,12 +30,9 @@ void main() {
       expect(ids.toSet().length, equals(ids.length));
     });
 
-    test(
-      'BUG-SIM-3: catalog script byId returns null for unknown id',
-      () {
-        expect(SimulatorScriptCatalog.byId('unknown_id'), isNull);
-      },
-    );
+    test('BUG-SIM-3: catalog script byId returns null for unknown id', () {
+      expect(SimulatorScriptCatalog.byId('unknown_id'), isNull);
+    });
 
     test(
       'BUG-SIM-4: simulator bridge permission gate returns all-granted',
@@ -44,8 +41,11 @@ void main() {
         final snapshot = await bridge.getPermissionSnapshot();
         expect(snapshot.recordAudio, isA<bool>());
         expect(snapshot.notification, isA<bool>());
-        expect(snapshot.phoneState, isTrue,
-            reason: 'Simulator stub always grants phoneState');
+        expect(
+          snapshot.phoneState,
+          isTrue,
+          reason: 'Simulator stub always grants phoneState',
+        );
       },
     );
   });

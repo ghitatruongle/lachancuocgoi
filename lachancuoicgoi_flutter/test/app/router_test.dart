@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lachancuocgoi_flutter/app/router.dart';
+import 'package:lachancuocgoi_flutter/app/settings_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -10,6 +12,7 @@ void main() {
     late ProviderContainer container;
 
     setUp(() {
+      SharedPreferences.setMockInitialValues({});
       container = ProviderContainer();
     });
 
@@ -52,18 +55,24 @@ void main() {
       expect(router, isA<GoRouter>());
     });
 
-    test('redirect always returns null (no forced redirects)', () {
-      // The redirect callback in the router always returns null, meaning
-      // it allows the navigation to proceed without blocking.
-      // We verify the router was created without error — if the redirect
-      // threw, creation would fail.
-      final router = container.read(appRouterProvider);
-      expect(router, isNotNull);
+    testWidgets('redirects an incomplete first launch to onboarding', (
+      tester,
+    ) async {
+      container.read(settingsControllerProvider);
+      await tester.pump();
+      final settings = container.read(settingsControllerProvider);
+      expect(onboardingRedirect(settings, '/history'), '/onboarding');
+      expect(onboardingRedirect(settings, '/onboarding'), isNull);
     });
 
-    test('router can be disposed without error', () {
-      final router = container.read(appRouterProvider);
-      router.dispose();
+    testWidgets('keeps completed users out of onboarding', (tester) async {
+      container.read(settingsControllerProvider);
+      await tester.pump();
+      final settings = container
+          .read(settingsControllerProvider)
+          .copyWith(onboardingCompleted: true);
+      expect(onboardingRedirect(settings, '/onboarding'), '/');
+      expect(onboardingRedirect(settings, '/history'), isNull);
     });
   });
 }

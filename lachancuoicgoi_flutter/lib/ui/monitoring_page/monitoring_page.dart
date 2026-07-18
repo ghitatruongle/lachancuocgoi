@@ -20,12 +20,14 @@ class MonitoringPage extends ConsumerStatefulWidget {
     this.simulatedTranscript,
     this.simulatedScriptLines,
     this.l1AnalyzerOverride,
+    this.initialMaskedNumber,
   });
 
   final String? simulatedScenarioTitle;
   final String? simulatedTranscript;
   final List<Map<String, dynamic>>? simulatedScriptLines;
   final L1Analyzer? l1AnalyzerOverride;
+  final String? initialMaskedNumber;
 
   @override
   ConsumerState<MonitoringPage> createState() => _MonitoringPageState();
@@ -43,15 +45,15 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 
     // Deferred init — must not modify provider state during initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(monitoringControllerProvider.notifier)
-          .init(
-            simulatedScenarioTitle: widget.simulatedScenarioTitle,
-            simulatedTranscript: widget.simulatedTranscript,
-            simulatedScriptLines: widget.simulatedScriptLines,
-            l1AnalyzerOverride: widget.l1AnalyzerOverride,
-          );
-      ref.read(monitoringControllerProvider.notifier).initAfterFrame();
+      final controller = ref.read(monitoringControllerProvider.notifier);
+      controller.init(
+        simulatedScenarioTitle: widget.simulatedScenarioTitle,
+        simulatedTranscript: widget.simulatedTranscript,
+        simulatedScriptLines: widget.simulatedScriptLines,
+        l1AnalyzerOverride: widget.l1AnalyzerOverride,
+      );
+      controller.maskedNumber = widget.initialMaskedNumber;
+      controller.initAfterFrame();
       // Seed the elapsed-time notifier with the current value now that the
       // controller has been initialized (it was previously assigned inside
       // build() on every rebuild).
@@ -74,18 +76,19 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
     if (widget.simulatedScenarioTitle != oldWidget.simulatedScenarioTitle ||
         widget.simulatedTranscript != oldWidget.simulatedTranscript ||
         widget.simulatedScriptLines != oldWidget.simulatedScriptLines ||
-        widget.l1AnalyzerOverride != oldWidget.l1AnalyzerOverride) {
+        widget.l1AnalyzerOverride != oldWidget.l1AnalyzerOverride ||
+        widget.initialMaskedNumber != oldWidget.initialMaskedNumber) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ref
-            .read(monitoringControllerProvider.notifier)
-            .init(
-              simulatedScenarioTitle: widget.simulatedScenarioTitle,
-              simulatedTranscript: widget.simulatedTranscript,
-              simulatedScriptLines: widget.simulatedScriptLines,
-              l1AnalyzerOverride: widget.l1AnalyzerOverride,
-            );
-        ref.read(monitoringControllerProvider.notifier).initAfterFrame();
+        final controller = ref.read(monitoringControllerProvider.notifier);
+        controller.init(
+          simulatedScenarioTitle: widget.simulatedScenarioTitle,
+          simulatedTranscript: widget.simulatedTranscript,
+          simulatedScriptLines: widget.simulatedScriptLines,
+          l1AnalyzerOverride: widget.l1AnalyzerOverride,
+        );
+        controller.maskedNumber = widget.initialMaskedNumber;
+        controller.initAfterFrame();
       });
     }
   }
@@ -268,7 +271,11 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
         button: true,
         label: l10n.monitoringEndCallSemantic,
         child: ElevatedButton(
-          onPressed: state.isEndingSession
+          onPressed:
+              state.phase == MonitoringPhase.idle ||
+                  state.phase == MonitoringPhase.starting ||
+                  state.phase == MonitoringPhase.stopping ||
+                  state.phase == MonitoringPhase.saved
               ? null
               : () => controller.endSession(),
           style: ElevatedButton.styleFrom(
@@ -344,6 +351,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                                 writeIndex:
                                     controller.currentAmplitudeWriteIndex,
                                 elapsedSeconds: _elapsedNotifier,
+                                phase: state.phase,
                               );
                             },
                           ),
@@ -358,8 +366,11 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                   Card(
                     elevation: 4,
                     child: Semantics(
-                    label: l10n.monitoringRiskSemantic(
-                        state.riskLevel.vietnameseName),
+                      label: l10n.monitoringRiskSemantic(
+                        state.availability.canShowRisk
+                            ? state.riskLevel.vietnameseName
+                            : state.availability.vietnameseName,
+                      ),
                       liveRegion: true,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -368,7 +379,10 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                         ),
                         child: Column(
                           children: [
-                            RiskLevelIndicator(riskLevel: state.riskLevel),
+                            RiskLevelIndicator(
+                              riskLevel: state.riskLevel,
+                              availability: state.availability,
+                            ),
                             if (state.isAnalyzing)
                               const Column(
                                 children: [
@@ -433,7 +447,9 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                                 children: [
                                   _StatusBadge(
                                     label: l10n.monitoringModeTarget(
-                                      MonitoringController.modeLabel(state.selectedMode),
+                                      MonitoringController.modeLabel(
+                                        state.selectedMode,
+                                      ),
                                     ),
                                     backgroundColor: cs.surfaceContainerHighest,
                                     textColor: cs.onSurfaceVariant,
@@ -441,7 +457,9 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                                   const SizedBox(width: 8),
                                   _StatusBadge(
                                     label: l10n.monitoringModeRunning(
-                                      MonitoringController.modeLabel(state.effectiveMode),
+                                      MonitoringController.modeLabel(
+                                        state.effectiveMode,
+                                      ),
                                     ),
                                     backgroundColor: state.isFallbackActive
                                         ? cs.tertiaryContainer
@@ -473,13 +491,23 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 
                   const SizedBox(height: 8),
 
+                  if (state.monitoringErrorMessage != null)
+                    _StatusBanner(
+                      icon: Icons.error_outline,
+                      background: cs.errorContainer,
+                      foreground: cs.onErrorContainer,
+                      message: state.monitoringErrorMessage!,
+                      onDismiss: controller.dismissMonitoringError,
+                    ),
+
                   // STT unavailable (fatal) — highest priority
                   if (state.isSttUnavailable)
                     _StatusBanner(
                       icon: Icons.mic_off,
                       background: cs.errorContainer,
                       foreground: cs.onErrorContainer,
-                      message: state.sttUnavailableReason != null &&
+                      message:
+                          state.sttUnavailableReason != null &&
                               state.sttUnavailableReason!.isNotEmpty
                           ? l10n.monitoringSttFatalWithReason(
                               state.sttUnavailableReason!,
@@ -540,7 +568,9 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                         children: [
                           _buildTabButton(
                             0,
-                            isSimulation ? l10n.monitoringSimulationTranscript : l10n.monitoringLiveConversation,
+                            isSimulation
+                                ? l10n.monitoringSimulationTranscript
+                                : l10n.monitoringLiveConversation,
                             cs,
                             tt,
                           ),

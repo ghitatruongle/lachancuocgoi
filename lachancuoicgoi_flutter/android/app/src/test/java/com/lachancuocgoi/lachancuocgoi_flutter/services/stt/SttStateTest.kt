@@ -1,6 +1,7 @@
 package com.lachancuocgoi.lachancuocgoi_flutter.services.stt
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -37,7 +38,7 @@ class SttStateTest {
         assertEquals(error1, error2)
         assertEquals("network failure", error1.message)
         assertTrue(error1.recoverable)
-        assertEquals(error1, error3)
+        assertNotEquals(error1, error3)
         assertEquals(error1.hashCode(), error2.hashCode())
     }
 

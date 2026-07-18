@@ -164,6 +164,32 @@ class NativeBridgeEventSinkTest {
         verify(exactly = 1) { rmsSink.success(2.5) }
     }
 
+    @Test
+    fun `call event strips raw number and preserves original timestamp`() {
+        NativeBridgeEventSink.callEventSink = callEventSink
+
+        NativeBridgeEventSink.sendCallEvent(
+            mapOf(
+                "type" to "RINGING",
+                "timestampMs" to 1234L,
+                "reason" to "test",
+                "phoneNumber" to "+84912345678",
+            )
+        )
+        pumpMainLooper()
+
+        verify(exactly = 1) {
+            callEventSink.success(match { value ->
+                @Suppress("UNCHECKED_CAST")
+                val payload = value as Map<String, Any?>
+                payload["timestampMs"] == 1234L &&
+                    payload["maskedNumber"] == "••••5678" &&
+                    payload["numberAvailable"] == true &&
+                    !payload.containsKey("phoneNumber")
+            })
+        }
+    }
+
     // ─── 4. onSinksReconnected drains all three buffers in order ───────
 
     @Test
@@ -202,8 +228,18 @@ class NativeBridgeEventSinkTest {
             })
         }
         // Call event drained in FIFO order
-        verify(exactly = 1) { callEventSink.success(mapOf("kind" to "event_0")) }
-        verify(exactly = 1) { callEventSink.success(mapOf("kind" to "event_2")) }
+        verify(exactly = 1) {
+            callEventSink.success(match { value ->
+                @Suppress("UNCHECKED_CAST")
+                (value as Map<String, Any?>)["kind"] == "event_0"
+            })
+        }
+        verify(exactly = 1) {
+            callEventSink.success(match { value ->
+                @Suppress("UNCHECKED_CAST")
+                (value as Map<String, Any?>)["kind"] == "event_2"
+            })
+        }
     }
 
     // ─── 5. Buffer overflow at 50 evicts oldest ────────────────────────
@@ -241,10 +277,30 @@ class NativeBridgeEventSinkTest {
         pumpMainLooper()
 
         // i=0..9 evicted, i=10..59 replayed (50 total)
-        verify(exactly = 0) { callEventSink.success(mapOf("i" to 0)) }
-        verify(exactly = 0) { callEventSink.success(mapOf("i" to 9)) }
-        verify(exactly = 1) { callEventSink.success(mapOf("i" to 10)) }
-        verify(exactly = 1) { callEventSink.success(mapOf("i" to 59)) }
+        verify(exactly = 0) {
+            callEventSink.success(match { value ->
+                @Suppress("UNCHECKED_CAST")
+                (value as Map<String, Any?>)["i"] == 0
+            })
+        }
+        verify(exactly = 0) {
+            callEventSink.success(match { value ->
+                @Suppress("UNCHECKED_CAST")
+                (value as Map<String, Any?>)["i"] == 9
+            })
+        }
+        verify(exactly = 1) {
+            callEventSink.success(match { value ->
+                @Suppress("UNCHECKED_CAST")
+                (value as Map<String, Any?>)["i"] == 10
+            })
+        }
+        verify(exactly = 1) {
+            callEventSink.success(match { value ->
+                @Suppress("UNCHECKED_CAST")
+                (value as Map<String, Any?>)["i"] == 59
+            })
+        }
     }
 
     // ─── 6. Sink set to null between send and main-thread post ─────────

@@ -297,14 +297,14 @@ class WfsaEngine {
               );
             }
           }
-            // Don't break — allow multiple transitions per segment so a single
-            // analyze() call with the full transcript can advance through
-            // multiple stages (stage1→stage2→stage3→stage4).
-          }
+          // Don't break — allow multiple transitions per segment so a single
+          // analyze() call with the full transcript can advance through
+          // multiple stages (stage1→stage2→stage3→stage4).
         }
       }
+    }
 
-      // --- Cross-graph correlation bonus ---
+    // --- Cross-graph correlation bonus ---
     _applyCrossGraphBonus();
 
     _updateActiveScenario();

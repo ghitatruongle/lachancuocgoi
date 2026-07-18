@@ -24,14 +24,16 @@ void main() {
       required GeminiConfig config,
       required String modelName,
       required String prompt,
-    })? executor,
+    })?
+    executor,
   }) {
     return L3Analyzer(
       apiKeyProvider: StaticApiKeyProvider(keys),
       geminiClient: GeminiClient(
         apiKeyProvider: StaticApiKeyProvider(keys),
         config: GeminiConfig.forAnalysis(),
-        requestExecutor: executor ??
+        requestExecutor:
+            executor ??
             ({
               required String apiKey,
               required GeminiConfig config,
@@ -83,29 +85,28 @@ void main() {
         final coordinator = AnalysisCoordinator(
           l3Analyzer: makeL3(
             keys: const <String>['AIza_test'],
-            executor: ({
-              required String apiKey,
-              required GeminiConfig config,
-              required String modelName,
-              required String prompt,
-            }) async {
-              // Echo back a valid Gemini response.
-              return jsonEncode({
-                'level': 'green',
-                'label': 'Safe',
-                'reason': 'No threat detected',
-                'recommendation': 'OK',
-                'confidence': 0.95,
-              });
-            },
+            executor:
+                ({
+                  required String apiKey,
+                  required GeminiConfig config,
+                  required String modelName,
+                  required String prompt,
+                }) async {
+                  // Echo back a valid Gemini response.
+                  return jsonEncode({
+                    'level': 'green',
+                    'label': 'Safe',
+                    'reason': 'No threat detected',
+                    'recommendation': 'OK',
+                    'confidence': 0.95,
+                  });
+                },
           ),
         );
         // ensure L3 does not throw on PII-heavy input
         expect(
-          () async => coordinator.analyzeIncremental(
-            text,
-            AnalysisMode.geminiApi,
-          ),
+          () async =>
+              coordinator.analyzeIncremental(text, AnalysisMode.geminiApi),
           returnsNormally,
         );
       },
@@ -117,8 +118,10 @@ void main() {
       try {
         final result = await l3.analyzeIncremental('xin chào');
         // null or fallback result is acceptable
-        expect(result == null || result.overallRiskLevel == RiskLevel.green,
-            isTrue);
+        expect(
+          result == null || result.overallRiskLevel == RiskLevel.green,
+          isTrue,
+        );
       } on Object catch (e) {
         fail('L3 with no key threw: $e');
       }

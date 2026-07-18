@@ -14,7 +14,7 @@ class FakeNativeBridge implements NativeBridgeInterface {
   final _rmsController = StreamController<double>.broadcast();
   final _monitoringStateController =
       StreamController<(MonitoringState, int?, String?)>.broadcast();
-  final _callEventController = StreamController<CallEvent>.broadcast();
+  final _callEventController = StreamController<NativeCallEvent>.broadcast();
   final _logsController = StreamController<String>.broadcast();
 
   // Track calls for verification
@@ -39,7 +39,7 @@ class FakeNativeBridge implements NativeBridgeInterface {
       _monitoringStateController.stream;
 
   @override
-  Stream<CallEvent> get callEventStream => _callEventController.stream;
+  Stream<NativeCallEvent> get callEventStream => _callEventController.stream;
 
   @override
   Stream<String> get logsStream => _logsController.stream;
@@ -55,7 +55,7 @@ class FakeNativeBridge implements NativeBridgeInterface {
   void emitRms(double value) => _rmsController.add(value);
   void emitMonitoringState(MonitoringState state) =>
       _monitoringStateController.add((state, null, null));
-  void emitCallEvent(CallEvent event) => _callEventController.add(event);
+  void emitCallEvent(NativeCallEvent event) => _callEventController.add(event);
   void emitLog(String logLine) => _logsController.add(logLine);
 
   // ── MethodChannel stubs ──────────────────────────────────────────────

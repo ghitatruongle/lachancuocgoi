@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lachancuocgoi_flutter/core/analysis_availability.dart';
 import 'package:lachancuocgoi_flutter/l10n/app_localizations.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/risk_level_indicator.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: child),
-      );
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: child),
+  );
 
   group('RiskLevelIndicator', () {
     testWidgets('shows label Mức độ rủi ro', (tester) async {
@@ -24,6 +25,19 @@ void main() {
         wrap(const RiskLevelIndicator(riskLevel: RiskLevel.green)),
       );
       expect(find.text('An toàn'), findsOneWidget);
+    });
+
+    testWidgets('pending data never renders green as An toàn', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          const RiskLevelIndicator(
+            riskLevel: RiskLevel.green,
+            availability: AnalysisAvailability.pending,
+          ),
+        ),
+      );
+      expect(find.text('Chưa đủ dữ liệu'), findsOneWidget);
+      expect(find.text('An toàn'), findsNothing);
     });
 
     testWidgets('shows Nguy cơ for orange risk', (tester) async {

@@ -9,6 +9,7 @@ import '../health_check.dart';
 import '../../core/risk_level.dart';
 import '../../core/asset_loader.dart';
 import '../../core/logger.dart';
+import '../../data/cloud_analysis_consent_store.dart';
 import 'core/api_key_provider.dart';
 import 'core/circuit_breaker.dart';
 import 'core/confidence_calculator.dart';
@@ -19,7 +20,6 @@ import 'core/gemini_metrics.dart';
 import 'core/key_health_tracker.dart';
 import 'core/l3_response_parser.dart';
 import 'core/pii_stripper.dart';
-import 'core/proxy_l3_client.dart';
 import 'core/response_cache.dart';
 import 'core/risk_deescalation.dart';
 import 'prompt_builder.dart';
@@ -32,6 +32,7 @@ class L3Analyzer implements Analyzer {
     KeyHealthTracker? keyHealthTracker,
     GeminiClient? geminiClient,
     GeminiChatSession Function()? sessionFactory,
+    CloudAnalysisConsentStore? cloudConsentStore,
     ResponseCache<AnalysisResult>? cache,
     CircuitBreaker? circuitBreaker,
     L3ResponseParser? responseParser,
@@ -42,20 +43,17 @@ class L3Analyzer implements Analyzer {
         EnvironmentApiKeyProvider(assetLoader: assetLoader, logger: logger);
     final tracker = keyHealthTracker ?? KeyHealthTracker(provider);
 
-    // Phase 2 (P2-SEC): When L3_BACKEND_URL is set via dart-define, route
-    // all L3 inference through a backend proxy instead of calling Gemini
-    // directly with keys bundled in the APK. When empty (default), the app
-    // uses Gemini directly with keys from env.json — this is insecure for
-    // public release but works for development/testing without a server.
-    //
-    // To enable proxy mode:
-    //   flutter build apk --dart-define=L3_BACKEND_URL=https://your-api.com
-    final client = geminiClient ?? _createDefaultClient(provider, tracker);
+    // Direct Gemini is the only L3 production path. The release build obtains
+    // its rotating keys from the bundled env.json through the shared provider.
+    final client =
+        geminiClient ??
+        _createDefaultClient(provider, tracker, cloudConsentStore);
     return L3Analyzer._(
       apiKeyProvider: provider,
       keyHealthTracker: tracker,
       geminiClient: client,
       sessionFactory: sessionFactory,
+      cloudConsentStore: cloudConsentStore,
       cache: cache ?? ResponseCache<AnalysisResult>(),
       circuitBreaker: circuitBreaker ?? CircuitBreaker(),
       responseParser: responseParser ?? L3ResponseParser(),
@@ -63,38 +61,20 @@ class L3Analyzer implements Analyzer {
     );
   }
 
-  /// Phase 2 (P2-SEC): Creates the default [GeminiClient].
+  /// Creates the direct Gemini client used by every production L3 request.
   ///
-  /// When `L3_BACKEND_URL` is set via dart-define, all L3 requests are routed
-  /// through a backend proxy. The API keys from [provider] are still tracked
-  /// for health/circuit-breaker purposes but are NOT sent to the proxy — the
-  /// server holds its own keys.
-  ///
-  /// When `L3_BACKEND_URL` is empty (default), the app calls Gemini directly
-  /// with keys from `env.json`. This is **insecure for public release** (keys
-  /// are extractable from the APK) but works for development without a server.
+  /// Keys come from the bundled `env.json`. This intentional on-device design
+  /// means a motivated party can extract them from a release artifact.
   static GeminiClient _createDefaultClient(
     ApiKeyProvider provider,
     KeyHealthTracker tracker,
+    CloudAnalysisConsentStore? cloudConsentStore,
   ) {
-    const backendUrl = String.fromEnvironment(
-      'L3_BACKEND_URL',
-      defaultValue: '',
-    );
-    if (backendUrl.isEmpty) {
-      // Default mode: direct Gemini calls with bundled keys.
-      return GeminiClient(
-        apiKeyProvider: provider,
-        config: GeminiConfig.forAnalysis(),
-        keyHealthTracker: tracker,
-      );
-    }
-    // Proxy mode: route through backend. Keys are NOT used for the request.
     return GeminiClient(
       apiKeyProvider: provider,
       config: GeminiConfig.forAnalysis(),
       keyHealthTracker: tracker,
-      requestExecutor: proxyExecutorFrom(backendUrl),
+      cloudConsentStore: cloudConsentStore,
     );
   }
 
@@ -103,18 +83,20 @@ class L3Analyzer implements Analyzer {
     required KeyHealthTracker keyHealthTracker,
     required GeminiClient geminiClient,
     required GeminiChatSession Function()? sessionFactory,
+    required CloudAnalysisConsentStore? cloudConsentStore,
     required ResponseCache<AnalysisResult> cache,
     required CircuitBreaker circuitBreaker,
     required L3ResponseParser responseParser,
     required RiskDeescalationMachine deescalationMachine,
-  })  : _apiKeyProvider = apiKeyProvider,
-        _keyHealthTracker = keyHealthTracker,
-        _client = geminiClient,
-        _sessionFactory = sessionFactory,
-        _cache = cache,
-        _circuitBreaker = circuitBreaker,
-        _responseParser = responseParser,
-        _deescalation = deescalationMachine;
+  }) : _apiKeyProvider = apiKeyProvider,
+       _keyHealthTracker = keyHealthTracker,
+       _client = geminiClient,
+       _sessionFactory = sessionFactory,
+       _cloudConsentStore = cloudConsentStore,
+       _cache = cache,
+       _circuitBreaker = circuitBreaker,
+       _responseParser = responseParser,
+       _deescalation = deescalationMachine;
 
   static const int _minWords = 3;
   static const int _minIncrementalChars = 60;
@@ -124,6 +106,7 @@ class L3Analyzer implements Analyzer {
   final KeyHealthTracker _keyHealthTracker;
   final GeminiClient _client;
   final GeminiChatSession Function()? _sessionFactory;
+  final CloudAnalysisConsentStore? _cloudConsentStore;
   final ResponseCache<AnalysisResult> _cache;
 
   // Extracted sub-components
@@ -208,7 +191,8 @@ class L3Analyzer implements Analyzer {
     final exhaustedCount = summary
         .where((item) => item.status == KeyStatus.exhausted)
         .length;
-    final isRecentError = _circuitBreaker.lastErrorTime != null &&
+    final isRecentError =
+        _circuitBreaker.lastErrorTime != null &&
         DateTime.now().difference(_circuitBreaker.lastErrorTime!) <
             const Duration(minutes: 1);
 
@@ -260,6 +244,8 @@ class L3Analyzer implements Analyzer {
   }
 
   Future<AnalysisResult> analyze(String text) async {
+    final consentFailure = _cloudConsentFailure();
+    if (consentFailure != null) return consentFailure;
     if (_isAnalyzing) {
       return _lastResult;
     }
@@ -360,6 +346,7 @@ class L3Analyzer implements Analyzer {
           apiKeyProvider: _apiKeyProvider,
           config: GeminiConfig.forAnalysis(),
           keyHealthTracker: _keyHealthTracker,
+          cloudConsentStore: _cloudConsentStore,
         );
     _processedTextLength = initialProcessedTextLength < 0
         ? 0
@@ -368,6 +355,8 @@ class L3Analyzer implements Analyzer {
   }
 
   Future<AnalysisResult?> analyzeIncremental(String fullText) async {
+    final consentFailure = _cloudConsentFailure();
+    if (consentFailure != null) return consentFailure;
     if (_isAnalyzing) return null;
 
     if (_circuitBreaker.isOpen) {
@@ -481,6 +470,22 @@ class L3Analyzer implements Analyzer {
       );
     } finally {
       _isAnalyzing = false;
+    }
+  }
+
+  AnalysisResult? _cloudConsentFailure() {
+    try {
+      _cloudConsentStore?.requireConsent();
+      return null;
+    } on CloudAnalysisConsentRequiredException {
+      return const AnalysisResult(
+        overallRiskLevel: RiskLevel.green,
+        matches: <KeywordMatch>[],
+        reason: 'Chưa đồng ý phân tích cloud; chuyển sang L1+L2 offline.',
+        analysisLevel: AnalysisLevel.l3,
+        isError: true,
+        isFallback: true,
+      );
     }
   }
 

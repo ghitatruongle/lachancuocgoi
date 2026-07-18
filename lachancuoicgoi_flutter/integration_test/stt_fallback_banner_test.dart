@@ -24,8 +24,9 @@ void main() {
       await harness.dispose();
     });
 
-    testWidgets('STT_FALLBACK:VOSK event sets isSttFallback + reason',
-        (tester) async {
+    testWidgets('STT_FALLBACK:VOSK event sets isSttFallback + reason', (
+      tester,
+    ) async {
       await tester.pumpWidget(harness.widget);
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 50));

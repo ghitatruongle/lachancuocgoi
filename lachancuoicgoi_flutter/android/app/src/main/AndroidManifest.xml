@@ -11,12 +11,9 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- Creator Mode: needed for MediaProjection foreground service (Developer Mode only) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE"
-        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- Needed by BackgroundMonitoringService to hold a PARTIAL_WAKE_LOCK during
@@ -27,7 +24,7 @@
 
     <application
         android:name=".MainApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -85,8 +82,9 @@
 
         <service
             android:name=".services.CallScreeningServiceImpl"
-            android:permission="android.permission.BIND_CALL_SCREENING_SERVICE"
-            android:exported="true">
+            android:permission="android.permission.BIND_SCREENING_SERVICE"
+            android:exported="true"
+            tools:targetApi="q">
             <intent-filter>
                 <action android:name="android.telecom.CallScreeningService" />
             </intent-filter>

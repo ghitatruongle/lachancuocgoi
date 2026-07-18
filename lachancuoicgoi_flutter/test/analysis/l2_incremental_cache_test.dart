@@ -9,22 +9,26 @@ import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 
 void main() {
   group('L2Analyzer incremental early-exit', () {
-    test('short risk-free delta reuses green result without GDetection', () async {
-      final engine = _CountingGDetectionEngine();
-      final analyzer = _newAnalyzer(engine);
-      await analyzer.initialize();
+    test(
+      'short risk-free delta still runs GDetection (fullText always re-analyzed)',
+      () async {
+        final engine = _CountingGDetectionEngine();
+        final analyzer = _newAnalyzer(engine);
+        await analyzer.initialize();
 
-      const firstText = 'xin chào đây là cuộc gọi kiểm tra bình thường';
-      final first = await analyzer.analyze(firstText, firstText);
-      expect(first.overallRiskLevel, RiskLevel.green);
-      expect(engine.callCount, 1);
+        const firstText = 'xin chào đây là cuộc gọi kiểm tra bình thường';
+        final first = await analyzer.analyze(firstText, firstText);
+        expect(first.overallRiskLevel, RiskLevel.green);
+        expect(engine.callCount, 1);
 
-      const secondText = '$firstText ừ ạ';
-      final second = await analyzer.analyze(' ừ ạ', secondText);
-      expect(second.overallRiskLevel, RiskLevel.green);
-      expect(engine.callCount, 1);
-      expect(analyzer.processedTextLength, secondText.length);
-    });
+        // Full text is extended; GDetection always re-runs on the full text
+        // to avoid false negatives from skipping keywords in the delta.
+        const secondText = '$firstText ừ ạ';
+        final second = await analyzer.analyze(' ừ ạ', secondText);
+        expect(second.overallRiskLevel, RiskLevel.green);
+        expect(engine.callCount, 2);
+      },
+    );
 
     test('short delta containing OTP still re-runs GDetection', () async {
       final engine = _CountingGDetectionEngine();
@@ -37,7 +41,7 @@ void main() {
 
       const safeDelta = ' ừ ạ';
       await analyzer.analyze(safeDelta, '$firstText$safeDelta');
-      expect(engine.callCount, 1);
+      expect(engine.callCount, 2);
 
       const riskyDelta = ' mã OTP';
       final result = await analyzer.analyze(
@@ -45,7 +49,7 @@ void main() {
         '$firstText$safeDelta$riskyDelta',
       );
 
-      expect(engine.callCount, 2);
+      expect(engine.callCount, 3);
       expect(result.overallRiskLevel, RiskLevel.red);
     });
   });

@@ -8,7 +8,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -66,7 +65,6 @@ class BackgroundMonitoringService : Service() {
     private var monitoringJob: Job? = null
     private var connectivityJob: Job? = null
     private var transcriptCollectorJob: Job? = null
-    private var phoneNumber: String? = null
 
     // Dedicated lock object for `currentTranscript`. Previously `synchronized(this)`
     // was used from both the main thread and the IO collector coroutine, which
@@ -156,7 +154,21 @@ class BackgroundMonitoringService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        phoneNumber = intent?.getStringExtra("PHONE_NUMBER")
+        if (intent?.action == ACTION_STOP) {
+            if (isMonitoringActive || isStopping) {
+                stopMonitoring()
+            } else {
+                stopSelf(startId)
+            }
+            return START_NOT_STICKY
+        }
+        if (intent?.action != ACTION_START) {
+            Log.w(TAG, "Stopping service after an empty or unsupported start intent")
+            isRunning = false
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+
         shouldEnableSpeakerphone = intent?.getBooleanExtra("ENABLE_SPEAKERPHONE", false) ?: false
 
         if (!shouldEnableSpeakerphone) {
@@ -164,68 +176,67 @@ class BackgroundMonitoringService : Service() {
             shouldEnableSpeakerphone = sharedPreferences.getBoolean("AUTO_ENABLE_SPEAKERPHONE", false)
         }
 
-        when (intent?.action) {
-            ACTION_START -> {
-                // Bug #8 fix: on Android 13+ (TIRAMISU), if the user has not
-                // granted POST_NOTIFICATIONS, calling startForeground crashes
-                // with MissingForegroundServiceTypeException or
-                // ForegroundServiceStartNotAllowedException. Check upfront
-                // (best-effort) and fall back to a heads-up notification if
-                // missing.
-                val hasNotifPerm = checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
-                    PackageManager.PERMISSION_GRANTED
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotifPerm) {
-                    Log.w(TAG, "POST_NOTIFICATIONS not granted — service will run in degraded mode without foreground promotion")
-                    NativeBridgeEventSink.sendLog(
-                        TAG,
-                        "Thiếu quyền thông báo — service sẽ chạy ở chế độ degraded.",
-                        "WARN",
-                    )
-                    // Skip startForeground entirely. The Service will keep
-                    // running but Android may kill it sooner than with a
-                    // foreground promotion. Surface this state to Flutter so
-                    // the UI can warn the user.
-                    NativeBridgeEventSink.sendMonitoringState("DEGRADED_NO_NOTIFICATION")
-                } else {
-                    // ALWAYS call startForeground immediately to satisfy Android
-                    // requirements when launched via startForegroundService.
-                    val foregroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                    } else {
-                        0
-                    }
-                    val promoted = ForegroundServiceLauncher.safeStartForeground(
-                        this,
-                        NOTIFICATION_ID,
-                        createMonitoringNotification("Đang sẵn sàng bảo vệ..."),
-                        foregroundType,
-                    )
-                    if (!promoted) {
-                        Log.w(TAG, "startForeground failed — service is running but not as foreground")
-                    }
-                }
-
-                if (isMonitoringActive || isStopping) {
-                    Log.i(TAG, "Ignoring duplicate start request while monitoring is active.")
-                    return START_STICKY
-                }
-                // Sprint 2 (B6): persist the parameters BEFORE starting so
-                // the watchdog can re-attach them when it restarts the
-                // service after a kill.
-                persistLastStartParams(phoneNumber, shouldEnableSpeakerphone)
-                persistMonitoringActive(true)
-                scheduleWatchdogAlarm()
-                startMonitoring()
-            }
-            ACTION_STOP -> {
-                if (isMonitoringActive || isStopping) {
-                    stopMonitoring()
-                } else {
-                    stopSelf()
-                }
-            }
+        // POST_NOTIFICATIONS is not required to launch an FGS. Android still
+        // requires startForeground() and shows the disclosure in Task Manager
+        // when notification permission is denied.
+        val foregroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        } else {
+            0
         }
+        val promoted = try {
+            ForegroundServiceLauncher.safeStartForeground(
+                this,
+                NOTIFICATION_ID,
+                createMonitoringNotification("Đang sẵn sàng bảo vệ..."),
+                foregroundType,
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Unable to build or post the foreground notification", e)
+            false
+        }
+        if (!promoted) {
+            failForegroundPromotion(startId)
+            return START_NOT_STICKY
+        }
+
+        if (isMonitoringActive || isStopping) {
+            Log.i(TAG, "Ignoring duplicate start request while monitoring is active.")
+            MonitoringStartCoordinator.complete(
+                MonitoringStartResponse(
+                    MonitoringStartStatus.ALREADY_RUNNING,
+                    "Dịch vụ giám sát đang hoạt động.",
+                )
+            )
+            return START_STICKY
+        }
+        // Persist parameters before starting so the watchdog can re-attach
+        // them when it restarts the service after a process kill.
+        persistLastStartParams(shouldEnableSpeakerphone)
+        persistMonitoringActive(true)
+        scheduleWatchdogAlarm()
+        startMonitoring()
         return START_STICKY
+    }
+
+    private fun failForegroundPromotion(startId: Int) {
+        Log.e(TAG, "Foreground promotion failed; stopping monitoring service")
+        isMonitoringActive = false
+        isRunning = false
+        persistMonitoringActive(false)
+        NativeBridgeEventSink.sendLog(
+            TAG,
+            "Không thể chạy dịch vụ giám sát ở chế độ foreground.",
+            "ERROR",
+        )
+        NativeBridgeEventSink.sendMonitoringState("START_FAILED:nativeFailure")
+        MonitoringStartCoordinator.complete(
+            MonitoringStartResponse(
+                MonitoringStartStatus.NATIVE_FAILURE,
+                "Không thể chạy dịch vụ giám sát ở chế độ foreground.",
+            )
+        )
+        stopSelf(startId)
     }
 
     @Suppress("DEPRECATION")
@@ -247,6 +258,12 @@ class BackgroundMonitoringService : Service() {
         speechToTextManager.clearTranscript()
 
         // Notify Flutter that monitoring started
+        MonitoringStartCoordinator.complete(
+            MonitoringStartResponse(
+                MonitoringStartStatus.STARTED,
+                "Dịch vụ giám sát đã khởi động.",
+            )
+        )
         NativeBridgeEventSink.sendMonitoringState("STARTED")
 
         connectivityMonitor.start()
@@ -755,16 +772,13 @@ class BackgroundMonitoringService : Service() {
 
     /**
      * Sprint 2 (B6): stash the latest ACTION_START intent extras so the
-     * watchdog receiver can re-attach the same phone number / speakerphone
-     * flag when it auto-restarts the service after a system kill.
+     * watchdog receiver can re-attach the speakerphone flag when it
+     * auto-restarts the service after a system kill. Phone numbers are never
+     * persisted because monitoring does not need them.
      */
-    private fun persistLastStartParams(phoneNumber: String?, enableSpeakerphone: Boolean) {
+    private fun persistLastStartParams(enableSpeakerphone: Boolean) {
         val editor = getWatchdogPrefs().edit()
-        if (phoneNumber != null) {
-            editor.putString(KEY_WATCHDOG_PHONE_NUMBER, phoneNumber)
-        } else {
-            editor.remove(KEY_WATCHDOG_PHONE_NUMBER)
-        }
+        editor.remove(KEY_WATCHDOG_PHONE_NUMBER)
         editor.putBoolean(KEY_WATCHDOG_SPEAKERPHONE, enableSpeakerphone)
         editor.apply()
     }
@@ -829,14 +843,14 @@ class BackgroundMonitoringService : Service() {
 
         /**
          * Sprint 2 (B6): read the last-known ACTION_START extras so the
-         * watchdog can re-attach the same params when it auto-restarts
-         * the service after a kill.
+         * watchdog can re-attach the non-sensitive params when it auto-restarts
+         * the service after a kill. A legacy phone-number value is removed.
          */
         fun lastStartParams(context: Context): Pair<String?, Boolean> {
             val prefs = context.getSharedPreferences(WATCHDOG_PREFS, Context.MODE_PRIVATE)
-            val phone = prefs.getString(KEY_WATCHDOG_PHONE_NUMBER, null)
+            prefs.edit().remove(KEY_WATCHDOG_PHONE_NUMBER).apply()
             val speaker = prefs.getBoolean(KEY_WATCHDOG_SPEAKERPHONE, false)
-            return phone to speaker
+            return null to speaker
         }
 
         /**

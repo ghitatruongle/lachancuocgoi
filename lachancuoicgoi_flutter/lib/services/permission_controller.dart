@@ -10,6 +10,51 @@ import 'package:permission_handler/permission_handler.dart';
 import 'native_call_shield_bridge.dart';
 import '../ui/widgets/permission_rationale_dialog.dart';
 
+/// User-facing capability groups. Only [coreProtection] is required to begin
+/// monitoring; enhanced overlays/accessibility and call blocking remain
+/// explicit optional upgrades.
+enum PermissionCapabilityGroup {
+  coreProtection,
+  enhancedProtection,
+  callBlocking,
+}
+
+extension PermissionCapabilityGroupX on PermissionCapabilityGroup {
+  String get title => switch (this) {
+    PermissionCapabilityGroup.coreProtection => 'Bảo vệ cốt lõi',
+    PermissionCapabilityGroup.enhancedProtection => 'Bảo vệ nâng cao',
+    PermissionCapabilityGroup.callBlocking => 'Chặn cuộc gọi',
+  };
+
+  String get description => switch (this) {
+    PermissionCapabilityGroup.coreProtection =>
+      'Phát hiện cuộc gọi, nhận âm thanh và gửi cảnh báo.',
+    PermissionCapabilityGroup.enhancedProtection =>
+      'Hiện cảnh báo nổi và đọc phụ đề cuộc gọi khi thiết bị hỗ trợ.',
+    PermissionCapabilityGroup.callBlocking =>
+      'Từ chối các số bạn chủ động thêm vào danh sách chặn.',
+  };
+
+  bool get isRequired => this == PermissionCapabilityGroup.coreProtection;
+}
+
+class CapabilityGroupStatus {
+  const CapabilityGroupStatus({
+    required this.group,
+    required this.grantedCount,
+    required this.totalCount,
+    required this.missingPermissions,
+  });
+
+  final PermissionCapabilityGroup group;
+  final int grantedCount;
+  final int totalCount;
+  final List<String> missingPermissions;
+
+  bool get isGranted => grantedCount == totalCount;
+  double get progress => totalCount == 0 ? 1 : grantedCount / totalCount;
+}
+
 /// State holder for all permission statuses.
 class PermissionState {
   const PermissionState({
@@ -27,6 +72,44 @@ class PermissionState {
   double get progress =>
       totalPermissions > 0 ? grantedCount / totalPermissions : 0;
   bool get allGranted => snapshot.allGranted;
+  bool get essentialGranted =>
+      capabilityStatus(PermissionCapabilityGroup.coreProtection).isGranted;
+  int get essentialGrantedCount =>
+      capabilityStatus(PermissionCapabilityGroup.coreProtection).grantedCount;
+  int get essentialPermissionCount =>
+      capabilityStatus(PermissionCapabilityGroup.coreProtection).totalCount;
+  double get essentialProgress =>
+      capabilityStatus(PermissionCapabilityGroup.coreProtection).progress;
+
+  List<CapabilityGroupStatus> get capabilityGroups =>
+      PermissionCapabilityGroup.values.map(capabilityStatus).toList();
+
+  CapabilityGroupStatus capabilityStatus(PermissionCapabilityGroup group) {
+    final entries = switch (group) {
+      PermissionCapabilityGroup.coreProtection => <(String, bool)>[
+        ('Ghi âm', snapshot.recordAudio),
+        ('Trạng thái cuộc gọi', snapshot.phoneState),
+        ('Lịch sử cuộc gọi', snapshot.callLog),
+        ('Thông báo', snapshot.notification),
+      ],
+      PermissionCapabilityGroup.enhancedProtection => <(String, bool)>[
+        ('Hiển thị trên ứng dụng khác', snapshot.overlay),
+        ('Trợ năng', snapshot.accessibility),
+      ],
+      PermissionCapabilityGroup.callBlocking => <(String, bool)>[
+        ('Sàng lọc cuộc gọi', snapshot.callScreening),
+      ],
+    };
+    return CapabilityGroupStatus(
+      group: group,
+      grantedCount: entries.where((entry) => entry.$2).length,
+      totalCount: entries.length,
+      missingPermissions: entries
+          .where((entry) => !entry.$2)
+          .map((entry) => entry.$1)
+          .toList(growable: false),
+    );
+  }
 
   PermissionState copyWith({
     PermissionSnapshot? snapshot,
@@ -299,37 +382,53 @@ class PermissionController extends Notifier<PermissionState>
   ]) async {
     final results = <String, bool>{};
 
-    await _requestStandardRuntimePermissions(context);
-
-    if (context != null && !context.mounted) return results;
-
-    if (!state.snapshot.phoneState || !state.snapshot.callLog) {
-      results['phoneAndCallLog'] = await requestPhoneAndCallLogPermissions(
-        context,
-      );
+    for (final group in PermissionCapabilityGroup.values) {
+      if (context != null && !context.mounted) break;
+      results.addAll(await requestCapabilityGroup(group, context));
     }
 
-    if (context != null && !context.mounted) return results;
+    await _refresh();
+    return results;
+  }
 
-    if (!state.snapshot.overlay) {
-      results['overlay'] = await requestOverlayPermission(context);
+  /// Requests the permissions for one capability group. This avoids asking
+  /// for optional, highly privileged roles during first-run onboarding.
+  Future<Map<String, bool>> requestCapabilityGroup(
+    PermissionCapabilityGroup group, [
+    BuildContext? context,
+  ]) async {
+    final results = <String, bool>{};
+
+    if (group == PermissionCapabilityGroup.coreProtection) {
+      await _requestStandardRuntimePermissions(context);
+      if (context != null && !context.mounted) return results;
+      if (!state.snapshot.phoneState || !state.snapshot.callLog) {
+        results['phoneAndCallLog'] = await requestPhoneAndCallLogPermissions(
+          context,
+        );
+      }
+      await _refresh();
+      return results;
     }
 
-    if (context != null && !context.mounted) return results;
-
-    if (!state.snapshot.accessibility) {
-      results['accessibility'] = await requestAccessibilityPermission(context);
+    if (group == PermissionCapabilityGroup.enhancedProtection) {
+      if (!state.snapshot.overlay) {
+        results['overlay'] = await requestOverlayPermission(context);
+      }
+      if (context != null && !context.mounted) return results;
+      if (!state.snapshot.accessibility) {
+        results['accessibility'] = await requestAccessibilityPermission(
+          context,
+        );
+      }
+      await _refresh();
+      return results;
     }
-
-    if (context != null && !context.mounted) return results;
 
     if (!state.snapshot.callScreening) {
       results['callScreening'] = await requestCallScreeningPermission(context);
     }
-
-    // Final refresh
     await _refresh();
-
     return results;
   }
 }
@@ -345,6 +444,15 @@ final permissionControllerProvider =
 final allPermissionsGrantedProvider = Provider<bool>((ref) {
   final state = ref.watch(permissionControllerProvider);
   return state.allGranted;
+});
+
+/// True when the minimum permissions for call monitoring are ready.
+final essentialPermissionsGrantedProvider = Provider<bool>((ref) {
+  return ref.watch(permissionControllerProvider).essentialGranted;
+});
+
+final capabilityGroupsProvider = Provider<List<CapabilityGroupStatus>>((ref) {
+  return ref.watch(permissionControllerProvider).capabilityGroups;
 });
 
 /// Provider that returns the list of missing permission names.

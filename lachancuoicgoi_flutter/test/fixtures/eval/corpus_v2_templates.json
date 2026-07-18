@@ -1,0 +1,83 @@
+{
+  "benign": {
+    "expected": "GREEN",
+    "variants": [
+      "Mọi việc vẫn bình thường.",
+      "Mình nói chuyện lại sau nhé.",
+      "Cảm ơn bạn đã nhắc.",
+      "Hẹn gặp vào cuối tuần.",
+      "Tôi đã ghi chú lịch rồi.",
+      "Chúc bạn một ngày vui vẻ.",
+      "Cả nhà đều khỏe.",
+      "Không cần vội đâu.",
+      "Khi nào rảnh thì gọi lại.",
+      "Thống nhất như vậy nhé."
+    ],
+    "templates": [
+      {"id":"family_meal","scenario":"daily_family","text":"Tối nay cả nhà ăn cơm lúc bảy giờ. {variant}"},
+      {"id":"clinic","scenario":"health_schedule","text":"Lịch khám răng của mẹ là sáng thứ hai tại phòng khám quen. {variant}"},
+      {"id":"school","scenario":"school","text":"Ngày mai lớp học bắt đầu lúc tám giờ và các em nhớ mang theo sách. {variant}"},
+      {"id":"groceries","scenario":"shopping","text":"Chiều về mua giúp tôi rau cải, trứng và một chai nước mắm. {variant}"},
+      {"id":"weather","scenario":"weather","text":"Ngoài trời đang mưa nên nhớ mang áo mưa khi đi làm về. {variant}"},
+      {"id":"delivered","scenario":"delivery","text":"Gói sách tôi đặt đã được giao cho lễ tân từ trưa nay. {variant}"},
+      {"id":"meeting","scenario":"work","text":"Cuộc họp nhóm được dời sang ba giờ chiều tại phòng số hai. {variant}"},
+      {"id":"garden","scenario":"hobby","text":"Mấy chậu hoa ngoài ban công cần được tưới thêm nước. {variant}"},
+      {"id":"bus","scenario":"transport","text":"Chuyến xe buýt cuối cùng rời bến lúc chín giờ tối. {variant}"},
+      {"id":"football","scenario":"sport","text":"Đội bóng của khu phố sẽ tập luyện vào sáng chủ nhật. {variant}"},
+      {"id":"recipe","scenario":"cooking","text":"Món canh này chỉ cần nấu thêm năm phút rồi tắt bếp. {variant}"},
+      {"id":"birthday","scenario":"celebration","text":"Sinh nhật của bà năm nay tổ chức tại nhà vào cuối tháng. {variant}"}
+    ]
+  },
+  "scam": {
+    "expected": "ORANGE_OR_RED",
+    "variants": [
+      "Phải làm ngay trong hôm nay.",
+      "Không được kể việc này cho người thân.",
+      "Nếu chậm trễ tài khoản sẽ bị khóa.",
+      "Hãy làm theo đúng từng bước tôi hướng dẫn.",
+      "Cuộc gọi này đang được ghi âm làm bằng chứng.",
+      "Anh chị chỉ có mười phút để xử lý.",
+      "Đây là yêu cầu bảo mật tuyệt đối.",
+      "Không được tắt máy giữa chừng.",
+      "Hệ thống đang chờ xác nhận của anh chị.",
+      "Từ chối thực hiện sẽ chịu hoàn toàn trách nhiệm."
+    ],
+    "templates": [
+      {"id":"bank_otp","scenario":"critical_otp","isCritical":true,"text":"Tôi là nhân viên ngân hàng, hãy đọc mã OTP vừa gửi để mở khóa tài khoản. {variant}"},
+      {"id":"safe_account","scenario":"critical_transfer","isCritical":true,"text":"Hãy chuyển toàn bộ tiền sang tài khoản an toàn để cơ quan chức năng kiểm tra. {variant}"},
+      {"id":"police_laundering","scenario":"critical_authority","isCritical":true,"text":"Tôi gọi từ cơ quan điều tra, anh chị liên quan vụ rửa tiền và có thể bị bắt tạm giam. {variant}"},
+      {"id":"tax_fee","scenario":"authority_fee","text":"Cán bộ thuế yêu cầu chuyển khoản phí xử lý hồ sơ ngay qua số tài khoản cá nhân. {variant}"},
+      {"id":"prize_fee","scenario":"prize","text":"Anh chị đã trúng thưởng xe máy, hãy đóng phí bảo hiểm để nhận giải. {variant}"},
+      {"id":"customs","scenario":"delivery_fee","text":"Bưu kiện từ nước ngoài đang bị hải quan giữ, cần chuyển tiền phí hải quan để nhận hàng. {variant}"},
+      {"id":"bank_password","scenario":"critical_otp","isCritical":true,"text":"Bộ phận bảo mật ngân hàng cần mật khẩu Internet Banking và mã xác thực để kiểm tra. {variant}"},
+      {"id":"remote_app","scenario":"remote_control","text":"Cài ứng dụng hỗ trợ từ đường link này rồi bật chia sẻ màn hình để tôi sửa tài khoản. {variant}"},
+      {"id":"crypto","scenario":"investment","text":"Gói đầu tư tiền ảo này cam kết không lỗ, chuyển tiền ngay để giữ suất lợi nhuận cao. {variant}"},
+      {"id":"loan","scenario":"loan_fee","text":"Khoản vay đã được duyệt nhưng phải đóng phí giải ngân trước bằng chuyển khoản. {variant}"},
+      {"id":"relative_emergency","scenario":"critical_transfer","isCritical":true,"text":"Con đang cấp cứu, bố mẹ chuyển tiền gấp vào tài khoản này và đừng gọi lại. {variant}"},
+      {"id":"prosecutor","scenario":"critical_authority","isCritical":true,"text":"Viện kiểm sát thông báo lệnh phong tỏa, phải kê khai tài sản và chuyển khoản để xác minh. {variant}"}
+    ]
+  },
+  "noisy_asr": {
+    "expected": "ORANGE_OR_RED",
+    "variants": [
+      "lam ngay di",
+      "khong duoc tat may",
+      "giu bi mat nhe",
+      "gap lam roi",
+      "he thong dang cho",
+      "chi con muoi phut",
+      "doc lai cho ro",
+      "khong bao nguoi nha",
+      "xac nhan bay gio",
+      "thuc hien lien"
+    ],
+    "templates": [
+      {"id":"otp_no_tone","scenario":"critical_otp","isCritical":true,"text":"nhan vien ngan hang bao doc ma otp ma xac thuc {variant}"},
+      {"id":"police_transfer_no_tone","scenario":"critical_transfer","isCritical":true,"text":"cong an dieu tra yeu cau chuyen tien vao tai khoan an toan {variant}"},
+      {"id":"safe_account_asr","scenario":"critical_transfer","isCritical":true,"text":"tai khoan bi phong toa chuyen khoan sang tai khoan an toan {variant}"},
+      {"id":"password_asr","scenario":"critical_otp","isCritical":true,"text":"doc mat khau in ternet ban king va ma xac thuc {variant}"},
+      {"id":"prize_asr","scenario":"prize","text":"trung thuong nhung phai dong phi bao hiem truoc {variant}"},
+      {"id":"laundering_asr","scenario":"critical_authority","isCritical":true,"text":"co quan dieu tra vu rua tien se bat tam giam {variant}"}
+    ]
+  }
+}

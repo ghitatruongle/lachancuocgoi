@@ -41,7 +41,9 @@ class bug_hunt_AndroidPerfSniffTest {
     }
 
     @Test
-    fun BUG_PERF_2_CallScreeningServiceNotExported() {
+    fun BUG_PERF_2_CallScreeningServiceExported() {
+        // Android 14+ requires CallScreeningService to be exported so the
+        // system can bind to it for call screening role.
         val ctx = ApplicationProvider.getApplicationContext<Context>()
         val pm = ctx.packageManager
         val svcInfo = pm.getServiceInfo(
@@ -51,8 +53,8 @@ class bug_hunt_AndroidPerfSniffTest {
             ),
             PackageManager.GET_META_DATA
         )
-        assert(svcInfo.exported == false) {
-            "CallScreeningServiceImpl must not be exported"
+        assert(svcInfo.exported == true) {
+            "CallScreeningServiceImpl must be exported for system call screening role"
         }
     }
 

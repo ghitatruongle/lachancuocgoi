@@ -33,8 +33,8 @@ import org.robolectric.annotation.Config
  *  - Bails early if [BackgroundMonitoringService.isRunning] is true
  *  - **B1**: Throttles restart attempts to 1 per 60s (prefs
  *    "watchdog_last_restart_at_ms")
- *  - **B6**: Re-attaches last-known `PHONE_NUMBER` / `ENABLE_SPEAKERPHONE`
- *    extras from [BackgroundMonitoringService.lastStartParams]
+ *  - **B6**: Re-attaches only the non-sensitive `ENABLE_SPEAKERPHONE`
+ *    extra and removes legacy phone data.
  *  - Only sends [NativeBridgeEventSink.sendMonitoringState] "STARTED" on
  *    a successful restart — no STOPPED event (avoids kill loops)
  *
@@ -136,10 +136,10 @@ class ServiceWatchdogReceiverTest {
         assertEquals(0L, prefs.getLong("watchdog_last_restart_at_ms", 0L))
     }
 
-    // ─── 4. wasActive && !isRunning → restart + re-attach params ────────
+    // ─── 4. wasActive && !isRunning → restart + safe params ─────────────
 
     @Test
-    fun `onReceive restarts service and re-attaches last-start params`() {
+    fun `onReceive restarts service and removes legacy phone param`() {
         markMonitoringActive(true)
         every { BackgroundMonitoringService.isRunning } returns false
         setLastStartParams(phone = "+84901234567", speaker = true)
@@ -152,6 +152,7 @@ class ServiceWatchdogReceiverTest {
         // Throttle timestamp was written
         val lastRestartAtMs = prefs.getLong("watchdog_last_restart_at_ms", 0L)
         assertTrue("lastRestartAtMs should be > 0", lastRestartAtMs > 0L)
+        assertNull(prefs.getString("watchdog_phone_number", null))
 
         // (The actual startForegroundService call is harder to verify in
         // pure-Robolectric mode without additional shadowing; we rely on
@@ -206,7 +207,7 @@ class ServiceWatchdogReceiverTest {
     // ─── 6. Restart at 60_500ms after first → allowed ───────────────────
 
     @Test
-    fun `onReceive allows restart just past the 60s cooldown`() {
+    fun `onReceive allows restart just past the four minute cooldown`() {
         markMonitoringActive(true)
         every { BackgroundMonitoringService.isRunning } returns false
         setLastStartParams(phone = null, speaker = false)
@@ -216,9 +217,9 @@ class ServiceWatchdogReceiverTest {
         val firstTs = prefs.getLong("watchdog_last_restart_at_ms", 0L)
         verify(exactly = 1) { NativeBridgeEventSink.sendMonitoringState("STARTED") }
 
-        // Pretend 60.5s have elapsed since the first restart
+        // Pretend 4 minutes and 0.5 seconds have elapsed since the first restart.
         prefs.edit()
-            .putLong("watchdog_last_restart_at_ms", firstTs - 60_500L)
+            .putLong("watchdog_last_restart_at_ms", firstTs - 240_500L)
             .apply()
         receiver.onReceive(context, watchdogIntent())
 

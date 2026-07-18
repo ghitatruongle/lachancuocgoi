@@ -115,7 +115,10 @@ class _SystemLogViewState extends State<SystemLogView> {
                         )
                       : null,
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(color: cs.outlineVariant),
@@ -166,10 +169,16 @@ class _SystemLogViewState extends State<SystemLogView> {
               var filteredLogs = SystemLogger.instance.logs;
 
               if (_selectedCategory != null) {
-                filteredLogs = filteredLogs.where((log) => log.category == _selectedCategory).toList();
+                filteredLogs = filteredLogs
+                    .where((log) => log.category == _selectedCategory)
+                    .toList();
               }
               if (_searchQuery.isNotEmpty) {
-                filteredLogs = filteredLogs.where((log) => log.message.toLowerCase().contains(_searchQuery)).toList();
+                filteredLogs = filteredLogs
+                    .where(
+                      (log) => log.message.toLowerCase().contains(_searchQuery),
+                    )
+                    .toList();
               }
 
               return filteredLogs.isEmpty
@@ -183,25 +192,45 @@ class _SystemLogViewState extends State<SystemLogView> {
                       controller: _scrollController,
                       child: ListView.builder(
                         controller: _scrollController,
-                        padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+                        padding: const EdgeInsets.only(
+                          right: 12,
+                          top: 8,
+                          bottom: 8,
+                        ),
                         itemCount: filteredLogs.length,
                         itemBuilder: (context, index) {
                           final log = filteredLogs[index];
-                          final categoryColor = _getCategoryColor(log.category, cs);
-                          final levelTextColor = _getLevelTextColor(log.level, cs);
+                          final categoryColor = _getCategoryColor(
+                            log.category,
+                            cs,
+                          );
+                          final levelTextColor = _getLevelTextColor(
+                            log.level,
+                            cs,
+                          );
 
                           return InkWell(
                             onLongPress: () {
-                              Clipboard.setData(ClipboardData(text: '[${log.formattedTime}] [${log.category.name.toUpperCase()}] ${log.message}'));
+                              Clipboard.setData(
+                                ClipboardData(
+                                  text:
+                                      '[${log.formattedTime}] [${log.category.name.toUpperCase()}] ${log.message}',
+                                ),
+                              );
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Đã sao chép nhật ký vào Clipboard'),
+                                  content: Text(
+                                    'Đã sao chép nhật ký vào Clipboard',
+                                  ),
                                   duration: Duration(seconds: 1),
                                 ),
                               );
                             },
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 4,
+                                horizontal: 4,
+                              ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -228,7 +257,9 @@ class _SystemLogViewState extends State<SystemLogView> {
                                       log.message,
                                       style: tt.bodyMedium?.copyWith(
                                         color: levelTextColor,
-                                        fontWeight: log.level != LogLevel.info ? FontWeight.bold : FontWeight.normal,
+                                        fontWeight: log.level != LogLevel.info
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
                                         fontSize: 12,
                                       ),
                                     ),

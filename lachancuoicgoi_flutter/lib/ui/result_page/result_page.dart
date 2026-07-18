@@ -1,8 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../analysis/analysis_result.dart';
+import '../../analysis/l3/core/pii_stripper.dart';
+import '../../core/analysis_availability.dart';
 import '../../core/risk_level.dart';
 import '../../data/app_database.dart';
 import '../../data/call_history.dart';
@@ -18,6 +23,83 @@ final _callHistoryFutureProvider = FutureProvider.family<CallHistory?, int>((
   final db = await ref.watch(appDatabaseFutureProvider.future);
   return db.getById(historyId);
 });
+
+/// Parses an analysis payload written by older or current app versions.
+/// Malformed/partially migrated JSON is treated as unavailable, never as a
+/// green assessment.
+AnalysisResult? parseStoredAnalysisResult(String? raw) {
+  if (raw == null || raw.trim().isEmpty) return null;
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) return null;
+    final map = decoded.cast<String, Object?>();
+    if (map['overallRiskLevel'] is! String) return null;
+    return AnalysisResult.fromJson(map);
+  } on Object {
+    return null;
+  }
+}
+
+AnalysisAvailability availabilityForHistoryItem(
+  CallHistory item,
+  AnalysisResult? analysis,
+) {
+  return AnalysisAvailability.fromStoredSession(
+    recordingError: item.recordingError,
+    hasTranscript: item.transcript.trim().isNotEmpty,
+    analysisCompleted: analysis != null && !analysis.isError,
+  );
+}
+
+String historyStatusLabel(
+  CallHistory item,
+  AnalysisAvailability availability,
+  RiskLevel risk,
+) {
+  if (availability.canShowRisk) return risk.vietnameseName;
+  return switch (item.recordingErrorEnum) {
+    RecordingError.killed => 'Phiên bị gián đoạn',
+    RecordingError.partial => 'Kết quả chưa hoàn chỉnh',
+    _ => availability.vietnameseName,
+  };
+}
+
+/// Creates privacy-safe text for the normal share action. Full transcript is
+/// appended only after the caller has obtained explicit confirmation.
+String buildHistoryShareText(
+  CallHistory item, {
+  required String statusLabel,
+  bool includeTranscript = false,
+}) {
+  String safeSummary;
+  try {
+    final availability = availabilityForHistoryItem(
+      item,
+      parseStoredAnalysisResult(item.analysisResult),
+    );
+    final summary = availability.canShowRisk
+        ? item.summary
+        : availability.guidance;
+    safeSummary = PIIStripper.redactPII(summary).redactedText;
+  } on Object {
+    safeSummary = 'Nội dung đã được ẩn để bảo vệ quyền riêng tư.';
+  }
+  final buffer = StringBuffer()
+    ..writeln('Lá chắn cuộc gọi - Kết quả phân tích:')
+    ..writeln('Đánh giá: $statusLabel')
+    ..write('Tóm tắt: $safeSummary');
+  if (includeTranscript) {
+    final transcript = item.transcript.trim().isEmpty
+        ? 'Không có dữ liệu'
+        : item.transcript.replaceAll('+', ' ');
+    buffer
+      ..writeln()
+      ..writeln('-------')
+      ..writeln('Nội dung cuộc gọi:')
+      ..write(transcript);
+  }
+  return buffer.toString();
+}
 
 class ResultPage extends ConsumerWidget {
   const ResultPage({super.key, required this.historyId});
@@ -60,7 +142,13 @@ class ResultPage extends ConsumerWidget {
         }
 
         final risk = RiskLevel.fromString(item.riskLevel);
-        final riskColor = risk.color;
+        final analysis = parseStoredAnalysisResult(item.analysisResult);
+        final availability = availabilityForHistoryItem(item, analysis);
+        final riskColor = availability.canShowRisk ? risk.color : cs.outline;
+        final statusLabel = historyStatusLabel(item, availability, risk);
+        final displaySummary = availability.canShowRisk
+            ? item.summary
+            : availability.guidance;
 
         return Scaffold(
           appBar: AppBar(
@@ -91,19 +179,7 @@ class ResultPage extends ConsumerWidget {
               IconButton(
                 icon: const Icon(Icons.share),
                 tooltip: 'Chia sẻ',
-                onPressed: () {
-                  final transcript = item.transcript.isEmpty
-                      ? 'Không có dữ liệu'
-                      : item.transcript.replaceAll('+', ' ');
-                  final shareText =
-                      'Lá chắn cuộc gọi - Kết quả phân tích:\n'
-                      'Đánh giá: ${risk.vietnameseName}\n'
-                      'Tóm tắt: ${item.summary}\n'
-                      '-------\n'
-                      'Nội dung cuộc gọi:\n'
-                      '$transcript';
-                  SharePlus.instance.share(ShareParams(text: shareText));
-                },
+                onPressed: () => _shareSummary(item, statusLabel),
               ),
             ],
           ),
@@ -146,16 +222,8 @@ class ResultPage extends ConsumerWidget {
                                     IconButton(
                                       icon: const Icon(Icons.share, size: 20),
                                       tooltip: 'Chia sẻ đánh giá',
-                                      onPressed: () {
-                                        SharePlus.instance.share(
-                                          ShareParams(
-                                            text:
-                                                'Lá chắn cuộc gọi - Đánh giá: '
-                                                '${risk.vietnameseName}\n'
-                                                'Tóm tắt: ${item.summary}',
-                                          ),
-                                        );
-                                      },
+                                      onPressed: () =>
+                                          _shareSummary(item, statusLabel),
                                     ),
                                   ],
                                 ),
@@ -169,7 +237,7 @@ class ResultPage extends ConsumerWidget {
                                     borderRadius: BorderRadius.circular(50),
                                   ),
                                   child: Text(
-                                    risk.vietnameseName,
+                                    statusLabel,
                                     style: TextStyle(
                                       color: riskColor,
                                       fontWeight: FontWeight.bold,
@@ -177,7 +245,18 @@ class ResultPage extends ConsumerWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Text(item.summary, style: tt.bodyMedium),
+                                Text(displaySummary, style: tt.bodyMedium),
+                                if (!availability.canShowRisk) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Không thể kết luận cuộc gọi an toàn từ '
+                                    'dữ liệu hiện có.',
+                                    style: tt.bodySmall?.copyWith(
+                                      color: cs.onSurfaceVariant,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -188,6 +267,11 @@ class ResultPage extends ConsumerWidget {
                 ),
 
                 const SizedBox(height: AppSpacing.sm),
+
+                if (analysis != null && availability.canShowRisk) ...[
+                  _AnalysisDetailsCard(analysis: analysis),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
 
                 // ── Recording Card ──
                 Card(
@@ -237,16 +321,13 @@ class ResultPage extends ConsumerWidget {
                             IconButton(
                               icon: const Icon(Icons.share, size: 20),
                               tooltip: 'Chia sẻ nội dung',
-                              onPressed: () {
-                                final content = item.transcript.isEmpty
-                                    ? 'Không có dữ liệu âm thanh.'
-                                    : item.transcript.replaceAll('+', ' ');
-                                SharePlus.instance.share(
-                                  ShareParams(
-                                    text: 'Nội dung cuộc gọi:\n$content',
-                                  ),
-                                );
-                              },
+                              onPressed: item.transcript.trim().isEmpty
+                                  ? null
+                                  : () => _confirmAndShareTranscript(
+                                      context,
+                                      item,
+                                      statusLabel,
+                                    ),
                             ),
                           ],
                         ),
@@ -260,7 +341,8 @@ class ResultPage extends ConsumerWidget {
                           ),
                           child: SelectableText(
                             item.transcript.isEmpty
-                                ? 'Không có nội dung.'
+                                ? '${availability.vietnameseName}. '
+                                      '${availability.guidance}'
                                 : item.transcript,
                             style: tt.bodyMedium?.copyWith(
                               fontFamily: 'monospace',
@@ -307,6 +389,126 @@ class ResultPage extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+
+  void _shareSummary(CallHistory item, String statusLabel) {
+    SharePlus.instance.share(
+      ShareParams(text: buildHistoryShareText(item, statusLabel: statusLabel)),
+    );
+  }
+
+  Future<void> _confirmAndShareTranscript(
+    BuildContext context,
+    CallHistory item,
+    String statusLabel,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Chia sẻ toàn bộ nội dung?'),
+        content: const Text(
+          'Nội dung cuộc gọi có thể chứa số điện thoại, tài khoản hoặc thông '
+          'tin riêng tư. Chỉ chia sẻ khi bạn hiểu và chấp nhận rủi ro này.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Thêm nội dung cuộc gọi'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await SharePlus.instance.share(
+      ShareParams(
+        text: buildHistoryShareText(
+          item,
+          statusLabel: statusLabel,
+          includeTranscript: true,
+        ),
+      ),
+    );
+  }
+}
+
+class _AnalysisDetailsCard extends StatelessWidget {
+  const _AnalysisDetailsCard({required this.analysis});
+
+  final AnalysisResult analysis;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final categories = analysis.matches
+        .map((match) => match.category.trim())
+        .where((value) => value.isNotEmpty && value != 'Unknown')
+        .toSet()
+        .toList();
+    final evidence = analysis.matches
+        .map((match) => match.keyword.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList();
+    final source = [
+      analysis.analysisLevel.id.toUpperCase(),
+      if (analysis.modelName?.trim().isNotEmpty ?? false)
+        analysis.modelName!.trim(),
+    ].join(' • ');
+    final confidence = analysis.confidence >= 0
+        ? (analysis.confidence <= 1
+              ? analysis.confidence * 100
+              : analysis.confidence)
+        : null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Chi tiết phân tích',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text('Nguồn phân tích: $source'),
+            if (confidence != null)
+              Text('Độ tin cậy: ${confidence.toStringAsFixed(0)}%'),
+            if (analysis.isFallback)
+              Text(
+                'Đã dùng bộ phân tích dự phòng.',
+                style: TextStyle(color: theme.colorScheme.tertiary),
+              ),
+            if (categories.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Chiến thuật được phát hiện',
+                style: theme.textTheme.labelLarge,
+              ),
+              Text(categories.join(', ')),
+            ],
+            if (evidence.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('Bằng chứng', style: theme.textTheme.labelLarge),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: evidence
+                    .take(8)
+                    .map((value) => Chip(label: Text(value)))
+                    .toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

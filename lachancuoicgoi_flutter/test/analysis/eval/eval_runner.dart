@@ -56,6 +56,16 @@ class EvalReport {
     }).length;
   }
 
+  int get greenCaseCount => rows
+      .where((row) => row.evalCase.expected == EvalExpectation.green)
+      .length;
+
+  double get falseRedRate => _safeDivide(falseRedOnGreen, greenCaseCount);
+
+  int get criticalFalseGreen => rows.where((row) {
+    return row.evalCase.isCritical && row.predicted == RiskLevel.green;
+  }).length;
+
   int get acceptedCount => rows.where((row) => row.accepted).length;
 
   double get precision => _safeDivide(tp, tp + fp);
@@ -69,7 +79,9 @@ class EvalReport {
   Map<RiskLevel, Map<RiskLevel, int>> get confusionMatrix {
     final matrix = <RiskLevel, Map<RiskLevel, int>>{
       for (final expected in RiskLevel.values)
-        expected: <RiskLevel, int>{for (final predicted in RiskLevel.values) predicted: 0},
+        expected: <RiskLevel, int>{
+          for (final predicted in RiskLevel.values) predicted: 0,
+        },
     };
     for (final row in rows) {
       final expected = row.evalCase.expected.canonicalRiskLevel;
@@ -93,6 +105,8 @@ class EvalReport {
       ..writeln('| Recall | ${recall.toStringAsFixed(3)} |')
       ..writeln('| F1 | ${f1.toStringAsFixed(3)} |')
       ..writeln('| False RED on GREEN | $falseRedOnGreen |')
+      ..writeln('| False RED rate | ${falseRedRate.toStringAsFixed(3)} |')
+      ..writeln('| Critical false GREEN | $criticalFalseGreen |')
       ..writeln()
       ..writeln('| Expected \\ Predicted | GREEN | YELLOW | ORANGE | RED |')
       ..writeln('| --- | ---: | ---: | ---: | ---: |');

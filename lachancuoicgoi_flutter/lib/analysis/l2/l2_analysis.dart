@@ -12,9 +12,8 @@ import '../../core/logger.dart';
 import '../../core/asset_loader.dart';
 import '../../core/noop_asset_loader.dart';
 import 'g_detection/g_detection_engine.dart';
-import 'intent/tflite_intent_classifier.dart';
-
 import 'intent/intent_classifier.dart';
+import 'intent/intent_classifier_factory.dart';
 import 'intent/intent_output_mapper.dart';
 import 'intent/scam_intent.dart';
 import '../l3/core/response_cache.dart';
@@ -36,10 +35,16 @@ class L2Analyzer implements Analyzer {
        _logger = logger,
        _gDetectionEngine =
            gDetectionEngine ??
-           GDetectionEngine(assetLoader: assetLoader ?? const NoopAssetLoader(), logger: logger),
+           GDetectionEngine(
+             assetLoader: assetLoader ?? const NoopAssetLoader(),
+             logger: logger,
+           ),
        _intentClassifier =
            intentClassifier ??
-           TFLiteIntentClassifier(assetLoader: assetLoader ?? const NoopAssetLoader(), logger: logger),
+           createPlatformIntentClassifier(
+             assetLoader: assetLoader ?? const NoopAssetLoader(),
+             logger: logger,
+           ),
        _wfsaEngine =
            wfsaEngine ?? WfsaEngine(ScamGraphBuilder.buildDefaultGraphs()),
        _cache = cache ?? ResponseCache<AnalysisResult>();
@@ -103,7 +108,7 @@ class L2Analyzer implements Analyzer {
     // wasteful and confusing in logs.
     final pending = _initFuture;
     if (pending != null) return pending;
-    
+
     // Bug fix: clear _initFuture on failure to allow retry
     // (previously cached failed future permanently, making L2 unusable)
     try {
@@ -111,7 +116,7 @@ class L2Analyzer implements Analyzer {
       _initFuture = future;
       return await future;
     } catch (e) {
-      _initFuture = null;  // Allow retry on next call
+      _initFuture = null; // Allow retry on next call
       rethrow;
     }
   }
@@ -166,7 +171,7 @@ class L2Analyzer implements Analyzer {
     // Bug fix: increment generation to invalidate in-flight analyzes
     // (previously, in-flight analyze() could overwrite _lastResult after reset)
     _analysisGeneration++;
-    
+
     _gDetectionEngine.reset();
     _wfsaEngine.resetSession();
     // Cache is maintained across sessions intentionally to avoid redundant compute
@@ -261,7 +266,9 @@ class L2Analyzer implements Analyzer {
         return cached;
       }
 
-      final gResult = await _gDetectionEngine.performFullAnalysis(textToAnalyze);
+      final gResult = await _gDetectionEngine.performFullAnalysis(
+        textToAnalyze,
+      );
       final parsedGDetectionResult = L2ResultParser.parse(gResult);
 
       final isLongText = textToAnalyze.length > 80;
@@ -277,7 +284,10 @@ class L2Analyzer implements Analyzer {
       final intentForWfsa = luong1Result is _Luong1Success
           ? <IntentPrediction>[luong1Result.prediction]
           : const <IntentPrediction>[];
-      var wfsaScore = _wfsaEngine.analyzeIncremental(textToAnalyze, intentForWfsa);
+      var wfsaScore = _wfsaEngine.analyzeIncremental(
+        textToAnalyze,
+        intentForWfsa,
+      );
       // PERF-2: Truyền text ĐÃ normalize xuống SafetyFilter để tránh normalize
       // 2 lần (GDetection/L2 path cũng normalize cùng text). Normalize 1 lần ở
       // đây, dùng cho cả safety discount.

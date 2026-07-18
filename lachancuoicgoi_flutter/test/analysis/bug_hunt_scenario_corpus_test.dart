@@ -17,8 +17,11 @@ void main() {
       }
       final json = jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
       final scenarios = json['scenarios'] as List<dynamic>?;
-      expect(scenarios, isNotNull,
-          reason: 'JSON must contain "scenarios" list');
+      expect(
+        scenarios,
+        isNotNull,
+        reason: 'JSON must contain "scenarios" list',
+      );
 
       final l1 = L1Analyzer(
         vocabularyProvider: () => jsonEncode({
@@ -57,8 +60,11 @@ void main() {
           fail('L1 threw on scenario "${scenario['id']}": $e');
         }
       }
-      expect(scenariosAnalyzed, greaterThan(50),
-          reason: 'Should have analyzed a meaningful number of scenarios');
+      expect(
+        scenariosAnalyzed,
+        greaterThan(50),
+        reason: 'Should have analyzed a meaningful number of scenarios',
+      );
     },
     timeout: const Timeout(Duration(seconds: 120)),
   );

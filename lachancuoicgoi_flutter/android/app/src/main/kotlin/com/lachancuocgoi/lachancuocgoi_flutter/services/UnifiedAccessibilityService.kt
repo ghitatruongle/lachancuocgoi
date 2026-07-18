@@ -248,12 +248,18 @@ class UnifiedAccessibilityService : AccessibilityService() {
                 val monitoringIntent = Intent(this, BackgroundMonitoringService::class.java).apply {
                     action = BackgroundMonitoringService.ACTION_START
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(monitoringIntent)
+                val launchResult = ForegroundServiceLauncher.safeStartForegroundService(
+                    this,
+                    monitoringIntent,
+                )
+                if (launchResult == ForegroundServiceLauncher.LaunchResult.SUCCESS) {
+                    Log.d(TAG, "Started BackgroundMonitoringService after auto-answer.")
                 } else {
-                    startService(monitoringIntent)
+                    Log.w(TAG, "Unable to start monitoring after auto-answer: $launchResult")
+                    NativeBridgeEventSink.sendMonitoringState(
+                        "START_FAILED:backgroundStartDenied"
+                    )
                 }
-                Log.d(TAG, "Started BackgroundMonitoringService after auto-answer.")
             }, CALL_ANSWER_DELAY_MS)
         } else {
             Log.e(TAG, "Could not find any answer button.")
@@ -403,7 +409,6 @@ class UnifiedAccessibilityService : AccessibilityService() {
 
         val monitorIntent = Intent(this, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_START
-            putExtra("PHONE_NUMBER", callerInfo)
         }
         val monitorPendingIntent = PendingIntent.getService(this, 1, monitorIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 

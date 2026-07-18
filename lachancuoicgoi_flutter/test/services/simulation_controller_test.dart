@@ -104,6 +104,24 @@ void main() {
       final data = SimulationScenarioData.fromJson(json);
       expect(data.script, isEmpty);
     });
+
+    test('parses the bundled v1 schema aliases and expected result', () {
+      final data = SimulationScenarioData.fromJson({
+        'title': 'Ngân hàng giả',
+        'description': 'test',
+        'icon': '🏦',
+        'riskLevel': 'Red',
+        'expected_result': {'risk_level': 'RED', 'category': 'BANK_CARD_FRAUD'},
+        'script': [
+          {'speaker': 'A', 'line': 'Một', 'timestamp': 1000},
+          {'speaker': 'B', 'line': 'Hai', 'timestamp': 3500},
+        ],
+      });
+      expect(data.iconEmoji, '🏦');
+      expect(data.riskLevel, 'RED');
+      expect(data.category, 'Tài chính');
+      expect(data.script.map((line) => line.delay), [1000, 2500]);
+    });
   });
 
   group('SimulationScriptLine', () {

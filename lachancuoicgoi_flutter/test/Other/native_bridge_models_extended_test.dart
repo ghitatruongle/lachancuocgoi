@@ -53,30 +53,43 @@ void main() {
     });
   });
 
-  group('CallEvent.fromMap — edge cases', () {
+  group('NativeCallEvent.fromMap — edge cases', () {
     test('all null fields', () {
-      final event = CallEvent.fromMap({});
+      final event = NativeCallEvent.fromMap({});
       expect(event.type, 'UNKNOWN');
-      expect(event.phoneNumber, isNull);
-      expect(event.source, isNull);
+      expect(event.timestampMs, 0);
+      expect(event.reason, isNull);
+      expect(event.numberAvailable, isFalse);
+      expect(event.maskedNumber, isNull);
     });
 
     test('all fields present', () {
-      final event = CallEvent.fromMap({
+      final event = NativeCallEvent.fromMap({
         'type': 'RINGING',
-        'phoneNumber': '0123456789',
-        'source': 'native',
+        'timestampMs': 123456,
+        'reason': 'phone_state',
+        'numberAvailable': true,
+        'maskedNumber': '******6789',
       });
       expect(event.type, 'RINGING');
-      expect(event.phoneNumber, '0123456789');
-      expect(event.source, 'native');
+      expect(event.timestampMs, 123456);
+      expect(event.reason, 'phone_state');
+      expect(event.numberAvailable, isTrue);
+      expect(event.maskedNumber, '******6789');
     });
 
     test('non-string type falls back to UNKNOWN', () {
-      // CallEvent.fromMap uses `as String?` — int throws TypeError,
-      // which means the caller must pass correct types.
-      // This test documents the behavior: TypeError on wrong type.
-      expect(() => CallEvent.fromMap({'type': 123}), throwsA(isA<TypeError>()));
+      final event = NativeCallEvent.fromMap({'type': 123});
+      expect(event.type, 'UNKNOWN');
+    });
+
+    test('never reads a legacy raw phoneNumber field', () {
+      final event = NativeCallEvent.fromMap({
+        'type': 'INCOMING',
+        'numberAvailable': true,
+        'phoneNumber': '+84912345678',
+      });
+      expect(event.maskedNumber, isNull);
     });
   });
 

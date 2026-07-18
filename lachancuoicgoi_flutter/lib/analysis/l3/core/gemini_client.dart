@@ -8,6 +8,7 @@ import 'gemini_metrics.dart';
 import 'key_health_tracker.dart';
 import 'operation_result.dart';
 import '../../../../core/system_logger.dart';
+import '../../../../data/cloud_analysis_consent_store.dart';
 
 typedef GeminiRequestExecutor =
     Future<String> Function({
@@ -50,11 +51,11 @@ GeminiErrorType classifyGeminiError(Object? error) {
 /// The client tries each model in order, falling back to the next on failure.
 /// Priority: newest/most capable first → oldest/lightest last.
 const List<String> geminiFallbackModels = <String>[
-  'gemini-3.5-flash',        // Ưu tiên 1: Model mới nhất, mạnh nhất
-  'gemini-3.1-flash-lite',   // Ưu tiên 2: Fallback nhẹ hơn
-  'gemini-3-flash',          // Ưu tiên 3: Thế hệ 3 cơ bản
-  'gemini-2.5-flash',        // Ưu tiên 4: Thế hệ 2.5 đầy đủ
-  'gemini-2.5-flash-lite',   // Ưu tiên 5 (cuối): Nhẹ nhất, fallback an toàn
+  'gemini-3.5-flash', // Ưu tiên 1: Model mới nhất, mạnh nhất
+  'gemini-3.1-flash-lite', // Ưu tiên 2: Fallback nhẹ hơn
+  'gemini-3-flash', // Ưu tiên 3: Thế hệ 3 cơ bản
+  'gemini-2.5-flash', // Ưu tiên 4: Thế hệ 2.5 đầy đủ
+  'gemini-2.5-flash-lite', // Ưu tiên 5 (cuối): Nhẹ nhất, fallback an toàn
 ];
 
 class GeminiClient {
@@ -63,6 +64,7 @@ class GeminiClient {
     required this.config,
     this.keyHealthTracker,
     this.onAllKeysExhausted,
+    this.cloudConsentStore,
     GeminiRequestExecutor? requestExecutor,
   }) : _requestExecutor = requestExecutor ?? _defaultRequestExecutor;
 
@@ -75,6 +77,7 @@ class GeminiClient {
   final GeminiConfig config;
   final KeyHealthTracker? keyHealthTracker;
   final void Function()? onAllKeysExhausted;
+  final CloudAnalysisConsentStore? cloudConsentStore;
   final GeminiRequestExecutor _requestExecutor;
 
   _CircuitState _circuitState = _CircuitState.closed;
@@ -94,6 +97,11 @@ class GeminiClient {
     String prompt,
     T Function(String responseText, String modelName) parser,
   ) async {
+    try {
+      cloudConsentStore?.requireConsent();
+    } on CloudAnalysisConsentRequiredException catch (error, stackTrace) {
+      return Result.failure(error, stackTrace);
+    }
     if (!_shouldAllowRequest()) {
       return Result.failure(
         StateError(
@@ -140,7 +148,10 @@ class GeminiClient {
       ) {
         final modelName = _fallbackModels[modelIndex];
         try {
-          SystemLogger.instance.log(LogCategory.model, 'Đang gửi prompt phân tích tới Gemini ($modelName)...');
+          SystemLogger.instance.log(
+            LogCategory.model,
+            'Đang gửi prompt phân tích tới Gemini ($modelName)...',
+          );
           final responseText = await _requestExecutor(
             apiKey: apiKey,
             config: config,
@@ -155,7 +166,10 @@ class GeminiClient {
           keyHealthTracker?.recordTokenUsage(keyIndex, estimatedTokens);
 
           _recordSuccess();
-          SystemLogger.instance.log(LogCategory.model, 'Gemini phản hồi thành công ($modelName).');
+          SystemLogger.instance.log(
+            LogCategory.model,
+            'Gemini phản hồi thành công ($modelName).',
+          );
           GeminiMetrics.instance.recordCall(
             success: true,
             latencyMs: DateTime.now().difference(startTime).inMilliseconds,

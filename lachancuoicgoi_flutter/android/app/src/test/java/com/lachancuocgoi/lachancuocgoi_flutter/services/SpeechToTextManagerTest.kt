@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.lachancuocgoi.lachancuocgoi_flutter.services.stt.SttState
 import io.mockk.every
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
@@ -129,14 +130,13 @@ class SpeechToTextManagerTest {
     }
 
     @Test
-    fun `appendWithOverlapDetection still works for 16+ word overlap (capped to 15)`() {
-        // Existing and new share 16 words. The algorithm caps overlap
-        // at 15 (Sprint 2 C2) so the actual deduped result will be the
-        // full concatenation. This documents the cap behavior.
+    fun `appendWithOverlapDetection detects 16-word overlap (cap now 30)`() {
+        // Existing and new share 16 words. With Bug #34 fix (maxCheck=30),
+        // the overlap IS detected and deduplicated.
         val existing = "w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16"
         val newSegment = "w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17"
         val result = appendOverlap(existing, newSegment)
-        assertEquals("$existing\n$newSegment", result)
+        assertEquals("$existing\nw17", result)
     }
 
     // ─── 7. clearTranscript resets state ───────────────────────────────
@@ -311,9 +311,13 @@ class SpeechToTextManagerTest {
             "Expected deduped new content; got: $result",
             result.endsWith("rồi tiếp tục nói"),
         )
+        // Overlapping words should appear exactly once (in the existing part),
+        // not twice (which would happen without deduplication).
+        val firstIdx = result.indexOf("w0 w1 w2")
+        val secondIdx = result.indexOf("w0 w1 w2", firstIdx + 1)
         assertFalse(
-            "Original overlapping words should NOT appear twice",
-            result.contains("w0 w1 w2"),
+            "Original overlapping words should NOT appear twice; got: $result",
+            secondIdx >= 0,
         )
     }
 

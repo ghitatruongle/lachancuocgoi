@@ -8,6 +8,7 @@ import 'gemini_config.dart';
 import 'gemini_metrics.dart';
 import 'key_health_tracker.dart';
 import 'operation_result.dart';
+import '../../../../data/cloud_analysis_consent_store.dart';
 
 typedef GeminiChatExecutor =
     Future<String> Function({
@@ -23,6 +24,7 @@ class GeminiChatSession {
     required this.apiKeyProvider,
     required this.config,
     this.keyHealthTracker,
+    this.cloudConsentStore,
     GeminiChatExecutor? chatExecutor,
   }) : _chatExecutor = chatExecutor ?? _defaultChatExecutor;
 
@@ -35,6 +37,7 @@ class GeminiChatSession {
   final ApiKeyProvider apiKeyProvider;
   final GeminiConfig config;
   final KeyHealthTracker? keyHealthTracker;
+  final CloudAnalysisConsentStore? cloudConsentStore;
   final GeminiChatExecutor _chatExecutor;
 
   int _currentKeyIndex = 0;
@@ -50,6 +53,11 @@ class GeminiChatSession {
     String text,
     T Function(String responseText, String modelName) parser,
   ) async {
+    try {
+      cloudConsentStore?.requireConsent();
+    } on CloudAnalysisConsentRequiredException catch (error, stackTrace) {
+      return Result.failure(error, stackTrace);
+    }
     await _applyRateLimit();
     final startTime = DateTime.now();
     final keys = apiKeyProvider.getApiKeys();

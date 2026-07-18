@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../core/analysis_availability.dart';
 import '../../core/risk_level.dart';
 import '../../l10n/app_localizations.dart';
 import '../theme/risk_level_colors.dart';
 
 /// Animated risk level progress bar with color transitions.
 class RiskLevelIndicator extends StatelessWidget {
-  const RiskLevelIndicator({super.key, required this.riskLevel});
+  const RiskLevelIndicator({
+    super.key,
+    required this.riskLevel,
+    this.availability = AnalysisAvailability.sufficient,
+  });
 
   final RiskLevel riskLevel;
+  final AnalysisAvailability availability;
 
   @override
   Widget build(BuildContext context) {
@@ -16,12 +22,20 @@ class RiskLevelIndicator extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     // Phase 2 (P2-7): respect the user's reduce-motion / accessibility setting.
     // When active, skip the color transition animation entirely.
-    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) ||
         MediaQuery.accessibleNavigationOf(context);
-    final animDuration =
-        reduceMotion ? Duration.zero : const Duration(milliseconds: 800);
-    final targetProgress =
-        riskLevel.index / (RiskLevel.values.length - 1).toDouble();
+    final animDuration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 800);
+    final canShowRisk = availability.canShowRisk;
+    final displayColor = canShowRisk ? riskLevel.color : cs.outline;
+    final displayLabel = canShowRisk
+        ? riskLevel.vietnameseName
+        : availability.vietnameseName;
+    final targetProgress = canShowRisk
+        ? riskLevel.index / (RiskLevel.values.length - 1).toDouble()
+        : 0.0;
 
     return Column(
       children: [
@@ -37,11 +51,11 @@ class RiskLevelIndicator extends StatelessWidget {
             const SizedBox(width: 8),
             Flexible(
               child: TweenAnimationBuilder<Color?>(
-                tween: ColorTween(end: riskLevel.color),
+                tween: ColorTween(end: displayColor),
                 duration: animDuration,
                 builder: (context, color, _) {
                   return Text(
-                    riskLevel.vietnameseName,
+                    displayLabel,
                     style: tt.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: color,
@@ -54,7 +68,7 @@ class RiskLevelIndicator extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         TweenAnimationBuilder<Color?>(
-          tween: ColorTween(end: riskLevel.color),
+          tween: ColorTween(end: displayColor),
           duration: animDuration,
           builder: (context, color, _) {
             return LinearProgressIndicator(

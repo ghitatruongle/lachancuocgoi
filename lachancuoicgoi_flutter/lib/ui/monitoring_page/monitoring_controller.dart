@@ -1,7 +1,6 @@
 import 'dart:async' show Timer, unawaited;
 
-import 'package:flutter/foundation.dart'
-    show ChangeNotifier, visibleForTesting;
+import 'package:flutter/foundation.dart' show ChangeNotifier, visibleForTesting;
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,6 +14,7 @@ import '../../analysis/analysis_providers.dart';
 import '../../analysis/analysis_result.dart';
 import '../../analysis/l1/l1_analysis.dart';
 import '../../app/settings_controller.dart';
+import '../../core/analysis_availability.dart';
 import '../../core/risk_level.dart';
 import '../../data/app_database.dart';
 import '../../services/developer_mode_manager.dart';
@@ -90,7 +90,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
 
   // Settings listener
   ProviderSubscription<SettingsState>? _settingsSub;
-  String? phoneNumber;
+
+  /// Privacy-safe caller identifier received from the native bridge.
+  String? maskedNumber;
 
   // ─── Build ─────────────────────────────────────────────────────────
 
@@ -119,6 +121,14 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       getBridge: () => ref.read(nativeBridgeProvider),
       getDatabase: () => ref.read(appDatabaseFutureProvider.future),
       audioHandler: _audioHandler,
+      cleanupAfterSave: (database) async {
+        final retention = ref
+            .read(settingsControllerProvider)
+            .callHistoryRetention;
+        await ref
+            .read(callHistoryRetentionServiceProvider)
+            .cleanup(database, retention);
+      },
     );
     _starter = MonitoringStarter(
       getBridge: () => ref.read(nativeBridgeProvider),
@@ -126,6 +136,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       getDevMode: () => ref.read(developerModeProvider),
       isSimulationSession: isSimulationSession,
       hasTestAnalyzerOverride: () => hasTestAnalyzerOverride,
+      getState: () => state,
       updateState: (updater) {
         if (!_disposed) state = updater(state);
       },
@@ -181,7 +192,10 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     L1Analyzer? l1AnalyzerOverride,
   }) {
     SystemLogger.instance.clear();
-    SystemLogger.instance.log(LogCategory.system, 'Khởi động phiên giám sát cuộc gọi mới...');
+    SystemLogger.instance.log(
+      LogCategory.system,
+      'Khởi động phiên giám sát cuộc gọi mới...',
+    );
     if (_initialized) {
       _resetForNewSession();
     }
@@ -205,6 +219,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       selectedMode: initialRuntime.selectedMode,
       effectiveMode: initialRuntime.effectiveMode,
       isFallbackActive: initialRuntime.isFallbackActive,
+      phase: MonitoringPhase.idle,
+      availability: AnalysisAvailability.pending,
+      clearMonitoringErrorMessage: true,
       riskLevel: RiskLevel.green,
       peakRiskLevel: RiskLevel.green,
     );
@@ -237,7 +254,12 @@ class MonitoringController extends Notifier<MonitoringPageState> {
         (_simulatedScenarioTitle?.trim().isNotEmpty ?? false);
 
     if (isSimulation) {
-      state = state.copyWith(isSimulationMode: true);
+      state = state.copyWith(
+        isSimulationMode: true,
+        phase: MonitoringPhase.active,
+      );
+    } else if (hasTestAnalyzerOverride) {
+      state = state.copyWith(phase: MonitoringPhase.active);
     }
 
     if (hasStructuredScript) {
@@ -261,6 +283,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
           ),
           riskLevel: RiskLevel.red,
           peakRiskLevel: RiskLevel.red,
+          availability: AnalysisAvailability.sufficient,
         );
       }
     }
@@ -268,9 +291,6 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     sessionManager.sessionStartEpochSeconds =
         DateTime.now().millisecondsSinceEpoch ~/ 1000;
     _startTimer();
-    if (!hasTestAnalyzerOverride && !isSimulation) {
-      _healthCheckService.start();
-    }
     sessionManager.startSnapshotTimer();
 
     if (initialTranscript.isNotEmpty &&
@@ -304,13 +324,19 @@ class MonitoringController extends Notifier<MonitoringPageState> {
 
   void updateTranscriptFromSimulation(String newTranscript) {
     _updateSpeechRate(newTranscript);
-    state = state.copyWith(transcript: newTranscript);
+    state = state.copyWith(
+      transcript: newTranscript,
+      availability: AnalysisAvailability.pending,
+    );
     _orch.scheduleRealTimeAnalysis(state.transcript);
   }
 
   void updateTranscriptFromStream(String newTranscript) {
     _updateSpeechRate(newTranscript);
-    state = state.copyWith(transcript: newTranscript);
+    state = state.copyWith(
+      transcript: newTranscript,
+      availability: AnalysisAvailability.pending,
+    );
     _orch.scheduleRealTimeAnalysis(newTranscript);
   }
 
@@ -338,7 +364,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   }
 
   void onLifecycleChanged(AppLifecycleState lifecycle) {
-    if (lifecycle == AppLifecycleState.resumed && !state.isEndingSession) {
+    if (lifecycle == AppLifecycleState.resumed &&
+        state.phase != MonitoringPhase.stopping &&
+        state.phase != MonitoringPhase.saved) {
       if (!isSimulationSession() && !hasTestAnalyzerOverride) {
         unawaited(_startLiveMonitoringIfNeeded());
       }
@@ -346,8 +374,20 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   }
 
   Future<void> endSession() async {
+    if (state.phase == MonitoringPhase.stopping ||
+        state.phase == MonitoringPhase.saved) {
+      return;
+    }
+    final availability = _availabilityAtSessionEnd();
+    state = state.copyWith(
+      phase: MonitoringPhase.stopping,
+      availability: availability,
+      clearMonitoringErrorMessage: true,
+    );
+    _timer?.cancel();
+    sessionManager.stopSnapshotTimer();
     final intent = await _sessionEnder.endSession(
-      state: state,
+      getState: () => state,
       isCreatorMode: _isCreatorMode,
       isSimulationSession: isSimulationSession(),
       isDisposed: _disposed,
@@ -357,11 +397,32 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       hasCoordinator: () => _coordinatorInstance != null,
     );
     if (intent != null && !_disposed) {
-      state = state.copyWith(navigationIntent: intent);
-    } else if (!_disposed && _sessionEnder.endSessionInProgress == false) {
-      // Error path: endSession returned null but session is not in progress
-      // means it was already in progress or an error occurred
+      state = state.copyWith(
+        phase: intent is NavigateToResult
+            ? MonitoringPhase.saved
+            : MonitoringPhase.failed,
+        navigationIntent: intent,
+      );
+    } else if (!_disposed) {
+      state = state.copyWith(
+        phase: MonitoringPhase.failed,
+        monitoringErrorMessage: 'Không thể lưu kết quả giám sát.',
+      );
     }
+  }
+
+  AnalysisAvailability _availabilityAtSessionEnd() {
+    if (state.transcript.trim().isEmpty) {
+      if (state.isSttUnavailable || _audioHandler.hasReceivedAnyAudio) {
+        return AnalysisAvailability.sttUnavailable;
+      }
+      return AnalysisAvailability.noAudio;
+    }
+    final result = state.analysisResult;
+    if (result == null || result.isError) {
+      return AnalysisAvailability.interrupted;
+    }
+    return AnalysisAvailability.sufficient;
   }
 
   void clearNavigationIntent() {
@@ -385,6 +446,10 @@ class MonitoringController extends Notifier<MonitoringPageState> {
 
   void dismissWatchdogBanner() {
     state = state.copyWith(isWatchdogRestartFailed: false);
+  }
+
+  void dismissMonitoringError() {
+    state = state.copyWith(clearMonitoringErrorMessage: true);
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────
@@ -439,7 +504,15 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   }
 
   Future<void> _startLiveMonitoringIfNeeded() async {
-    await _starter.startLiveMonitoringIfNeeded(isDisposed: _disposed);
+    final started = await _starter.startLiveMonitoringIfNeeded(
+      isDisposed: _disposed,
+    );
+    if (_disposed) return;
+    if (started && !isSimulationSession() && !hasTestAnalyzerOverride) {
+      _healthCheckService.start();
+    } else if (!started) {
+      _healthCheckService.stop();
+    }
   }
 
   Future<void> _runRestartSequence() async {
@@ -451,7 +524,10 @@ class MonitoringController extends Notifier<MonitoringPageState> {
 
   void _onAnalysisResult(AnalysisResult result, AnalysisMode effectiveMode) {
     if (_disposed) return;
-    if (state.isEndingSession) return;
+    if (state.phase == MonitoringPhase.stopping ||
+        state.phase == MonitoringPhase.saved) {
+      return;
+    }
 
     final resultLevel = result.analysisLevel;
     if (resultLevel == AnalysisLevel.l2 &&
@@ -469,6 +545,11 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       analysisResult: result,
       riskLevel: result.overallRiskLevel,
       peakRiskLevel: newPeak,
+      availability: state.transcript.trim().isEmpty
+          ? AnalysisAvailability.pending
+          : (result.isError
+                ? AnalysisAvailability.interrupted
+                : AnalysisAvailability.sufficient),
       isAnalyzing: false,
     );
 
@@ -489,6 +570,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     state = state.copyWith(
       analysisResult: fallback,
       riskLevel: RiskLevel.green,
+      availability: state.transcript.trim().isEmpty
+          ? AnalysisAvailability.pending
+          : AnalysisAvailability.interrupted,
       isAnalyzing: false,
     );
   }
@@ -498,6 +582,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_disposed) return;
+      if (state.phase != MonitoringPhase.active) return;
       state = state.copyWith(elapsedSeconds: state.elapsedSeconds + 1);
     });
   }
@@ -514,7 +599,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     streamHandler.streamsDead = false;
     _settingsSub?.close();
     _settingsSub = null;
-    phoneNumber = null;
+    maskedNumber = null;
     _simulatedScenarioTitle = null;
     _simulatedTranscript = null;
     _simulatedScriptLines = null;

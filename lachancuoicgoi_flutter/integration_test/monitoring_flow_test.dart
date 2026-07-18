@@ -33,8 +33,11 @@ void main() {
         for (var i = 0; i < 5; i++) {
           await tester.pump(const Duration(milliseconds: 50));
         }
-        expect(find.byType(MonitoringPage), findsOneWidget,
-            reason: 'MonitoringPage should be mounted');
+        expect(
+          find.byType(MonitoringPage),
+          findsOneWidget,
+          reason: 'MonitoringPage should be mounted',
+        );
 
         bridge.sendMonitoringState('STARTED');
         await tester.pump();
@@ -66,8 +69,11 @@ void main() {
           await tester.pump(const Duration(milliseconds: 200));
         }
 
-        expect(find.byType(ResultPage), findsOneWidget,
-            reason: 'Should have navigated to ResultPage');
+        expect(
+          find.byType(ResultPage),
+          findsOneWidget,
+          reason: 'Should have navigated to ResultPage',
+        );
         expect(
           find.textContaining('Chuyển khoản', findRichText: true),
           findsWidgets,
@@ -106,8 +112,9 @@ void main() {
       },
     );
 
-    testWidgets('Health-check auto-restarts monitoring when service is down',
-        (tester) async {
+    testWidgets('Health-check auto-restarts monitoring when service is down', (
+      tester,
+    ) async {
       await tester.pumpWidget(harness.widget);
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 50));
@@ -121,8 +128,11 @@ void main() {
         await tester.pump(const Duration(milliseconds: 200));
       }
       final startCallsAfterInit = bridge.startMonitoringCalls;
-      expect(startCallsAfterInit, greaterThanOrEqualTo(1),
-          reason: 'initAfterFrame should call startMonitoring at least once');
+      expect(
+        startCallsAfterInit,
+        greaterThanOrEqualTo(1),
+        reason: 'initAfterFrame should call startMonitoring at least once',
+      );
 
       bridge.setMonitoringActive(active: false);
 
@@ -132,9 +142,11 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
-      expect(bridge.startMonitoringCalls, greaterThan(startCallsAfterInit),
-          reason:
-              'Health check should trigger a second startMonitoring call');
+      expect(
+        bridge.startMonitoringCalls,
+        greaterThan(startCallsAfterInit),
+        reason: 'Health check should trigger a second startMonitoring call',
+      );
     });
   });
 }

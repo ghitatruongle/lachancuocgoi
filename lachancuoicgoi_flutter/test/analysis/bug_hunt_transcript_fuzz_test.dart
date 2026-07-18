@@ -30,7 +30,9 @@ void main() {
             'riskLevels': [
               {
                 'level': 3,
-                'threats': {'PII': ['mã otp']},
+                'threats': {
+                  'PII': ['mã otp'],
+                },
                 'keywords': ['mã otp', 'công an'],
               },
             ],
@@ -74,7 +76,9 @@ void main() {
             'riskLevels': [
               {
                 'level': 3,
-                'threats': {'PII': ['mã otp']},
+                'threats': {
+                  'PII': ['mã otp'],
+                },
                 'keywords': ['mã otp'],
               },
             ],

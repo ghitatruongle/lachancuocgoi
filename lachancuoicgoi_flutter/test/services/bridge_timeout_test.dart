@@ -21,8 +21,7 @@ import 'package:lachancuocgoi_flutter/services/android_call_shield_bridge.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const methodChannel =
-      MethodChannel('com.lachancuocgoi/native_bridge');
+  const methodChannel = MethodChannel('com.lachancuocgoi/native_bridge');
 
   late AndroidCallShieldBridge bridge;
 
@@ -38,15 +37,17 @@ void main() {
         .setMockMethodCallHandler(methodChannel, null);
   });
 
-  test('startMonitoring returns the value when the platform responds fast',
-      () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(methodChannel, (call) async {
-      return true;
-    });
-    final result = await bridge.startMonitoring(phoneNumber: '+84987654321');
-    expect(result, isTrue);
-  });
+  test(
+    'startMonitoring returns the value when the platform responds fast',
+    () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methodChannel, (call) async {
+            return true;
+          });
+      final result = await bridge.startMonitoring(phoneNumber: '+84987654321');
+      expect(result, isTrue);
+    },
+  );
 
   // BUG-BASELINE-3 fix: Previously used FakeAsync which cannot control the
   // real Timer created by Future.timeout(). The production code's
@@ -59,12 +60,11 @@ void main() {
     () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(methodChannel, (call) async {
-        // Never completes — simulate a hung platform thread.
-        return Completer<bool>().future;
-      });
+            // Never completes — simulate a hung platform thread.
+            return Completer<bool>().future;
+          });
       // Injected timeout (100ms) fires → onTimeout returns false.
-      final result =
-          await bridge.startMonitoring(phoneNumber: '+84987654321');
+      final result = await bridge.startMonitoring(phoneNumber: '+84987654321');
       expect(result, isFalse);
     },
     timeout: const Timeout(Duration(seconds: 2)),
@@ -75,8 +75,8 @@ void main() {
     () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(methodChannel, (call) async {
-        return Completer<bool>().future;
-      });
+            return Completer<bool>().future;
+          });
       final result = await bridge.stopMonitoring();
       expect(result, isFalse);
     },
@@ -88,8 +88,8 @@ void main() {
     () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(methodChannel, (call) async {
-        return Completer<bool>().future;
-      });
+            return Completer<bool>().future;
+          });
       final result = await bridge.startCreatorMonitoring(
         devModeExpiresAtMs: DateTime.now().millisecondsSinceEpoch + 60000,
       );
@@ -101,8 +101,8 @@ void main() {
   test('PlatformException is swallowed and false is returned', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(methodChannel, (call) async {
-      throw PlatformException(code: 'UNAVAILABLE', message: 'test');
-    });
+          throw PlatformException(code: 'UNAVAILABLE', message: 'test');
+        });
     final result = await bridge.startMonitoring();
     expect(result, isFalse);
   });

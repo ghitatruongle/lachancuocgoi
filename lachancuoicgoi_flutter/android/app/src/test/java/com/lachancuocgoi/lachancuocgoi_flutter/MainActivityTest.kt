@@ -3,10 +3,13 @@ package com.lachancuocgoi.lachancuocgoi_flutter
 import android.content.Intent
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
+import com.lachancuocgoi.lachancuocgoi_flutter.services.BackgroundMonitoringService
+import com.lachancuocgoi.lachancuocgoi_flutter.services.MonitoringStartResponse
 import io.flutter.plugin.common.MethodChannel
 import io.mockk.mockk
 import org.junit.After
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -17,6 +20,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.lang.reflect.Field
+import java.lang.reflect.InvocationTargetException
 
 /**
  * Tests for [MainActivity] focusing on the pending-result lifecycle and
@@ -36,20 +40,18 @@ class MainActivityTest {
 
     @Before
     fun setUp() {
-        // Use create() (not start() or resume()) so onCreate fires but the
-        // activity is not yet attached to a window. This is sufficient for
-        // verifying field initialization in onCreate.
+        // Do not invoke FlutterActivity.onCreate(): it tries to load the
+        // Flutter native runtime, which is unavailable in JVM/Robolectric
+        // tests. ActivityController.get() still provides an attached Context
+        // and all Kotlin field initializers exercised by this class.
         activity = Robolectric.buildActivity(MainActivity::class.java)
-            .create()
             .get()
     }
 
     @After
     fun tearDown() {
         try {
-            if (!activity.isFinishing && !activity.isDestroyed) {
-                activity.finish()
-            }
+            invokeOnDestroy()
         } catch (_: Exception) { /* ignore */ }
         shadowOf(Looper.getMainLooper()).idle()
     }
@@ -92,14 +94,8 @@ class MainActivityTest {
         assertTrue("pre-condition: phone pending", pendingPhone.isPending())
         assertTrue("pre-condition: creator pending", pendingCreator.isPending())
 
-        // Trigger onDestroy.
-        activity.finish()
-        // Robolectric's `finish()` schedules the activity to destroy; we need
-        // to drive the lifecycle.
-        shadowOf(Looper.getMainLooper()).idle()
+        invokeOnDestroy()
 
-        // On newer Robolectric, calling finish() alone is enough to invoke
-        // onDestroy in the same looper drain.
         // Verify: pendingResult no longer pending.
         assertFalse("phone pending should be cleared after onDestroy", pendingPhone.isPending())
         assertFalse("creator pending should be cleared after onDestroy", pendingCreator.isPending())
@@ -121,10 +117,39 @@ class MainActivityTest {
         }
         activity.intent = intent
         // Manually invoke onNewIntent (Robolectric drives lifecycle differently).
-        activity.onNewIntent(intent)
+        MainActivity::class.java.getDeclaredMethod("onNewIntent", Intent::class.java)
+            .apply { isAccessible = true }
+            .invoke(activity, intent)
         shadowOf(Looper.getMainLooper()).idle()
         // Assert: still alive.
         assertFalse(activity.isFinishing)
+    }
+
+    @Test
+    fun `startMonitoring returns alreadyRunning typed status`() {
+        BackgroundMonitoringService.isRunning = true
+        try {
+            val response = invokeStartMonitoring()
+            assertEquals("alreadyRunning", response.toMap()["status"])
+        } finally {
+            BackgroundMonitoringService.isRunning = false
+        }
+    }
+
+    @Test
+    fun `startMonitoring returns permissionDenied when microphone is denied`() {
+        shadowOf(activity.application).denyPermissions(android.Manifest.permission.RECORD_AUDIO)
+        val response = invokeStartMonitoring()
+        assertEquals("permissionDenied", response.toMap()["status"])
+    }
+
+    @Test
+    fun `startMonitoring returns started map when launch is accepted`() {
+        BackgroundMonitoringService.isRunning = false
+        shadowOf(activity.application).grantPermissions(android.Manifest.permission.RECORD_AUDIO)
+        val response = invokeStartMonitoring()
+        assertEquals("started", response.toMap()["status"])
+        assertTrue(response.toMap()["message"]?.isNotBlank() == true)
     }
 
     // ─── Bug #4 fix: onActivityResult for REQUEST_CALL_SCREENING_ROLE ─────
@@ -140,8 +165,14 @@ class MainActivityTest {
         // the outer class.
         val requestCode = 1001
         val intent = Intent()
-        activity.onActivityResult(requestCode, android.app.Activity.RESULT_OK, intent)
-        activity.onActivityResult(requestCode, android.app.Activity.RESULT_CANCELED, null)
+        val method = MainActivity::class.java.getDeclaredMethod(
+            "onActivityResult",
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
+            Intent::class.java,
+        ).apply { isAccessible = true }
+        method.invoke(activity, requestCode, android.app.Activity.RESULT_OK, intent)
+        method.invoke(activity, requestCode, android.app.Activity.RESULT_CANCELED, null)
         shadowOf(Looper.getMainLooper()).idle()
         assertFalse(activity.isFinishing)
     }
@@ -203,6 +234,27 @@ class MainActivityTest {
             isAccessible = true
         }
         return field.get(activity)
+    }
+
+    private fun invokeStartMonitoring(): MonitoringStartResponse {
+        val method = MainActivity::class.java
+            .getDeclaredMethod("startMonitoringService", Boolean::class.javaPrimitiveType)
+            .apply { isAccessible = true }
+        return method.invoke(activity, false) as MonitoringStartResponse
+    }
+
+    private fun invokeOnDestroy() {
+        try {
+            MainActivity::class.java.getDeclaredMethod("onDestroy")
+                .apply { isAccessible = true }
+                .invoke(activity)
+        } catch (error: InvocationTargetException) {
+            // The activity intentionally skipped FlutterActivity.onCreate(),
+            // so the parent lifecycle registry cannot transition downward.
+            // MainActivity cancels pending results before delegating to super,
+            // which is the behavior this JVM test verifies.
+            if (error.cause !is IllegalStateException) throw error
+        }
     }
 }
 

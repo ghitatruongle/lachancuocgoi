@@ -16,11 +16,11 @@ import 'package:lachancuocgoi_flutter/services/flutter_services_impl.dart';
 
 /// Expected risk level from situation_test.json → RiskLevel enum.
 RiskLevel _parseExpected(String json) => switch (json.toLowerCase()) {
-      'red' => RiskLevel.red,
-      'orange' => RiskLevel.orange,
-      'yellow' => RiskLevel.yellow,
-      _ => RiskLevel.green,
-    };
+  'red' => RiskLevel.red,
+  'orange' => RiskLevel.orange,
+  'yellow' => RiskLevel.yellow,
+  _ => RiskLevel.green,
+};
 
 /// Convert script lines into a single transcript string.
 String _buildTranscript(List<dynamic> script) {
@@ -37,8 +37,7 @@ void main() {
 
   test('Simulate all 27 scenarios through L2 analyzer', () async {
     // Load the situation_test.json from bundled assets.
-    final raw =
-        await rootBundle.loadString('assets/situation_test.json');
+    final raw = await rootBundle.loadString('assets/situation_test.json');
     final scenarios = jsonDecode(raw) as List<dynamic>;
 
     // Build a real-asset L2 analyzer (no TFLite).
@@ -82,25 +81,35 @@ void main() {
       if (!pass) {
         debugPrint('  [DEBUG] "$title"');
         debugPrint('    Risk: ${actual.name} | Reason: ${result.reason}');
-        debugPrint('    Matches: ${result.matches.map((m) => "${m.keyword}(${m.level.name})").join(", ")}');
-        debugPrint('    Matches: ${result.matches.map((m) => m.keyword).join(', ')}');
+        debugPrint(
+          '    Matches: ${result.matches.map((m) => "${m.keyword}(${m.level.name})").join(", ")}',
+        );
+        debugPrint(
+          '    Matches: ${result.matches.map((m) => m.keyword).join(', ')}',
+        );
       }
 
-      results.add(_SimResult(
-        index: i + 1,
-        title: title,
-        expected: expected,
-        actual: actual,
-        reason: result.reason ?? '—',
-        pass: pass,
-      ));
+      results.add(
+        _SimResult(
+          index: i + 1,
+          title: title,
+          expected: expected,
+          actual: actual,
+          reason: result.reason ?? '—',
+          pass: pass,
+        ),
+      );
     }
 
     // Print full table.
     debugPrint('');
-    debugPrint('═══════════════════════════════════════════════════════════════════');
+    debugPrint(
+      '═══════════════════════════════════════════════════════════════════',
+    );
     debugPrint('  KẾT QUẢ MÔ PHỎNG 27 KỊCH BẢN — L2 (gDetection) ANALYZER');
-    debugPrint('═══════════════════════════════════════════════════════════════════');
+    debugPrint(
+      '═══════════════════════════════════════════════════════════════════',
+    );
     for (final r in results) {
       final icon = r.pass ? '✅ PASS ' : '❌ FAIL ';
       debugPrint(
@@ -110,9 +119,15 @@ void main() {
         'Thực tế: ${r.actual.name.toUpperCase().padLeft(7)}',
       );
     }
-    debugPrint('═══════════════════════════════════════════════════════════════════');
-    debugPrint('  TỔNG KẾT: $passCount PASS / $failCount FAIL / ${scenarios.length} TOTAL');
-    debugPrint('═══════════════════════════════════════════════════════════════════');
+    debugPrint(
+      '═══════════════════════════════════════════════════════════════════',
+    );
+    debugPrint(
+      '  TỔNG KẾT: $passCount PASS / $failCount FAIL / ${scenarios.length} TOTAL',
+    );
+    debugPrint(
+      '═══════════════════════════════════════════════════════════════════',
+    );
 
     // Soft assertion — print results regardless.
     expect(scenarios.length, equals(26));

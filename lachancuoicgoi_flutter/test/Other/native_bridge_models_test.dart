@@ -130,48 +130,56 @@ void main() {
     });
   });
 
-  group('CallEvent — construction', () {
+  group('NativeCallEvent — construction', () {
     test('fromMap handles null type as UNKNOWN', () {
-      final event = CallEvent.fromMap({
+      final event = NativeCallEvent.fromMap({
         'type': null,
-        'phoneNumber': null,
-        'source': null,
+        'timestampMs': null,
+        'reason': null,
+        'numberAvailable': null,
+        'maskedNumber': null,
       });
       expect(event.type, 'UNKNOWN');
-      expect(event.phoneNumber, isNull);
-      expect(event.source, isNull);
+      expect(event.timestampMs, 0);
+      expect(event.reason, isNull);
+      expect(event.numberAvailable, isFalse);
+      expect(event.maskedNumber, isNull);
     });
 
     test('fromMap with full data', () {
-      final event = CallEvent.fromMap({
+      final event = NativeCallEvent.fromMap({
         'type': 'RINGING',
-        'phoneNumber': '+84912345678',
-        'source': 'telecom',
+        'timestampMs': 1000,
+        'reason': 'telecom',
+        'numberAvailable': true,
+        'maskedNumber': '******5678',
       });
       expect(event.type, 'RINGING');
-      expect(event.phoneNumber, '+84912345678');
-      expect(event.source, 'telecom');
+      expect(event.timestampMs, 1000);
+      expect(event.reason, 'telecom');
+      expect(event.numberAvailable, isTrue);
+      expect(event.maskedNumber, '******5678');
     });
 
     test('fromMap with partial data', () {
-      final event = CallEvent.fromMap({'type': 'ENDED'});
+      final event = NativeCallEvent.fromMap({'type': 'ENDED'});
       expect(event.type, 'ENDED');
-      expect(event.phoneNumber, isNull);
+      expect(event.maskedNumber, isNull);
     });
 
     test('fromMap with empty map', () {
-      final event = CallEvent.fromMap(<Object?, Object?>{});
+      final event = NativeCallEvent.fromMap(<Object?, Object?>{});
       expect(event.type, 'UNKNOWN');
     });
 
-    test('preserves Vietnamese phone numbers', () {
-      final event = CallEvent.fromMap({
+    test('preserves only the native masked number', () {
+      final event = NativeCallEvent.fromMap({
         'type': 'INCOMING',
+        'numberAvailable': true,
+        'maskedNumber': '******5678',
         'phoneNumber': '+84912345678',
-        'source': 'accessibility',
       });
-      expect(event.phoneNumber, '+84912345678');
-      expect(event.source, 'accessibility');
+      expect(event.maskedNumber, '******5678');
     });
   });
 

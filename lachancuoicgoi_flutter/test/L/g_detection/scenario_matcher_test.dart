@@ -31,6 +31,22 @@ void main() {
       expect(result, isNull);
     });
 
+    test('generic words cannot partially activate a high-risk scenario', () {
+      final tokens = GFlash.tokenize(
+        'lich kham rang cua me la sang thu hai tai phong kham quen',
+      );
+      final result = matcher.match(tokens);
+      expect(result, isNull);
+    });
+
+    test('trigger without strong required context is rejected', () {
+      final tokens = GFlash.tokenize(
+        'toi gap cong an khu vuc trong buoi hop to dan pho',
+      );
+      final result = matcher.match(tokens);
+      expect(result, isNull);
+    });
+
     test('returns null for model with no scenarios', () {
       final empty = ScenarioMatcher(const RiskScenariosMaster());
       expect(empty.match(GFlash.tokenize('cong an')), isNull);

@@ -113,6 +113,22 @@ class ScenarioMatcher {
       final contextPhraseSize = bestContext.phraseSize > 0
           ? bestContext.phraseSize.toDouble()
           : _minPhraseSize(info.contextPhrases);
+      final triggerCoverage = triggerPhraseSize > 0
+          ? bestTrigger.score / triggerPhraseSize
+          : 0.0;
+      final contextCoverage = contextPhraseSize > 0
+          ? bestContext.score / contextPhraseSize
+          : 0.0;
+
+      // A scenario is strong evidence and must not be inferred from a couple
+      // of generic words spread across an ordinary conversation. Require a
+      // near-complete trigger phrase plus corroborating context. Previously,
+      // any non-zero context and ~35% phrase overlap could elevate harmless
+      // sentences directly to ORANGE/RED.
+      if (triggerCoverage < 0.85) continue;
+      if (info.hasRequiredContext && contextCoverage < 0.75) continue;
+      if (triggerPhraseSize + contextPhraseSize < 3) continue;
+
       final maxPossibleWeight = (triggerPhraseSize * 2.0) + contextPhraseSize;
       if (maxPossibleWeight <= 0) continue;
 

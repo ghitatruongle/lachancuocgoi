@@ -1,50 +1,49 @@
-// Bug Hunt Phase B.9 — CallEvent Dart-side parsing (Android 13+ number)
-//
-// Reference: docs/superpowers/specs/.../Mục 10 — Nhận diện cuộc gọi đến
+// Bug Hunt Phase B.9 — privacy-safe native call-event parsing.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/services/bridge_models.dart';
 
 void main() {
-  group('BUG-HUNT-CALL — CallEvent Dart parsing', () {
-    test(
-      'BUG-CALL-1: CallEvent.fromMap preserves type when phoneNumber missing',
-      () {
-        // Bug #6 fix (Android 13+ numberAvailable flag): Kotlin sends
-        // numberAvailable=false + phoneNumber=null. Dart side should not
-        // throw, should preserve type.
-        final event = CallEvent.fromMap({
-          'type': 'RINGING',
-          'phoneNumber': null,
-          'numberAvailable': false,
-        });
-        expect(event.type, equals('RINGING'));
-        expect(event.phoneNumber, isNull);
-      },
-    );
+  group('BUG-HUNT-CALL — NativeCallEvent Dart parsing', () {
+    test('preserves type when a masked number is unavailable', () {
+      final event = NativeCallEvent.fromMap({
+        'type': 'RINGING',
+        'timestampMs': 123,
+        'numberAvailable': false,
+        // A legacy/raw field must never be consumed.
+        'phoneNumber': '+84912345678',
+      });
 
-    test(
-      'BUG-CALL-2: CallEvent.fromMap does not crash on unknown keys',
-      () {
-        // Future-proof: Kotlin may add new fields; Dart must ignore them.
-        final event = CallEvent.fromMap({
-          'type': 'OFFHOOK',
-          'futureField': 'value',
-          'numberAvailable': true,
-        });
-        expect(event.type, equals('OFFHOOK'));
-      },
-    );
+      expect(event.type, 'RINGING');
+      expect(event.timestampMs, 123);
+      expect(event.numberAvailable, isFalse);
+      expect(event.maskedNumber, isNull);
+    });
 
-    test(
-      'BUG-CALL-3: CallEvent.fromMap handles empty map gracefully',
-      () {
-        // type defaults to 'UNKNOWN' when missing.
-        final event = CallEvent.fromMap({});
-        expect(event.type, equals('UNKNOWN'));
-        expect(event.phoneNumber, isNull);
-        expect(event.source, isNull);
-      },
-    );
+    test('parses canonical fields and ignores unknown keys', () {
+      final event = NativeCallEvent.fromMap({
+        'type': 'OFFHOOK',
+        'timestampMs': 456,
+        'reason': 'telecom_callback',
+        'futureField': 'value',
+        'numberAvailable': true,
+        'maskedNumber': '******5678',
+      });
+
+      expect(event.type, 'OFFHOOK');
+      expect(event.timestampMs, 456);
+      expect(event.reason, 'telecom_callback');
+      expect(event.maskedNumber, '******5678');
+    });
+
+    test('handles an empty map gracefully', () {
+      final event = NativeCallEvent.fromMap({});
+
+      expect(event.type, 'UNKNOWN');
+      expect(event.timestampMs, 0);
+      expect(event.reason, isNull);
+      expect(event.numberAvailable, isFalse);
+      expect(event.maskedNumber, isNull);
+    });
   });
 }

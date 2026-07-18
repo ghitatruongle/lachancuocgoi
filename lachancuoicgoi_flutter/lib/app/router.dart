@@ -9,6 +9,7 @@ import '../ui/onboarding/onboarding_page.dart';
 import '../ui/result_page/result_page.dart';
 import '../ui/simulation_page/simulation_page.dart';
 import '../ui/tips_lesson_page/tips_lesson_page.dart';
+import 'settings_controller.dart';
 
 /// Safe [GoRouteState.extra] for `/monitoring` (expects string keys).
 Map<String, dynamic>? _monitoringRouteExtra(Object? extra) {
@@ -47,14 +48,46 @@ List<Map<String, dynamic>>? _scriptLinesFromExtra(Map<String, dynamic>? map) {
   return null;
 }
 
+/// Pure first-run redirect policy, kept separate for deterministic tests.
+String? onboardingRedirect(SettingsState settings, String matchedLocation) {
+  return _onboardingRedirectValues(
+    isLoaded: settings.isLoaded,
+    onboardingCompleted: settings.onboardingCompleted,
+    matchedLocation: matchedLocation,
+  );
+}
+
+String? _onboardingRedirectValues({
+  required bool isLoaded,
+  required bool onboardingCompleted,
+  required String matchedLocation,
+}) {
+  if (!isLoaded) return null;
+  final isOnboarding = matchedLocation == '/onboarding';
+  if (!onboardingCompleted) {
+    return isOnboarding ? null : '/onboarding';
+  }
+  if (isOnboarding) return '/';
+  return null;
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
+  // Theme/audio/privacy changes must not recreate the router and reset the
+  // current navigation stack. Only first-run routing state is relevant here.
+  final routingState = ref.watch(
+    settingsControllerProvider.select(
+      (settings) => (settings.isLoaded, settings.onboardingCompleted),
+    ),
+  );
+  final router = GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: kDebugMode,
     redirect: (context, state) {
-      // Allow user to skip onboarding and access home page
-      // Permission checks will happen on-demand (when features need them)
-      return null;
+      return _onboardingRedirectValues(
+        isLoaded: routingState.$1,
+        onboardingCompleted: routingState.$2,
+        matchedLocation: state.matchedLocation,
+      );
     },
     routes: [
       GoRoute(
@@ -74,6 +107,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             simulatedScenarioTitle: _stringFromExtra(extra, 'scenarioTitle'),
             simulatedTranscript: _stringFromExtra(extra, 'scenarioTranscript'),
             simulatedScriptLines: _scriptLinesFromExtra(extra),
+            initialMaskedNumber: _stringFromExtra(extra, 'maskedNumber'),
           );
         },
       ),
@@ -93,4 +127,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });

@@ -18,18 +18,21 @@ void main() {
       await bridge.dispose();
     });
 
-    testWidgets('App boots to home page when all permissions are pre-granted',
-        (tester) async {
+    testWidgets('App boots to home page when all permissions are pre-granted', (
+      tester,
+    ) async {
       bridge = FakeIntegrationBridge();
-      bridge.setPermissionSnapshot(const PermissionSnapshot(
-        recordAudio: true,
-        phoneState: true,
-        callLog: true,
-        overlay: true,
-        notification: true,
-        accessibility: true,
-        callScreening: true,
-      ));
+      bridge.setPermissionSnapshot(
+        const PermissionSnapshot(
+          recordAudio: true,
+          phoneState: true,
+          callLog: true,
+          overlay: true,
+          notification: true,
+          accessibility: true,
+          callScreening: true,
+        ),
+      );
       final harness = await IntegrationTestHarness.build(
         bridge: bridge,
         initialPermissions: const PermissionSnapshot(
@@ -48,29 +51,43 @@ void main() {
         await tester.pumpAndSettle(const Duration(milliseconds: 500));
 
         // Home page should be rendered.
-        expect(find.byType(HomePage), findsOneWidget,
-            reason: 'Home page should be visible');
+        expect(
+          find.byType(HomePage),
+          findsOneWidget,
+          reason: 'Home page should be visible',
+        );
 
         // The home page should show the brand title.
-        expect(find.text('Lá chắn cuộc gọi'), findsWidgets,
-            reason: 'Home page should show the app title');
+        expect(
+          find.text('Lá chắn cuộc gọi'),
+          findsWidgets,
+          reason: 'Home page should show the app title',
+        );
 
         // The "Bắt đầu giám sát" button should be enabled
         // (recordAudio == true) — find the ElevatedButton and
         // verify onPressed is not null.
-        final startButton = find.widgetWithText(ElevatedButton, 'Bắt đầu giám sát');
+        final startButton = find.widgetWithText(
+          ElevatedButton,
+          'Bắt đầu giám sát',
+        );
         if (startButton.evaluate().isNotEmpty) {
           final w = tester.widget<ElevatedButton>(startButton);
-          expect(w.onPressed, isNotNull,
-              reason: 'Start button should be enabled when recordAudio is granted');
+          expect(
+            w.onPressed,
+            isNotNull,
+            reason:
+                'Start button should be enabled when recordAudio is granted',
+          );
         }
       } finally {
         await harness.dispose();
       }
     });
 
-    testWidgets('App shows permission prompt when mic is denied',
-        (tester) async {
+    testWidgets('App shows permission prompt when mic is denied', (
+      tester,
+    ) async {
       bridge = FakeIntegrationBridge();
       const deniedMic = PermissionSnapshot(
         recordAudio: false,
@@ -94,13 +111,19 @@ void main() {
         await tester.pumpAndSettle(const Duration(milliseconds: 500));
 
         // Home page is in the tree behind the dialog.
-        expect(find.byType(HomePage), findsOneWidget,
-            reason: 'Home page should still be mounted');
+        expect(
+          find.byType(HomePage),
+          findsOneWidget,
+          reason: 'Home page should still be mounted',
+        );
 
         // A permission dialog (RightsDialog) should be visible —
         // Dialog/AlertDialog should be in the tree.
-        expect(find.byType(Dialog), findsWidgets,
-            reason: 'A permission dialog should be shown');
+        expect(
+          find.byType(Dialog),
+          findsWidgets,
+          reason: 'A permission dialog should be shown',
+        );
 
         // The dialog text should reference the missing permission.
         // RightsDialog shows a "Cấp quyền để ứng dụng hoạt động đúng chức năng."
@@ -112,11 +135,18 @@ void main() {
         );
 
         // The start button should be DISABLED (recordAudio == false).
-        final startButton = find.widgetWithText(ElevatedButton, 'Bắt đầu giám sát');
+        final startButton = find.widgetWithText(
+          ElevatedButton,
+          'Bắt đầu giám sát',
+        );
         if (startButton.evaluate().isNotEmpty) {
           final w = tester.widget<ElevatedButton>(startButton);
-          expect(w.onPressed, isNull,
-              reason: 'Start button should be disabled when recordAudio is denied');
+          expect(
+            w.onPressed,
+            isNull,
+            reason:
+                'Start button should be disabled when recordAudio is denied',
+          );
         }
       } finally {
         await harness.dispose();

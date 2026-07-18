@@ -230,6 +230,9 @@ CREATE TABLE IF NOT EXISTS call_history (
 
   Future<void> deleteById(int id) => callHistoryRepository.deleteById(id);
 
+  Future<int> deleteOlderThan(DateTime cutoff) =>
+      callHistoryRepository.deleteOlderThan(cutoff);
+
   Future<void> close() async {
     await callHistoryRepository.dispose();
     await database.close();
@@ -331,6 +334,20 @@ class InMemoryAppDatabase implements AppDatabase, CallHistoryRepository {
   Future<void> deleteById(int id) async {
     _history.removeWhere((e) => e.id == id);
     _streamController.add(List.unmodifiable(_history));
+  }
+
+  @override
+  Future<int> deleteOlderThan(DateTime cutoff) async {
+    final before = _history.length;
+    _history.removeWhere((entry) {
+      final recordedAt = entry.recordedAt;
+      return recordedAt != null && recordedAt.isBefore(cutoff);
+    });
+    final deleted = before - _history.length;
+    if (deleted > 0) {
+      _streamController.add(List.unmodifiable(_history));
+    }
+    return deleted;
   }
 
   @override

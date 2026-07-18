@@ -22,7 +22,7 @@ void main() {
     test('unlock releases lock', () {
       final guard = Guard();
       expect(guard.tryLock(), isTrue);
-      
+
       guard.unlock();
       expect(guard.isLocked, isFalse);
 

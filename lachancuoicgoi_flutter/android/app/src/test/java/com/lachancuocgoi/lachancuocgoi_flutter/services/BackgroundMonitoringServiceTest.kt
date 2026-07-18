@@ -53,6 +53,8 @@ class BackgroundMonitoringServiceTest {
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
+        shadowOf(context as android.app.Application)
+            .grantPermissions(android.Manifest.permission.RECORD_AUDIO)
 
         // Reset companion-level state via reflection (isRunning has a
         // private setter, so direct assignment from outside the class
@@ -376,10 +378,10 @@ class BackgroundMonitoringServiceTest {
         verify(exactly = 1) { audioManager.abandonAudioFocusRequest(focusRequest) }
     }
 
-    // ─── 9. Persists last-start params on ACTION_START with extras ──────
+    // ─── 9. Persists only non-sensitive last-start params ───────────────
 
     @Test
-    fun `ACTION_START with PHONE_NUMBER and ENABLE_SPEAKERPHONE extras persists them`() {
+    fun `ACTION_START never persists phone number but keeps speakerphone setting`() {
         val intent = startIntent {
             putExtra("PHONE_NUMBER", "+84901234567")
             putExtra("ENABLE_SPEAKERPHONE", true)
@@ -389,7 +391,7 @@ class BackgroundMonitoringServiceTest {
 
         val prefs = context.getSharedPreferences(
             BackgroundMonitoringService.WATCHDOG_PREFS, Context.MODE_PRIVATE)
-        assertEquals("+84901234567", prefs.getString("watchdog_phone_number", null))
+        assertNull(prefs.getString("watchdog_phone_number", null))
         assertEquals(true, prefs.getBoolean("watchdog_speakerphone", false))
         // The "monitoring was active" flag also gets set
         assertEquals(true, prefs.getBoolean("monitoring_was_active", false))
@@ -430,16 +432,14 @@ class BackgroundMonitoringServiceTest {
         assertEquals(false, prefs.getBoolean("watchdog_speakerphone", false))
     }
 
-    // ─── Bug #8: POST_NOTIFICATIONS permission check ─────────────────────
+    // ─── Foreground promotion does not depend on POST_NOTIFICATIONS ──────
 
     @Test
     fun `Bug8 ACTION_START with no POST_NOTIFICATIONS does not crash`() {
-        // Default: Robolectric does not grant POST_NOTIFICATIONS. Send the
-        // ACTION_START intent and verify the service does NOT throw, and
-        // does NOT promote itself to foreground (instead emits DEGRADED state).
+        // Default: Robolectric does not grant POST_NOTIFICATIONS. Android
+        // still requires the service to call startForeground().
         val intent = Intent(context, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_START
-            putExtra("PHONE_NUMBER", "+8412345678")
             putExtra("ENABLE_SPEAKERPHONE", false)
         }
         // Must not throw.
@@ -450,10 +450,10 @@ class BackgroundMonitoringServiceTest {
             fail("ACTION_START must not throw when POST_NOTIFICATIONS is missing (Bug #8): $e")
         }
 
-        // The fix surfaces a DEGRADED state to Flutter so the UI can warn.
-        verify(atLeast = 1) {
+        verify(exactly = 0) {
             NativeBridgeEventSink.sendMonitoringState(match { it == "DEGRADED_NO_NOTIFICATION" })
         }
+        assertTrue("Service should remain active after foreground promotion", BackgroundMonitoringService.isRunning)
     }
 
     @Test
@@ -465,7 +465,6 @@ class BackgroundMonitoringServiceTest {
 
         val intent = Intent(context, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_START
-            putExtra("PHONE_NUMBER", "+8412345678")
             putExtra("ENABLE_SPEAKERPHONE", false)
         }
         service.onStartCommand(intent, 0, 1)
@@ -474,6 +473,23 @@ class BackgroundMonitoringServiceTest {
         // With notification permission granted, we should NOT emit DEGRADED.
         verify(exactly = 0) {
             NativeBridgeEventSink.sendMonitoringState(match { it == "DEGRADED_NO_NOTIFICATION" })
+        }
+    }
+
+    @Test
+    fun `foreground promotion failure stops service and reports native failure`() {
+        mockkObject(ForegroundServiceLauncher)
+        every {
+            ForegroundServiceLauncher.safeStartForeground(any(), any(), any(), any())
+        } returns false
+
+        val result = service.onStartCommand(startIntent(), 0, 41)
+        idle()
+
+        assertEquals(android.app.Service.START_NOT_STICKY, result)
+        assertFalse(BackgroundMonitoringService.isRunning)
+        verify(atLeast = 1) {
+            NativeBridgeEventSink.sendMonitoringState("START_FAILED:nativeFailure")
         }
     }
 

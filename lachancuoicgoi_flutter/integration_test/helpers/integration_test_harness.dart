@@ -44,7 +44,10 @@ class TestDb {
       resolvedDbPath = null;
     } else {
       final databasesPath = await getDatabasesPath();
-      resolvedDbPath = path.join(databasesPath, 'test_db_${DateTime.now().microsecondsSinceEpoch}.db');
+      resolvedDbPath = path.join(
+        databasesPath,
+        'test_db_${DateTime.now().microsecondsSinceEpoch}.db',
+      );
     }
 
     final db = await AppDatabase.open(
@@ -76,18 +79,16 @@ class FakeIntegrationBridge implements NativeBridgeInterface {
 
   final StreamController<TranscriptUpdate> _transcript =
       StreamController<TranscriptUpdate>.broadcast();
-  final StreamController<double> _rms =
-      StreamController<double>.broadcast();
+  final StreamController<double> _rms = StreamController<double>.broadcast();
   final StreamController<(MonitoringState, int?, String?)> _monitoringState =
       StreamController<(MonitoringState, int?, String?)>.broadcast();
   final StreamController<CallEvent> _callEvents =
       StreamController<CallEvent>.broadcast();
-  final StreamController<String> _logs =
-      StreamController<String>.broadcast();
+  final StreamController<String> _logs = StreamController<String>.broadcast();
 
   final List<String> methodCallList = <String>[];
-  final List<({String method, Map<String, Object?> args})>
-      methodCallsWithArgs = <({String method, Map<String, Object?> args})>[];
+  final List<({String method, Map<String, Object?> args})> methodCallsWithArgs =
+      <({String method, Map<String, Object?> args})>[];
 
   PermissionSnapshot _permissionSnapshot = const PermissionSnapshot();
   void setPermissionSnapshot(PermissionSnapshot s) => _permissionSnapshot = s;
@@ -291,18 +292,24 @@ class _TestSettingsController extends Notifier<SettingsState>
 
   @override
   SettingsState build() => SettingsState(
-        isDarkTheme: false,
-        followSystemTheme: true,
-        analysisMode: _analysisMode,
-        audioBoost: false,
-        autoEnableSpeakerphone: false,
-        creatorAudioCapture: false,
-        isLoaded: true,
-      );
+    isDarkTheme: false,
+    followSystemTheme: true,
+    analysisMode: _analysisMode,
+    audioBoost: false,
+    autoEnableSpeakerphone: false,
+    creatorAudioCapture: false,
+    isLoaded: true,
+    onboardingCompleted: true,
+  );
 
   @override
   Future<void> update(SettingsState next) async {
     state = next;
+  }
+
+  @override
+  Future<void> completeOnboarding() {
+    return update(state.copyWith(onboardingCompleted: true));
   }
 
   @override
@@ -342,14 +349,11 @@ class _TestDevModeController extends Notifier<DeveloperModeState>
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Override _settingsOverride(AnalysisMode mode) =>
-    settingsControllerProvider.overrideWith(
-      () => _TestSettingsController(mode),
-    );
+Override _settingsOverride(AnalysisMode mode) => settingsControllerProvider
+    .overrideWith(() => _TestSettingsController(mode));
 
-Override _devModeOverride() => developerModeProvider.overrideWith(
-      _TestDevModeController.new,
-    );
+Override _devModeOverride() =>
+    developerModeProvider.overrideWith(_TestDevModeController.new);
 
 /// State-only permission override — sidesteps the async
 /// `_refresh()` race in [PermissionController] by pre-seeding the state
@@ -366,12 +370,12 @@ class _TestPermissionController extends PermissionController {
   }
 }
 
-Override _permissionOverride(PermissionState initial, NativeBridgeInterface bridge) {
+Override _permissionOverride(
+  PermissionState initial,
+  NativeBridgeInterface bridge,
+) {
   return permissionControllerProvider.overrideWith(
-    () => _TestPermissionController(
-      bridge,
-      initial,
-    ),
+    () => _TestPermissionController(bridge, initial),
   );
 }
 
@@ -383,10 +387,7 @@ class HarnessWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProviderScope(
-      overrides: overrides,
-      child: const LachancuocgoiApp(),
-    );
+    return ProviderScope(overrides: overrides, child: const LachancuocgoiApp());
   }
 }
 
@@ -457,18 +458,12 @@ Override _customRouterOverride(String initialRoute) {
     return GoRouter(
       initialLocation: initialRoute,
       routes: <RouteBase>[
-        GoRoute(
-          path: '/',
-          builder: (_, __) => const HomePage(),
-        ),
+        GoRoute(path: '/', builder: (_, __) => const HomePage()),
         GoRoute(
           path: '/monitoring',
           builder: (_, __) => const MonitoringPage(),
         ),
-        GoRoute(
-          path: '/history',
-          builder: (_, __) => const HistoryPage(),
-        ),
+        GoRoute(path: '/history', builder: (_, __) => const HistoryPage()),
         GoRoute(
           path: '/result/:historyId',
           builder: (context, state) {

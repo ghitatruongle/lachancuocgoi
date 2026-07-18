@@ -198,6 +198,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
                         'speaker': line.speaker,
                         'line': line.line,
                         'delay': line.delay,
+                        if (line.riskLevel != null) 'riskLevel': line.riskLevel,
                       },
                     )
                     .toList(),

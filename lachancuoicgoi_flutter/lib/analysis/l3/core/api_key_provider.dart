@@ -69,11 +69,9 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
   /// Load keys from `env.json` asset if dart-define keys were not provided.
   /// Safe to call multiple times — only loads once.
   ///
-  /// SECURITY: env.json trong assets bị bundle trong APK. Bất kỳ ai cài app
-  /// đều có thể extract API keys. Đây là fix tạm thời — fix triệt để phải:
-  /// 1. Rotate tất cả keys trên Google Cloud (xem SECURITY.md)
-  /// 2. Move env.json ra app documents directory (không bị bundle)
-  /// 3. Clean git history bằng BFG Repo Cleaner
+  /// SECURITY: env.json trong assets bị bundle trong APK, vì vậy người cài
+  /// app có thể trích xuất API key. Kiến trúc v1.6.0 chấp nhận ràng buộc này;
+  /// key phải được giới hạn quota/API, theo dõi và xoay khi cần.
   Future<void> ensureLoaded() async {
     if (_envLoaded) return;
     _envLoaded = true;
@@ -136,13 +134,13 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
       _logger?.warning(
         '🚨 SECURITY WARNING: env.json đang được bundle trong APK release. '
         'Bất kỳ ai cài app đều có thể extract API keys. '
-        'Hãy move env.json ra app documents directory và rotate keys. '
-        'Xem SECURITY.md.',
+        'Hãy giới hạn quota/API, theo dõi bất thường và xoay key khi cần. '
+        'Xem docs/API_KEY_SECURITY.md.',
       );
     } else {
       _logger?.info(
-        '⚠️ [DEBUG] env.json load từ assets. Trong production, '
-        'hãy dùng app documents dir để keys không bị ship cùng APK.',
+        '⚠️ [DEBUG] env.json được load từ assets; key sẽ được bundle trong '
+        'APK release và có thể bị trích xuất.',
       );
     }
   }

@@ -94,10 +94,25 @@ class CreatorMediaProjectionService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        if (intent?.action != ACTION_START) {
+            Log.w(TAG, "Stopping Creator service after an empty or unsupported intent")
+            isRunning = false
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
 
+        val promoted = try {
+            createNotificationChannel()
+            startForegroundInternal()
+        } catch (e: Exception) {
+            Log.e(TAG, "Unable to create Creator foreground notification", e)
+            false
+        }
+        if (!promoted) {
+            failCreatorStart("foreground_promotion_failed")
+            return START_NOT_STICKY
+        }
         isRunning = true
-        createNotificationChannel()
-        startForegroundInternal()
 
         val devModeExpiresAtMs = intent?.getLongExtra("devModeExpiresAtMs", 0L) ?: 0L
         if (devModeExpiresAtMs <= System.currentTimeMillis()) {
@@ -134,91 +149,87 @@ class CreatorMediaProjectionService : Service() {
                     )
                     onMediaProjectionReady?.invoke(readyProjection)
                     startAudioLoop(readyProjection, devModeExpiresAtMs)
+                } else {
+                    failCreatorStart("media_projection_unavailable")
+                    return START_NOT_STICKY
                 }
                 Log.d(TAG, "MediaProjection obtained successfully")
                 NativeBridgeEventSink.sendLog(TAG, "Quyền ghi âm màn hình/hệ thống đã được cấp thành công.", "INFO")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to get MediaProjection", e)
                 NativeBridgeEventSink.sendLog(TAG, "Không thể lấy quyền MediaProjection: ${e.message}", "ERROR")
-                NativeBridgeEventSink.sendMonitoringState("STOPPED:0:")
+                failCreatorStart("media_projection_failure")
+                return START_NOT_STICKY
             }
+        } else {
+            failCreatorStart("media_projection_data_missing")
+            return START_NOT_STICKY
         }
 
         return START_NOT_STICKY
     }
 
-    private fun startForegroundInternal() {
-        val stopIntent = Intent(this, CreatorMediaProjectionService::class.java).apply {
-            action = ACTION_STOP
-        }
-        val stopPendingIntent = PendingIntent.getService(
-            this,
-            0,
-            stopIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText("Creator Mode: Đang ghi âm ngầm (Live)")
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setOngoing(true)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "DỪNG", stopPendingIntent)
-            .build()
-
-        // Bug #8 fix: same as BackgroundMonitoringService — check
-        // POST_NOTIFICATIONS before promoting to foreground on API 33+.
-        // On pre-Tiramisu the permission is implicitly granted so the
-        // check is a no-op.
-        val hasNotifPerm =
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotifPerm) {
-            Log.w(TAG, "POST_NOTIFICATIONS not granted — Creator Mode will run without foreground promotion")
-            NativeBridgeEventSink.sendLog(
-                TAG,
-                "Thiếu quyền thông báo — Creator Mode sẽ chạy ở chế độ degraded.",
-                "WARN",
+    private fun startForegroundInternal(): Boolean {
+        return try {
+            val stopIntent = Intent(this, CreatorMediaProjectionService::class.java).apply {
+                action = ACTION_STOP
+            }
+            val stopPendingIntent = PendingIntent.getService(
+                this,
+                0,
+                stopIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
-            // Don't crash; the service continues running. Without foreground
-            // promotion, Android may kill it sooner — surface the state.
-            return
-        }
 
-        try {
+            val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle(getString(R.string.app_name))
+                .setContentText("Creator Mode: Đang ghi âm ngầm (Live)")
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setOngoing(true)
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "DỪNG", stopPendingIntent)
+                .build()
+
             val foregroundType =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION or
                         ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
                 } else {
                     0
                 }
-            // Bug #8 fix: route through safeStartForeground so any
-            // ForegroundServiceStartNotAllowedException / MissingForegroundServiceTypeException
-            // is swallowed instead of crashing.
-            val promoted = ForegroundServiceLauncher.safeStartForeground(
+            ForegroundServiceLauncher.safeStartForeground(
                 this,
                 NOTIFICATION_ID,
                 notification,
                 foregroundType,
             )
-            if (!promoted) {
-                Log.w(TAG, "startForeground failed — Creator Mode is running but not as foreground")
-            }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start foreground", e)
+            Log.e(TAG, "Failed to build or post Creator foreground notification", e)
+            false
         }
+    }
+
+    private fun failCreatorStart(reason: String) {
+        Log.e(TAG, "Creator service start failed: $reason")
+        isRunning = false
+        NativeBridgeEventSink.sendLog(
+            TAG,
+            "Không thể khởi động Creator Mode.",
+            "ERROR",
+        )
+        NativeBridgeEventSink.sendMonitoringState("START_FAILED:nativeFailure:$reason")
+        stopEventSent = true
+        stopCapture()
+        stopForegroundCompat()
+        stopSelf()
     }
 
     private fun startAudioLoop(mediaProjection: MediaProjection, devModeExpiresAtMs: Long) {
         startedAtMs = System.currentTimeMillis()
         stopEventSent = false
-        val record = CreatorAudioCaptureManager.startCapture(mediaProjection)
+        val record = CreatorAudioCaptureManager.startCapture(this, mediaProjection)
         if (record == null) {
             NativeBridgeEventSink.sendLog(TAG, "Không thể bắt đầu capture audio hệ thống (AudioRecord null)", "ERROR")
-            sendStoppedState()
+            failCreatorStart("audio_capture_unavailable")
             return
         }
 
@@ -323,6 +334,7 @@ class CreatorMediaProjectionService : Service() {
     }
 
     override fun onDestroy() {
+        isRunning = false
         super.onDestroy()
         stopCapture()
     }

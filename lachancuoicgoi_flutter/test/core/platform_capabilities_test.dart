@@ -7,9 +7,7 @@ void main() {
   test('feature matrix has rows and AI always supported', () {
     final caps = PlatformCapabilities.current;
     expect(caps.featureMatrix, isNotEmpty);
-    final ai = caps.featureMatrix.firstWhere(
-      (r) => r.label.contains('AI'),
-    );
+    final ai = caps.featureMatrix.firstWhere((r) => r.label.contains('AI'));
     expect(ai.supported, isTrue);
   });
 

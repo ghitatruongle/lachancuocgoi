@@ -27,6 +27,7 @@ void main() {
       SharedPreferences.setMockInitialValues({
         'IS_DARK_THEME': true,
         'ANALYSIS_MODE': 'geminiApi',
+        'CLOUD_ANALYSIS_CONSENT_V1': true,
         'AUDIO_BOOST': true,
         'AUTO_ENABLE_SPEAKERPHONE': true,
         'CREATOR_AUDIO_CAPTURE': true,
@@ -91,11 +92,12 @@ void main() {
 
       const newState = SettingsState(
         isDarkTheme: true,
-    followSystemTheme: false,
+        followSystemTheme: false,
         analysisMode: AnalysisMode.geminiApi,
         audioBoost: true,
         autoEnableSpeakerphone: true,
         creatorAudioCapture: true,
+        cloudAnalysisConsent: true,
       );
       await container
           .read(settingsControllerProvider.notifier)
@@ -138,7 +140,7 @@ void main() {
     test('copies with no changes returns identical values', () {
       const state = SettingsState(
         isDarkTheme: true,
-    followSystemTheme: false,
+        followSystemTheme: false,
         analysisMode: AnalysisMode.normal,
         audioBoost: true,
         autoEnableSpeakerphone: false,
@@ -156,14 +158,17 @@ void main() {
     test('copies with changes only modifies specified fields', () {
       const state = SettingsState(
         isDarkTheme: false,
-    followSystemTheme: false,
+        followSystemTheme: false,
         analysisMode: AnalysisMode.normal,
         audioBoost: false,
         autoEnableSpeakerphone: false,
         creatorAudioCapture: false,
       );
-      final copy = state.copyWith(isDarkTheme: true,
-    followSystemTheme: false, audioBoost: true);
+      final copy = state.copyWith(
+        isDarkTheme: true,
+        followSystemTheme: false,
+        audioBoost: true,
+      );
 
       expect(copy.isDarkTheme, isTrue);
       expect(copy.analysisMode, AnalysisMode.normal);

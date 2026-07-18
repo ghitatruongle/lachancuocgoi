@@ -33,14 +33,10 @@ class VoskSttManager(
         private const val TAG = "VoskSttManager"
         private const val MAX_RETRIES = 3
         private const val RETRY_DELAY_MS = 5000L
-        // Prefer the shipped model first. `model-vn-small` is optional and
-        // is NOT bundled today — probing it first only wasted cold-start
-        // time and produced noisy unpack failures.
+        // v1.6 ships one production model only.
         private val MODEL_ASSET_PATHS = listOf(
             "flutter_assets/assets/model-vn",
             "model-vn",
-            "flutter_assets/assets/model-vn-small",
-            "model-vn-small",
         )
     }
 

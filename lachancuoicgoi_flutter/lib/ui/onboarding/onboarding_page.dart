@@ -3,12 +3,12 @@ import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../app/settings_controller.dart';
 import '../../services/permission_controller.dart';
 import '../theme/app_theme.dart';
 
-/// Onboarding screen that guides users through permission granting.
+/// First-run explanation and minimum-permission setup.
 class OnboardingPage extends ConsumerStatefulWidget {
   const OnboardingPage({super.key});
 
@@ -25,85 +25,89 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(permissionControllerProvider.notifier).refresh();
-      if (!mounted) return;
-      _tryExitWhenAllGranted();
+      if (mounted) _tryExitWhenReady();
     });
   }
 
-  Future<void> _persistOnboardingAndGoHome() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_completed', true);
-    if (!mounted) return;
-    context.go('/');
+  Future<void> _completeAndGoHome() async {
+    final router = GoRouter.of(context);
+    await ref.read(settingsControllerProvider.notifier).completeOnboarding();
+    if (mounted) router.go('/');
   }
 
-  void _tryExitWhenAllGranted() {
+  void _tryExitWhenReady() {
     if (_exitScheduled || !mounted) return;
-    if (!ref.read(permissionControllerProvider).allGranted) return;
+    if (!ref.read(permissionControllerProvider).essentialGranted) return;
     _exitScheduled = true;
-    unawaited(_persistOnboardingAndGoHome());
+    unawaited(_completeAndGoHome());
+  }
+
+  Future<void> _requestCorePermissions() async {
+    setState(() => _isRequesting = true);
+    try {
+      await ref
+          .read(permissionControllerProvider.notifier)
+          .requestCapabilityGroup(
+            PermissionCapabilityGroup.coreProtection,
+            context,
+          );
+    } finally {
+      if (mounted) setState(() => _isRequesting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
-    ref.listen<PermissionState>(permissionControllerProvider, (prev, next) {
-      if (!next.allGranted) return;
-      if (prev?.allGranted == true) return;
-      _tryExitWhenAllGranted();
-    });
-    final state = ref.watch(permissionControllerProvider);
+    final permissionState = ref.watch(permissionControllerProvider);
+    final groups = ref.watch(capabilityGroupsProvider);
 
-    if (state.allGranted) {
+    ref.listen<PermissionState>(permissionControllerProvider, (previous, next) {
+      if (next.essentialGranted && previous?.essentialGranted != true) {
+        _tryExitWhenReady();
+      }
+    });
+
+    if (permissionState.essentialGranted) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
-    final missingPermissions = ref.watch(missingPermissionsProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cấp quyền'),
         automaticallyImplyLeading: false,
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            sliver: SliverFillRemaining(
-              hasScrollBody: false,
-              child: Column(
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 children: [
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // Progress indicator
                   LinearProgressIndicator(
-                    value: state.progress,
+                    value: permissionState.essentialProgress,
                     backgroundColor: cs.surfaceContainerHighest,
                     color: cs.primary,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    '${state.grantedCount}/${state.totalPermissions} quyền đã cấp',
+                    '${permissionState.grantedCount}/${permissionState.totalPermissions} quyền đã cấp',
                     style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                    textAlign: TextAlign.center,
                   ),
-
-                  const Spacer(flex: 1),
-
-                  // Icon and title
+                  const SizedBox(height: AppSpacing.lg),
                   Image.asset(
                     'assets/logo.png',
-                    width: 80,
-                    height: 80,
-                    errorBuilder: (context, error, stackTrace) => Icon(
+                    width: 72,
+                    height: 72,
+                    errorBuilder: (_, _, _) => Icon(
                       Icons.security_outlined,
-                      size: 80,
-                      color: state.allGranted
-                          ? const Color(0xFF4CAF50)
-                          : cs.primary,
+                      size: 72,
+                      color: cs.primary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Bảo vệ cuộc gọi của bạn',
                     style: tt.headlineSmall?.copyWith(
@@ -111,129 +115,135 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.xxs),
                   Text(
                     'Ứng dụng cần các quyền sau để giám sát và phát hiện lừa đảo trong cuộc gọi.',
                     style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
-
-                  const Spacer(flex: 2),
-
-                  // Permission checklist
-                  Card(
-                    elevation: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Danh sách quyền cần thiết:',
-                            style: tt.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          ...missingPermissions.map(
-                            (perm) => Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: AppSpacing.xxs,
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.circle, size: 8, color: cs.error),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  Expanded(
-                                    child: Text(perm, style: tt.bodyMedium),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          if (missingPermissions.isEmpty)
-                            Text(
-                              'Tất cả quyền đã được cấp!',
-                              style: tt.bodyMedium?.copyWith(
-                                color: const Color(0xFF4CAF50),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    'Chỉ nhóm cốt lõi là bắt buộc; các khả năng nâng cao luôn là lựa chọn của bạn.',
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    textAlign: TextAlign.center,
                   ),
-
-                  const Spacer(flex: 1),
-
-                  // Action buttons
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: _isRequesting ? null : _requestPermissions,
-                      icon: _isRequesting
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.auto_fix_high),
-                      label: Text(
-                        _isRequesting
-                            ? 'Đang cấp quyền...'
-                            : 'Bắt đầu cấp quyền',
-                        style: tt.titleMedium?.copyWith(color: cs.onPrimary),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: cs.primary,
-                        foregroundColor: cs.onPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: AppSpacing.sm),
-
-                  TextButton(
-                    onPressed: () async {
-                      // Mark onboarding as completed/skipped
-                      final router = GoRouter.of(context);
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setBool('onboarding_completed', true);
-                      if (mounted) {
-                        router.go('/');
-                      }
-                    },
-                    child: Text(
-                      'Bỏ qua (không khuyến khích)',
-                      style: tt.bodyMedium?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-
                   const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    'Danh sách quyền cần thiết:',
+                    style: tt.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  for (final group in groups) _CapabilityCard(status: group),
                 ],
               ),
             ),
-          ),
-        ],
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: cs.surface,
+                border: Border(top: BorderSide(color: cs.outlineVariant)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: _isRequesting
+                            ? null
+                            : _requestCorePermissions,
+                        icon: _isRequesting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.auto_fix_high),
+                        label: Text(
+                          _isRequesting
+                              ? 'Đang cấp quyền...'
+                              : 'Bắt đầu cấp quyền',
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _completeAndGoHome,
+                      child: const Text('Bỏ qua (không khuyến khích)'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
 
-  Future<void> _requestPermissions() async {
-    setState(() => _isRequesting = true);
-    try {
-      await ref
-          .read(permissionControllerProvider.notifier)
-          .requestAllPermissions(context);
-    } finally {
-      if (mounted) {
-        setState(() => _isRequesting = false);
-      }
-    }
+class _CapabilityCard extends StatelessWidget {
+  const _CapabilityCard({required this.status});
+
+  final CapabilityGroupStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  status.isGranted
+                      ? Icons.check_circle
+                      : status.group.isRequired
+                      ? Icons.shield_outlined
+                      : Icons.add_circle_outline,
+                  color: status.isGranted
+                      ? const Color(0xFF4CAF50)
+                      : status.group.isRequired
+                      ? cs.primary
+                      : cs.onSurfaceVariant,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    status.group.title,
+                    style: tt.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Text(
+                  status.group.isRequired ? 'Bắt buộc' : 'Tùy chọn',
+                  style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(status.group.description, style: tt.bodySmall),
+            for (final permission in status.missingPermissions)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                child: Text(permission),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

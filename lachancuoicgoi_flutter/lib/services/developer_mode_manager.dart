@@ -118,7 +118,11 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
       // If persist fails, revert in-memory state to avoid contradiction
       // between isActive (reads _activatedAtMs) and persisted state.
       _activatedAtMs = 0;
-      SystemLogger.instance.log(LogCategory.system, 'DeveloperMode.activate() persist failed: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.system,
+        'DeveloperMode.activate() persist failed: $e',
+        level: LogLevel.error,
+      );
     }
     if (!ref.mounted) return;
     _refreshState();
@@ -136,7 +140,11 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
     } on Object catch (e) {
       // Non-fatal — in-memory state is already cleared. On next restart
       // the restore will see an expired activation and deactivate.
-      SystemLogger.instance.log(LogCategory.system, 'DeveloperMode.deactivate() persist failed: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.system,
+        'DeveloperMode.deactivate() persist failed: $e',
+        level: LogLevel.error,
+      );
     }
   }
 

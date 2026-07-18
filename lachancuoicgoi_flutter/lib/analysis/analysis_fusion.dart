@@ -92,9 +92,7 @@ class AnalysisFusion {
 
     // Yellow-only signals: take max of yellows.
     return highest.index >= RiskLevel.yellow.index
-        ? (highest.index > RiskLevel.yellow.index
-              ? RiskLevel.yellow
-              : highest)
+        ? (highest.index > RiskLevel.yellow.index ? RiskLevel.yellow : highest)
         : highest;
   }
 

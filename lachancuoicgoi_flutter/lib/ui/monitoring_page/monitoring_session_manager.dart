@@ -31,7 +31,10 @@ class MonitoringSessionManager {
   }
 
   void saveSnapshot() {
-    if (controller.disposed || controller.currentState.isEndingSession) return;
+    if (controller.disposed ||
+        controller.currentState.phase != MonitoringPhase.active) {
+      return;
+    }
     if (controller.currentState.isSimulationMode) return;
     // Bug #40 fix: if there is no transcript AND no elapsed time, skip —
     // nothing meaningful to recover. The previous code skipped only when
@@ -48,14 +51,17 @@ class MonitoringSessionManager {
     // is SOME signal (RMS, partial). Without any signal there's nothing
     // useful to recover. Use audioHandler.hasReceivedAnyAudio instead of
     // state.peakAmplitude (which doesn't exist on MonitoringPageState).
-    if (state.transcript.trim().isEmpty && !controller.audioHandler.hasReceivedAnyAudio) {
+    if (state.transcript.trim().isEmpty &&
+        !controller.audioHandler.hasReceivedAnyAudio) {
       return;
     }
 
     unawaited(
       SessionRecoveryStore.save(
         SessionSnapshot(
-          phoneNumber: controller.phoneNumber ?? '',
+          // Keep the legacy snapshot key for backwards compatibility, but its
+          // value is always the privacy-safe masked number from native.
+          phoneNumber: controller.maskedNumber ?? '',
           transcript: state.transcript,
           elapsedSeconds: state.elapsedSeconds,
           riskLevel: state.riskLevel.storageName,
@@ -76,6 +82,10 @@ class MonitoringSessionManager {
 
     final snapshot = await SessionRecoveryStore.load();
     if (snapshot == null) return;
+    if (snapshot.elapsedSeconds <= 0 && snapshot.transcript.trim().isEmpty) {
+      await SessionRecoveryStore.clear();
+      return;
+    }
     final age = DateTime.now().difference(snapshot.startedAt);
     if (age >= SessionRecoveryStore.maxAge) {
       await SessionRecoveryStore.clear();
@@ -85,7 +95,6 @@ class MonitoringSessionManager {
     try {
       final bridge = controller.nativeBridge;
       if (await bridge.isMonitoringActive()) {
-        await SessionRecoveryStore.clear();
         return;
       }
     } on Exception {
@@ -107,10 +116,13 @@ class MonitoringSessionManager {
         recordingError: RecordingError.killed,
       );
       await db.insert(history);
-    } on Object catch (e) {
-      SystemLogger.instance.log(LogCategory.system, 'Session recovery failed: $e', level: LogLevel.error);
-    } finally {
       await SessionRecoveryStore.clear();
+    } on Object catch (e) {
+      SystemLogger.instance.log(
+        LogCategory.system,
+        'Session recovery failed: $e',
+        level: LogLevel.error,
+      );
     }
   }
 }

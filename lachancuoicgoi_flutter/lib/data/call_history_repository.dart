@@ -17,6 +17,7 @@ abstract class CallHistoryRepository {
   Future<CallHistory?> getById(int id);
   Future<void> deleteAll();
   Future<void> deleteById(int id);
+  Future<int> deleteOlderThan(DateTime cutoff);
   Future<void> updateRiskLevel(int id, String riskLevel);
   Future<void> update(CallHistory callHistory);
   Future<void> dispose();

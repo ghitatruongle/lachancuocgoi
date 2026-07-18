@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lachancuocgoi_flutter/services/permission_controller.dart';
+import 'package:lachancuocgoi_flutter/services/bridge_models.dart';
 
 /// Creates a [ProviderContainer] and returns the [PermissionController] notifier.
 /// This is the correct way to create a [Notifier]-based controller in tests.
@@ -294,6 +295,26 @@ void main() {
       expect(controller.state.snapshot.recordAudio, isTrue);
       expect(controller.state.snapshot.phoneState, isFalse);
       expect(controller.state.grantedCount, 1);
+    });
+
+    test('capability groups separate required and optional access', () {
+      const state = PermissionState(
+        snapshot: PermissionSnapshot(
+          recordAudio: true,
+          phoneState: true,
+          callLog: true,
+          notification: true,
+        ),
+      );
+      expect(state.essentialGranted, isTrue);
+      expect(state.allGranted, isFalse);
+      expect(state.capabilityGroups, hasLength(3));
+      expect(
+        state
+            .capabilityStatus(PermissionCapabilityGroup.enhancedProtection)
+            .isGranted,
+        isFalse,
+      );
     });
   });
 }

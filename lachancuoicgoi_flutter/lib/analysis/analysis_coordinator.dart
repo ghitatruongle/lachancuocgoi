@@ -27,8 +27,7 @@ class AnalysisCoordinator {
   }) : _l1Analyzer = l1Analyzer ?? L1Analyzer(),
        _l2Analyzer = l2Analyzer ?? L2Analyzer(),
        _l3Analyzer = l3Analyzer ?? L3Analyzer(),
-       _sessionDeescalation =
-           sessionDeescalation ?? RiskDeescalationMachine(),
+       _sessionDeescalation = sessionDeescalation ?? RiskDeescalationMachine(),
        _networkAvailableCallback = networkAvailable;
 
   static const int _minDeltaDefault = 50;
@@ -80,8 +79,8 @@ class AnalysisCoordinator {
       _measuredRtt = rtt;
     } else {
       _measuredRtt = Duration(
-        milliseconds:
-            (previous.inMilliseconds * 0.7 + rtt.inMilliseconds * 0.3).round(),
+        milliseconds: (previous.inMilliseconds * 0.7 + rtt.inMilliseconds * 0.3)
+            .round(),
       );
     }
   }
@@ -571,7 +570,8 @@ class AnalysisCoordinator {
       'l2_full': _l2Analyzer.isFullyReady ? 'OK' : 'degraded',
       'network': _isNetworkAvailable() ? 'online' : 'offline',
       if (fallbackTotal > 0)
-        'fallbacks': '$fallbackTotal (${FallbackTracker.instance.allCounts.entries.map((e) => '${e.key}:${e.value}').join(', ')})',
+        'fallbacks':
+            '$fallbackTotal (${FallbackTracker.instance.allCounts.entries.map((e) => '${e.key}:${e.value}').join(', ')})',
     };
   }
 

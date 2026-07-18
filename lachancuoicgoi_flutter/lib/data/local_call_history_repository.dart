@@ -47,6 +47,9 @@ class LocalCallHistoryRepository implements CallHistoryRepository {
   Future<void> deleteById(int id) => _dao.deleteById(id);
 
   @override
+  Future<int> deleteOlderThan(DateTime cutoff) => _dao.deleteOlderThan(cutoff);
+
+  @override
   Future<void> updateRiskLevel(int id, String riskLevel) =>
       _dao.updateRiskLevel(id, riskLevel);
 

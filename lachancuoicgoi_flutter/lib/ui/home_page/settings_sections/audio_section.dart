@@ -6,11 +6,7 @@ import 'theme_section.dart' show SettingToggleCard;
 
 /// Audio settings: audio boost + auto speakerphone toggles.
 class AudioSection extends StatelessWidget {
-  const AudioSection({
-    super.key,
-    required this.state,
-    required this.onChanged,
-  });
+  const AudioSection({super.key, required this.state, required this.onChanged});
 
   final SettingsState state;
   final ValueChanged<SettingsState> onChanged;

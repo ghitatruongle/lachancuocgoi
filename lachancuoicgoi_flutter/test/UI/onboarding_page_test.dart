@@ -128,9 +128,7 @@ void main() {
       expect(find.text('3/7 quyền đã cấp'), findsOneWidget);
     });
 
-    testWidgets('shows fewer missing items when some permissions granted', (
-      tester,
-    ) async {
+    testWidgets('continues when core permissions are granted', (tester) async {
       SharedPreferences.setMockInitialValues({});
       // Use 6 of 7 granted — NOT all, to avoid triggering context.go('/')
       await tester.pumpWidget(
@@ -148,12 +146,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 6/7 granted, only 1 missing
-      expect(find.text('6/7 quyền đã cấp'), findsOneWidget);
-      // Only "Sàng lọc cuộc gọi" should appear as missing
-      expect(find.text('Sàng lọc cuộc gọi'), findsOneWidget);
-      // Other items should NOT appear
-      expect(find.text('Ghi âm'), findsNothing);
+      expect(find.text('Home'), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('onboarding_completed'), isTrue);
     });
 
     testWidgets('skip button marks onboarding as completed', (tester) async {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 import 'android_call_shield_bridge.dart';
 import 'bridge_models.dart';
@@ -33,6 +34,7 @@ abstract class NativeBridgeInterface {
     String? phoneNumber,
     bool enableSpeakerphone = false,
   });
+
   Future<bool> stopMonitoring();
   Future<bool> startCreatorMonitoring({required int devModeExpiresAtMs});
   Future<bool> stopCreatorMonitoring();
@@ -57,6 +59,38 @@ abstract class NativeBridgeInterface {
   Stream<TranscriptUpdate> get transcriptStream;
   Stream<double> get rmsStream;
   Stream<(MonitoringState, int?, String?)> get monitoringStateStream;
-  Stream<CallEvent> get callEventStream;
+  Stream<NativeCallEvent> get callEventStream;
   Stream<String> get logsStream;
+}
+
+/// Optional v1.6 capability implemented by bridges that understand the typed
+/// native start-result wire schema.
+abstract interface class TypedMonitoringStartBridge {
+  Future<MonitoringStartResult> startMonitoringTyped({
+    String? phoneNumber,
+    bool enableSpeakerphone = false,
+  });
+}
+
+/// Typed adapter that keeps existing `NativeBridgeInterface` fakes compatible.
+/// Dart's `implements` does not inherit concrete methods, so making the new
+/// method part of the original interface would break every legacy embedder.
+extension NativeBridgeTypedMonitoringStart on NativeBridgeInterface {
+  Future<MonitoringStartResult> startMonitoringWithResult({
+    String? phoneNumber,
+    bool enableSpeakerphone = false,
+  }) async {
+    final bridge = this;
+    if (bridge case final TypedMonitoringStartBridge typedBridge) {
+      return typedBridge.startMonitoringTyped(
+        phoneNumber: phoneNumber,
+        enableSpeakerphone: enableSpeakerphone,
+      );
+    }
+    final legacyResult = await bridge.startMonitoring(
+      phoneNumber: phoneNumber,
+      enableSpeakerphone: enableSpeakerphone,
+    );
+    return MonitoringStartResult.fromNative(legacyResult);
+  }
 }

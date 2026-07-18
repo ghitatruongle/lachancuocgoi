@@ -29,19 +29,16 @@ void main() {
       },
     );
 
-    test(
-      'BUG-REBUILD-3: long transcript (5000 chars) copyWith < 200ms',
-      () {
-        final long = 'x' * 5000;
-        const base = MonitoringPageState();
-        final sw = Stopwatch()..start();
-        var cur = base;
-        for (var i = 0; i < 10; i++) {
-          cur = cur.copyWith(transcript: long);
-        }
-        sw.stop();
-        expect(sw.elapsedMilliseconds, lessThan(200));
-      },
-    );
+    test('BUG-REBUILD-3: long transcript (5000 chars) copyWith < 200ms', () {
+      final long = 'x' * 5000;
+      const base = MonitoringPageState();
+      final sw = Stopwatch()..start();
+      var cur = base;
+      for (var i = 0; i < 10; i++) {
+        cur = cur.copyWith(transcript: long);
+      }
+      sw.stop();
+      expect(sw.elapsedMilliseconds, lessThan(200));
+    });
   });
 }

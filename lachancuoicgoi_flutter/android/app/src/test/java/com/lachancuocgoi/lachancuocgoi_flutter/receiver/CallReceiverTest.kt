@@ -66,8 +66,9 @@ class CallReceiverTest {
         verify(atLeast = 1) {
             NativeBridgeEventSink.sendCallEvent(match { event ->
                 event["type"] == "RINGING" &&
-                    event["phoneNumber"] == "+84912345678" &&
-                    event["numberAvailable"] == true
+                    event["maskedNumber"] == "••••5678" &&
+                    event["numberAvailable"] == true &&
+                    !event.containsKey("phoneNumber")
             })
         }
     }
@@ -85,8 +86,9 @@ class CallReceiverTest {
         verify(atLeast = 1) {
             NativeBridgeEventSink.sendCallEvent(match { event ->
                 event["type"] == "RINGING" &&
-                    event["phoneNumber"] == "Số lạ" &&
-                    event["numberAvailable"] == false
+                    event["maskedNumber"] == null &&
+                    event["numberAvailable"] == false &&
+                    !event.containsKey("phoneNumber")
             })
         }
     }
@@ -102,8 +104,9 @@ class CallReceiverTest {
 
         verify(atLeast = 1) {
             NativeBridgeEventSink.sendCallEvent(match { event ->
-                event["phoneNumber"] == "Số lạ" &&
-                    event["numberAvailable"] == false
+                event["maskedNumber"] == null &&
+                    event["numberAvailable"] == false &&
+                    !event.containsKey("phoneNumber")
             })
         }
     }

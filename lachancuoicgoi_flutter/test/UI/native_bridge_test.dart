@@ -76,6 +76,30 @@ void main() {
       );
     });
 
+    test('startMonitoringWithResult parses typed native map', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methodChannel, (call) async {
+            methodCalls.add(call);
+            return <String, Object?>{
+              'status': 'backgroundStartDenied',
+              'message': 'Không thể chạy từ nền',
+            };
+          });
+
+      final result = await bridge.startMonitoringWithResult();
+
+      expect(result.status, MonitoringStartStatus.backgroundStartDenied);
+      expect(result.message, 'Không thể chạy từ nền');
+      expect(result.isSuccess, isFalse);
+    });
+
+    test('legacy true remains a typed started result', () async {
+      final result = await bridge.startMonitoringWithResult();
+
+      expect(result.status, MonitoringStartStatus.started);
+      expect(result.isSuccess, isTrue);
+    });
+
     test('stopMonitoring sends correct method', () async {
       final result = await bridge.stopMonitoring();
 
@@ -303,6 +327,17 @@ void main() {
   });
 
   group('NativeCallShieldBridge — Data Models', () {
+    test('MonitoringStartResult rejects unknown and null responses', () {
+      expect(
+        MonitoringStartResult.fromNative({'status': 'unknown'}).status,
+        MonitoringStartStatus.nativeFailure,
+      );
+      expect(
+        MonitoringStartResult.fromNative(null).status,
+        MonitoringStartStatus.nativeFailure,
+      );
+    });
+
     test('MonitoringState falls back to idle for unknown value', () {
       final (state, duration, transcript) = MonitoringState.parse(
         'SOMETHING_ELSE',
@@ -347,25 +382,29 @@ void main() {
       expect(state, MonitoringState.networkLost);
     });
 
-    test('CallEvent parses from map', () {
-      final event = CallEvent.fromMap({
+    test('NativeCallEvent parses canonical map', () {
+      final event = NativeCallEvent.fromMap({
         'type': 'RINGING',
-        'phoneNumber': '+84912345678',
-        'source': 'telecom',
+        'timestampMs': 123456,
+        'reason': 'telecom',
+        'numberAvailable': true,
+        'maskedNumber': '******5678',
       });
       expect(event.type, 'RINGING');
-      expect(event.phoneNumber, '+84912345678');
-      expect(event.source, 'telecom');
+      expect(event.timestampMs, 123456);
+      expect(event.reason, 'telecom');
+      expect(event.numberAvailable, isTrue);
+      expect(event.maskedNumber, '******5678');
     });
 
-    test('CallEvent handles partial map', () {
-      final event = CallEvent.fromMap({'type': 'ENDED'});
+    test('NativeCallEvent handles partial map', () {
+      final event = NativeCallEvent.fromMap({'type': 'ENDED'});
       expect(event.type, 'ENDED');
-      expect(event.phoneNumber, isNull);
+      expect(event.maskedNumber, isNull);
     });
 
-    test('CallEvent handles empty map', () {
-      final event = CallEvent.fromMap(<Object?, Object?>{});
+    test('NativeCallEvent handles empty map', () {
+      final event = NativeCallEvent.fromMap(<Object?, Object?>{});
       expect(event.type, 'UNKNOWN');
     });
 

@@ -47,34 +47,48 @@ void main() {
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
-      expect(find.byType(HistoryPage), findsOneWidget,
-          reason: 'HistoryPage should be mounted');
+      expect(
+        find.byType(HistoryPage),
+        findsOneWidget,
+        reason: 'HistoryPage should be mounted',
+      );
     }
 
-    testWidgets('Insert CallHistory → history list updates without remount',
-        (tester) async {
+    testWidgets('Insert CallHistory → history list updates without remount', (
+      tester,
+    ) async {
       await bootHistory(tester);
 
-      expect(find.text('Lịch sử trống.'), findsOneWidget,
-          reason: 'Should show empty state when no rows exist');
+      expect(
+        find.text('Lịch sử trống.'),
+        findsOneWidget,
+        reason: 'Should show empty state when no rows exist',
+      );
 
-      await harness.db.insert(_row(
-        summary: 'Test scam call',
-        transcript: 'OTP',
-      ));
+      await harness.db.insert(
+        _row(summary: 'Test scam call', transcript: 'OTP'),
+      );
 
       await tester.pump(const Duration(milliseconds: 100));
       for (var i = 0; i < 3; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      expect(find.text('Lịch sử trống.'), findsNothing,
-          reason: 'Empty state should disappear after insert');
-      expect(find.text('Test scam call'), findsOneWidget,
-          reason: 'Inserted row should appear in list');
+      expect(
+        find.text('Lịch sử trống.'),
+        findsNothing,
+        reason: 'Empty state should disappear after insert',
+      );
+      expect(
+        find.text('Test scam call'),
+        findsOneWidget,
+        reason: 'Inserted row should appear in list',
+      );
     });
 
-    testWidgets('Pull-to-refresh updates the list (idempotent)', (tester) async {
+    testWidgets('Pull-to-refresh updates the list (idempotent)', (
+      tester,
+    ) async {
       await bootHistory(tester);
 
       await harness.db.insert(_row(summary: 'Alpha', riskLevel: 'GREEN'));
@@ -99,8 +113,9 @@ void main() {
       await bootHistory(tester);
 
       await harness.db.insert(_row(summary: 'Green call', riskLevel: 'GREEN'));
-      await harness.db
-          .insert(_row(summary: 'Orange call', riskLevel: 'ORANGE'));
+      await harness.db.insert(
+        _row(summary: 'Orange call', riskLevel: 'ORANGE'),
+      );
       await harness.db.insert(_row(summary: 'Red call', riskLevel: 'RED'));
       for (var i = 0; i < 3; i++) {
         await tester.pump(const Duration(milliseconds: 50));
@@ -118,12 +133,21 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 1000));
       await tester.pumpAndSettle();
 
-      expect(find.text('Red call'), findsOneWidget,
-          reason: 'The RED record should be the only visible row');
-      expect(find.text('Green call'), findsNothing,
-          reason: 'The GREEN record should be filtered out');
-      expect(find.text('Orange call'), findsNothing,
-          reason: 'The ORANGE record should be filtered out');
+      expect(
+        find.text('Red call'),
+        findsOneWidget,
+        reason: 'The RED record should be the only visible row',
+      );
+      expect(
+        find.text('Green call'),
+        findsNothing,
+        reason: 'The GREEN record should be filtered out',
+      );
+      expect(
+        find.text('Orange call'),
+        findsNothing,
+        reason: 'The ORANGE record should be filtered out',
+      );
     });
   });
 }

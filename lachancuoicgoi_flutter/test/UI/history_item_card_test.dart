@@ -16,6 +16,10 @@ void main() {
     String duration = '5 phút',
     int flagCount = 3,
     String? analysisType,
+    String transcript = 'test transcript',
+    String analysisResult =
+        '{"overallRiskLevel":"RED","matches":[],"analysisLevel":"l1"}',
+    String? recordingError,
   }) {
     return CallHistory(
       id: 1,
@@ -24,8 +28,10 @@ void main() {
       summary: summary,
       duration: duration,
       flagCount: flagCount,
-      transcript: 'test transcript',
+      transcript: transcript,
+      analysisResult: analysisResult,
       analysisType: analysisType,
+      recordingError: recordingError,
     );
   }
 
@@ -168,6 +174,58 @@ void main() {
       // The 4px wide risk color bar container exists
       final containers = find.byType(Container);
       expect(containers, findsWidgets);
+    });
+
+    testWidgets('never labels a no-audio green session as safe', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          HistoryItemCard(
+            item: makeItem(
+              riskLevel: 'GREEN',
+              summary: 'An toàn',
+              transcript: '',
+              recordingError: 'noAudio',
+            ),
+            onTap: () {},
+          ),
+        ),
+      );
+
+      expect(find.text('Không thu được âm thanh'), findsOneWidget);
+      expect(find.text('An toàn'), findsNothing);
+      expect(find.textContaining('kiểm tra quyền micro'), findsOneWidget);
+    });
+
+    testWidgets('shows interrupted label for killed sessions', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          HistoryItemCard(
+            item: makeItem(recordingError: 'killed'),
+            onTap: () {},
+          ),
+        ),
+      );
+
+      expect(find.text('Phiên bị gián đoạn'), findsOneWidget);
+      expect(find.textContaining('thực hiện lại'), findsOneWidget);
+    });
+
+    testWidgets('invalid analysis payload cannot produce a safe badge', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          HistoryItemCard(
+            item: makeItem(riskLevel: 'GREEN', analysisResult: '{broken'),
+            onTap: () {},
+          ),
+        ),
+      );
+
+      expect(find.text('Kết quả chưa hoàn chỉnh'), findsOneWidget);
+      expect(find.text('An toàn'), findsNothing);
     });
   });
 }

@@ -19,16 +19,18 @@ void main() {
     'riskLevels': [
       {
         'level': 3,
-        'threats': {'PII': ['mã otp']},
+        'threats': {
+          'PII': ['mã otp'],
+        },
         'keywords': ['mã otp', 'công an'],
       },
     ],
   });
 
   L1Analyzer newL1() => L1Analyzer(
-        vocabularyProvider: () => vocabJson,
-        bigramCorrectionsProvider: () => '{"corrections":[]}',
-      );
+    vocabularyProvider: () => vocabJson,
+    bigramCorrectionsProvider: () => '{"corrections":[]}',
+  );
 
   group('BUG-HUNT-L1 — Unicode + boundary inputs', () {
     test(
@@ -75,8 +77,7 @@ void main() {
       },
     );
 
-    test('BUG-L1-3: extremely long input (>5000 chars) does not OOM',
-        () async {
+    test('BUG-L1-3: extremely long input (>5000 chars) does not OOM', () async {
       final l1 = newL1();
       await l1.initialize();
       final longText = 'xin chào ' * 1000; // ~9000 chars, no keyword
@@ -84,16 +85,16 @@ void main() {
       expect(result.overallRiskLevel, RiskLevel.green);
     });
 
-    test(
-      'BUG-L1-4: L1 keyword match across punctuation boundary',
-      () async {
-        final l1 = newL1();
-        await l1.initialize();
-        const text = 'Hãy cho tôi biết:mã otp ngay!';
-        final result = await l1.analyzeStream(text);
-        expect(result.matches, isNotEmpty,
-            reason: 'L1 should detect "mã otp" even when surrounded by :!');
-      },
-    );
+    test('BUG-L1-4: L1 keyword match across punctuation boundary', () async {
+      final l1 = newL1();
+      await l1.initialize();
+      const text = 'Hãy cho tôi biết:mã otp ngay!';
+      final result = await l1.analyzeStream(text);
+      expect(
+        result.matches,
+        isNotEmpty,
+        reason: 'L1 should detect "mã otp" even when surrounded by :!',
+      );
+    });
   });
 }

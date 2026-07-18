@@ -14,6 +14,7 @@ import com.lachancuocgoi.lachancuocgoi_flutter.MainActivity
 import com.lachancuocgoi.lachancuocgoi_flutter.R
 import com.lachancuocgoi.lachancuocgoi_flutter.services.BackgroundMonitoringService
 import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeEventSink
+import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeCallEvent
 
 /**
  * Listens for `PHONE_STATE` broadcasts and shows an "incoming call detected"
@@ -58,9 +59,10 @@ class CallReceiver : BroadcastReceiver() {
             @Suppress("DEPRECATION")
             val phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
             val numberAvailable = !phoneNumber.isNullOrBlank()
-            val displayNumber = phoneNumber?.takeIf { it.isNotBlank() } ?: "Số lạ"
+            val maskedNumber = NativeCallEvent.maskPhoneNumber(phoneNumber)
+            val displayNumber = maskedNumber ?: "Số lạ"
 
-            Log.d(TAG, "Phone state changed: $state, number: $phoneNumber, available: $numberAvailable")
+            Log.d(TAG, "Phone state changed: $state, number: $maskedNumber, available: $numberAvailable")
 
             if (state == TelephonyManager.EXTRA_STATE_RINGING) {
                 Log.d(TAG, "Incoming call detected! Showing Notification (numberAvailable=$numberAvailable)")
@@ -69,28 +71,33 @@ class CallReceiver : BroadcastReceiver() {
                     // Bug #6 fix: emit numberAvailable flag so Flutter can decide
                     // whether to ask the user for the number manually.
                     NativeBridgeEventSink.sendCallEvent(
-                        mapOf(
-                            "type" to "RINGING",
-                            "phoneNumber" to displayNumber,
-                            "numberAvailable" to numberAvailable,
-                        )
+                        NativeCallEvent.create(
+                            type = "RINGING",
+                            reason = "phone_state_ringing",
+                            rawNumber = phoneNumber,
+                            numberAvailable = numberAvailable,
+                        ).toMap()
                     )
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to show notification", e)
                 }
             } else if (state == TelephonyManager.EXTRA_STATE_IDLE) {
                 NativeBridgeEventSink.sendCallEvent(
-                    mapOf(
-                        "type" to "IDLE",
-                        "numberAvailable" to numberAvailable,
-                    )
+                    NativeCallEvent.create(
+                        type = "IDLE",
+                        reason = "phone_state_idle",
+                        rawNumber = phoneNumber,
+                        numberAvailable = numberAvailable,
+                    ).toMap()
                 )
             } else if (state == TelephonyManager.EXTRA_STATE_OFFHOOK) {
                 NativeBridgeEventSink.sendCallEvent(
-                    mapOf(
-                        "type" to "OFFHOOK",
-                        "numberAvailable" to numberAvailable,
-                    )
+                    NativeCallEvent.create(
+                        type = "OFFHOOK",
+                        reason = "phone_state_offhook",
+                        rawNumber = phoneNumber,
+                        numberAvailable = numberAvailable,
+                    ).toMap()
                 )
             }
         }
@@ -114,7 +121,6 @@ class CallReceiver : BroadcastReceiver() {
 
         val monitorIntent = Intent(context, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_START
-            putExtra("PHONE_NUMBER", callerInfo)
         }
         val monitorPendingIntent = PendingIntent.getService(context, 1, monitorIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
@@ -126,7 +132,7 @@ class CallReceiver : BroadcastReceiver() {
         val fullScreenIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("NAVIGATE_TO_MONITORING", true) // Bug #5: forward to MainActivity.onNewIntent
-            putExtra("PHONE_NUMBER", callerInfo)
+            putExtra("CALL_EVENT_REASON", "incoming_call_notification")
         }
         val fullScreenPendingIntent = PendingIntent.getActivity(
             context, 0, fullScreenIntent,

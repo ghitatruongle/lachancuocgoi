@@ -5,29 +5,29 @@ import 'package:lachancuocgoi_flutter/analysis/l2/intent/scam_intent.dart';
 /// Must match the file exactly — the model ghitav3.tflite was trained with
 /// this ordering (confirmed via accuracy_per_label.md + stage34_master_mix.csv).
 const modelLabelOrder = <ScamIntent>[
-  ScamIntent.authPoliceLawsuit,   // 0
-  ScamIntent.taxGovApp,           // 1
-  ScamIntent.telecomLock,         // 2
-  ScamIntent.techSupportHijack,   // 3
-  ScamIntent.hospitalEmergency,   // 4
-  ScamIntent.virtualKidnapping,   // 5
-  ScamIntent.ceoFraudB2b,         // 6
-  ScamIntent.socialDeepfakeLoan,  // 7
-  ScamIntent.romanceScam,         // 8
+  ScamIntent.authPoliceLawsuit, // 0
+  ScamIntent.taxGovApp, // 1
+  ScamIntent.telecomLock, // 2
+  ScamIntent.techSupportHijack, // 3
+  ScamIntent.hospitalEmergency, // 4
+  ScamIntent.virtualKidnapping, // 5
+  ScamIntent.ceoFraudB2b, // 6
+  ScamIntent.socialDeepfakeLoan, // 7
+  ScamIntent.romanceScam, // 8
   ScamIntent.sextortionBlackmail, // 9
-  ScamIntent.charityDonation,     // 10
-  ScamIntent.investmentScam,      // 11
-  ScamIntent.jobTaskScam,         // 12
-  ScamIntent.giftLottery,         // 13
-  ScamIntent.gamblingPrediction,  // 14
+  ScamIntent.charityDonation, // 10
+  ScamIntent.investmentScam, // 11
+  ScamIntent.jobTaskScam, // 12
+  ScamIntent.giftLottery, // 13
+  ScamIntent.gamblingPrediction, // 14
   ScamIntent.immigrationVisaScam, // 15
-  ScamIntent.bankCardFraud,       // 16
-  ScamIntent.deliveryCod,         // 17
-  ScamIntent.fakeSubscription,    // 18
-  ScamIntent.blackCreditTerror,   // 19
-  ScamIntent.recoveryScam,        // 20
-  ScamIntent.genericScam,         // 21  ← NOT fakeEcommerce
-  ScamIntent.safe,                // 22  ← NOT cryptoDrain
+  ScamIntent.bankCardFraud, // 16
+  ScamIntent.deliveryCod, // 17
+  ScamIntent.fakeSubscription, // 18
+  ScamIntent.blackCreditTerror, // 19
+  ScamIntent.recoveryScam, // 20
+  ScamIntent.genericScam, // 21  ← NOT fakeEcommerce
+  ScamIntent.safe, // 22  ← NOT cryptoDrain
 ];
 
 void main() {
@@ -73,8 +73,11 @@ void main() {
 
     test('first 21 entries match intentLabels (indices 0-20)', () {
       for (var i = 0; i < 21; i++) {
-        expect(modelLabelOrder[i], intentLabels[i],
-            reason: 'Index $i should match between model and app labels');
+        expect(
+          modelLabelOrder[i],
+          intentLabels[i],
+          reason: 'Index $i should match between model and app labels',
+        );
       }
     });
 

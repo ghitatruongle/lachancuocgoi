@@ -23,7 +23,8 @@ export 'native_bridge_interface.dart';
 // clean Android-only MethodChannel bridge (functionally equivalent to
 // [AndroidCallShieldBridge]).
 
-class NativeCallShieldBridge implements NativeBridgeInterface {
+class NativeCallShieldBridge
+    implements NativeBridgeInterface, TypedMonitoringStartBridge {
   NativeCallShieldBridge._();
 
   static final NativeCallShieldBridge instance = NativeCallShieldBridge._();
@@ -41,9 +42,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   static const _callEventChannel = EventChannel(
     'com.lachancuocgoi/call_events',
   );
-  static const _logsChannel = EventChannel(
-    'com.lachancuocgoi/logs',
-  );
+  static const _logsChannel = EventChannel('com.lachancuocgoi/logs');
 
   /// Default MethodChannel timeout (same posture as [AndroidCallShieldBridge]).
   static const Duration _defaultTimeout = Duration(seconds: 5);
@@ -90,10 +89,47 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
     String? phoneNumber,
     bool enableSpeakerphone = false,
   }) async {
-    return _invokeBool('startMonitoring', {
-      'phoneNumber': phoneNumber,
-      'enableSpeakerphone': enableSpeakerphone,
-    });
+    final result = await startMonitoringTyped(
+      phoneNumber: phoneNumber,
+      enableSpeakerphone: enableSpeakerphone,
+    );
+    return result.isSuccess;
+  }
+
+  @override
+  Future<MonitoringStartResult> startMonitoringTyped({
+    String? phoneNumber,
+    bool enableSpeakerphone = false,
+  }) async {
+    try {
+      final raw = await _methodChannel
+          .invokeMethod<Object?>('startMonitoring', {
+            'phoneNumber': phoneNumber,
+            'enableSpeakerphone': enableSpeakerphone,
+          })
+          .timeout(_defaultTimeout);
+      return MonitoringStartResult.fromNative(raw);
+    } on TimeoutException {
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.startMonitoring timed out',
+        level: LogLevel.warning,
+      );
+      return const MonitoringStartResult(
+        MonitoringStartStatus.nativeFailure,
+        message: 'Dịch vụ giám sát phản hồi quá chậm.',
+      );
+    } on PlatformException catch (e) {
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.startMonitoring error: $e',
+        level: LogLevel.error,
+      );
+      return MonitoringStartResult(
+        MonitoringStartStatus.nativeFailure,
+        message: e.message ?? 'Dịch vụ giám sát không thể khởi động.',
+      );
+    }
   }
 
   @override
@@ -246,10 +282,11 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<void> setCallScreeningBlockEnabled(bool enabled) async {
     try {
-      await _methodChannel.invokeMethod<void>(
-        'setCallScreeningBlockEnabled',
-        {'enabled': enabled},
-      ).timeout(_defaultTimeout);
+      await _methodChannel
+          .invokeMethod<void>('setCallScreeningBlockEnabled', {
+            'enabled': enabled,
+          })
+          .timeout(_defaultTimeout);
     } on Exception catch (e) {
       SystemLogger.instance.log(
         LogCategory.bridge,
@@ -262,10 +299,9 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<void> setBlockedNumbers(List<String> numbers) async {
     try {
-      await _methodChannel.invokeMethod<void>(
-        'setBlockedNumbers',
-        {'numbers': numbers},
-      ).timeout(_defaultTimeout);
+      await _methodChannel
+          .invokeMethod<void>('setBlockedNumbers', {'numbers': numbers})
+          .timeout(_defaultTimeout);
     } on Exception catch (e) {
       SystemLogger.instance.log(
         LogCategory.bridge,
@@ -310,11 +346,11 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       .map((event) => MonitoringState.parse(event?.toString() ?? ''))
       .asBroadcastStream();
 
-  late final Stream<CallEvent> _cachedCallEventStream = _callEventChannel
+  late final Stream<NativeCallEvent> _cachedCallEventStream = _callEventChannel
       .receiveBroadcastStream()
       .map((event) {
-        if (event is Map) return CallEvent.fromMap(event);
-        return const CallEvent(type: 'UNKNOWN');
+        if (event is Map) return NativeCallEvent.fromMap(event);
+        return const NativeCallEvent(type: 'UNKNOWN');
       })
       .asBroadcastStream();
 
@@ -334,7 +370,7 @@ class NativeCallShieldBridge implements NativeBridgeInterface {
       _cachedMonitoringStateStream;
 
   @override
-  Stream<CallEvent> get callEventStream => _cachedCallEventStream;
+  Stream<NativeCallEvent> get callEventStream => _cachedCallEventStream;
 
   @override
   Stream<String> get logsStream => _cachedLogsStream;

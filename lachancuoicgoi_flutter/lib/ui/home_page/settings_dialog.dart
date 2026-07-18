@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import 'settings_sections/advanced_section.dart';
 import 'settings_sections/analysis_section.dart';
 import 'settings_sections/audio_section.dart';
+import 'settings_sections/privacy_section.dart';
 import 'settings_sections/theme_section.dart';
 
 class SettingsDialog extends ConsumerStatefulWidget {
@@ -91,6 +92,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
 
                     AnalysisSection(
                       selectedMode: settings.analysisMode,
+                      cloudConsentGranted: settings.cloudAnalysisConsent,
                       onModeSelected: (mode) =>
                           onChanged(settings.copyWith(analysisMode: mode)),
                     ),
@@ -99,10 +101,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                     AudioSection(state: settings, onChanged: onChanged),
                     const SizedBox(height: AppSpacing.sm),
 
-                    AdvancedSection(
-                      settings: settings,
-                      controller: controller,
-                    ),
+                    PrivacySection(settings: settings, controller: controller),
+                    const SizedBox(height: AppSpacing.sm),
+
+                    AdvancedSection(settings: settings, controller: controller),
                     const SizedBox(height: AppSpacing.sm),
                   ],
                 ),

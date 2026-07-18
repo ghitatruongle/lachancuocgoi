@@ -48,22 +48,27 @@ class SimulationController extends Notifier<SimulationUiState> {
     if (_allScenarios != null) return;
     try {
       final jsonStr = await rootBundle.loadString('assets/situation_test.json');
-      final raw = jsonDecode(jsonStr) as List<dynamic>;
+      final decoded = jsonDecode(jsonStr);
+      final raw = decoded is List
+          ? decoded
+          : decoded is Map && decoded['scenarios'] is List
+          ? decoded['scenarios'] as List
+          : const <dynamic>[];
+      final seen = <String>{};
       _allScenarios = raw
+          .whereType<Map>()
           .map(
-            (e) => SimulationScenarioData.fromJson(e as Map<String, dynamic>),
-          )
-          .map(
-            (s) => SimulationScenarioData(
-              title: s.title,
-              description: s.description,
-              category: s.category.isEmpty ? 'Chung' : s.category,
-              riskLevel: s.riskLevel,
-              script: s.script,
-              iconEmoji: s.iconEmoji,
+            (entry) => SimulationScenarioData.fromJson(
+              entry.map((key, value) => MapEntry(key.toString(), value)),
             ),
           )
-          .toList();
+          .where(
+            (scenario) =>
+                scenario.title.trim().isNotEmpty &&
+                scenario.script.isNotEmpty &&
+                seen.add(scenario.id),
+          )
+          .toList(growable: false);
     } on Object catch (_) {
       _allScenarios = [];
     }
@@ -91,11 +96,13 @@ class SimulationController extends Notifier<SimulationUiState> {
     final effectiveDevMode =
         isDevMode ?? ref.read(developerModeProvider).isActive;
 
-    final sourceList = effectiveDevMode
-        ? scenarios
-        : scenarios.where((s) => normalModeTitles.contains(s.title)).toList();
+    final sourceList = effectiveDevMode ? scenarios : _normalCatalog(scenarios);
 
-    final categories = sourceList.map((s) => s.category).toSet().toList();
+    final categories = sourceList.map((s) => s.category).toSet().toList()
+      ..sort();
+    if (_selectedCategory != null && !categories.contains(_selectedCategory)) {
+      _selectedCategory = null;
+    }
 
     final filtered = sourceList.where((s) {
       final matchesSearch =
@@ -115,5 +122,39 @@ class SimulationController extends Notifier<SimulationUiState> {
       selectedCategory: _selectedCategory,
       isDevMode: effectiveDevMode,
     );
+  }
+
+  List<SimulationScenarioData> _normalCatalog(
+    List<SimulationScenarioData> scenarios,
+  ) {
+    final featured = scenarios
+        .where((scenario) => scenario.isFeatured)
+        .toList();
+    if (featured.isNotEmpty) {
+      return featured.take(normalSimulationCatalogSize).toList(growable: false);
+    }
+
+    final result = <SimulationScenarioData>[];
+    void addFirstWhere(bool Function(SimulationScenarioData) predicate) {
+      for (final scenario in scenarios) {
+        if (result.length >= normalSimulationCatalogSize) return;
+        if (predicate(scenario) && !result.contains(scenario)) {
+          result.add(scenario);
+          return;
+        }
+      }
+    }
+
+    addFirstWhere((scenario) => scenario.riskLevel == 'GREEN');
+    while (result.length < normalSimulationCatalogSize) {
+      final before = result.length;
+      addFirstWhere((scenario) => scenario.riskLevel == 'RED');
+      if (result.length == before) break;
+    }
+    for (final scenario in scenarios) {
+      if (result.length >= normalSimulationCatalogSize) break;
+      if (!result.contains(scenario)) result.add(scenario);
+    }
+    return List.unmodifiable(result);
   }
 }

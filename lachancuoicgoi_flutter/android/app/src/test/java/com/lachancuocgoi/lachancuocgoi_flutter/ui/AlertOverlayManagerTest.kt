@@ -58,7 +58,7 @@ class AlertOverlayManagerTest {
      * Helper severity enum for testing (mirrors production enum).
      */
     private enum class Severity {
-        RED, ORANGE, YELLOW, GREEN;
+        GREEN, YELLOW, ORANGE, RED;
 
         val requiresImmediateAction: Boolean get() = this == RED
         val requiresUserAwareness: Boolean get() = this == ORANGE

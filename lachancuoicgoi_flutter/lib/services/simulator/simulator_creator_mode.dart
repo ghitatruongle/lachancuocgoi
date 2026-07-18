@@ -23,7 +23,10 @@ class SimulatorCreatorMode {
   final List<String> _lines;
   Timer? _timer;
   int _currentLineIndex = 0;
-  final _controller = StreamController<String>.broadcast();
+  // Deliver timer emissions synchronously so stop() forms a strict boundary:
+  // after it returns there is no already-queued transcript callback that can
+  // arrive later and make the simulator appear to keep running.
+  final _controller = StreamController<String>.broadcast(sync: true);
 
   /// Stream of cumulative transcript strings (line 0, then 0+1, then 0+1+2…).
   Stream<String> get transcriptStream => _controller.stream;

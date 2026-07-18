@@ -75,22 +75,133 @@ enum MonitoringState {
   }
 }
 
-/// A telephony call event from the native side.
-class CallEvent {
-  const CallEvent({required this.type, this.phoneNumber, this.source});
+/// Stable status values returned by the native `startMonitoring` method.
+enum MonitoringStartStatus {
+  started,
+  alreadyRunning,
+  permissionDenied,
+  backgroundStartDenied,
+  nativeFailure,
+}
 
-  final String type; // RINGING, OFFHOOK, IDLE, INCOMING, ENDED, SCREENING
-  final String? phoneNumber;
-  final String? source;
+/// Typed result for starting the platform monitoring service.
+///
+/// Android v1.6 returns a map with `status` and `message`. During a rolling
+/// upgrade (and in older test doubles), a legacy boolean is still accepted so
+/// Flutter never mistakes a channel type mismatch for a successful start.
+class MonitoringStartResult {
+  const MonitoringStartResult(this.status, {this.message});
 
-  factory CallEvent.fromMap(Map<Object?, Object?> map) {
-    return CallEvent(
-      type: map['type'] as String? ?? 'UNKNOWN',
-      phoneNumber: map['phoneNumber'] as String?,
-      source: map['source'] as String?,
+  final MonitoringStartStatus status;
+  final String? message;
+
+  bool get isSuccess =>
+      status == MonitoringStartStatus.started ||
+      status == MonitoringStartStatus.alreadyRunning;
+
+  factory MonitoringStartResult.fromNative(Object? value) {
+    if (value is bool) {
+      return value
+          ? const MonitoringStartResult(MonitoringStartStatus.started)
+          : const MonitoringStartResult(
+              MonitoringStartStatus.nativeFailure,
+              message: 'Dịch vụ giám sát không thể khởi động.',
+            );
+    }
+
+    if (value is Map) {
+      final statusValue = value['status']?.toString();
+      final messageValue = value['message']?.toString().trim();
+      final status = switch (statusValue) {
+        'started' => MonitoringStartStatus.started,
+        'alreadyRunning' => MonitoringStartStatus.alreadyRunning,
+        'permissionDenied' => MonitoringStartStatus.permissionDenied,
+        'backgroundStartDenied' => MonitoringStartStatus.backgroundStartDenied,
+        'nativeFailure' => MonitoringStartStatus.nativeFailure,
+        _ => MonitoringStartStatus.nativeFailure,
+      };
+      return MonitoringStartResult(
+        status,
+        message: messageValue == null || messageValue.isEmpty
+            ? _defaultMessage(status)
+            : messageValue,
+      );
+    }
+
+    return const MonitoringStartResult(
+      MonitoringStartStatus.nativeFailure,
+      message: 'Phản hồi khởi động giám sát không hợp lệ.',
+    );
+  }
+
+  static String? _defaultMessage(MonitoringStartStatus status) =>
+      switch (status) {
+        MonitoringStartStatus.started ||
+        MonitoringStartStatus.alreadyRunning => null,
+        MonitoringStartStatus.permissionDenied =>
+          'Chưa cấp đủ quyền để bắt đầu giám sát.',
+        MonitoringStartStatus.backgroundStartDenied =>
+          'Android không cho phép khởi động giám sát từ nền.',
+        MonitoringStartStatus.nativeFailure =>
+          'Dịch vụ giám sát không thể khởi động.',
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MonitoringStartResult &&
+          status == other.status &&
+          message == other.message;
+
+  @override
+  int get hashCode => Object.hash(status, message);
+}
+
+/// A privacy-safe telephony event emitted by the Android native layer.
+///
+/// The wire schema intentionally has no raw phone-number field. Consumers may
+/// display or persist [maskedNumber], but must never try to recover a number
+/// from legacy/unknown payload fields.
+class NativeCallEvent {
+  const NativeCallEvent({
+    required this.type,
+    this.timestampMs = 0,
+    this.reason,
+    this.numberAvailable = false,
+    this.maskedNumber,
+  });
+
+  final String type;
+  final int timestampMs;
+  final String? reason;
+  final bool numberAvailable;
+  final String? maskedNumber;
+
+  factory NativeCallEvent.fromMap(Map<Object?, Object?> map) {
+    final rawType = map['type'];
+    final rawTimestamp = map['timestampMs'];
+    final rawReason = map['reason'];
+    final rawMaskedNumber = map['maskedNumber'];
+    final numberAvailable = map['numberAvailable'] == true;
+
+    return NativeCallEvent(
+      type: rawType is String && rawType.isNotEmpty ? rawType : 'UNKNOWN',
+      timestampMs: rawTimestamp is num ? rawTimestamp.toInt() : 0,
+      reason: rawReason is String && rawReason.isNotEmpty ? rawReason : null,
+      numberAvailable: numberAvailable,
+      maskedNumber:
+          numberAvailable &&
+              rawMaskedNumber is String &&
+              rawMaskedNumber.isNotEmpty
+          ? rawMaskedNumber
+          : null,
     );
   }
 }
+
+/// Source-compatible name for older embedders. It resolves to the new,
+/// privacy-safe schema and therefore does not expose `phoneNumber` or `source`.
+typedef CallEvent = NativeCallEvent;
 
 /// Snapshot of all call-shield permissions at a point in time.
 class PermissionSnapshot {

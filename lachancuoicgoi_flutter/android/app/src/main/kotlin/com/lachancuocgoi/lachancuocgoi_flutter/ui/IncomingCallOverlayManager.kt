@@ -18,6 +18,8 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.lachancuocgoi.lachancuocgoi_flutter.services.BackgroundMonitoringService
+import com.lachancuocgoi.lachancuocgoi_flutter.services.ForegroundServiceLauncher
+import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeEventSink
 
 object IncomingCallOverlayManager {
 
@@ -175,14 +177,18 @@ object IncomingCallOverlayManager {
             setOnClickListener {
                 val monitorIntent = Intent(context, BackgroundMonitoringService::class.java).apply {
                     action = BackgroundMonitoringService.ACTION_START
-                    putExtra("PHONE_NUMBER", callerInfo)
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(monitorIntent)
+                val result = ForegroundServiceLauncher.safeStartForegroundService(
+                    context,
+                    monitorIntent,
+                )
+                if (result == ForegroundServiceLauncher.LaunchResult.SUCCESS) {
+                    removeIncomingCallOverlay(context)
                 } else {
-                    context.startService(monitorIntent)
+                    NativeBridgeEventSink.sendMonitoringState(
+                        "START_FAILED:backgroundStartDenied"
+                    )
                 }
-                removeIncomingCallOverlay(context)
             }
         }
         buttonRow.addView(monitorButton)

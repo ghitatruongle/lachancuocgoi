@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_mode.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_result.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_level.dart';
+import 'package:lachancuocgoi_flutter/core/analysis_availability.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/monitoring_controller.dart';
 
@@ -21,6 +22,8 @@ void main() {
       expect(state.analysisResult, isNull);
       expect(state.isAnalyzing, false);
       expect(state.isEndingSession, false);
+      expect(state.phase, MonitoringPhase.idle);
+      expect(state.availability, AnalysisAvailability.pending);
       expect(state.isSimulationMode, false);
       expect(state.selectedMode, AnalysisMode.normal);
       expect(state.effectiveMode, AnalysisMode.normal);
@@ -77,6 +80,16 @@ void main() {
       const a = MonitoringPageState(transcript: 'hello');
       const b = MonitoringPageState(transcript: 'hello');
       expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('phase is the source of lifecycle compatibility getters', () {
+      const active = MonitoringPageState(phase: MonitoringPhase.active);
+      const stopping = MonitoringPageState(phase: MonitoringPhase.stopping);
+
+      expect(active.isMonitoring, isTrue);
+      expect(active.isEndingSession, isFalse);
+      expect(stopping.isMonitoring, isFalse);
+      expect(stopping.isEndingSession, isTrue);
     });
   });
 

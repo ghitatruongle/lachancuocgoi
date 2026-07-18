@@ -27,8 +27,7 @@ class PlatformCapabilities {
   final bool isDemoMode;
 
   static PlatformCapabilities get current {
-    final android =
-        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    final android = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     return PlatformCapabilities(
       isAndroid: android,
       realCallMonitoring: android,

@@ -5,7 +5,8 @@ import '../core/system_logger.dart';
 import 'native_bridge_interface.dart';
 import 'simulator/simulator_scripts.dart';
 
-class SimulatorCallShieldBridge implements NativeBridgeInterface {
+class SimulatorCallShieldBridge
+    implements NativeBridgeInterface, TypedMonitoringStartBridge {
   SimulatorCallShieldBridge({SimulatorScript? script})
     : _script = script ?? SimulatorScriptCatalog.bankFraud;
 
@@ -22,7 +23,7 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
   final _iosTranscriptController =
       StreamController<TranscriptUpdate>.broadcast();
   final _iosRmsController = StreamController<double>.broadcast();
-  final _iosCallEventController = StreamController<CallEvent>.broadcast();
+  final _iosCallEventController = StreamController<NativeCallEvent>.broadcast();
   final _iosLogsController = StreamController<String>.broadcast();
 
   void _startSimulation() {
@@ -104,14 +105,30 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
     String? phoneNumber,
     bool enableSpeakerphone = false,
   }) async {
+    final result = await startMonitoringTyped(
+      phoneNumber: phoneNumber,
+      enableSpeakerphone: enableSpeakerphone,
+    );
+    return result.isSuccess;
+  }
+
+  @override
+  Future<MonitoringStartResult> startMonitoringTyped({
+    String? phoneNumber,
+    bool enableSpeakerphone = false,
+  }) async {
+    if (_iosMonitoringActive) {
+      return const MonitoringStartResult(MonitoringStartStatus.alreadyRunning);
+    }
     _iosMonitoringActive = true;
     _iosMonitoringStateController.add((MonitoringState.started, null, null));
     _startSimulation();
-    return true;
+    return const MonitoringStartResult(MonitoringStartStatus.started);
   }
 
   @override
   Future<bool> stopMonitoring() async {
+    if (!_iosMonitoringActive) return true;
     _iosMonitoringActive = false;
     _stopSimulation();
     final duration = _iosStartTime != null
@@ -130,6 +147,7 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
 
   @override
   Future<bool> startCreatorMonitoring({required int devModeExpiresAtMs}) async {
+    if (_iosCreatorMonitoringActive) return true;
     _iosCreatorMonitoringActive = true;
     _iosMonitoringStateController.add((MonitoringState.started, null, null));
     _startSimulation();
@@ -138,6 +156,7 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
 
   @override
   Future<bool> stopCreatorMonitoring() async {
+    if (!_iosCreatorMonitoringActive) return true;
     _iosCreatorMonitoringActive = false;
     _stopSimulation();
     final duration = _iosStartTime != null
@@ -156,19 +175,28 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
 
   @override
   Future<bool> showRedAlert(String reason) async {
-    SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: RED ALERT displayed - $reason');
+    SystemLogger.instance.log(
+      LogCategory.bridge,
+      'iOS Simulation: RED ALERT displayed - $reason',
+    );
     return true;
   }
 
   @override
   Future<bool> showOrangeAlert(String reason) async {
-    SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: ORANGE ALERT displayed - $reason');
+    SystemLogger.instance.log(
+      LogCategory.bridge,
+      'iOS Simulation: ORANGE ALERT displayed - $reason',
+    );
     return true;
   }
 
   @override
   Future<bool> dismissAlert() async {
-    SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: Alert dismissed');
+    SystemLogger.instance.log(
+      LogCategory.bridge,
+      'iOS Simulation: Alert dismissed',
+    );
     return true;
   }
 
@@ -210,12 +238,18 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
 
   @override
   Future<void> showIncomingCallOverlay(String callerInfo) async {
-    SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: Incoming Call Overlay shown - $callerInfo');
+    SystemLogger.instance.log(
+      LogCategory.bridge,
+      'iOS Simulation: Incoming Call Overlay shown - $callerInfo',
+    );
   }
 
   @override
   Future<void> dismissIncomingCallOverlay() async {
-    SystemLogger.instance.log(LogCategory.bridge, 'iOS Simulation: Incoming Call Overlay dismissed');
+    SystemLogger.instance.log(
+      LogCategory.bridge,
+      'iOS Simulation: Incoming Call Overlay dismissed',
+    );
   }
 
   // Phase 2 (P2-4): Call screening opt-in — no-op on simulator platforms.
@@ -237,7 +271,7 @@ class SimulatorCallShieldBridge implements NativeBridgeInterface {
       _iosMonitoringStateController.stream;
 
   @override
-  Stream<CallEvent> get callEventStream => _iosCallEventController.stream;
+  Stream<NativeCallEvent> get callEventStream => _iosCallEventController.stream;
 
   @override
   Stream<String> get logsStream => _iosLogsController.stream;
