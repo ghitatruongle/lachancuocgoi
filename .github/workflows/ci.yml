@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
@@ -183,7 +183,7 @@ jobs:
             target: google_apis_ps16k
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
@@ -215,7 +215,7 @@ jobs:
         api: [26, 33, 35, 36]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
