@@ -413,14 +413,15 @@ void main() {
         recordAudio: true,
         phoneState: true,
         callLog: true,
+        answerPhoneCalls: true,
         overlay: true,
         notification: true,
         accessibility: true,
         callScreening: true,
       );
       expect(snapshot.allGranted, isTrue);
-      expect(snapshot.grantedCount, 7);
-      expect(PermissionSnapshot.totalPermissions, 7);
+      expect(snapshot.grantedCount, 8);
+      expect(PermissionSnapshot.totalPermissions, 8);
     });
 
     test('PermissionSnapshot default all false', () {
@@ -452,6 +453,7 @@ void main() {
         recordAudio: true,
         phoneState: true,
         callLog: true,
+        answerPhoneCalls: true,
         overlay: true,
         notification: true,
         accessibility: true,
@@ -461,6 +463,7 @@ void main() {
         recordAudio: true,
         phoneState: true,
         callLog: true,
+        answerPhoneCalls: true,
         overlay: true,
         notification: true,
         accessibility: true,

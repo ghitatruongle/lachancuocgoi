@@ -51,11 +51,10 @@ GeminiErrorType classifyGeminiError(Object? error) {
 /// The client tries each model in order, falling back to the next on failure.
 /// Priority: newest/most capable first → oldest/lightest last.
 const List<String> geminiFallbackModels = <String>[
-  'gemini-3.5-flash', // Ưu tiên 1: Model mới nhất, mạnh nhất
-  'gemini-3.1-flash-lite', // Ưu tiên 2: Fallback nhẹ hơn
-  'gemini-3-flash', // Ưu tiên 3: Thế hệ 3 cơ bản
-  'gemini-2.5-flash', // Ưu tiên 4: Thế hệ 2.5 đầy đủ
-  'gemini-2.5-flash-lite', // Ưu tiên 5 (cuối): Nhẹ nhất, fallback an toàn
+  'gemini-flash-latest', // Alias ổn định, đã kiểm tra trực tiếp với API.
+  'gemini-3-flash', // Thế hệ 3 đầy đủ.
+  'gemini-2.5-flash', // Fallback ổn định thế hệ 2.5.
+  'gemini-2.5-flash-lite', // Fallback nhẹ nhất.
 ];
 
 class GeminiClient {

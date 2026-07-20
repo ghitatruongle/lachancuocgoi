@@ -1,7 +1,10 @@
+@file:Suppress("DEPRECATION")
+
 package com.lachancuocgoi.lachancuocgoi_flutter.receiver
 
 import android.content.Context
 import android.content.Intent
+import android.app.NotificationManager
 import android.os.Looper
 import android.telephony.TelephonyManager
 import androidx.test.core.app.ApplicationProvider
@@ -12,6 +15,9 @@ import io.mockk.unmockkObject
 import io.mockk.verify
 import org.junit.After
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,6 +46,12 @@ class CallReceiverTest {
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
         receiver = CallReceiver()
+        context.getSharedPreferences("call_session_coordinator", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .cancelAll()
         mockkObject(NativeBridgeEventSink, recordPrivateCalls = false)
         every { NativeBridgeEventSink.sendCallEvent(any()) } returns Unit
         every { NativeBridgeEventSink.sendLog(any(), any(), any()) } returns Unit
@@ -151,23 +163,66 @@ class CallReceiverTest {
         verify(exactly = 0) { NativeBridgeEventSink.sendCallEvent(any()) }
     }
 
-    // ─── Bug #5: notification full-screen intent includes NAVIGATE_TO_MONITORING ──
+    // ─── Consent notification must never open the application ──────────
 
     @Test
-    fun `incoming call notification full-screen intent has NAVIGATE_TO_MONITORING extra`() {
-        // We can't easily inspect the PendingIntent without invoking the
-        // actual notification. Instead, verify the receiver didn't crash
-        // and emitted the event correctly. The full-screen intent is built
-        // via showIncomingCallNotification which requires WindowManager etc.;
-        // a full test would require Robolectric shadow for NotificationManager.
+    fun `incoming call notification has actions but no activity intent`() {
         val intent = Intent(TelephonyManager.ACTION_PHONE_STATE_CHANGED).apply {
             putExtra(TelephonyManager.EXTRA_STATE, TelephonyManager.EXTRA_STATE_RINGING)
             putExtra(TelephonyManager.EXTRA_INCOMING_NUMBER, "+84999999999")
         }
-        // Should not throw.
         receiver.onReceive(context, intent)
         shadowOf(Looper.getMainLooper()).idle()
 
-        verify(atLeast = 1) { NativeBridgeEventSink.sendCallEvent(any()) }
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notifications = shadowOf(notificationManager).allNotifications
+        assertEquals(1, notifications.size)
+        val notification = notifications.single()
+        assertNull(notification.fullScreenIntent)
+        assertNull(notification.contentIntent)
+        assertNotNull(notification.actions)
+        assertEquals(2, notification.actions.size)
+    }
+
+    @Test
+    fun `No action cancels prompt and emits declined once`() {
+        val intent = Intent(TelephonyManager.ACTION_PHONE_STATE_CHANGED).apply {
+            putExtra(TelephonyManager.EXTRA_STATE, TelephonyManager.EXTRA_STATE_RINGING)
+            putExtra(TelephonyManager.EXTRA_INCOMING_NUMBER, "+84999999999")
+        }
+        receiver.onReceive(context, intent)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notification = shadowOf(notificationManager).allNotifications.single()
+        notification.actions[1].actionIntent.send()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue(shadowOf(notificationManager).allNotifications.isEmpty())
+        verify(exactly = 1) {
+            NativeBridgeEventSink.sendCallEvent(match { event ->
+                event["type"] == "MONITORING_DECLINED"
+            })
+        }
+    }
+
+    @Test
+    fun `duplicate RINGING broadcasts create one consent session`() {
+        val intent = Intent(TelephonyManager.ACTION_PHONE_STATE_CHANGED).apply {
+            putExtra(TelephonyManager.EXTRA_STATE, TelephonyManager.EXTRA_STATE_RINGING)
+            putExtra(TelephonyManager.EXTRA_INCOMING_NUMBER, "+84912345678")
+        }
+        receiver.onReceive(context, intent)
+        receiver.onReceive(context, intent)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        assertEquals(1, shadowOf(notificationManager).allNotifications.size)
+        verify(exactly = 1) {
+            NativeBridgeEventSink.sendCallEvent(match { it["type"] == "RINGING" })
+        }
     }
 }

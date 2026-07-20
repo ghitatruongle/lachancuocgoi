@@ -14,6 +14,7 @@ class SimulatorPermissionGate {
       recordAudio: true,
       phoneState: true,
       callLog: true,
+      answerPhoneCalls: true,
       overlay: true,
       notification: true,
       accessibility: true,

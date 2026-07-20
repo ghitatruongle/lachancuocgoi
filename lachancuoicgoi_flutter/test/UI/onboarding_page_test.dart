@@ -105,8 +105,8 @@ void main() {
       await tester.pumpWidget(wrapOnboarding());
       await tester.pumpAndSettle();
 
-      // Default snapshot: 0/7 granted
-      expect(find.text('0/7 quyền đã cấp'), findsOneWidget);
+      // Default snapshot: 0/8 granted
+      expect(find.text('0/8 quyền đã cấp'), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
     });
 
@@ -125,18 +125,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('3/7 quyền đã cấp'), findsOneWidget);
+      expect(find.text('3/8 quyền đã cấp'), findsOneWidget);
     });
 
     testWidgets('continues when core permissions are granted', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      // Use 6 of 7 granted — NOT all, to avoid triggering context.go('/')
+      // Grant both required capability groups; call screening remains optional.
       await tester.pumpWidget(
         wrapOnboarding(
           snapshot: const PermissionSnapshot(
             recordAudio: true,
             phoneState: true,
             callLog: true,
+            answerPhoneCalls: true,
             overlay: true,
             notification: true,
             accessibility: true,

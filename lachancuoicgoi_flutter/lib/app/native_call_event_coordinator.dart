@@ -3,6 +3,7 @@ import 'dart:async';
 import '../services/bridge_models.dart';
 
 typedef NativeCallNavigation = void Function(NativeCallEvent event);
+typedef NativeCallLifecycle = void Function(NativeCallEvent event);
 
 /// Keeps native call navigation events alive while application settings and
 /// the router are still starting.
@@ -15,6 +16,8 @@ class NativeCallEventCoordinator {
   NativeCallEventCoordinator({
     required Stream<NativeCallEvent> events,
     required NativeCallNavigation onNavigateToMonitoring,
+    this.onMonitoringAccepted,
+    this.onSessionEnded,
     this.maxBufferedEvents = 50,
     this.maxDeduplicationKeys = 100,
   }) : _events = events,
@@ -22,6 +25,8 @@ class NativeCallEventCoordinator {
 
   final Stream<NativeCallEvent> _events;
   final NativeCallNavigation _onNavigateToMonitoring;
+  final NativeCallLifecycle? onMonitoringAccepted;
+  final NativeCallLifecycle? onSessionEnded;
   final int maxBufferedEvents;
   final int maxDeduplicationKeys;
 
@@ -72,6 +77,14 @@ class NativeCallEventCoordinator {
   void _dispatch(NativeCallEvent event) {
     final type = event.type.trim().toUpperCase();
     final reason = event.reason?.trim().toLowerCase();
+    if (type == 'MONITORING_ACCEPTED') {
+      onMonitoringAccepted?.call(event);
+      return;
+    }
+    if (type == 'CALL_SESSION_ENDED') {
+      onSessionEnded?.call(event);
+      return;
+    }
     if (type == 'NAVIGATE_TO_MONITORING' ||
         reason == 'notification_navigation') {
       _onNavigateToMonitoring(event);

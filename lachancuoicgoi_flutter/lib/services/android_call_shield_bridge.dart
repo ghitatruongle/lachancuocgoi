@@ -4,7 +4,11 @@ import '../core/system_logger.dart';
 import 'native_bridge_interface.dart';
 
 class AndroidCallShieldBridge
-    implements NativeBridgeInterface, TypedMonitoringStartBridge {
+    implements
+        NativeBridgeInterface,
+        TypedMonitoringStartBridge,
+        AnalysisModeSyncBridge,
+        SpeakerphonePreferenceSyncBridge {
   AndroidCallShieldBridge({Duration? defaultTimeout})
     : _defaultTimeout = defaultTimeout ?? const Duration(seconds: 5);
 
@@ -344,6 +348,18 @@ class AndroidCallShieldBridge
         level: LogLevel.error,
       );
     }
+  }
+
+  @override
+  Future<void> setAnalysisMode(String mode) async {
+    await _methodChannel.invokeMethod<void>('setAnalysisMode', {'mode': mode});
+  }
+
+  @override
+  Future<void> setAutoEnableSpeakerphone(bool enabled) async {
+    await _methodChannel.invokeMethod<void>('setAutoEnableSpeakerphone', {
+      'enabled': enabled,
+    });
   }
 
   late final Stream<TranscriptUpdate> _cachedTranscriptStream =

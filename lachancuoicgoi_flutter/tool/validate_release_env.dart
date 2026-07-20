@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:lachancuocgoi_flutter/analysis/l3/core/api_key_format.dart';
+
 const List<String> _placeholderPatterns = <String>[
   'aizareplace',
   'aizayour',
@@ -109,7 +111,7 @@ void main(List<String> arguments) {
 }
 
 bool _isValidRawKey(String value) {
-  return value.startsWith('AIza') && value.length >= 30;
+  return isReleaseGeminiKey(value);
 }
 
 String? _decodeObfuscatedKey(String value) {

@@ -17,7 +17,7 @@ void main() {
       expect(state.isDarkTheme, isFalse);
       expect(state.analysisMode, AnalysisMode.gDetection);
       expect(state.audioBoost, isFalse);
-      expect(state.autoEnableSpeakerphone, isFalse);
+      expect(state.autoEnableSpeakerphone, isTrue);
       expect(state.creatorAudioCapture, isFalse);
     });
   });

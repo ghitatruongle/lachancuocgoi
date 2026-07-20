@@ -24,7 +24,11 @@ export 'native_bridge_interface.dart';
 // [AndroidCallShieldBridge]).
 
 class NativeCallShieldBridge
-    implements NativeBridgeInterface, TypedMonitoringStartBridge {
+    implements
+        NativeBridgeInterface,
+        TypedMonitoringStartBridge,
+        AnalysisModeSyncBridge,
+        SpeakerphonePreferenceSyncBridge {
   NativeCallShieldBridge._();
 
   static final NativeCallShieldBridge instance = NativeCallShieldBridge._();
@@ -309,6 +313,20 @@ class NativeCallShieldBridge
         level: LogLevel.error,
       );
     }
+  }
+
+  @override
+  Future<void> setAnalysisMode(String mode) async {
+    await _methodChannel
+        .invokeMethod<void>('setAnalysisMode', {'mode': mode})
+        .timeout(_defaultTimeout);
+  }
+
+  @override
+  Future<void> setAutoEnableSpeakerphone(bool enabled) async {
+    await _methodChannel
+        .invokeMethod<void>('setAutoEnableSpeakerphone', {'enabled': enabled})
+        .timeout(_defaultTimeout);
   }
 
   // ─── EventChannel streams (cached to prevent memory leaks) ─────────────

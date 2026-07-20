@@ -99,6 +99,7 @@ void main() {
       expect(snapshot.recordAudio, isFalse);
       expect(snapshot.phoneState, isFalse);
       expect(snapshot.callLog, isFalse);
+      expect(snapshot.answerPhoneCalls, isFalse);
       expect(snapshot.overlay, isFalse);
       expect(snapshot.notification, isFalse);
       expect(snapshot.accessibility, isFalse);
@@ -110,6 +111,7 @@ void main() {
         recordAudio: true,
         phoneState: true,
         callLog: true,
+        answerPhoneCalls: true,
         overlay: true,
         notification: true,
         accessibility: true,
@@ -123,6 +125,7 @@ void main() {
         recordAudio: true,
         phoneState: true,
         callLog: true,
+        answerPhoneCalls: true,
         overlay: false,
         notification: true,
         accessibility: true,
@@ -149,8 +152,8 @@ void main() {
       expect(snapshot.phoneState, isFalse);
     });
 
-    test('totalPermissions returns 7', () {
-      expect(PermissionSnapshot.totalPermissions, 7);
+    test('totalPermissions returns 8', () {
+      expect(PermissionSnapshot.totalPermissions, 8);
     });
   });
 }

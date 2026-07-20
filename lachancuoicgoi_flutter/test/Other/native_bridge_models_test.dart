@@ -30,6 +30,7 @@ void main() {
         'recordAudio': true,
         'phoneState': false,
         'callLog': true,
+        'answerPhoneCalls': true,
         'overlay': true,
         'notification': false,
         'accessibility': true,
@@ -39,11 +40,12 @@ void main() {
       expect(snapshot.recordAudio, isTrue);
       expect(snapshot.phoneState, isFalse);
       expect(snapshot.callLog, isTrue);
+      expect(snapshot.answerPhoneCalls, isTrue);
       expect(snapshot.overlay, isTrue);
       expect(snapshot.notification, isFalse);
       expect(snapshot.accessibility, isTrue);
       expect(snapshot.callScreening, isFalse);
-      expect(snapshot.grantedCount, 4);
+      expect(snapshot.grantedCount, 5);
     });
 
     test('fromMap handles null values as false', () {

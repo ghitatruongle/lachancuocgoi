@@ -209,6 +209,7 @@ class PermissionSnapshot {
     this.recordAudio = false,
     this.phoneState = false,
     this.callLog = false,
+    this.answerPhoneCalls = false,
     this.overlay = false,
     this.notification = false,
     this.accessibility = false,
@@ -218,6 +219,7 @@ class PermissionSnapshot {
   final bool recordAudio;
   final bool phoneState;
   final bool callLog;
+  final bool answerPhoneCalls;
   final bool overlay;
   final bool notification;
   final bool accessibility;
@@ -228,6 +230,7 @@ class PermissionSnapshot {
       recordAudio: map['recordAudio'] as bool? ?? false,
       phoneState: map['phoneState'] as bool? ?? false,
       callLog: map['callLog'] as bool? ?? false,
+      answerPhoneCalls: map['answerPhoneCalls'] as bool? ?? false,
       overlay: map['overlay'] as bool? ?? false,
       notification: map['notification'] as bool? ?? false,
       accessibility: map['accessibility'] as bool? ?? false,
@@ -239,6 +242,7 @@ class PermissionSnapshot {
       recordAudio &&
       phoneState &&
       callLog &&
+      answerPhoneCalls &&
       overlay &&
       notification &&
       accessibility &&
@@ -248,13 +252,14 @@ class PermissionSnapshot {
     recordAudio,
     phoneState,
     callLog,
+    answerPhoneCalls,
     overlay,
     notification,
     accessibility,
     callScreening,
   ].where((p) => p).length;
 
-  static const int totalPermissions = 7;
+  static const int totalPermissions = 8;
 
   @override
   bool operator ==(Object other) =>
@@ -263,6 +268,7 @@ class PermissionSnapshot {
           recordAudio == other.recordAudio &&
           phoneState == other.phoneState &&
           callLog == other.callLog &&
+          answerPhoneCalls == other.answerPhoneCalls &&
           overlay == other.overlay &&
           notification == other.notification &&
           accessibility == other.accessibility &&
@@ -273,6 +279,7 @@ class PermissionSnapshot {
     recordAudio,
     phoneState,
     callLog,
+    answerPhoneCalls,
     overlay,
     notification,
     accessibility,

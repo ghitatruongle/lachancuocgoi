@@ -25,6 +25,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.lachancuocgoi.lachancuocgoi_flutter.R
 
 object AlertOverlayManager {
 
@@ -114,7 +115,7 @@ object AlertOverlayManager {
             card.addView(summaryView)
 
             val button = Button(context).apply {
-                text = "ĐÃ HIỂU"
+                text = context.getString(R.string.alert_acknowledge)
                 setTextColor(color)
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
                 val buttonBg = GradientDrawable().apply {
@@ -182,11 +183,7 @@ object AlertOverlayManager {
     private fun vibrate(context: Context) {
         try {
             val vibrator = getVibrator(context) ?: return
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
-            } else {
-                @Suppress("DEPRECATION") vibrator.vibrate(500)
-            }
+            vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
         } catch (_: Exception) {}
     }
 
@@ -200,12 +197,7 @@ object AlertOverlayManager {
             heavyVibrationRunnable = object : Runnable {
                 override fun run() {
                     try {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            vibrator.vibrate(VibrationEffect.createWaveform(pattern, repeatIndex))
-                        } else {
-                            @Suppress("DEPRECATION")
-                            vibrator.vibrate(pattern, repeatIndex)
-                        }
+                        vibrator.vibrate(VibrationEffect.createWaveform(pattern, repeatIndex))
                     } catch (_: Exception) {}
                     heavyVibrationHandler.postDelayed(this, 2000L)
                 }

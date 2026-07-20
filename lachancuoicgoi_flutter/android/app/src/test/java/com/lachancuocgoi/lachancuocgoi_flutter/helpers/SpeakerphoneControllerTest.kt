@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.lachancuocgoi.lachancuocgoi_flutter.helpers
 
 import android.media.AudioManager

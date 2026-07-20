@@ -72,6 +72,37 @@ abstract interface class TypedMonitoringStartBridge {
   });
 }
 
+/// Optional capability used to mirror the selected analysis mode to the
+/// Android process. Simulator/test bridges can omit it safely.
+abstract interface class AnalysisModeSyncBridge {
+  Future<void> setAnalysisMode(String mode);
+}
+
+/// Optional capability that mirrors the user's speakerphone preference into
+/// the Android process. This is needed when monitoring starts from a native
+/// incoming-call notification before Flutter has a visible Activity.
+abstract interface class SpeakerphonePreferenceSyncBridge {
+  Future<void> setAutoEnableSpeakerphone(bool enabled);
+}
+
+extension NativeBridgeAnalysisModeSync on NativeBridgeInterface {
+  Future<void> syncAnalysisMode(String mode) async {
+    final bridge = this;
+    if (bridge case final AnalysisModeSyncBridge syncBridge) {
+      await syncBridge.setAnalysisMode(mode);
+    }
+  }
+}
+
+extension NativeBridgeSpeakerphonePreferenceSync on NativeBridgeInterface {
+  Future<void> syncAutoEnableSpeakerphone(bool enabled) async {
+    final bridge = this;
+    if (bridge case final SpeakerphonePreferenceSyncBridge syncBridge) {
+      await syncBridge.setAutoEnableSpeakerphone(enabled);
+    }
+  }
+}
+
 /// Typed adapter that keeps existing `NativeBridgeInterface` fakes compatible.
 /// Dart's `implements` does not inherit concrete methods, so making the new
 /// method part of the original interface would break every legacy embedder.

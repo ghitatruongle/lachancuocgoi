@@ -69,7 +69,7 @@ void main() {
       expect(simulationAction, findsOneWidget);
       await tester.ensureVisible(simulationAction);
       await tester.tap(simulationAction);
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(const Duration(seconds: 3));
       expect(find.byType(SimulationPage), findsOneWidget);
 
       final simulationContext = tester.element(find.byType(SimulationPage));

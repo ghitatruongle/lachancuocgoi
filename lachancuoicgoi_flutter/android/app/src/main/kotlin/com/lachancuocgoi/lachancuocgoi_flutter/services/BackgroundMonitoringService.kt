@@ -20,6 +20,7 @@ import com.lachancuocgoi.lachancuocgoi_flutter.helpers.MonitoringNotificationBui
 import com.lachancuocgoi.lachancuocgoi_flutter.helpers.WatchdogScheduler
 import com.lachancuocgoi.lachancuocgoi_flutter.R
 import com.lachancuocgoi.lachancuocgoi_flutter.receiver.ServiceWatchdogReceiver
+import com.lachancuocgoi.lachancuocgoi_flutter.ui.OverlayManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -172,14 +173,14 @@ class BackgroundMonitoringService : Service() {
         shouldEnableSpeakerphone = intent?.getBooleanExtra("ENABLE_SPEAKERPHONE", false) ?: false
 
         if (!shouldEnableSpeakerphone) {
-            val sharedPreferences = getSharedPreferences("settings", Context.MODE_PRIVATE)
-            shouldEnableSpeakerphone = sharedPreferences.getBoolean("AUTO_ENABLE_SPEAKERPHONE", false)
+            shouldEnableSpeakerphone =
+                MonitoringPreferences.readAutoEnableSpeakerphone(applicationContext)
         }
 
         // POST_NOTIFICATIONS is not required to launch an FGS. Android still
         // requires startForeground() and shows the disclosure in Task Manager
         // when notification permission is denied.
-        val foregroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val foregroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
         } else {
             0
@@ -236,6 +237,9 @@ class BackgroundMonitoringService : Service() {
                 "Không thể chạy dịch vụ giám sát ở chế độ foreground.",
             )
         )
+        // A consented call must never retain a stale overlay/session when the
+        // foreground-service promotion is rejected by Android.
+        CallSessionCoordinator.onMonitoringServiceStopped(applicationContext)
         stopSelf(startId)
     }
 
@@ -247,6 +251,9 @@ class BackgroundMonitoringService : Service() {
         isRunning = true
         isStopping = false
         startTime = System.currentTimeMillis()
+        if (CallSessionCoordinator.isMonitoringAccepted(applicationContext)) {
+            OverlayManager.showMonitoringOverlay(applicationContext, startTime)
+        }
         monitoringJob?.cancel()
         connectivityJob?.cancel()
         transcriptCollectorJob?.cancel()
@@ -378,6 +385,7 @@ class BackgroundMonitoringService : Service() {
             speechToTextManager.rmsDbFlow
                 .onEach { rms ->
                     NativeBridgeEventSink.sendRms(rms)
+                    OverlayManager.updateMonitoringRms(rms)
                 }
                 .launchIn(this)
 
@@ -490,6 +498,7 @@ class BackgroundMonitoringService : Service() {
 
         // Notify Flutter that monitoring stopped with final data
         NativeBridgeEventSink.sendMonitoringState("STOPPED:$duration:$finalTranscript")
+        CallSessionCoordinator.onMonitoringServiceStopped(applicationContext)
 
         finalizationScope.launch {
             try {
@@ -546,6 +555,7 @@ class BackgroundMonitoringService : Service() {
         // will detect the stale persisted flag and restart us.
     }
 
+    @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= TRIM_MEMORY_RUNNING_CRITICAL) {
@@ -620,10 +630,9 @@ class BackgroundMonitoringService : Service() {
 
     private fun requestAudioFocus(): Boolean {
         return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Use AUDIOFOCUS_GAIN (not TRANSIENT_MAY_DUCK) to get full
-                // microphone priority — prevents system from ducking our STT.
-                val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            // Use AUDIOFOCUS_GAIN (not TRANSIENT_MAY_DUCK) to get full
+            // microphone priority — prevents system from ducking our STT.
+            val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                     .setAudioAttributes(
                         AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_ASSISTANT)
@@ -697,17 +706,9 @@ class BackgroundMonitoringService : Service() {
                             }
                         }
                     }
-                    .build()
-                audioFocusRequest = focusRequest
-                audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-            } else {
-                @Suppress("DEPRECATION")
-                audioManager.requestAudioFocus(
-                    { focusChange -> Log.d(TAG, "Audio focus changed: $focusChange") },
-                    AudioManager.STREAM_VOICE_CALL,
-                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
-                ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-            }
+                .build()
+            audioFocusRequest = focusRequest
+            audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         } catch (e: Exception) {
             Log.e(TAG, "Error requesting audio focus", e)
             false
@@ -716,13 +717,8 @@ class BackgroundMonitoringService : Service() {
 
     private fun releaseAudioFocus() {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                audioFocusRequest?.let {
-                    audioManager.abandonAudioFocusRequest(it)
-                }
-            } else {
-                @Suppress("DEPRECATION")
-                audioManager.abandonAudioFocus(null)
+            audioFocusRequest?.let {
+                audioManager.abandonAudioFocusRequest(it)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error releasing audio focus", e)

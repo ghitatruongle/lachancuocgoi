@@ -141,7 +141,10 @@ class SettingsController extends Notifier<SettingsState> {
       followSystemTheme: true,
       analysisMode: AnalysisMode.gDetection,
       audioBoost: false,
-      autoEnableSpeakerphone: false,
+      // Android cannot directly capture the remote side of a normal phone
+      // call. New installs therefore default to speakerphone so the microphone
+      // can hear both sides; an explicit user choice is still persisted.
+      autoEnableSpeakerphone: true,
       creatorAudioCapture: false,
     );
   }
@@ -172,7 +175,7 @@ class SettingsController extends Notifier<SettingsState> {
         ),
         audioBoost: prefs.getBool('AUDIO_BOOST') ?? false,
         autoEnableSpeakerphone:
-            prefs.getBool('AUTO_ENABLE_SPEAKERPHONE') ?? false,
+            prefs.getBool('AUTO_ENABLE_SPEAKERPHONE') ?? true,
         creatorAudioCapture: prefs.getBool('CREATOR_AUDIO_CAPTURE') ?? false,
         callScreeningBlockEnabled:
             prefs.getBool('CALL_SCREENING_BLOCK_ENABLED') ?? false,

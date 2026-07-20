@@ -25,7 +25,7 @@ void main() {
       await client.query<String>('test', (text, _) => text);
 
       // quota error → continue → tries all 5 fallback models
-      expect(timestamps.length, 5);
+      expect(timestamps.length, geminiFallbackModels.length);
 
       // Check delays increase: ~0ms, ~1000ms, ~2000ms
       final delay1 = timestamps[1].difference(timestamps[0]).inMilliseconds;

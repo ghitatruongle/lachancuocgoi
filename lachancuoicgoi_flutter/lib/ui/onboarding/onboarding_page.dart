@@ -51,6 +51,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             PermissionCapabilityGroup.coreProtection,
             context,
           );
+      if (!mounted) return;
+      await ref
+          .read(permissionControllerProvider.notifier)
+          .requestCapabilityGroup(
+            PermissionCapabilityGroup.enhancedProtection,
+            context,
+          );
     } finally {
       if (mounted) setState(() => _isRequesting = false);
     }

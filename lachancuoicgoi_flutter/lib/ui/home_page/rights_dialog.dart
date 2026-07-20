@@ -129,6 +129,23 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                               ),
                       ),
                       _PermissionItem(
+                        icon: Icons.call_received,
+                        title: 'Tự động trả lời cuộc gọi',
+                        description:
+                            'Chỉ bắt máy sau khi bạn nhấn “Có” trên thông báo yêu cầu giám sát.',
+                        isGranted: state.snapshot.answerPhoneCalls,
+                        isInFlight: _inFlightPermissions.contains(
+                          'phoneAndCallLog',
+                        ),
+                        onRequest: state.snapshot.answerPhoneCalls
+                            ? null
+                            : () => _requestPermission(
+                                'phoneAndCallLog',
+                                () => controller
+                                    .requestPhoneAndCallLogPermissions(context),
+                              ),
+                      ),
+                      _PermissionItem(
                         icon: Icons.history,
                         title: 'Lịch sử cuộc gọi',
                         description:
@@ -201,7 +218,9 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
                         icon: Icons.accessibility_new,
                         title: 'Trợ năng',
                         description:
-                            'Đọc phụ đề cuộc gọi để phân tích không cần loa.\n👉 Cần bật thủ công: Cài đặt > Trợ năng > Lá chắn > Bật dịch vụ.',
+                            'Phát hiện màn hình gọi, đọc phụ đề hiển thị và '
+                            'nhấn Trả lời/Kết thúc chỉ theo lựa chọn của bạn.\n'
+                            '👉 Cần bật thủ công: Cài đặt > Trợ năng > Lá chắn > Bật dịch vụ.',
                         isGranted: state.snapshot.accessibility,
                         isInFlight: _inFlightPermissions.contains(
                           'accessibility',

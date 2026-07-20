@@ -81,4 +81,39 @@ void main() {
     await coordinator.dispose();
     await events.close();
   });
+
+  test('dispatches accepted and ended lifecycle without navigation', () async {
+    final events = StreamController<NativeCallEvent>.broadcast();
+    final navigated = <NativeCallEvent>[];
+    final accepted = <NativeCallEvent>[];
+    final ended = <NativeCallEvent>[];
+    final coordinator =
+        NativeCallEventCoordinator(
+            events: events.stream,
+            onNavigateToMonitoring: navigated.add,
+            onMonitoringAccepted: accepted.add,
+            onSessionEnded: ended.add,
+          )
+          ..start()
+          ..setReady(true);
+
+    const acceptedEvent = NativeCallEvent(
+      type: 'MONITORING_ACCEPTED',
+      timestampMs: 40,
+    );
+    const endedEvent = NativeCallEvent(
+      type: 'CALL_SESSION_ENDED',
+      timestampMs: 41,
+    );
+    events
+      ..add(acceptedEvent)
+      ..add(endedEvent);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(accepted, <NativeCallEvent>[acceptedEvent]);
+    expect(ended, <NativeCallEvent>[endedEvent]);
+    expect(navigated, isEmpty);
+    await coordinator.dispose();
+    await events.close();
+  });
 }

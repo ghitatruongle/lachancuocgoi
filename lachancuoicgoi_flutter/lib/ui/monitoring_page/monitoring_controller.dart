@@ -301,7 +301,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     }
   }
 
-  void initAfterFrame() {
+  void initAfterFrame({bool nativeMonitoringAlreadyStarted = false}) {
     if (_disposed || hasTestAnalyzerOverride) return;
     _coordinatorInstance = ref.read(analysisCoordinatorProvider);
     _coordinatorInstance?.setNetworkAvailable(state.networkAvailable);
@@ -315,7 +315,13 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       streamHandler.initStreams();
     }
 
-    if (!hasTestAnalyzerOverride) {
+    if (nativeMonitoringAlreadyStarted) {
+      state = state.copyWith(
+        phase: MonitoringPhase.active,
+        clearMonitoringErrorMessage: true,
+      );
+      _healthCheckService.start();
+    } else if (!hasTestAnalyzerOverride) {
       unawaited(_recoverAndStartMonitoring());
     } else {
       unawaited(_startLiveMonitoringIfNeeded());

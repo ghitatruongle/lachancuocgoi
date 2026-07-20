@@ -13,9 +13,7 @@ import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
-import androidx.annotation.NonNull
 import androidx.core.content.ContextCompat
-import com.lachancuocgoi.lachancuocgoi_flutter.audio.CreatorAudioCaptureManager
 import com.lachancuocgoi.lachancuocgoi_flutter.services.BackgroundMonitoringService
 import com.lachancuocgoi.lachancuocgoi_flutter.services.CallScreeningPreferences
 import com.lachancuocgoi.lachancuocgoi_flutter.services.CreatorMediaProjectionService
@@ -23,25 +21,20 @@ import com.lachancuocgoi.lachancuocgoi_flutter.services.ForegroundServiceLaunche
 import com.lachancuocgoi.lachancuocgoi_flutter.services.MonitoringStartResponse
 import com.lachancuocgoi.lachancuocgoi_flutter.services.MonitoringStartCoordinator
 import com.lachancuocgoi.lachancuocgoi_flutter.services.MonitoringStartStatus
+import com.lachancuocgoi.lachancuocgoi_flutter.services.MonitoringPreferences
 import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeEventSink
+import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeChannels
 import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeCallEvent
 import com.lachancuocgoi.lachancuocgoi_flutter.services.PendingResult
 import com.lachancuocgoi.lachancuocgoi_flutter.ui.OverlayManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
-        private const val METHOD_CHANNEL = "com.lachancuocgoi/native_bridge"
-        private const val TRANSCRIPT_CHANNEL = "com.lachancuocgoi/transcript_stream"
-        private const val RMS_CHANNEL = "com.lachancuocgoi/rms_stream"
-        private const val MONITORING_STATE_CHANNEL = "com.lachancuocgoi/monitoring_state"
-        private const val CALL_EVENT_CHANNEL = "com.lachancuocgoi/call_events"
-        private const val LOGS_CHANNEL = "com.lachancuocgoi/logs"
         private const val TEST_REQUEST_PHONE_PERMISSIONS_ACTION = "TEST_REQUEST_PHONE_PERMISSIONS"
         private const val REQUEST_CALL_SCREENING_ROLE = 1001
         private const val REQUEST_CREATOR_PROJECTION = 1002
@@ -53,6 +46,11 @@ class MainActivity : FlutterActivity() {
     private val pendingPhonePermissionResult = PendingResult()
     private val pendingCreatorMonitoringResult = PendingResult()
     private var pendingCreatorDevModeExpiresAtMs: Long = 0L
+
+    override fun provideFlutterEngine(context: Context): FlutterEngine =
+        (application as MainApplication).ensureFlutterEngine()
+
+    override fun shouldDestroyEngineWithHost(): Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,6 +64,12 @@ class MainActivity : FlutterActivity() {
         pendingPhonePermissionResult.cancel()
         pendingCreatorMonitoringResult.cancel()
         MonitoringStartCoordinator.cancel()
+        // Read the process-owned engine directly. This remains safe if Android
+        // destroys a partially-created Activity whose Flutter delegate was
+        // never initialized.
+        (application as? MainApplication)?.existingFlutterEngine()?.let { engine ->
+            NativeBridgeChannels.installBackgroundMethodHandler(applicationContext, engine)
+        }
         super.onDestroy()
     }
 
@@ -106,8 +110,11 @@ class MainActivity : FlutterActivity() {
         val hasCallLog =
             ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) ==
                 PackageManager.PERMISSION_GRANTED
+        val canAnswerCalls =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ANSWER_PHONE_CALLS) ==
+                PackageManager.PERMISSION_GRANTED
 
-        if (hasPhoneState && hasCallLog) {
+        if (hasPhoneState && hasCallLog && canAnswerCalls) {
             return
         }
 
@@ -115,6 +122,7 @@ class MainActivity : FlutterActivity() {
             arrayOf(
                 Manifest.permission.READ_PHONE_STATE,
                 Manifest.permission.READ_CALL_LOG,
+                Manifest.permission.ANSWER_PHONE_CALLS,
             ),
             REQUEST_PHONE_PERMISSIONS
         )
@@ -154,7 +162,8 @@ class MainActivity : FlutterActivity() {
             val grantedMap = permissions.zip(grantResults.toTypedArray()).toMap()
             val granted =
                 grantedMap[Manifest.permission.READ_PHONE_STATE] == PackageManager.PERMISSION_GRANTED &&
-                    grantedMap[Manifest.permission.READ_CALL_LOG] == PackageManager.PERMISSION_GRANTED
+                    grantedMap[Manifest.permission.READ_CALL_LOG] == PackageManager.PERMISSION_GRANTED &&
+                    grantedMap[Manifest.permission.ANSWER_PHONE_CALLS] == PackageManager.PERMISSION_GRANTED
             // Bug #23 fix: idempotent — calling success multiple times is safe,
             // and if the Activity was destroyed, cancel() in onDestroy already
             // cleared the pending result so this is a safe no-op.
@@ -164,11 +173,14 @@ class MainActivity : FlutterActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
-    override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
         // MethodChannel
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            NativeBridgeChannels.METHOD_CHANNEL,
+        )
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "startMonitoring" -> {
@@ -203,12 +215,11 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
                     "showIncomingCallOverlay" -> {
-                        val callerInfo = call.argument<String>("callerInfo") ?: ""
-                        OverlayManager.showIncomingCallOverlay(applicationContext, callerInfo)
-                        result.success(true)
+                        // Legacy API intentionally disabled: incoming consent
+                        // is notification-only and must never open an overlay.
+                        result.success(false)
                     }
                     "dismissIncomingCallOverlay" -> {
-                        OverlayManager.removeIncomingCallOverlay(applicationContext)
                         result.success(true)
                     }
                     "getPermissionSnapshot" -> {
@@ -283,89 +294,28 @@ class MainActivity : FlutterActivity() {
                         ).apply()
                         result.success(true)
                     }
+                    "setAnalysisMode" -> {
+                        val mode = call.argument<String>("mode").orEmpty()
+                        MonitoringPreferences.writeAnalysisMode(applicationContext, mode)
+                        result.success(true)
+                    }
+                    "setAutoEnableSpeakerphone" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: true
+                        MonitoringPreferences.writeAutoEnableSpeakerphone(
+                            applicationContext,
+                            enabled,
+                        )
+                        result.success(true)
+                    }
                     else -> {
                         result.notImplemented()
                     }
                 }
             }
 
-        // EventChannel: Transcript stream
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, TRANSCRIPT_CHANNEL)
-            .setStreamHandler(object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    NativeBridgeEventSink.transcriptSink = events
-                    val currentCreatorTranscript =
-                        CreatorAudioCaptureManager.creatorTranscriptFlow.value
-                    if (currentCreatorTranscript.isNotBlank()) {
-                        events?.success(currentCreatorTranscript)
-                    }
-                    NativeBridgeEventSink.onSinksReconnected()
-                }
-                override fun onCancel(arguments: Any?) {
-                    NativeBridgeEventSink.transcriptSink = null
-                }
-            })
-
-        // EventChannel: RMS stream
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, RMS_CHANNEL)
-            .setStreamHandler(object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    NativeBridgeEventSink.rmsSink = events
-                }
-                override fun onCancel(arguments: Any?) {
-                    NativeBridgeEventSink.rmsSink = null
-                }
-            })
-
-        // EventChannel: Monitoring state
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, MONITORING_STATE_CHANNEL)
-            .setStreamHandler(object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    NativeBridgeEventSink.monitoringStateSink = events
-                    if (isServiceRunning(CreatorMediaProjectionService::class.java) ||
-                        isServiceRunning(BackgroundMonitoringService::class.java)
-                    ) {
-                        events?.success("STARTED")
-                    }
-                    NativeBridgeEventSink.onSinksReconnected()
-                }
-                override fun onCancel(arguments: Any?) {
-                    NativeBridgeEventSink.monitoringStateSink = null
-                }
-            })
-
-        // EventChannel: Call events
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, CALL_EVENT_CHANNEL)
-            .setStreamHandler(object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    NativeBridgeEventSink.callEventSink = events
-                    NativeBridgeEventSink.onSinksReconnected()
-                }
-                override fun onCancel(arguments: Any?) {
-                    NativeBridgeEventSink.callEventSink = null
-                }
-            })
-
-        // EventChannel: Logs stream
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, LOGS_CHANNEL)
-            .setStreamHandler(object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    NativeBridgeEventSink.logsSink = events
-                    NativeBridgeEventSink.onSinksReconnected()
-                }
-                override fun onCancel(arguments: Any?) {
-                    NativeBridgeEventSink.logsSink = null
-                }
-            })
-
-        // Replay any events buffered while sinks were null (Activity recreate).
-        // Sprint 2 (B2): defer to a posted runnable so the buffered
-        // event replay does not block the very first frame. The replay
-        // iterates up to 50 buffered events per channel which, on a cold
-        // start, can add up to ~10ms on the platform thread.
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            NativeBridgeEventSink.onSinksReconnected()
-        }
+        // EventChannels are registered once by MainApplication so transcript,
+        // RMS, call, and monitoring events remain connected without an Activity.
+        NativeBridgeChannels.registerEventChannels(applicationContext, flutterEngine)
     }
 
     private fun startMonitoringService(enableSpeakerphone: Boolean): MonitoringStartResponse {
@@ -521,8 +471,11 @@ class MainActivity : FlutterActivity() {
         val hasCallLog =
             ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) ==
                 PackageManager.PERMISSION_GRANTED
+        val canAnswerCalls =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ANSWER_PHONE_CALLS) ==
+                PackageManager.PERMISSION_GRANTED
 
-        if (hasPhoneState && hasCallLog) {
+        if (hasPhoneState && hasCallLog && canAnswerCalls) {
             result.success(true)
             return
         }
@@ -533,6 +486,7 @@ class MainActivity : FlutterActivity() {
             arrayOf(
                 Manifest.permission.READ_PHONE_STATE,
                 Manifest.permission.READ_CALL_LOG,
+                Manifest.permission.ANSWER_PHONE_CALLS,
             ),
             REQUEST_PHONE_PERMISSIONS
         )

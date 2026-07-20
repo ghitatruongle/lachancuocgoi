@@ -190,11 +190,6 @@ class MainActivityTest {
         assertNotNull("serviceRunningCheckers must be initialized", map)
         @Suppress("UNCHECKED_CAST")
         val typed = map as Map<Class<*>, () -> Boolean>
-        // Keys must be Class<*>, not KClass<*>.
-        assertTrue(
-            "Keys should be Class instances, not KClass",
-            typed.keys.all { it is Class<*> },
-        )
         // Spot check: BackgroundMonitoringService::class.java must be a key.
         assertTrue(
             "BackgroundMonitoringService must be registered as a key",

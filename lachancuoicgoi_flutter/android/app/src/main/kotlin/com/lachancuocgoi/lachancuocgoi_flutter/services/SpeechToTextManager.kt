@@ -35,6 +35,9 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         private const val CLIENT_ERROR_FALLBACK_THRESHOLD = 3
         private const val GOOGLE_RETRY_INTERVAL_MS = 30_000L
         private const val GOOGLE_RETRY_MAX_ATTEMPTS = 10
+        // SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE was added after our
+        // minimum SDK. The callback can still return its stable wire value.
+        private const val ERROR_LANGUAGE_UNAVAILABLE_COMPAT = 12
         // Max wait for the Google test recognizer to signal readiness/error
         // during a retry probe. If neither fires (service hung), we abort the
         // probe and resume Vosk so the call doesn't go silent.
@@ -192,11 +195,10 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             }
             _isListening.value = false
 
-            val isRecoverable = when (error) {
+            val isRecoverable = error == ERROR_LANGUAGE_UNAVAILABLE_COMPAT || when (error) {
                 SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT,
                 SpeechRecognizer.ERROR_AUDIO, SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
-                SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
-                12 -> true
+                SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> true
                 else -> false
             }
             _sttState.value = SttState.Error(errorMessage, isRecoverable)

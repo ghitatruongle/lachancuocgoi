@@ -208,6 +208,7 @@ class SimulatorCallShieldBridge
       recordAudio: micGranted,
       phoneState: true,
       callLog: true,
+      answerPhoneCalls: true,
       overlay: true,
       notification: notifGranted,
       accessibility: true,

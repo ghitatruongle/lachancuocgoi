@@ -3,6 +3,13 @@ import 'package:lachancuocgoi_flutter/analysis/l3/core/api_key_obfuscator.dart';
 
 void main() {
   group('ApiKeyObfuscator — encode/decode round-trip', () {
+    test('round-trip supports opaque Gemini credentials', () {
+      final raw = 'ab.${'x' * 50}';
+      final encoded = ApiKeyObfuscator.encode(raw);
+
+      expect(ApiKeyObfuscator.decode(encoded), raw);
+    });
+
     test('encode then decode returns original key', () {
       const raw = 'AIzaSyAaBB22CcDdEeFfGgHhIiJjKkLlMmNnOoPpQq';
       final encoded = ApiKeyObfuscator.encode(raw);

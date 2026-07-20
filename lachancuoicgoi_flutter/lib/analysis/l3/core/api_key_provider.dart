@@ -1,6 +1,7 @@
 import 'dart:convert';
 import '../../../core/asset_loader.dart';
 import '../../../core/logger.dart';
+import 'api_key_format.dart';
 import 'api_key_obfuscator.dart';
 
 abstract interface class ApiKeyProvider {
@@ -184,9 +185,9 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
   /// Trả về null nếu key không hợp lệ.
   String? _validateAndDecode(String raw) {
     if (raw.isEmpty) return null;
-    if (raw.startsWith('AIza')) return raw;
+    if (isSupportedGeminiKey(raw)) return raw;
     final decoded = ApiKeyObfuscator.decode(raw);
-    if (decoded == null || decoded.isEmpty || !decoded.startsWith('AIza')) {
+    if (decoded == null || decoded.isEmpty || !isSupportedGeminiKey(decoded)) {
       return null;
     }
     return decoded;

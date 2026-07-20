@@ -24,6 +24,7 @@ object PermissionHelpers {
             "recordAudio" to (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED),
             "phoneState" to (context.checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED),
             "callLog" to (context.checkSelfPermission(android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED),
+            "answerPhoneCalls" to (context.checkSelfPermission(android.Manifest.permission.ANSWER_PHONE_CALLS) == PackageManager.PERMISSION_GRANTED),
             "overlay" to Settings.canDrawOverlays(context),
             "notification" to hasNotificationPermission(context),
             "accessibility" to isAccessibilityServiceEnabled(context),

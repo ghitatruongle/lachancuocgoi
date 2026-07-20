@@ -17,12 +17,17 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
-    tasks.withType<JavaCompile>().configureEach {
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
-    }
-    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-        compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    if (name == "app") {
+        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+            compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    } else if (name == "tflite_flutter") {
+        // tflite_flutter 0.12.1 compiles its Java source for JVM 11. KGP 2.2
+        // otherwise inherits the host JDK (21) for Kotlin and rejects the
+        // mismatched bytecode targets before our app can compile.
+        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+            compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
 }
 

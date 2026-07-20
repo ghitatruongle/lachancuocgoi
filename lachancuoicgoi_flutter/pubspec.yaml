@@ -28,6 +28,8 @@ dependencies:
   flutter_ringtone_player: ^4.0.0+4
   vibration: ^3.2.0
   crypto: ^3.0.7
+  firebase_core: ^4.12.1
+  firebase_crashlytics: ^5.2.6
 
 dev_dependencies:
   flutter_test:

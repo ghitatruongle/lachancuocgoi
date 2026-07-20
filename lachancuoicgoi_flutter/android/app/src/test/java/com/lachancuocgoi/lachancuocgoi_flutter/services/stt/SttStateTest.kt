@@ -52,11 +52,4 @@ class SttStateTest {
         assertTrue(err1 != err3)
     }
 
-    @Test
-    fun `all states are SttState instances`() {
-        assertTrue(SttState.Idle is SttState)
-        assertTrue(SttState.Listening is SttState)
-        assertTrue(SttState.Stopped is SttState)
-        assertTrue(SttState.Error("test", false) is SttState)
-    }
 }

@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.lachancuocgoi.lachancuocgoi_flutter.services
 
 import android.content.Context
@@ -64,7 +66,7 @@ class BackgroundMonitoringServiceTest {
         // Clear any leftover prefs from earlier tests
         context.getSharedPreferences(BackgroundMonitoringService.WATCHDOG_PREFS, Context.MODE_PRIVATE)
             .edit().clear().commit()
-        context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        context.getSharedPreferences(MonitoringPreferences.PREFS_NAME, Context.MODE_PRIVATE)
             .edit().clear().commit()
 
         // Reset the global transcript hub
@@ -189,7 +191,7 @@ class BackgroundMonitoringServiceTest {
             .get()
         idle()
 
-        verify(exactly = 1) {
+        verify(exactly = 1, timeout = 2_000L) {
             anyConstructed<SpeechToTextManager>().preloadVoskFallback()
         }
         // Don't leak the new service
@@ -409,7 +411,19 @@ class BackgroundMonitoringServiceTest {
             BackgroundMonitoringService.WATCHDOG_PREFS, Context.MODE_PRIVATE)
         // No phone number passed → the persist step removes the key
         assertNull(prefs.getString("watchdog_phone_number", null))
-        assertEquals(false, prefs.getBoolean("watchdog_speakerphone", false))
+        assertEquals(true, prefs.getBoolean("watchdog_speakerphone", false))
+    }
+
+    @Test
+    fun `ACTION_START respects an explicit disabled speakerphone preference`() {
+        MonitoringPreferences.writeAutoEnableSpeakerphone(context, false)
+
+        service.onStartCommand(startIntent(), 0, 1)
+        idle()
+
+        val prefs = context.getSharedPreferences(
+            BackgroundMonitoringService.WATCHDOG_PREFS, Context.MODE_PRIVATE)
+        assertEquals(false, prefs.getBoolean("watchdog_speakerphone", true))
     }
 
     // ─── 10. clearMonitoringActiveFlag clears last-start params ─────────
