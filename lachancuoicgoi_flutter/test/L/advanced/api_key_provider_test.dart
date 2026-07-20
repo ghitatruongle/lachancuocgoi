@@ -36,6 +36,26 @@ void main() {
   });
 
   group('EnvironmentApiKeyProvider — plain keys', () {
+    test(
+      'accepts the opaque Gemini key format used by current credentials',
+      () {
+        final opaqueKey = 'ab.${'x' * 50}';
+        final provider = EnvironmentApiKeyProvider(
+          commaSeparatedKeys: opaqueKey,
+        );
+
+        expect(provider.getApiKeys(), <String>[opaqueKey]);
+      },
+    );
+
+    test('rejects malformed opaque keys', () {
+      final provider = EnvironmentApiKeyProvider(
+        commaSeparatedKeys: 'ab.${'x' * 49},abc.${'x' * 50}',
+      );
+
+      expect(provider.getApiKeys(), isEmpty);
+    });
+
     test('parses comma-separated plain keys', () {
       final provider = EnvironmentApiKeyProvider(
         commaSeparatedKeys: 'AIzaKey1, AIzaKey2, AIzaKey3',

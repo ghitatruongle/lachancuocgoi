@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lá chắn cuộc gọi</string>
-    <string name="desc_call_detection">Giám sát nội dung cuộc gọi để phát hiện rủi ro lừa đảo.</string>
+    <string name="desc_call_detection">Phát hiện cuộc gọi trong Điện thoại, Zalo, Messenger, WhatsApp, Telegram, Viber, LINE, Signal và Skype; đọc phụ đề hiển thị; chỉ điều khiển Trả lời/Kết thúc khi người dùng yêu cầu. Không đọc tin nhắn, mật khẩu hoặc danh bạ.</string>
+    <string name="monitoring_overlay_title">Đang giám sát cuộc gọi</string>
+    <string name="monitoring_overlay_model">Mô hình: %1$s</string>
+    <string name="monitoring_overlay_end_call">Kết thúc cuộc gọi</string>
+    <string name="monitoring_overlay_timer_initial" translatable="false">00:00</string>
+    <string name="alert_acknowledge">Đã hiểu</string>
 </resources>

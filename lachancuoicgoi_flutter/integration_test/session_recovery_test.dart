@@ -26,49 +26,61 @@ void main() {
       await harness.dispose();
     });
 
-    testWidgets(
-      'Snapshot from a previous session is recovered on next boot',
-      (tester) async {
-        const transcript = 'hello';
-        await SessionRecoveryStore.save(
-          SessionSnapshot(
-            phoneNumber: '',
-            transcript: transcript,
-            elapsedSeconds: 7,
-            riskLevel: 'GREEN',
-            analysisResultJson: null,
-            recordingError: null,
-            startedAt: DateTime.now(),
-          ),
-        );
-        expect(await SessionRecoveryStore.load(), isNotNull);
+    testWidgets('Snapshot from a previous session is recovered on next boot', (
+      tester,
+    ) async {
+      const transcript = 'hello';
+      await SessionRecoveryStore.save(
+        SessionSnapshot(
+          phoneNumber: '',
+          transcript: transcript,
+          elapsedSeconds: 7,
+          riskLevel: 'GREEN',
+          analysisResultJson: null,
+          recordingError: null,
+          startedAt: DateTime.now(),
+        ),
+      );
+      expect(await SessionRecoveryStore.load(), isNotNull);
 
-        await tester.pumpWidget(harness.widget);
-        for (var i = 0; i < 5; i++) {
-          await tester.pump(const Duration(milliseconds: 50));
-        }
-        expect(find.byType(MonitoringPage), findsOneWidget);
+      await tester.pumpWidget(harness.widget);
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.byType(MonitoringPage), findsOneWidget);
 
-        // Pump enough for the recovery to complete.
-        for (var i = 0; i < 10; i++) {
-          await tester.pump(const Duration(milliseconds: 200));
-        }
+      // Pump enough for the recovery to complete.
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
 
-        final rows = await harness.db.all();
-        expect(rows, hasLength(1),
-            reason: 'Recovery should insert exactly one row');
-        expect(rows.first.transcript, transcript,
-            reason: 'Recovered transcript should match the snapshot');
-        expect(rows.first.recordingError, 'killed',
-            reason: 'Recovered row should be tagged as killed');
+      final rows = await harness.db.all();
+      expect(
+        rows,
+        hasLength(1),
+        reason: 'Recovery should insert exactly one row',
+      );
+      expect(
+        rows.first.transcript,
+        transcript,
+        reason: 'Recovered transcript should match the snapshot',
+      );
+      expect(
+        rows.first.recordingError,
+        'killed',
+        reason: 'Recovered row should be tagged as killed',
+      );
 
-        expect(await SessionRecoveryStore.load(), isNull,
-            reason: 'Snapshot must be cleared after successful recovery');
-      },
-    );
+      expect(
+        await SessionRecoveryStore.load(),
+        isNull,
+        reason: 'Snapshot must be cleared after successful recovery',
+      );
+    });
 
-    testWidgets('Snapshot older than 30 min is dropped (no row inserted)',
-        (tester) async {
+    testWidgets('Snapshot older than 30 min is dropped (no row inserted)', (
+      tester,
+    ) async {
       await SessionRecoveryStore.save(
         SessionSnapshot(
           phoneNumber: '',
@@ -93,11 +105,13 @@ void main() {
       }
 
       final rows = await harness.db.all();
-      expect(rows, isEmpty,
-          reason: 'A stale snapshot should not be recovered');
+      expect(rows, isEmpty, reason: 'A stale snapshot should not be recovered');
 
-      expect(await SessionRecoveryStore.load(), isNull,
-          reason: 'Stale snapshot should be cleared after the age check');
+      expect(
+        await SessionRecoveryStore.load(),
+        isNull,
+        reason: 'Stale snapshot should be cleared after the age check',
+      );
     });
   });
 }

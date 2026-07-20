@@ -14,7 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/asset_loader.dart';
 import '../core/logger.dart';
 import '../core/system_logger.dart';
-import '../data/remote_config_store.dart';
+import '../app/settings_controller.dart';
 import '../services/flutter_services_impl.dart';
 import 'analysis_coordinator.dart';
 import 'l1/l1_analysis.dart';
@@ -22,18 +22,10 @@ import 'l2/g_detection/g_detection_engine.dart';
 import 'l2/l2_analysis.dart';
 import 'l3/l3_analysis.dart';
 
-/// Phase 2 (P2-3): Composite asset loader — disk-first (OTA downloads),
-/// falls back to the Flutter asset bundle when no OTA file is present.
-/// Wrapped in CachingAssetLoader so JSON/config files are parsed once.
+/// Bundle-only loader wrapped with an in-memory text cache. Runtime asset
+/// replacement is intentionally not supported in v1.6.
 final assetLoaderProvider = Provider<AssetLoader>((ref) {
-  const flutterLoader = FlutterAssetLoader();
-  final diskLoader = DiskAssetLoader();
-  final remoteStore = ref.watch(remoteConfigStoreProvider);
-  if (remoteStore != null) {
-    ref.onDispose(remoteStore.dispose);
-  }
-  final composite = CompositeAssetLoader(primary: diskLoader, fallback: flutterLoader);
-  return CachingAssetLoader(composite);
+  return CachingAssetLoader(const FlutterAssetLoader());
 });
 
 /// Unified logger: SystemLogger implements AppLogger, so all analysis-layer
@@ -84,6 +76,7 @@ final l3AnalyzerProvider = Provider<L3Analyzer>((ref) {
   final analyzer = L3Analyzer(
     assetLoader: ref.read(assetLoaderProvider),
     logger: ref.read(loggerProvider),
+    cloudConsentStore: ref.read(cloudAnalysisConsentStoreProvider),
   );
   ref.onDispose(analyzer.dispose);
   return analyzer;

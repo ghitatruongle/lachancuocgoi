@@ -119,6 +119,45 @@ class CallHistoryDao {
     _notifyChanged();
   }
 
+  /// Deletes records older than [cutoff]. Only id/date columns are read so
+  /// large transcripts never need to be loaded just to enforce retention.
+  Future<int> deleteOlderThan(DateTime cutoff) async {
+    final rows = await _db.query(
+      'call_history',
+      columns: const ['id', 'dateTime'],
+    );
+    final ids = <int>[];
+    for (final row in rows) {
+      final id = (row['id'] as num?)?.toInt();
+      final stored = row['dateTime'] as String?;
+      final recordedAt = stored == null
+          ? null
+          : CallHistory.parseStoredDateTime(stored);
+      // Unknown legacy formats are retained rather than deleted by guesswork.
+      if (id != null && recordedAt != null && recordedAt.isBefore(cutoff)) {
+        ids.add(id);
+      }
+    }
+    if (ids.isEmpty) return 0;
+
+    var deleted = 0;
+    await _db.transaction((txn) async {
+      // Stay below SQLite's common 999 bind-variable limit.
+      for (var start = 0; start < ids.length; start += 500) {
+        final end = start + 500 < ids.length ? start + 500 : ids.length;
+        final chunk = ids.sublist(start, end);
+        final placeholders = List.filled(chunk.length, '?').join(',');
+        deleted += await txn.delete(
+          'call_history',
+          where: 'id IN ($placeholders)',
+          whereArgs: chunk,
+        );
+      }
+    });
+    if (deleted > 0) _notifyChanged();
+    return deleted;
+  }
+
   Future<void> updateRiskLevel(int id, String riskLevel) async {
     await _db.update(
       'call_history',

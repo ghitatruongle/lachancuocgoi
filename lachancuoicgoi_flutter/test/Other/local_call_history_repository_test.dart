@@ -27,7 +27,10 @@ class SpyCallHistoryDao implements CallHistoryDao {
   }
 
   @override
-  Future<List<CallHistory>> getAllPaginated({int limit = 20, int offset = 0}) async {
+  Future<List<CallHistory>> getAllPaginated({
+    int limit = 20,
+    int offset = 0,
+  }) async {
     calls.add('getAllPaginated($limit,$offset)');
     return [];
   }
@@ -39,7 +42,11 @@ class SpyCallHistoryDao implements CallHistoryDao {
   }
 
   @override
-  Future<List<CallHistory>> search(String query, {int limit = 20, int offset = 0}) async {
+  Future<List<CallHistory>> search(
+    String query, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
     calls.add('search($query,$limit,$offset)');
     return [];
   }
@@ -64,6 +71,12 @@ class SpyCallHistoryDao implements CallHistoryDao {
   @override
   Future<void> deleteById(int id) async {
     calls.add('deleteById($id)');
+  }
+
+  @override
+  Future<int> deleteOlderThan(DateTime cutoff) async {
+    calls.add('deleteOlderThan(${cutoff.toIso8601String()})');
+    return 0;
   }
 
   @override

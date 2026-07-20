@@ -125,34 +125,32 @@ AnalysisResult createOrangeResult({String reason = 'Nội dung đáng ngờ'}) {
 ///
 /// [statuses] maps permission codes to status codes (1 = granted, 0 = denied).
 /// If null, all permissions default to granted.
-VoidCallback setupPermissionHandlerMock({
-  Map<int, int>? statuses,
-}) {
+VoidCallback setupPermissionHandlerMock({Map<int, int>? statuses}) {
   const channel = MethodChannel('flutter.baseflow.com/permissions/methods');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(channel, (call) async {
-    if (call.method == 'checkPermissionStatus') {
-      final permission = call.arguments as int?;
-      if (statuses != null && permission != null) {
-        return statuses[permission] ?? 0; // default denied if not in map
-      }
-      return 1; // PermissionStatus.granted
-    }
-    if (call.method == 'requestPermissions') {
-      final permissions = (call.arguments as List<dynamic>?) ?? [];
-      return <int, int>{
-        for (final p in permissions)
-          p as int: statuses?[p] ?? 1, // default granted
-      };
-    }
-    if (call.method == 'shouldShowRequestPermissionRationale') {
-      return false; // default: don't show rationale
-    }
-    if (call.method == 'openAppSettings') {
-      return true; // simulate success
-    }
-    return null;
-  });
+        if (call.method == 'checkPermissionStatus') {
+          final permission = call.arguments as int?;
+          if (statuses != null && permission != null) {
+            return statuses[permission] ?? 0; // default denied if not in map
+          }
+          return 1; // PermissionStatus.granted
+        }
+        if (call.method == 'requestPermissions') {
+          final permissions = (call.arguments as List<dynamic>?) ?? [];
+          return <int, int>{
+            for (final p in permissions)
+              p as int: statuses?[p] ?? 1, // default granted
+          };
+        }
+        if (call.method == 'shouldShowRequestPermissionRationale') {
+          return false; // default: don't show rationale
+        }
+        if (call.method == 'openAppSettings') {
+          return true; // simulate success
+        }
+        return null;
+      });
   return () {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);

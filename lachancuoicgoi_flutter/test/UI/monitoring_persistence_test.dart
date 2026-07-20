@@ -102,7 +102,7 @@ class ManualMockNativeBridge implements NativeBridgeInterface {
   Stream<(MonitoringState, int?, String?)> get monitoringStateStream =>
       const Stream.empty();
   @override
-  Stream<CallEvent> get callEventStream => const Stream.empty();
+  Stream<NativeCallEvent> get callEventStream => const Stream.empty();
   @override
   Stream<String> get logsStream => const Stream.empty();
   @override

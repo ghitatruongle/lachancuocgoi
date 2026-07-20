@@ -2,10 +2,12 @@ import 'dart:async' show Completer;
 import 'dart:convert' show jsonEncode;
 
 import '../../analysis/analysis_result.dart';
+import '../../core/analysis_availability.dart';
 import '../../core/system_logger.dart';
 import '../../data/alert_history_entry.dart';
 import '../../data/app_database.dart';
 import '../../data/call_history.dart';
+import '../../data/session_recovery_store.dart';
 import '../../services/native_call_shield_bridge.dart';
 import 'analysis_orchestrator.dart';
 import 'audio_amplitude_handler.dart';
@@ -25,25 +27,28 @@ class SessionEnder {
     required NativeBridgeInterface Function() getBridge,
     required Future<AppDatabase> Function() getDatabase,
     required AudioAmplitudeHandler audioHandler,
-  })  : _getBridge = getBridge,
-        _getDb = getDatabase,
-        _audioHandler = audioHandler;
+    Future<void> Function(AppDatabase database)? cleanupAfterSave,
+  }) : _getBridge = getBridge,
+       _getDb = getDatabase,
+       _audioHandler = audioHandler,
+       _cleanupAfterSave = cleanupAfterSave;
 
   final NativeBridgeInterface Function() _getBridge;
   final Future<AppDatabase> Function() _getDb;
   final AudioAmplitudeHandler _audioHandler;
+  final Future<void> Function(AppDatabase database)? _cleanupAfterSave;
 
-  bool _endSessionInProgress = false;
+  Future<NavigationIntent?>? _endOperation;
   bool _stoppedEventReceived = false;
   Completer<void>? _stoppedCompleter;
 
-  bool get endSessionInProgress => _endSessionInProgress;
   bool get stoppedEventReceived => _stoppedEventReceived;
 
   /// Called when a [MonitoringState.stopped] event arrives from native.
   void onStoppedEvent() {
     _stoppedEventReceived = true;
-    _stoppedCompleter?.complete();
+    final completer = _stoppedCompleter;
+    if (completer != null && !completer.isCompleted) completer.complete();
     _stoppedCompleter = null;
   }
 
@@ -58,7 +63,33 @@ class SessionEnder {
   /// Ends the monitoring session, persists the result, and returns a
   /// [NavigationIntent] (either [NavigateToResult] or [NavigateToHome]).
   Future<NavigationIntent?> endSession({
-    required MonitoringPageState state,
+    required MonitoringPageState Function() getState,
+    required bool isCreatorMode,
+    required bool isSimulationSession,
+    required bool isDisposed,
+    required AnalysisResult? Function() getAnalysisResult,
+    required List<AlertHistoryEntry> Function() getAlertHistory,
+    required AnalysisOrchestrator? Function() getOrchestrator,
+    required bool Function() hasCoordinator,
+  }) {
+    final existing = _endOperation;
+    if (existing != null) return existing;
+    final operation = _endSessionOnce(
+      getState: getState,
+      isCreatorMode: isCreatorMode,
+      isSimulationSession: isSimulationSession,
+      isDisposed: isDisposed,
+      getAnalysisResult: getAnalysisResult,
+      getAlertHistory: getAlertHistory,
+      getOrchestrator: getOrchestrator,
+      hasCoordinator: hasCoordinator,
+    );
+    _endOperation = operation;
+    return operation;
+  }
+
+  Future<NavigationIntent?> _endSessionOnce({
+    required MonitoringPageState Function() getState,
     required bool isCreatorMode,
     required bool isSimulationSession,
     required bool isDisposed,
@@ -67,9 +98,6 @@ class SessionEnder {
     required AnalysisOrchestrator? Function() getOrchestrator,
     required bool Function() hasCoordinator,
   }) async {
-    if (_endSessionInProgress) return null;
-    _endSessionInProgress = true;
-
     SystemLogger.instance.log(
       LogCategory.system,
       'Yêu cầu kết thúc cuộc gọi và lưu kết quả...',
@@ -102,6 +130,9 @@ class SessionEnder {
       }
       if (isDisposed) return null;
 
+      // Read the latest state after the native STOPPED event and final
+      // analysis; the transcript may have changed while we were awaiting.
+      final state = getState();
       final risk = state.peakRiskLevel.index > state.riskLevel.index
           ? state.peakRiskLevel
           : state.riskLevel;
@@ -117,6 +148,10 @@ class SessionEnder {
         recordingError = _audioHandler.hasReceivedAnyAudio
             ? RecordingError.sttFailed
             : RecordingError.noAudio;
+      } else if (state.availability == AnalysisAvailability.sttUnavailable) {
+        recordingError = RecordingError.sttFailed;
+      } else if (state.availability == AnalysisAvailability.interrupted) {
+        recordingError = RecordingError.partial;
       }
       if (recordingError == RecordingError.noAudio) {
         summaryParts.add(
@@ -124,6 +159,10 @@ class SessionEnder {
         );
       } else if (recordingError == RecordingError.sttFailed) {
         summaryParts.add('Không nhận diện được giọng nói (STT không khả dụng)');
+      } else if (recordingError == RecordingError.partial) {
+        summaryParts.add(
+          'Kết quả chưa hoàn chỉnh — phiên giám sát bị gián đoạn',
+        );
       } else if (reason != null && reason.isNotEmpty) {
         summaryParts.add(reason);
       } else {
@@ -150,11 +189,27 @@ class SessionEnder {
       if (isDisposed) return null;
       final id = await db.insert(history);
       if (isDisposed) return null;
-      _endSessionInProgress = false;
+      try {
+        await _cleanupAfterSave?.call(db);
+      } on Object catch (error) {
+        // Retention is housekeeping, so its failure must not turn an already
+        // persisted session into a failed save or leave a recovery snapshot
+        // that could create a duplicate row on the next launch.
+        SystemLogger.instance.log(
+          LogCategory.system,
+          'Post-save history retention cleanup failed: $error',
+          level: LogLevel.warning,
+        );
+      }
+      if (isDisposed) return null;
+      await SessionRecoveryStore.clear();
       return NavigateToResult(id);
     } on Object catch (e) {
-      SystemLogger.instance.log(LogCategory.system, 'End monitoring / save result failed: $e', level: LogLevel.error);
-      _endSessionInProgress = false;
+      SystemLogger.instance.log(
+        LogCategory.system,
+        'End monitoring / save result failed: $e',
+        level: LogLevel.error,
+      );
       if (!isDisposed) {
         return const NavigateToHome();
       }
@@ -164,7 +219,7 @@ class SessionEnder {
 
   /// Resets all state for a new session.
   void reset() {
-    _endSessionInProgress = false;
+    _endOperation = null;
     _stoppedEventReceived = false;
     _stoppedCompleter = null;
   }

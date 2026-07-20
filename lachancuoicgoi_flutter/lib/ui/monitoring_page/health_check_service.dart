@@ -58,7 +58,10 @@ class HealthCheckService {
       if (!_isRunning) return;
       if (running) {
         if (_healthCheckRetryCount > 0) {
-          SystemLogger.instance.log(LogCategory.system, 'Health check recovered after $_healthCheckRetryCount retries.');
+          SystemLogger.instance.log(
+            LogCategory.system,
+            'Health check recovered after $_healthCheckRetryCount retries.',
+          );
           _healthCheckRetryCount = 0;
         }
         _schedule(const Duration(seconds: 60));
@@ -67,17 +70,23 @@ class HealthCheckService {
 
       _healthCheckRetryCount++;
       if (_healthCheckRetryCount == 1) {
-        SystemLogger.instance.log(LogCategory.system, 'Health check: service not running — auto-restarting...', level: LogLevel.warning);
+        SystemLogger.instance.log(
+          LogCategory.system,
+          'Health check: service not running — auto-restarting...',
+          level: LogLevel.warning,
+        );
         _onServiceDown();
         await _runRestartSequence();
       } else {
-        SystemLogger.instance.log(LogCategory.system, 'Health check: backoff attempt $_healthCheckRetryCount (still down)', level: LogLevel.warning);
+        SystemLogger.instance.log(
+          LogCategory.system,
+          'Health check: backoff attempt $_healthCheckRetryCount (still down)',
+          level: LogLevel.warning,
+        );
       }
       if (!_isRunning) return;
-      final nextIntervalSec = (60 * (1 << (_healthCheckRetryCount - 1))).clamp(
-        60,
-        300,
-      );
+      final shift = _healthCheckRetryCount.clamp(0, 10);
+      final nextIntervalSec = (60 * (1 << shift)).clamp(60, 300);
       _schedule(Duration(seconds: nextIntervalSec));
     });
   }

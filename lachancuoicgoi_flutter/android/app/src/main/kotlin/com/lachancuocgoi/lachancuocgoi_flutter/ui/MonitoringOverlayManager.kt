@@ -2,186 +2,183 @@ package com.lachancuocgoi.lachancuocgoi_flutter.ui
 
 import android.animation.ObjectAnimator
 import android.content.Context
-import android.content.Intent
 import android.graphics.Color
-import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
 import android.view.Gravity
-import android.view.View
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.lachancuocgoi.lachancuocgoi_flutter.services.BackgroundMonitoringService
+import com.lachancuocgoi.lachancuocgoi_flutter.services.CallSessionCoordinator
+import com.lachancuocgoi.lachancuocgoi_flutter.services.MonitoringPreferences
+import com.lachancuocgoi.lachancuocgoi_flutter.R
+import java.lang.ref.WeakReference
+import java.util.Locale
 
+/** Compact, app-independent version of the monitoring page. */
 object MonitoringOverlayManager {
+    private val overlayWindow = OverlayWindow()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var monitoringStartTime = 0L
+    private var timerTextRef: WeakReference<TextView>? = null
+    private var waveformRef: WeakReference<MonitoringWaveformView>? = null
 
-    private var windowManager: WindowManager? = null
-    private var monitoringOverlayView: View? = null
-
-    private var monitoringStartTime: Long = 0L
-    private var timerHandler: Handler? = null
-    private var timerTextView: TextView? = null
     private val timerRunnable = object : Runnable {
         override fun run() {
-            val elapsed = System.currentTimeMillis() - monitoringStartTime
-            val totalSeconds = (elapsed / 1000).toInt()
-            val minutes = totalSeconds / 60
-            val seconds = totalSeconds % 60
-            timerTextView?.text = String.format("%02d:%02d", minutes, seconds)
-            timerHandler?.postDelayed(this, 1000L)
-        }
-    }
-
-    private fun getWindowManager(context: Context): WindowManager {
-        if (windowManager == null) {
-            windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        }
-        return windowManager!!
-    }
-
-    private fun dpToPx(context: Context, dp: Int): Int {
-        return TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            dp.toFloat(),
-            context.resources.displayMetrics
-        ).toInt()
-    }
-
-    fun showMonitoringOverlay(context: Context) {
-        if (monitoringOverlayView != null) return
-
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            dpToPx(context, 64),
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            val elapsedSeconds =
+                ((System.currentTimeMillis() - monitoringStartTime).coerceAtLeast(0L) / 1000L)
+            val hours = elapsedSeconds / 3600L
+            val minutes = (elapsedSeconds % 3600L) / 60L
+            val seconds = elapsedSeconds % 60L
+            timerTextRef?.get()?.text = if (hours > 0L) {
+                String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
             } else {
-                @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
-            },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.TOP }
+                String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+            }
+            mainHandler.postDelayed(this, 1000L)
+        }
+    }
 
-        val rootLayout = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dpToPx(context, 16), dpToPx(context, 8), dpToPx(context, 16), dpToPx(context, 8))
+    fun showMonitoringOverlay(context: Context, startedAtMs: Long): Boolean {
+        if (Looper.myLooper() != Looper.getMainLooper()) return false
+        if (overlayWindow.isAttached) return true
 
-            translationY = -dpToPx(context, 64).toFloat()
-
-            val bg = GradientDrawable().apply {
-                setColor(Color.parseColor("#F6F8FC"))
+        val appContext = context.applicationContext
+        val root = LinearLayout(appContext).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(appContext, 16), dp(appContext, 10), dp(appContext, 16), dp(appContext, 10))
+            translationY = -dp(appContext, OVERLAY_HEIGHT_DP).toFloat()
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#F8FAFF"))
                 cornerRadii = floatArrayOf(
                     0f, 0f, 0f, 0f,
-                    dpToPx(context, 16).toFloat(), dpToPx(context, 16).toFloat(),
-                    dpToPx(context, 16).toFloat(), dpToPx(context, 16).toFloat()
+                    dp(appContext, 18).toFloat(), dp(appContext, 18).toFloat(),
+                    dp(appContext, 18).toFloat(), dp(appContext, 18).toFloat(),
                 )
             }
-            background = bg
-            elevation = dpToPx(context, 8).toFloat()
+            elevation = dp(appContext, 10).toFloat()
         }
 
-        val aiBadge = TextView(context).apply {
-            text = "AI"
-            setTextColor(Color.parseColor("#1257C0"))
-            textSize = 12f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setPadding(dpToPx(context, 8), dpToPx(context, 4), dpToPx(context, 8), dpToPx(context, 4))
-            val badgeBg = GradientDrawable().apply {
-                setColor(Color.parseColor("#E3EFFF"))
-                cornerRadius = dpToPx(context, 8).toFloat()
-            }
-            background = badgeBg
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { rightMargin = dpToPx(context, 12) }
+        val header = LinearLayout(appContext).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
-        rootLayout.addView(aiBadge)
-
-        val textColumn = LinearLayout(context).apply {
+        val titleColumn = LinearLayout(appContext).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
-
-        val statusText = TextView(context).apply {
-            text = "Đang theo dõi"
-            setTextColor(Color.parseColor("#1A1A2E"))
-            textSize = 14f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-        }
-        textColumn.addView(statusText)
-
-        val elapsedText = TextView(context).apply {
-            text = "00:00"
-            setTextColor(Color.parseColor("#666666"))
+        titleColumn.addView(TextView(appContext).apply {
+            text = appContext.getString(R.string.monitoring_overlay_title)
+            setTextColor(Color.parseColor("#111827"))
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        titleColumn.addView(TextView(appContext).apply {
+            val mode = MonitoringPreferences.readAnalysisMode(appContext)
+            text = appContext.getString(
+                R.string.monitoring_overlay_model,
+                MonitoringPreferences.displayLabel(mode),
+            )
+            setTextColor(Color.parseColor("#4B5563"))
             textSize = 12f
+        })
+        header.addView(titleColumn)
+
+        val timer = TextView(appContext).apply {
+            text = appContext.getString(R.string.monitoring_overlay_timer_initial)
+            setTextColor(Color.parseColor("#1257C0"))
+            textSize = 18f
+            typeface = Typeface.MONOSPACE
+            gravity = Gravity.CENTER
+            contentDescription = "Thời gian giám sát"
+            layoutParams = LinearLayout.LayoutParams(dp(appContext, 86), dp(appContext, 42))
+        }
+        timerTextRef = WeakReference(timer)
+        header.addView(timer)
+        root.addView(header)
+
+        val bottomRow = LinearLayout(appContext).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
             layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dpToPx(context, 2) }
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(appContext, 52),
+            ).apply { topMargin = dp(appContext, 4) }
         }
-        timerTextView = elapsedText
-        textColumn.addView(elapsedText)
-        rootLayout.addView(textColumn)
-
-        val stopButton = Button(context).apply {
-            text = "✕"
-            setTextColor(Color.parseColor("#C53E3E"))
-            textSize = 16f
-            val stopBg = GradientDrawable().apply {
-                setColor(Color.parseColor("#FFE0E0"))
-                cornerRadius = dpToPx(context, 12).toFloat()
-            }
-            background = stopBg
-            val size = dpToPx(context, 40)
-            layoutParams = LinearLayout.LayoutParams(size, size)
-            setOnClickListener {
-                stopMonitoring(context)
+        val waveform = MonitoringWaveformView(appContext).apply {
+            contentDescription = "Sóng âm trực tiếp"
+            layoutParams = LinearLayout.LayoutParams(0, dp(appContext, 42), 1f).apply {
+                marginEnd = dp(appContext, 12)
             }
         }
-        rootLayout.addView(stopButton)
+        waveformRef = WeakReference(waveform)
+        bottomRow.addView(waveform)
 
-        monitoringOverlayView = rootLayout
-        try {
-            getWindowManager(context).addView(rootLayout, params)
-            
-            ObjectAnimator.ofFloat(rootLayout, "translationY", 0f).apply {
-                duration = 300
-                interpolator = DecelerateInterpolator()
-                start()
+        bottomRow.addView(Button(appContext).apply {
+            text = appContext.getString(R.string.monitoring_overlay_end_call)
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            contentDescription = "Kết thúc cuộc gọi và lưu lịch sử"
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#C62828"))
+                cornerRadius = dp(appContext, 12).toFloat()
             }
+            minWidth = 0
+            minimumWidth = 0
+            layoutParams = LinearLayout.LayoutParams(dp(appContext, 138), dp(appContext, 44))
+            setOnClickListener { CallSessionCoordinator.endFromUser(appContext) }
+        })
+        root.addView(bottomRow)
 
-            monitoringStartTime = System.currentTimeMillis()
-            timerHandler = Handler(Looper.getMainLooper())
-            timerHandler?.post(timerRunnable)
-        } catch (e: Exception) {
-            monitoringOverlayView = null
+        val attached = overlayWindow.attachOverlay(
+            appContext,
+            root,
+            height = dp(appContext, OVERLAY_HEIGHT_DP),
+            gravity = Gravity.TOP,
+            flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        )
+        if (!attached) {
+            timerTextRef = null
+            waveformRef = null
+            return false
         }
+
+        ObjectAnimator.ofFloat(root, "translationY", 0f).apply {
+            duration = 250L
+            interpolator = DecelerateInterpolator()
+            start()
+        }
+        monitoringStartTime = startedAtMs.takeIf { it > 0L } ?: System.currentTimeMillis()
+        mainHandler.removeCallbacks(timerRunnable)
+        mainHandler.post(timerRunnable)
+        return true
     }
 
-    fun hideMonitoringOverlay(context: Context) {
-        timerHandler?.removeCallbacks(timerRunnable)
-        timerHandler = null
-        timerTextView = null
-        monitoringOverlayView?.let {
-            try { getWindowManager(context).removeView(it) } catch (_: Exception) {}
-            monitoringOverlayView = null
-        }
+    fun updateRms(rms: Float) {
+        mainHandler.post { waveformRef?.get()?.addRms(rms) }
     }
 
-    private fun stopMonitoring(context: Context) {
-        try {
-            val stopIntent = Intent(context, BackgroundMonitoringService::class.java).apply {
-                action = BackgroundMonitoringService.ACTION_STOP
-            }
-            context.startService(stopIntent)
-        } catch (_: Exception) {}
+    fun hideMonitoringOverlay() {
+        mainHandler.removeCallbacks(timerRunnable)
+        timerTextRef = null
+        waveformRef = null
+        overlayWindow.detach()
     }
+
+    private fun dp(context: Context, value: Int): Int =
+        TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            value.toFloat(),
+            context.resources.displayMetrics,
+        ).toInt()
+
+    private const val OVERLAY_HEIGHT_DP = 128
 }

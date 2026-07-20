@@ -1,9 +1,4 @@
-name: CI
-
-# Continuous Integration cho lachancuoicgoi_flutter (Flutter).
-# Chạy static analysis + fast test suite trên mỗi push/PR tới main.
-# Repo root là monorepo (Kotlin + Flutter + model dirs); workflow này
-# chỉ kiểm tra thư mục con `lachancuoicgoi_flutter`.
+name: Flutter v1.6 quality
 
 on:
   push:
@@ -11,81 +6,249 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # 03:00 UTC hàng ngày — chạy thêm perf suite (xem job perf-suite).
-    - cron: "0 3 * * *"
+    - cron: '0 3 * * *'
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: flutter-v1.6-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
-  FLUTTER_CHANNEL: "stable"
+  FLUTTER_VERSION: '3.44.2'
+  JAVA_VERSION: '17'
+  APP_DIR: lachancuoicgoi_flutter
 
 jobs:
-  analyze-and-test:
-    name: Analyze & test (fast suite)
+  quality:
+    name: Format, analyze, tests, Android lint
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     defaults:
       run:
-        working-directory: lachancuoicgoi_flutter
-
+        working-directory: ${{ env.APP_DIR }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/setup-java@v4
         with:
-          channel: ${{ env.FLUTTER_CHANNEL }}
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - name: Flutter doctor
-        run: flutter doctor -v
+      - name: Verify toolchain
+        run: |
+          flutter --version
+          java -version
 
-      - name: Get dependencies
-        run: flutter pub get
+      - name: Provide test-only env placeholder
+        run: cp env.example.json env.json
 
-      # Tạo env.json placeholder để build không lỗi thiếu asset.
-      # CI KHÔNG bao giờ chứa API key thật — chỉ cần file tồn tại
-      # cho rootBundle.loadString. Placeholder detection (api_key_provider)
-      # sẽ loại bỏ các key giả và L3 fail an toàn trong test.
-      - name: Create env.json placeholder
-        run: cp env.example.json env.json || true
+      - name: Restore locked dependencies
+        run: flutter pub get --enforce-lockfile
 
-      - name: Static analysis
-        run: dart analyze lib/ test/
+      - name: Verify release version metadata
+        run: dart run tool/verify_release_version.dart
 
-      - name: Fast test suite (exclude perf)
-        run: flutter test --exclude-tags perf
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed lib test integration_test tool
 
-  perf-suite:
-    name: Performance suite (nightly only)
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Full Dart test suite and coverage
+        run: flutter test --coverage --exclude-tags perf 2>&1 | tee ci-test.log
+
+      - name: Eval gate (real L1/L2 assets, no Gemini)
+        run: flutter test test/analysis/eval/corpus_regression_test.dart
+
+      - name: Coverage regression gate
+        run: dart run tool/check_coverage.dart
+
+      - name: Android lint and Kotlin unit tests
+        working-directory: ${{ env.APP_DIR }}/android
+        run: ./gradlew lintDebug testDebugUnitTest --stacktrace 2>&1 | tee ../ci-android.log
+
+      - name: Build debug APK
+        run: flutter build apk --debug 2>&1 | tee ci-build.log
+
+      - name: Scan source and CI logs for accidental secrets
+        run: dart run tool/check_no_secrets.dart ci-test.log ci-android.log ci-build.log
+
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: |
+            ${{ env.APP_DIR }}/coverage/lcov.info
+            ${{ env.APP_DIR }}/build/app/reports/lint-results-debug.html
+            ${{ env.APP_DIR }}/ci-*.log
+
+  ubuntu-builds:
+    name: Ubuntu — ${{ matrix.target }} release
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [web, linux]
     defaults:
       run:
-        working-directory: lachancuoicgoi_flutter
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Install Linux build dependencies
+        if: matrix.target == 'linux'
+        run: >-
+          sudo apt-get update && sudo apt-get install -y
+          clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+      - run: cp env.example.json env.json
+      - run: flutter pub get --enforce-lockfile
+      - name: Host smoke test
+        run: flutter test test/smoke/platform_demo_smoke_test.dart
+      - name: Build Web
+        if: matrix.target == 'web'
+        run: flutter build web --release
+      - name: Build Linux
+        if: matrix.target == 'linux'
+        run: flutter build linux --release
 
-    # Perf suite chỉ chạy theo lịch (đêm) hoặc trigger thủ công — không
-    # chạy trên push/PR vì benchmark chậm và kết quả lệ thuộc phần cứng
-    # runner, dễ tạo false positive.
+  windows-build:
+    name: Windows release demo
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: Copy-Item env.example.json env.json
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter test test/smoke/platform_demo_smoke_test.dart
+      - run: flutter build windows --release
+
+  apple-builds:
+    name: macOS — ${{ matrix.target }} release demo
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [ios, macos]
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: cp env.example.json env.json
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter test test/smoke/platform_demo_smoke_test.dart
+      - name: Build iOS without signing
+        if: matrix.target == 'ios'
+        run: flutter build ios --release --no-codesign
+      - name: Build macOS
+        if: matrix.target == 'macos'
+        run: flutter build macos --release
+
+  android-emulator-main:
+    name: Android API ${{ matrix.api }} integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 29
+            target: google_apis
+          - api: 36
+            target: google_apis_ps16k
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Prepare app
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          cp env.example.json env.json
+          flutter pub get --enforce-lockfile
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          profile: pixel_6
+          script: cd ${{ env.APP_DIR }} && flutter test integration_test/monitoring_flow_test.dart -d emulator-5554
+
+  android-emulator-extended:
+    name: Extended Android API ${{ matrix.api }} smoke
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 33, 35, 36]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
-          channel: ${{ env.FLUTTER_CHANNEL }}
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+      - name: Prepare app
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          cp env.example.json env.json
+          flutter pub get --enforce-lockfile
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          script: cd ${{ env.APP_DIR }} && flutter test integration_test/permission_flow_test.dart -d emulator-5554
 
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Create env.json placeholder
-        run: cp env.example.json env.json || true
-
-      - name: Performance suite
-        run: flutter test --tags perf
+  dependency-report:
+    name: Dependency update report
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: cp env.example.json env.json
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter pub outdated

@@ -108,8 +108,7 @@ void main() {
 
       expect(result.isFailure, isTrue);
       expect(attemptedModels, <String>[
-        'gemini-3.5-flash',
-        'gemini-3.1-flash-lite',
+        'gemini-flash-latest',
         'gemini-3-flash',
         'gemini-2.5-flash',
         'gemini-2.5-flash-lite',
@@ -140,7 +139,7 @@ void main() {
       );
 
       expect(result.isSuccess, isTrue);
-      expect(result.getOrThrow(), 'gemini-3-flash');
+      expect(result.getOrThrow(), 'gemini-2.5-flash');
       expect(attempts, 3);
     });
   });

@@ -41,8 +41,7 @@ enum EvalExpectation {
       EvalExpectation.red => predicted == RiskLevel.red,
       EvalExpectation.yellowOrGreen =>
         predicted.index <= RiskLevel.yellow.index,
-      EvalExpectation.orangeOrRed =>
-        predicted.index >= RiskLevel.orange.index,
+      EvalExpectation.orangeOrRed => predicted.index >= RiskLevel.orange.index,
     };
   }
 
@@ -65,6 +64,8 @@ class EvalCase {
     required this.expected,
     required this.scenario,
     this.notes,
+    this.group = 'unknown',
+    this.isCritical = false,
   });
 
   final String id;
@@ -72,6 +73,8 @@ class EvalCase {
   final EvalExpectation expected;
   final String scenario;
   final String? notes;
+  final String group;
+  final bool isCritical;
 
   factory EvalCase.fromJson(Map<String, Object?> json) {
     return EvalCase(
@@ -80,6 +83,8 @@ class EvalCase {
       expected: EvalExpectation.parse(json['expected'] as String? ?? ''),
       scenario: json['scenario'] as String? ?? 'unknown',
       notes: json['notes'] as String?,
+      group: json['group'] as String? ?? 'unknown',
+      isCritical: json['isCritical'] as bool? ?? false,
     );
   }
 }
@@ -95,6 +100,56 @@ List<EvalCase> parseEvalJsonl(String jsonl) {
       throw FormatException('Line ${i + 1} is not a JSON object');
     }
     cases.add(EvalCase.fromJson(decoded.cast<String, Object?>()));
+  }
+  return cases;
+}
+
+/// Expands a compact, reviewed template corpus into the concrete cases used
+/// by the regression gate. This keeps 300 cases maintainable while ensuring
+/// every generated transcript has a stable ID and category.
+List<EvalCase> parseEvalTemplateCorpus(String rawJson) {
+  final decoded = jsonDecode(rawJson);
+  if (decoded is! Map<String, dynamic>) {
+    throw const FormatException('Template corpus root must be a JSON object');
+  }
+
+  final cases = <EvalCase>[];
+  for (final groupEntry in decoded.entries) {
+    final group = groupEntry.key;
+    final groupValue = groupEntry.value;
+    if (groupValue is! Map<String, dynamic>) {
+      throw FormatException('Corpus group $group must be a JSON object');
+    }
+    final expected = EvalExpectation.parse(
+      groupValue['expected'] as String? ?? '',
+    );
+    final variants = (groupValue['variants'] as List<dynamic>? ?? const [])
+        .cast<String>();
+    final templates = (groupValue['templates'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>();
+    if (variants.isEmpty || templates.isEmpty) {
+      throw FormatException('Corpus group $group cannot be empty');
+    }
+
+    for (final template in templates) {
+      final templateId = template['id'] as String? ?? '';
+      final templateText = template['text'] as String? ?? '';
+      final scenario = template['scenario'] as String? ?? group;
+      final isCritical = template['isCritical'] as bool? ?? false;
+      for (var index = 0; index < variants.length; index++) {
+        final variant = variants[index];
+        cases.add(
+          EvalCase(
+            id: '${group}_${templateId}_${index + 1}',
+            text: templateText.replaceAll('{variant}', variant).trim(),
+            expected: expected,
+            scenario: scenario,
+            group: group,
+            isCritical: isCritical,
+          ),
+        );
+      }
+    }
   }
   return cases;
 }

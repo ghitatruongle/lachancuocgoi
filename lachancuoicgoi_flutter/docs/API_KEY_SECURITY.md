@@ -1,103 +1,38 @@
-# P2-SEC: Bảo mật API Key — Hướng dẫn Backend Proxy
+# Bảo mật Gemini API key — v1.6.0
 
-## Vấn đề
+## Kiến trúc đã chọn
 
-`env.json` nằm trong `assets/` và bị **bundle trực tiếp trong APK**. Bất kỳ ai
-cài app cũng có thể extract file này qua `apktool` hoặc `strings`. XOR
-obfuscation (`api_key_obfuscator.dart`) chỉ làm chậm reverse engineering vài
-phút — không phải bảo vệ thật.
+Phiên bản `1.6.0+14` gọi Gemini trực tiếp từ thiết bị bằng
+`google_generative_ai`. `EnvironmentApiKeyProvider` đọc và xoay nhiều key từ
+`env.json`; one-shot, incremental chat và summarizer phải dùng chung provider.
 
-## Giải pháp: Backend Proxy
+Không có backend proxy và không còn biến `L3_BACKEND_URL`.
 
-Thay vì gọi Gemini trực tiếp từ app, app gọi qua backend nhỏ. Backend giữ
-API key, app chỉ gửi transcript **đã strip PII** + Firebase App Check token.
+## Giới hạn cần chấp nhận
 
-### Kiến trúc
+`env.json` được bundle vào APK/AAB. Obfuscation chỉ làm chậm việc đọc key và
+không phải mã hóa bí mật: người có artifact vẫn có thể trích xuất key.
 
-```
-App (Flutter)                        Backend (Cloud Function/Run)
-  │                                    │
-  ├─ POST /analyze                     ├─ Verify App Check token
-  │  { transcript: "..." }             ├─ Strip PII lần 2 (defense in depth)
-  │  Header: App-Check-Token: ...      ├─ Gọi Gemini API (key ở server)
-  │                                    ├─ Parse response
-  │  ←─ 200 { level, reason, ... }     ├─ Return JSON
-  └─ Fallback: L1+L2 offline           └─ Rate limit / logging
-```
+Biện pháp vận hành bắt buộc:
 
-### Đã implement (Phase 2)
+- Không đưa `env.json` vào hệ thống quản lý mã nguồn.
+- Giới hạn API/quota của key trong Google Cloud ở mức thấp nhất có thể.
+- Theo dõi quota và cảnh báo bất thường.
+- Xoay hoặc thu hồi key ngay khi nghi ngờ bị lộ.
+- Không ghi key, prompt, transcript hoặc response body vào log.
+- Release build phải chạy `dart run tool/validate_release_env.dart env.json`;
+  công cụ chỉ báo số key hợp lệ và không in giá trị.
 
-- **`lib/analysis/l3/core/proxy_l3_client.dart`** — `ProxyL3Executor`
-  thay thế `_defaultRequestExecutor` trong `GeminiClient`.
-  App gửi HTTPS POST thay vì gọi `google_generative_ai` trực tiếp.
-  Circuit breaker của `GeminiClient` vẫn hoạt động (khi backend down).
+## Consent dữ liệu cloud
 
-### Cách bật proxy trong production
+Offline L1+L2 là mặc định. Trước lần đầu chạy Gemini/Parallel có L3, ứng dụng
+phải giải thích dữ liệu được gửi và lưu `CLOUD_ANALYSIS_CONSENT_V1` sau khi
+người dùng đồng ý. Khi chưa đồng ý, đã thu hồi, mất mạng hoặc key lỗi, ứng dụng
+fallback về L1+L2 và không coi toàn phiên là thất bại.
 
-```dart
-// Thay vì:
-final client = GeminiClient(
-  apiKeyProvider: provider,
-  config: GeminiConfig.forAnalysis(),
-);
+## Quy trình build local
 
-// Dùng:
-import 'package:http/http.dart' as http;
-final proxyExecutor = ProxyL3Executor(
-  endpoint: Uri.parse('https://your-backend.com/analyze'),
-  httpClient: http.Client(),
-  appCheckToken: () async => await getAppCheckToken(), // Firebase App Check
-);
-final client = GeminiClient(
-  apiKeyProvider: provider, // vẫn cần cho fallback / testing
-  config: GeminiConfig.forAnalysis(),
-  requestExecutor: proxyExecutor.execute, // ← inject proxy
-);
-```
-
-### Backend tham khảo (Cloud Function)
-
-```python
-# main.py — Google Cloud Functions
-import functions_framework
-import google.generativeai as genai
-from flask import jsonify, request
-
-GENAI_API_KEY = "AIza..."  # Chỉ ở server, không bao giờ ship trong app
-genai.configure(api_key=GENAI_API_KEY)
-
-@functions_framework.http
-def analyze(request):
-    # 1. Verify App Check token
-    app_check_token = request.headers.get("App-Check-Token")
-    if not verify_app_check(app_check_token):
-        return jsonify({"error": "unauthorized"}), 401
-
-    # 2. Parse + strip PII (defense in depth)
-    data = request.get_json()
-    transcript = strip_pii(data.get("transcript", ""))
-
-    # 3. Call Gemini
-    model = genai.GenerativeModel("gemini-3.5-flash")
-    response = model.generate_content(build_prompt(transcript))
-
-    # 4. Return structured JSON
-    return jsonify(parse_response(response.text))
-```
-
-### Checklist migration
-
-- [ ] Deploy backend (Cloud Function / Cloud Run)
-- [ ] Wire `ProxyL3Executor` vào `L3Analyzer` factory
-- [ ] Thêm Firebase App Check
-- [ ] Xóa `env.json` khỏi `pubspec.yaml` assets
-- [ ] Rotate toàn bộ key đã từng ship trong APK
-- [ ] Test: `strings app-release.apk | grep AIza` → không còn kết quả
-- [ ] Test: backend down → circuit breaker hoạt động, L1+L2 vẫn chạy
-
-### Lưu ý
-
-- App vẫn giữ `ApiKeyProvider` cho **testing** và **fallback**.
-- Trong release build, `env.json` KHÔNG được bundle — chỉ backend có key.
-- Circuit breaker (`GeminiClient` + `CircuitBreaker`) đảm bảo khi backend down,
-  L3 fail-fast và pipeline fallback sang L1+L2 offline.
+1. Tạo `env.json` từ file mẫu và điền key hợp lệ.
+2. Chạy `dart run tool/validate_release_env.dart env.json`.
+3. Chạy `powershell -ExecutionPolicy Bypass -File tool/build_release.ps1`.
+4. Không chia sẻ `env.json` hoặc log build có dữ liệu nhạy cảm.

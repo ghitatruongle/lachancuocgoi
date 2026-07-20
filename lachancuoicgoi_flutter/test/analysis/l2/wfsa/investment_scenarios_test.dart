@@ -30,8 +30,11 @@ void main() {
 
     test('all investment scenarios have non-empty names', () {
       for (final scenario in investmentScenarios) {
-        expect(scenario.name.isNotEmpty, true,
-            reason: 'Scenario ${scenario.graphId} should have a name');
+        expect(
+          scenario.name.isNotEmpty,
+          true,
+          reason: 'Scenario ${scenario.graphId} should have a name',
+        );
       }
     });
 
@@ -101,8 +104,11 @@ void main() {
 
     test('all scenarios have at least one state', () {
       for (final scenario in investmentScenarios) {
-        expect(scenario.states.isNotEmpty, true,
-            reason: 'Scenario ${scenario.graphId} should have states');
+        expect(
+          scenario.states.isNotEmpty,
+          true,
+          reason: 'Scenario ${scenario.graphId} should have states',
+        );
       }
     });
 

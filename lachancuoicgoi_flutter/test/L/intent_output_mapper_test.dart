@@ -307,29 +307,29 @@ void main() {
     /// The real model order from accuracy_per_label.md + stage34 CSV.
     /// 23 classes — fakeEcommerce/cryptoDrain are NOT in the model.
     final modelLabelOrder = <ScamIntent>[
-      ScamIntent.authPoliceLawsuit,   // 0
-      ScamIntent.taxGovApp,           // 1
-      ScamIntent.telecomLock,         // 2
-      ScamIntent.techSupportHijack,   // 3
-      ScamIntent.hospitalEmergency,   // 4
-      ScamIntent.virtualKidnapping,   // 5
-      ScamIntent.ceoFraudB2b,         // 6
-      ScamIntent.socialDeepfakeLoan,  // 7
-      ScamIntent.romanceScam,         // 8
+      ScamIntent.authPoliceLawsuit, // 0
+      ScamIntent.taxGovApp, // 1
+      ScamIntent.telecomLock, // 2
+      ScamIntent.techSupportHijack, // 3
+      ScamIntent.hospitalEmergency, // 4
+      ScamIntent.virtualKidnapping, // 5
+      ScamIntent.ceoFraudB2b, // 6
+      ScamIntent.socialDeepfakeLoan, // 7
+      ScamIntent.romanceScam, // 8
       ScamIntent.sextortionBlackmail, // 9
-      ScamIntent.charityDonation,     // 10
-      ScamIntent.investmentScam,      // 11
-      ScamIntent.jobTaskScam,         // 12
-      ScamIntent.giftLottery,         // 13
-      ScamIntent.gamblingPrediction,  // 14
+      ScamIntent.charityDonation, // 10
+      ScamIntent.investmentScam, // 11
+      ScamIntent.jobTaskScam, // 12
+      ScamIntent.giftLottery, // 13
+      ScamIntent.gamblingPrediction, // 14
       ScamIntent.immigrationVisaScam, // 15
-      ScamIntent.bankCardFraud,       // 16
-      ScamIntent.deliveryCod,         // 17
-      ScamIntent.fakeSubscription,    // 18
-      ScamIntent.blackCreditTerror,   // 19
-      ScamIntent.recoveryScam,        // 20
-      ScamIntent.genericScam,         // 21 ← NOT fakeEcommerce
-      ScamIntent.safe,                // 22 ← NOT cryptoDrain
+      ScamIntent.bankCardFraud, // 16
+      ScamIntent.deliveryCod, // 17
+      ScamIntent.fakeSubscription, // 18
+      ScamIntent.blackCreditTerror, // 19
+      ScamIntent.recoveryScam, // 20
+      ScamIntent.genericScam, // 21 ← NOT fakeEcommerce
+      ScamIntent.safe, // 22 ← NOT cryptoDrain
     ];
 
     test('predictionsFromLogits with labelOrder: index 16 → bankCardFraud', () {
@@ -345,31 +345,37 @@ void main() {
       expect(predictions.first.confidence, greaterThan(0.9));
     });
 
-    test('predictionsFromLogits with labelOrder: index 21 → genericScam (not fakeEcommerce)', () {
-      final logits = List<double>.filled(modelLabelOrder.length, 0.0);
-      logits[21] = 10.0; // Model says GENERIC_SCAM
+    test(
+      'predictionsFromLogits with labelOrder: index 21 → genericScam (not fakeEcommerce)',
+      () {
+        final logits = List<double>.filled(modelLabelOrder.length, 0.0);
+        logits[21] = 10.0; // Model says GENERIC_SCAM
 
-      final predictions = IntentOutputMapper.predictionsFromLogits(
-        logits,
-        labelOrder: modelLabelOrder,
-      );
+        final predictions = IntentOutputMapper.predictionsFromLogits(
+          logits,
+          labelOrder: modelLabelOrder,
+        );
 
-      expect(predictions.first.intent, ScamIntent.genericScam);
-      expect(predictions.first.intent, isNot(ScamIntent.fakeEcommerce));
-    });
+        expect(predictions.first.intent, ScamIntent.genericScam);
+        expect(predictions.first.intent, isNot(ScamIntent.fakeEcommerce));
+      },
+    );
 
-    test('predictionsFromLogits with labelOrder: index 22 → safe (not cryptoDrain)', () {
-      final logits = List<double>.filled(modelLabelOrder.length, 0.0);
-      logits[22] = 10.0; // Model says SAFE
+    test(
+      'predictionsFromLogits with labelOrder: index 22 → safe (not cryptoDrain)',
+      () {
+        final logits = List<double>.filled(modelLabelOrder.length, 0.0);
+        logits[22] = 10.0; // Model says SAFE
 
-      final predictions = IntentOutputMapper.predictionsFromLogits(
-        logits,
-        labelOrder: modelLabelOrder,
-      );
+        final predictions = IntentOutputMapper.predictionsFromLogits(
+          logits,
+          labelOrder: modelLabelOrder,
+        );
 
-      expect(predictions.first.intent, ScamIntent.safe);
-      expect(predictions.first.intent, isNot(ScamIntent.cryptoDrain));
-    });
+        expect(predictions.first.intent, ScamIntent.safe);
+        expect(predictions.first.intent, isNot(ScamIntent.cryptoDrain));
+      },
+    );
 
     test('labelOrder=null falls back to global intentLabels (25 entries)', () {
       final logits = List<double>.filled(intentLabels.length, 0.0);

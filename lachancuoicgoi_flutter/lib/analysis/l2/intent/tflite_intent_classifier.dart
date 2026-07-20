@@ -331,9 +331,7 @@ void _isolateMain(SendPort mainSendPort) async {
         // Only report ready when model output classes match the label file.
         // If misaligned, isModelAligned is false → _isReady stays false →
         // AI path falls back to GDetection/WFSA (Luồng 2) automatically.
-        message.replyPort.send(
-          _IsolateInitResponse(isReady: isModelAligned),
-        );
+        message.replyPort.send(_IsolateInitResponse(isReady: isModelAligned));
       } on Object catch (e) {
         interpreter?.close();
         interpreter = null;

@@ -14,6 +14,7 @@ import io.mockk.unmockkObject
 import io.mockk.verify
 import org.junit.After
 import org.junit.Assume
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,11 +50,18 @@ class CreatorMediaProjectionServiceTest {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q,
         )
         context = ApplicationProvider.getApplicationContext()
+        shadowOf(context as android.app.Application)
+            .grantPermissions(android.Manifest.permission.RECORD_AUDIO)
 
         mockkObject(NativeBridgeEventSink, recordPrivateCalls = false)
         every { NativeBridgeEventSink.sendLog(any(), any(), any()) } returns Unit
         every { NativeBridgeEventSink.sendMonitoringState(any()) } returns Unit
         every { NativeBridgeEventSink.sendTranscript(any(), any()) } returns Unit
+
+        mockkObject(ForegroundServiceLauncher)
+        every {
+            ForegroundServiceLauncher.safeStartForeground(any(), any(), any(), any())
+        } returns true
 
         service = Robolectric.buildService(CreatorMediaProjectionService::class.java)
             .create()
@@ -68,6 +76,7 @@ class CreatorMediaProjectionServiceTest {
             CreatorMediaProjectionService.isRunning = false
         } catch (_: Exception) { /* ignore */ }
         unmockkObject(NativeBridgeEventSink)
+        unmockkObject(ForegroundServiceLauncher)
         shadowOf(Looper.getMainLooper()).idle()
     }
 
@@ -128,6 +137,26 @@ class CreatorMediaProjectionServiceTest {
         shadowOf(Looper.getMainLooper()).idle()
 
         // No assertion needed — just no exception.
+    }
+
+    @Test
+    fun `foreground promotion is attempted without notification permission`() {
+        shadowOf(context as android.app.Application)
+            .denyPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
+        val createChannel = CreatorMediaProjectionService::class.java
+            .getDeclaredMethod("createNotificationChannel")
+            .apply { isAccessible = true }
+        createChannel.invoke(service)
+        val promote = CreatorMediaProjectionService::class.java
+            .getDeclaredMethod("startForegroundInternal")
+            .apply { isAccessible = true }
+
+        val promoted = promote.invoke(service) as Boolean
+
+        assertEquals(true, promoted)
+        verify(exactly = 1) {
+            ForegroundServiceLauncher.safeStartForeground(service, any(), any(), any())
+        }
     }
 
     // ─── Helper ─────────────────────────────────────────────────────────

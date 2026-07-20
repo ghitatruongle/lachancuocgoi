@@ -22,7 +22,10 @@ class TransparentTrampolineActivity : Activity() {
         }
 
         if (serviceIntent != null) {
-            startForegroundService(serviceIntent)
+            val result = ForegroundServiceLauncher.safeStartForegroundService(this, serviceIntent)
+            if (result != ForegroundServiceLauncher.LaunchResult.SUCCESS) {
+                NativeBridgeEventSink.sendMonitoringState("START_FAILED:backgroundStartDenied")
+            }
         }
 
         finish()

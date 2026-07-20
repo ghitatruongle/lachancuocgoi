@@ -103,7 +103,8 @@ class PermissionRationaleDialog extends StatelessWidget {
                       const SizedBox(width: AppSpacing.xxs),
                       Expanded(
                         child: Text(
-                          'Bảo mật: Mọi phân tích diễn ra offline trên thiết bị.',
+                          'Bảo mật: Phân tích L1/L2 chạy offline. L3 (Gemini) '
+                          'chỉ gửi dữ liệu đã ẩn PII khi bạn đồng ý cloud.',
                           style: tt.bodySmall?.copyWith(
                             color: cs.onSurfaceVariant,
                             fontStyle: FontStyle.italic,

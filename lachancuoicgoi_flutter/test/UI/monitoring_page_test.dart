@@ -74,7 +74,8 @@ void main() {
     testWidgets('shows risk level indicator', (tester) async {
       await pumpPage(tester: tester);
       expect(find.text('Mức độ rủi ro'), findsOneWidget);
-      expect(find.text('An toàn'), findsOneWidget);
+      expect(find.text('Chưa đủ dữ liệu'), findsOneWidget);
+      expect(find.text('An toàn'), findsNothing);
     });
 
     testWidgets('shows conversation card', (tester) async {
@@ -110,9 +111,12 @@ void main() {
 
   // ─── Risk level display ──────────────────────────────────────────────
   group('MonitoringPage — risk level', () {
-    testWidgets('shows green risk by default', (tester) async {
+    testWidgets('does not show green risk before enough data exists', (
+      tester,
+    ) async {
       await pumpPage(tester: tester);
-      expect(find.text('An toàn'), findsOneWidget);
+      expect(find.text('Chưa đủ dữ liệu'), findsOneWidget);
+      expect(find.text('An toàn'), findsNothing);
     });
   });
 

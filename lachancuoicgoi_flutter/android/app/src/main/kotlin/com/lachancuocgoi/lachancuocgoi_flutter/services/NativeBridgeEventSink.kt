@@ -153,12 +153,30 @@ object NativeBridgeEventSink {
     }
 
     fun sendCallEvent(event: Map<String, Any?>) {
-        // Bug #45 fix: stamp every event with the platform-side timestamp
-        // so Dart doesn't have to rely on DateTime.now() (which drifts
-        // from the actual moment the system signal arrived, especially
-        // when the call event is buffered and replayed after an Activity
-        // recreate).
-        val stamped = event + ("timestampMs" to System.currentTimeMillis())
+        // Normalize every payload at the native boundary. This also strips
+        // legacy raw phoneNumber fields so PII cannot cross to Dart.
+        val rawNumber = event["phoneNumber"] as? String
+        val stamped = LinkedHashMap<String, Any?>(event.size + 5).apply {
+            putAll(event)
+            remove("phoneNumber")
+            put("type", (event["type"] as? String)?.takeIf { it.isNotBlank() } ?: "UNKNOWN")
+            put(
+                "timestampMs",
+                (event["timestampMs"] as? Number)?.toLong()?.takeIf { it > 0L }
+                    ?: System.currentTimeMillis(),
+            )
+            put(
+                "reason",
+                (event["reason"] as? String)?.takeIf { it.isNotBlank() } ?: "native_event",
+            )
+            val available = (event["numberAvailable"] as? Boolean) ?: !rawNumber.isNullOrBlank()
+            put("numberAvailable", available)
+            put(
+                "maskedNumber",
+                (event["maskedNumber"] as? String)
+                    ?: if (available) NativeCallEvent.maskPhoneNumber(rawNumber) else null,
+            )
+        }
         mainHandler.post {
             val sink = callEventSink
             if (sink != null) {

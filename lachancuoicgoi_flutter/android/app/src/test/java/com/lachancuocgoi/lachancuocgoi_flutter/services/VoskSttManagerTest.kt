@@ -195,4 +195,17 @@ class VoskSttManagerTest {
         assertEquals("", manager.creatorTranscriptFlow.value)
         manager.destroy()
     }
+
+    @Test
+    fun `production probes only the full Vietnamese model`() {
+        val field = VoskSttManager::class.java.getDeclaredField("MODEL_ASSET_PATHS")
+            .apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        val paths = field.get(null) as List<String>
+
+        assertEquals(
+            listOf("flutter_assets/assets/model-vn", "model-vn"),
+            paths,
+        )
+    }
 }

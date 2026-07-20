@@ -13,7 +13,12 @@ void main() {
     await db.close();
   });
 
-  CallHistory makeHistory({int id = 0, String summary = 'test', String riskLevel = 'GREEN', String transcript = ''}) {
+  CallHistory makeHistory({
+    int id = 0,
+    String summary = 'test',
+    String riskLevel = 'GREEN',
+    String transcript = '',
+  }) {
     return CallHistory(
       id: id,
       dateTime: '2025-01-01 12:00',
@@ -26,14 +31,17 @@ void main() {
   }
 
   group('InMemoryAppDatabase', () {
-    test('insert returns monotonically increasing IDs starting from 1', () async {
-      final id1 = await db.insert(makeHistory(summary: 'first'));
-      final id2 = await db.insert(makeHistory(summary: 'second'));
-      final id3 = await db.insert(makeHistory(summary: 'third'));
-      expect(id1, 1);
-      expect(id2, 2);
-      expect(id3, 3);
-    });
+    test(
+      'insert returns monotonically increasing IDs starting from 1',
+      () async {
+        final id1 = await db.insert(makeHistory(summary: 'first'));
+        final id2 = await db.insert(makeHistory(summary: 'second'));
+        final id3 = await db.insert(makeHistory(summary: 'third'));
+        expect(id1, 1);
+        expect(id2, 2);
+        expect(id3, 3);
+      },
+    );
 
     test('insert places newest first', () async {
       await db.insert(makeHistory(summary: 'old'));

@@ -6,10 +6,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import com.lachancuocgoi.lachancuocgoi_flutter.services.BackgroundMonitoringService
+import com.lachancuocgoi.lachancuocgoi_flutter.services.ForegroundServiceLauncher
 import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeEventSink
 
 /**
@@ -56,48 +56,39 @@ class ServiceWatchdogReceiver : BroadcastReceiver() {
 
         // Service was active but is now dead → auto-restart
         Log.w(TAG, "Service was killed! Auto-restarting...")
-        restartMonitoringService(context)
+        val restarted = restartMonitoringService(context)
 
         // Notify Flutter that monitoring was restored.
         // Only send STARTED — do NOT send STOPPED which would trigger
         // endSession() in MonitoringController and kill the service again.
-        NativeBridgeEventSink.sendMonitoringState("STARTED")
+        if (restarted) {
+            NativeBridgeEventSink.sendMonitoringState("STARTED")
+        }
     }
 
-    private fun restartMonitoringService(context: Context) {
-        // Sprint 2 (B6): re-attach the last-known phone number and
-        // speakerphone flag so the restarted service resumes the
-        // original session instead of starting with no context.
-        val (phoneNumber, enableSpeakerphone) =
-            BackgroundMonitoringService.lastStartParams(context)
+    private fun restartMonitoringService(context: Context): Boolean {
+        // Re-attach only the non-sensitive speakerphone setting. Phone
+        // numbers are deliberately never persisted by the watchdog.
+        val (_, enableSpeakerphone) = BackgroundMonitoringService.lastStartParams(context)
         val intent = Intent(context, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_START
-            if (phoneNumber != null) {
-                putExtra("PHONE_NUMBER", phoneNumber)
-            }
             putExtra("ENABLE_SPEAKERPHONE", enableSpeakerphone)
         }
-        val launched = try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                @Suppress("DEPRECATION")
-                context.startService(intent)
-            }
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to restart monitoring service", e)
+        val result = ForegroundServiceLauncher.safeStartForegroundService(context, intent)
+        val launched = result == ForegroundServiceLauncher.LaunchResult.SUCCESS
+        if (!launched) {
+            Log.e(TAG, "Failed to restart monitoring service: $result")
             NativeBridgeEventSink.sendMonitoringState("WATCHDOG_RESTART_FAILED")
             NativeBridgeEventSink.sendLog(
                 TAG,
-                "Watchdog restart failed: ${e.message}",
+                "Watchdog restart failed: $result",
                 "ERROR",
             )
-            false
         }
         if (launched) {
-            Log.i(TAG, "Auto-restart intent sent (phone=${phoneNumber != null}, spk=$enableSpeakerphone).")
+            Log.i(TAG, "Auto-restart intent sent (spk=$enableSpeakerphone).")
         }
+        return launched
     }
 
     companion object {

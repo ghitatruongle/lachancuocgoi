@@ -15,9 +15,9 @@ import 'package:lachancuocgoi_flutter/analysis/l2/wfsa/wfsa_engine.dart';
 void main() {
   // L2 analyzer đơn giản không có scenarios (WFSA rỗng)
   L2Analyzer newL2() => L2Analyzer(
-        wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
-        intentClassifier: const DisabledIntentClassifier(),
-      );
+    wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
+    intentClassifier: const DisabledIntentClassifier(),
+  );
 
   group('BUG-REPRO-L2 — Regression tests cho 4 L2 bugs đã fix', () {
     // ────────────────────────────────────────────────────────────────────
@@ -60,42 +60,31 @@ void main() {
     // BUG-REPRO-L2-2: initialize() cho phép retry sau fail
     // Fix: try/catch + _initFuture = null trong catch block.
     // ────────────────────────────────────────────────────────────────────
-    test(
-      'BUG-REPRO-L2-2: initialize() allows retry after failure',
-      () async {
-        final l2 = newL2();
+    test('BUG-REPRO-L2-2: initialize() allows retry after failure', () async {
+      final l2 = newL2();
 
-        // Gọi initialize() 2 lần liên tiếp
-        final futureA = l2.initialize();
-        final futureB = l2.initialize();
+      // Gọi initialize() 2 lần liên tiếp
+      final futureA = l2.initialize();
+      final futureB = l2.initialize();
 
-        // Trước fix: cả 2 trả về CÙNG instance (cache forever)
-        // Sau fix: có thể trả instances khác (cho phép retry)
-        //
-        // Test: nếu cùng instance → fail (regression)
-        //       nếu khác instance → pass (fix working)
-        //
-        // Tuy nhiên, nếu init thành công, cache vẫn được dùng.
-        // Để test retry behavior, cần mock failure.
-        //
-        // Đơn giản hơn: chỉ cần verify initialize() return Future<void>
-        // và có thể gọi nhiều lần mà không throw.
-        expect(
-          futureA,
-          isNotNull,
-          reason: 'initialize() should return a Future',
-        );
-        expect(
-          futureB,
-          isNotNull,
-          reason: 'initialize() should return a Future',
-        );
+      // Trước fix: cả 2 trả về CÙNG instance (cache forever)
+      // Sau fix: có thể trả instances khác (cho phép retry)
+      //
+      // Test: nếu cùng instance → fail (regression)
+      //       nếu khác instance → pass (fix working)
+      //
+      // Tuy nhiên, nếu init thành công, cache vẫn được dùng.
+      // Để test retry behavior, cần mock failure.
+      //
+      // Đơn giản hơn: chỉ cần verify initialize() return Future<void>
+      // và có thể gọi nhiều lần mà không throw.
+      expect(futureA, isNotNull, reason: 'initialize() should return a Future');
+      expect(futureB, isNotNull, reason: 'initialize() should return a Future');
 
-        // Cả 2 future phải complete successfully
-        await futureA;
-        await futureB;
-      },
-    );
+      // Cả 2 future phải complete successfully
+      await futureA;
+      await futureB;
+    });
 
     // ────────────────────────────────────────────────────────────────────
     // BUG-REPRO-L2-3: resetSession() invalidate in-flight analyze

@@ -7,7 +7,6 @@ import androidx.test.core.app.ApplicationProvider
 import io.mockk.every
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
-import kotlinx.coroutines.flow.StateFlow
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -87,26 +86,22 @@ class SttEngineContractTest {
     // ─── 3. flows are StateFlows ────────────────────────────────────────
 
     @Test
-    fun `fullTranscriptFlow is a StateFlow`() {
-        assertTrue(engine.fullTranscriptFlow is StateFlow<*>)
+    fun `fullTranscriptFlow starts empty`() {
         assertEquals("", engine.fullTranscriptFlow.value)
     }
 
     @Test
-    fun `textResults is a StateFlow`() {
-        assertTrue(engine.textResults is StateFlow<*>)
+    fun `textResults starts empty`() {
         assertEquals("", engine.textResults.value)
     }
 
     @Test
-    fun `isListening is a StateFlow starting as false`() {
-        assertTrue(engine.isListening is StateFlow<*>)
+    fun `isListening starts false`() {
         assertEquals(false, engine.isListening.value)
     }
 
     @Test
-    fun `rmsDbFlow is a StateFlow starting at 0`() {
-        assertTrue(engine.rmsDbFlow is StateFlow<*>)
+    fun `rmsDbFlow starts at 0`() {
         assertEquals(0f, engine.rmsDbFlow.value)
     }
 

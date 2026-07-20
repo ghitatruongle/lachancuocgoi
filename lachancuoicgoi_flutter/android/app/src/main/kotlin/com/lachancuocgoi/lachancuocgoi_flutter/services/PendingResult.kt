@@ -25,9 +25,9 @@ import io.flutter.plugin.common.MethodChannel
  *     pending result without firing any callback.
  *
  * Thread safety: all public methods are safe to call from any thread.
- * The [result] field is `@Volatile` so reads/writes are visible across
- * threads. The [consume] method uses a compare-and-swap pattern via
- * [generation] to ensure only one caller can consume the result.
+ * A private [lock] guards every read/write of [result] so that at most
+ * one caller can consume the result, replacing the previous broken
+ * volatile-only approach.
  *
  * @param timeoutMs  Maximum time the result may remain pending before an
  *                   automatic TIMEOUT error is delivered. Default 60s.
@@ -37,8 +37,8 @@ class PendingResult(
     private val timeoutMs: Long = DEFAULT_TIMEOUT_MS,
     private val onExpire: (() -> Unit)? = null,
 ) {
+    private val lock = Any()
     @Volatile private var result: MethodChannel.Result? = null
-    @Volatile private var generation: Long = 0L
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private val timeoutRunnable = Runnable {
@@ -66,12 +66,11 @@ class PendingResult(
      *
      * Thread-safe: can be called from any thread.
      */
-    fun set(newResult: MethodChannel.Result) {
+    fun set(newResult: MethodChannel.Result) = synchronized(lock) {
         // Cancel any pending timeout for the previous result.
         mainHandler.removeCallbacks(timeoutRunnable)
-        // Set the result and bump generation atomically.
+        // Set the result.
         result = newResult
-        generation++
         // Schedule timeout on main looper.
         mainHandler.postDelayed(timeoutRunnable, timeoutMs)
     }
@@ -114,28 +113,26 @@ class PendingResult(
      *
      * Thread-safe: can be called from any thread.
      */
-    fun cancel() {
+    fun cancel() = synchronized(lock) {
         mainHandler.removeCallbacks(timeoutRunnable)
         result = null
-        generation++
     }
 
     /** True iff a result is currently pending. */
-    fun isPending(): Boolean = result != null
+    fun isPending(): Boolean = synchronized(lock) { result != null }
 
     /**
      * Atomically detach and return the pending result, cancelling the timeout.
      * Returns null if no result was pending or if it was already consumed.
      *
-     * Thread-safe: uses volatile reads/writes. The generation counter ensures
-     * that if two threads race on [consume], only one will see the result.
+     * Thread-safe: uses [lock] to ensure at most one caller can consume
+     * the result.
      */
-    private fun consume(): MethodChannel.Result? {
+    private fun consume(): MethodChannel.Result? = synchronized(lock) {
         mainHandler.removeCallbacks(timeoutRunnable)
-        val r = result ?: return null
+        val r = result ?: return@synchronized null
         result = null
-        generation++
-        return r
+        r
     }
 
     companion object {

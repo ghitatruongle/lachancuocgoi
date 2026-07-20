@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'api_key_format.dart';
+
 class ApiKeyObfuscator {
   /// Multi-byte XOR key (16 bytes) thay vì single byte 0x42 trước đây.
   /// Mỗi byte của key được XOR với vị trí tương ứng (quay vòng).
@@ -42,7 +44,7 @@ class ApiKeyObfuscator {
     }
     try {
       final primaryResult = utf8.decode(primary);
-      if (primaryResult.startsWith('AIza')) return primaryResult;
+      if (isSupportedGeminiKey(primaryResult)) return primaryResult;
     } on Object catch (_) {
       // Invalid UTF-8 from multi-byte — fall through to legacy
     }
@@ -54,7 +56,7 @@ class ApiKeyObfuscator {
     }
     try {
       final legacyResult = utf8.decode(legacy);
-      if (legacyResult.startsWith('AIza')) return legacyResult;
+      if (isSupportedGeminiKey(legacyResult)) return legacyResult;
     } on Object catch (_) {
       // Invalid UTF-8 from legacy — not a valid key
     }

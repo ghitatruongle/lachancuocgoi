@@ -10,9 +10,9 @@ import 'package:lachancuocgoi_flutter/analysis/l2/wfsa/wfsa_engine.dart';
 
 void main() {
   L2Analyzer newL2() => L2Analyzer(
-        wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
-        intentClassifier: const DisabledIntentClassifier(),
-      );
+    wfsaEngine: WfsaEngine(const <ScenarioGraph>[]),
+    intentClassifier: const DisabledIntentClassifier(),
+  );
 
   group('BUG-HUNT-L2 — Unicode + diacritic edge cases', () {
     test(
@@ -35,20 +35,17 @@ void main() {
       },
     );
 
-    test(
-      'BUG-L2-2: L2 resetSession + reuse does not leak state',
-      () async {
-        final l2 = newL2();
-        await l2.initialize();
-        await l2.analyze('lần đầu', 'lần đầu');
-        l2.resetSession();
-        expect(l2.processedTextLength, 0);
-        final result = await l2.analyze('an toàn', 'an toàn');
-        // Without leftover state, should not re-emit orange from previous run.
-        expect(result.overallRiskLevel.name, isNot('orange'));
-        expect(result.overallRiskLevel.name, isNot('red'));
-      },
-    );
+    test('BUG-L2-2: L2 resetSession + reuse does not leak state', () async {
+      final l2 = newL2();
+      await l2.initialize();
+      await l2.analyze('lần đầu', 'lần đầu');
+      l2.resetSession();
+      expect(l2.processedTextLength, 0);
+      final result = await l2.analyze('an toàn', 'an toàn');
+      // Without leftover state, should not re-emit orange from previous run.
+      expect(result.overallRiskLevel.name, isNot('orange'));
+      expect(result.overallRiskLevel.name, isNot('red'));
+    });
 
     test(
       'BUG-L2-3: L2 with very long transcript (>10K chars) does not OOM',
@@ -61,14 +58,11 @@ void main() {
       },
     );
 
-    test(
-      'BUG-L2-4: L2 with empty transcript does not throw',
-      () async {
-        final l2 = newL2();
-        await l2.initialize();
-        final result = await l2.analyze('', '');
-        expect(result.analysisLevel.name, anyOf('l2', 'L2'));
-      },
-    );
+    test('BUG-L2-4: L2 with empty transcript does not throw', () async {
+      final l2 = newL2();
+      await l2.initialize();
+      final result = await l2.analyze('', '');
+      expect(result.analysisLevel.name, anyOf('l2', 'L2'));
+    });
   });
 }

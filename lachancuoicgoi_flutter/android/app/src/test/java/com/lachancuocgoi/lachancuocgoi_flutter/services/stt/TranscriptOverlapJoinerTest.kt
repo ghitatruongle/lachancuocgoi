@@ -40,7 +40,7 @@ class TranscriptOverlapJoinerTest {
     }
 
     @Test
-    fun `multiple word overlap is removed (Bug #34: up to 30 words)`() {
+    fun `multiple word overlap is removed for Bug 34 up to 30 words`() {
         val existing = "tôi là cán bộ điều tra thuộc cơ quan cảnh sát"
         val newSegment = "cơ quan cảnh sát điều tra bộ công an"
         val result = TranscriptOverlapJoiner.appendWithOverlapDetection(existing, newSegment)

@@ -6,6 +6,34 @@ import 'package:lachancuocgoi_flutter/services/simulator_call_shield_bridge.dart
 
 void main() {
   group('SimulatorCallShieldBridge', () {
+    test('typed start and stop operations are idempotent', () async {
+      final bridge = SimulatorCallShieldBridge();
+      final states = <MonitoringState>[];
+      final subscription = bridge.monitoringStateStream.listen(
+        (event) => states.add(event.$1),
+      );
+
+      final first = await bridge.startMonitoringWithResult();
+      final second = await bridge.startMonitoringWithResult();
+      await bridge.stopMonitoring();
+      await bridge.stopMonitoring();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(first.status, MonitoringStartStatus.started);
+      expect(second.status, MonitoringStartStatus.alreadyRunning);
+      expect(
+        states.where((state) => state == MonitoringState.started),
+        hasLength(1),
+      );
+      expect(
+        states.where((state) => state == MonitoringState.stopped),
+        hasLength(1),
+      );
+
+      await subscription.cancel();
+      bridge.dispose();
+    });
+
     test('emits transcript updates according to script using FakeAsync', () {
       fakeAsync((async) {
         // Use a custom script so the test is independent of the default catalog.

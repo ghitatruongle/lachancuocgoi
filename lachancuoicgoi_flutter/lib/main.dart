@@ -7,10 +7,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'app/lachancuocgoi_app.dart';
-import 'services/native_call_shield_bridge.dart';
+import 'core/system_logger.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _installGlobalErrorHandlers();
   // Bug #1 fix: use defaultTargetPlatform instead of dart:io Platform
   // to avoid importing dart:io which is unavailable on Web.
   if (!kIsWeb &&
@@ -26,13 +27,9 @@ Future<void> main() async {
     );
   }
   // Database opens lazily via appDatabaseFutureProvider on first access.
-  final nativeBridge = NativeCallShieldBridge.instance;
-  runApp(
-    ProviderScope(
-      overrides: [nativeBridgeProvider.overrideWithValue(nativeBridge)],
-      child: const LachancuocgoiApp(),
-    ),
-  );
+  // The provider uses NativeBridgeInterface.create() as the single source of
+  // truth for selecting the Android bridge or the cross-platform simulator.
+  runApp(const ProviderScope(child: LachancuocgoiApp()));
   // Sprint 2 (B2): pre-warm SharedPreferences AFTER runApp so the first
   // frame isn't blocked on disk I/O. SettingsController.build() also
   // calls SharedPreferences.getInstance() — when the singleton is
@@ -46,4 +43,28 @@ Future<void> main() async {
       }
     }),
   );
+}
+
+void _installGlobalErrorHandlers() {
+  final logger = SystemLogger.instance;
+  final previousFlutterHandler = FlutterError.onError;
+  FlutterError.onError = (details) {
+    logger.error(
+      'Unhandled Flutter framework error',
+      details.exception,
+      details.stack,
+    );
+    if (previousFlutterHandler != null) {
+      previousFlutterHandler(details);
+    } else {
+      FlutterError.presentError(details);
+    }
+  };
+
+  final dispatcher = PlatformDispatcher.instance;
+  final previousPlatformHandler = dispatcher.onError;
+  dispatcher.onError = (error, stackTrace) {
+    logger.error('Unhandled asynchronous error', error, stackTrace);
+    return previousPlatformHandler?.call(error, stackTrace) ?? true;
+  };
 }

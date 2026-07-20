@@ -1,17 +1,21 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'monitoring_state.dart';
+
 class AudioWaveform extends StatelessWidget {
   const AudioWaveform({
     super.key,
     required this.amplitudes,
     required this.writeIndex,
     required this.elapsedSeconds,
+    this.phase = MonitoringPhase.active,
   });
 
   final List<double> amplitudes;
   final int writeIndex;
   final ValueListenable<int> elapsedSeconds;
+  final MonitoringPhase phase;
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +32,22 @@ class AudioWaveform extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  _FlashingDot(),
-                  SizedBox(width: 4),
-                  _MonitoringLabel(),
+                  if (phase == MonitoringPhase.active)
+                    const _FlashingDot()
+                  else
+                    Icon(
+                      phase == MonitoringPhase.failed
+                          ? Icons.error_outline
+                          : Icons.radio_button_unchecked,
+                      size: 12,
+                      color: phase == MonitoringPhase.failed
+                          ? cs.error
+                          : cs.onSurfaceVariant,
+                    ),
+                  const SizedBox(width: 4),
+                  _MonitoringLabel(phase: phase),
                 ],
               ),
               _ElapsedTimeDisplay(elapsedSeconds: elapsedSeconds),
@@ -58,14 +73,25 @@ class AudioWaveform extends StatelessWidget {
 }
 
 class _MonitoringLabel extends StatelessWidget {
-  const _MonitoringLabel();
+  const _MonitoringLabel({required this.phase});
+
+  final MonitoringPhase phase;
 
   @override
   Widget build(BuildContext context) {
     return Text(
-      'Đang giám sát',
+      switch (phase) {
+        MonitoringPhase.idle => 'Chưa bắt đầu',
+        MonitoringPhase.starting => 'Đang khởi động...',
+        MonitoringPhase.active => 'Đang giám sát',
+        MonitoringPhase.stopping => 'Đang dừng...',
+        MonitoringPhase.saved => 'Đã lưu kết quả',
+        MonitoringPhase.failed => 'Giám sát chưa hoạt động',
+      },
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        color: Colors.red,
+        color: phase == MonitoringPhase.active
+            ? Colors.red
+            : Theme.of(context).colorScheme.onSurfaceVariant,
         fontWeight: FontWeight.bold,
       ),
     );

@@ -94,8 +94,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // With all permissions denied, shows 0/7
-      expect(find.textContaining('/7 quyền đã cấp'), findsOneWidget);
+      // With all permissions denied, shows 0/8
+      expect(find.textContaining('/8 quyền đã cấp'), findsOneWidget);
     });
 
     testWidgets('shows granted count when some permissions granted', (
@@ -114,7 +114,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2/7 quyền đã cấp'), findsOneWidget);
+      expect(find.textContaining('2/8 quyền đã cấp'), findsOneWidget);
     });
 
     testWidgets('shows "Đóng" button', (tester) async {

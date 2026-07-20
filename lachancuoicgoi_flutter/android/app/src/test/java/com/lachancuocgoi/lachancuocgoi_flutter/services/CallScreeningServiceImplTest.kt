@@ -68,14 +68,12 @@ class CallScreeningServiceImplTest {
     // ─── Bug #2: never crashes on screen call ──────────────────────────
 
     @Test
-    fun `onScreenCall with valid number does not crash (overlay granted)` {
+    fun `onScreenCall with valid number does not crash with overlay granted`() {
         // Grant overlay permission so the trampoline-activity path is taken.
         // Robolectric defaults to no overlay permission; use Settings shadow.
-        shadowOf(context.getSystemService(Context.ACTIVITY_SERVICE))
         // Easier: just call directly without setting overlay; the fallback
         // path is exercised, which is also covered by the next test.
-        val service = Robolectric.buildCallScreeningService(CallScreeningServiceImpl::class.java)
-            .bind()
+        val service = Robolectric.buildService(CallScreeningServiceImpl::class.java)
             .create()
             .get()
 
@@ -87,7 +85,9 @@ class CallScreeningServiceImplTest {
         verify(atLeast = 1) {
             NativeBridgeEventSink.sendCallEvent(match { event ->
                 val type = event["type"] as? String
-                type == "SCREENING" || type == "SCREENING_FAILED"
+                (type == "SCREENING" || type == "SCREENING_FAILED") &&
+                    event["maskedNumber"] == "••••5678" &&
+                    !event.containsKey("phoneNumber")
             })
         }
     }
@@ -96,8 +96,7 @@ class CallScreeningServiceImplTest {
     fun `onScreenCall without overlay permission uses safeStartForegroundService`() {
         // Without overlay, the service falls back to direct
         // ForegroundServiceLauncher call.
-        val service = Robolectric.buildCallScreeningService(CallScreeningServiceImpl::class.java)
-            .bind()
+        val service = Robolectric.buildService(CallScreeningServiceImpl::class.java)
             .create()
             .get()
 
@@ -111,8 +110,7 @@ class CallScreeningServiceImplTest {
 
     @Test
     fun `onScreenCall with null handle returns early without crashing`() {
-        val service = Robolectric.buildCallScreeningService(CallScreeningServiceImpl::class.java)
-            .bind()
+        val service = Robolectric.buildService(CallScreeningServiceImpl::class.java)
             .create()
             .get()
 
@@ -126,14 +124,13 @@ class CallScreeningServiceImplTest {
     }
 
     @Test
-    fun `respondToCall is wrapped in try-catch (Bug 46)`() {
+    fun `respondToCall is wrapped in try-catch for Bug 46`() {
         // We can't easily verify respondToCall directly (it's a final method
         // on the base class), but we can verify the try/catch is present by
         // ensuring onScreenCall completes even when the CallScreeningService
         // base class throws internally. Robolectric's shadow does NOT throw
         // by default, so this is a smoke test.
-        val service = Robolectric.buildCallScreeningService(CallScreeningServiceImpl::class.java)
-            .bind()
+        val service = Robolectric.buildService(CallScreeningServiceImpl::class.java)
             .create()
             .get()
 

@@ -242,8 +242,11 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Find the creator audio capture switch
-      expect(find.byType(SwitchListTile), findsOneWidget);
+      final creatorSwitch = find.ancestor(
+        of: find.text('Chụp audio màn hình'),
+        matching: find.byType(SwitchListTile),
+      );
+      expect(creatorSwitch, findsOneWidget);
     });
   });
 

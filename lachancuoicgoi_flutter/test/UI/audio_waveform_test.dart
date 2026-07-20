@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/audio_waveform.dart';
+import 'package:lachancuocgoi_flutter/ui/monitoring_page/monitoring_state.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
@@ -63,6 +64,24 @@ void main() {
       );
 
       expect(find.byType(CustomPaint), findsWidgets);
+    });
+
+    testWidgets('does not claim monitoring is active after start failure', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          AudioWaveform(
+            amplitudes: List.filled(30, 0.0),
+            writeIndex: 0,
+            elapsedSeconds: _constNotifier(0),
+            phase: MonitoringPhase.failed,
+          ),
+        ),
+      );
+
+      expect(find.text('Giám sát chưa hoạt động'), findsOneWidget);
+      expect(find.text('Đang giám sát'), findsNothing);
     });
   });
 }

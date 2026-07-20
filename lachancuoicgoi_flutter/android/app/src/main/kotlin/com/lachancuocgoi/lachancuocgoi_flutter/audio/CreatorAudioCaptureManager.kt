@@ -1,5 +1,9 @@
 package com.lachancuocgoi.lachancuocgoi_flutter.audio
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioPlaybackCaptureConfiguration
@@ -8,6 +12,7 @@ import android.media.projection.MediaProjection
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -44,7 +49,7 @@ object CreatorAudioCaptureManager {
         _creatorTranscriptFlow.value = text
     }
 
-    fun startCapture(projection: MediaProjection): AudioRecord? {
+    fun startCapture(context: Context, projection: MediaProjection): AudioRecord? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             Log.w(TAG, "AudioPlaybackCapture requires Android 10+")
             _state.value = CaptureState.ERROR
@@ -53,6 +58,13 @@ object CreatorAudioCaptureManager {
 
         if (_state.value == CaptureState.CAPTURING) {
             return audioRecord
+        }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.w(TAG, "RECORD_AUDIO permission is required for playback capture")
+            _state.value = CaptureState.ERROR
+            return null
         }
 
         return try {
@@ -81,6 +93,7 @@ object CreatorAudioCaptureManager {
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
+    @SuppressLint("MissingPermission") // Checked by startCapture before entering this method.
     private fun startCaptureInternal(projection: MediaProjection): AudioRecord? {
         val captureConfig = try {
             val builder = AudioPlaybackCaptureConfiguration.Builder(projection)

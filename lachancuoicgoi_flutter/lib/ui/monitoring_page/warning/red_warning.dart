@@ -14,7 +14,8 @@ class RedWarning extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     // Phase 2 (P2-7): respect reduce-motion / accessibility setting.
-    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) ||
         MediaQuery.accessibleNavigationOf(context);
     return FullScreenWarning(
       color: Colors.red,

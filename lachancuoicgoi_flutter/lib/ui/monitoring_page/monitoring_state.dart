@@ -1,7 +1,11 @@
 import '../../analysis/analysis_mode.dart';
 import '../../analysis/analysis_result.dart';
+import '../../core/analysis_availability.dart';
 import '../../core/risk_level.dart';
 import '../../data/alert_history_entry.dart';
+
+/// Single source of truth for the monitoring-session lifecycle.
+enum MonitoringPhase { idle, starting, active, stopping, saved, failed }
 
 /// Immutable state for MonitoringController.
 ///
@@ -9,6 +13,10 @@ import '../../data/alert_history_entry.dart';
 /// [MonitoringState] enum in native_call_shield_bridge.dart.
 class MonitoringPageState {
   const MonitoringPageState({
+    MonitoringPhase phase = MonitoringPhase.idle,
+    bool? isEndingSession,
+    this.availability = AnalysisAvailability.pending,
+    this.monitoringErrorMessage,
     this.riskLevel = RiskLevel.green,
     this.peakRiskLevel = RiskLevel.green,
     this.transcript = '',
@@ -17,7 +25,6 @@ class MonitoringPageState {
     this.isFallbackActive = false,
     this.analysisResult,
     this.isAnalyzing = false,
-    this.isEndingSession = false,
     this.isSimulationMode = false,
     this.selectedMode = AnalysisMode.normal,
     this.effectiveMode = AnalysisMode.normal,
@@ -31,8 +38,11 @@ class MonitoringPageState {
     this.sttUnavailableReason,
     this.isDegradedNoNotification = false,
     this.isWatchdogRestartFailed = false,
-  });
+  }) : phase = isEndingSession == true ? MonitoringPhase.stopping : phase;
 
+  final MonitoringPhase phase;
+  final AnalysisAvailability availability;
+  final String? monitoringErrorMessage;
   final RiskLevel riskLevel;
   final RiskLevel peakRiskLevel;
   final String transcript;
@@ -41,7 +51,13 @@ class MonitoringPageState {
   final bool isFallbackActive;
   final AnalysisResult? analysisResult;
   final bool isAnalyzing;
-  final bool isEndingSession;
+
+  /// Compatibility getter for existing widgets and tests. New code should use
+  /// [phase] directly.
+  bool get isEndingSession => phase == MonitoringPhase.stopping;
+
+  bool get isStarting => phase == MonitoringPhase.starting;
+  bool get isMonitoring => phase == MonitoringPhase.active;
   final bool isSimulationMode;
   final AnalysisMode selectedMode;
   final AnalysisMode effectiveMode;
@@ -65,6 +81,10 @@ class MonitoringPageState {
   final bool isWatchdogRestartFailed;
 
   MonitoringPageState copyWith({
+    MonitoringPhase? phase,
+    AnalysisAvailability? availability,
+    String? monitoringErrorMessage,
+    bool clearMonitoringErrorMessage = false,
     RiskLevel? riskLevel,
     RiskLevel? peakRiskLevel,
     String? transcript,
@@ -92,7 +112,15 @@ class MonitoringPageState {
     bool? isDegradedNoNotification,
     bool? isWatchdogRestartFailed,
   }) {
+    final resolvedPhase =
+        phase ??
+        (isEndingSession == true ? MonitoringPhase.stopping : this.phase);
     return MonitoringPageState(
+      phase: resolvedPhase,
+      availability: availability ?? this.availability,
+      monitoringErrorMessage: clearMonitoringErrorMessage
+          ? null
+          : (monitoringErrorMessage ?? this.monitoringErrorMessage),
       riskLevel: riskLevel ?? this.riskLevel,
       peakRiskLevel: peakRiskLevel ?? this.peakRiskLevel,
       transcript: transcript ?? this.transcript,
@@ -103,7 +131,6 @@ class MonitoringPageState {
           ? null
           : (analysisResult ?? this.analysisResult),
       isAnalyzing: isAnalyzing ?? this.isAnalyzing,
-      isEndingSession: isEndingSession ?? this.isEndingSession,
       isSimulationMode: isSimulationMode ?? this.isSimulationMode,
       selectedMode: selectedMode ?? this.selectedMode,
       effectiveMode: effectiveMode ?? this.effectiveMode,
@@ -132,6 +159,9 @@ class MonitoringPageState {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is MonitoringPageState &&
+          phase == other.phase &&
+          availability == other.availability &&
+          monitoringErrorMessage == other.monitoringErrorMessage &&
           riskLevel == other.riskLevel &&
           peakRiskLevel == other.peakRiskLevel &&
           transcript == other.transcript &&
@@ -140,7 +170,6 @@ class MonitoringPageState {
           isFallbackActive == other.isFallbackActive &&
           analysisResult == other.analysisResult &&
           isAnalyzing == other.isAnalyzing &&
-          isEndingSession == other.isEndingSession &&
           isSimulationMode == other.isSimulationMode &&
           selectedMode == other.selectedMode &&
           effectiveMode == other.effectiveMode &&
@@ -157,6 +186,9 @@ class MonitoringPageState {
 
   @override
   int get hashCode => Object.hash(
+    phase,
+    availability,
+    monitoringErrorMessage,
     riskLevel,
     peakRiskLevel,
     transcript,
@@ -165,17 +197,16 @@ class MonitoringPageState {
     isFallbackActive,
     analysisResult,
     isAnalyzing,
-    isEndingSession,
     isSimulationMode,
     selectedMode,
     effectiveMode,
     isCreatorMode,
     navigationIntent,
     Object.hashAll(alertHistory),
-    isSttFallback,
-    sttFallbackReason,
-    sttFallbackBannerId,
     Object.hash(
+      isSttFallback,
+      sttFallbackReason,
+      sttFallbackBannerId,
       isSttUnavailable,
       sttUnavailableReason,
       isDegradedNoNotification,

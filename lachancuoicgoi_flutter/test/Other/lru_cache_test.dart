@@ -6,7 +6,7 @@ void main() {
     test('initialization asserts valid size', () {
       expect(() => LruCache<String, int>(maxSize: 0), throwsAssertionError);
       expect(() => LruCache<String, int>(maxSize: -1), throwsAssertionError);
-      
+
       final cache = LruCache<String, int>(maxSize: 5);
       expect(cache.maxSize, 5);
       expect(cache.length, 0);
@@ -58,7 +58,7 @@ void main() {
 
     test('putIfAbsent inserts when missing and returns null', () {
       final cache = LruCache<String, int>(maxSize: 3);
-      
+
       int callCount = 0;
       final result1 = cache.putIfAbsent('a', () {
         callCount++;
@@ -70,27 +70,30 @@ void main() {
       expect(cache.get('a'), 1);
     });
 
-    test('putIfAbsent returns existing and promotes without calling generator', () {
-      final cache = LruCache<String, int>(maxSize: 3);
-      cache.put('a', 1);
-      cache.put('b', 2);
-      cache.put('c', 3);
+    test(
+      'putIfAbsent returns existing and promotes without calling generator',
+      () {
+        final cache = LruCache<String, int>(maxSize: 3);
+        cache.put('a', 1);
+        cache.put('b', 2);
+        cache.put('c', 3);
 
-      int callCount = 0;
-      final result = cache.putIfAbsent('a', () {
-        callCount++;
-        return 99;
-      });
+        int callCount = 0;
+        final result = cache.putIfAbsent('a', () {
+          callCount++;
+          return 99;
+        });
 
-      expect(result, 1);
-      expect(callCount, 0); // Not called
+        expect(result, 1);
+        expect(callCount, 0); // Not called
 
-      // insert 'd', 'b' should be evicted because 'a' was promoted
-      cache.put('d', 4);
+        // insert 'd', 'b' should be evicted because 'a' was promoted
+        cache.put('d', 4);
 
-      expect(cache.get('b'), isNull); // Evicted
-      expect(cache.get('a'), 1); // Kept
-    });
+        expect(cache.get('b'), isNull); // Evicted
+        expect(cache.get('a'), 1); // Kept
+      },
+    );
 
     test('remove deletes specified key', () {
       final cache = LruCache<String, int>(maxSize: 3);

@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lachancuocgoi_flutter/services/permission_controller.dart';
+import 'package:lachancuocgoi_flutter/services/bridge_models.dart';
 
 /// Creates a [ProviderContainer] and returns the [PermissionController] notifier.
 /// This is the correct way to create a [Notifier]-based controller in tests.
@@ -25,6 +26,7 @@ void main() {
     'recordAudio': false,
     'phoneState': false,
     'callLog': false,
+    'answerPhoneCalls': false,
     'overlay': false,
     'notification': false,
     'accessibility': false,
@@ -43,6 +45,7 @@ void main() {
       'recordAudio': false,
       'phoneState': false,
       'callLog': false,
+      'answerPhoneCalls': false,
       'overlay': false,
       'notification': false,
       'accessibility': false,
@@ -173,6 +176,7 @@ void main() {
     testWidgets('calls bridge and refreshes snapshot', (tester) async {
       permissionMap['phoneState'] = true;
       permissionMap['callLog'] = true;
+      permissionMap['answerPhoneCalls'] = true;
       final controller = createController(container!);
       await tester.pump();
 
@@ -233,6 +237,7 @@ void main() {
       permissionMap['recordAudio'] = true;
       permissionMap['phoneState'] = true;
       permissionMap['callLog'] = true;
+      permissionMap['answerPhoneCalls'] = true;
       permissionMap['overlay'] = true;
       permissionMap['notification'] = true;
       permissionMap['accessibility'] = true;
@@ -250,6 +255,7 @@ void main() {
       permissionMap['recordAudio'] = true;
       permissionMap['phoneState'] = true;
       permissionMap['callLog'] = true;
+      permissionMap['answerPhoneCalls'] = true;
       permissionMap['overlay'] = true;
       permissionMap['notification'] = true;
       permissionMap['accessibility'] = true;
@@ -295,5 +301,31 @@ void main() {
       expect(controller.state.snapshot.phoneState, isFalse);
       expect(controller.state.grantedCount, 1);
     });
+
+    test(
+      'capability groups separate required protection and call blocking',
+      () {
+        const state = PermissionState(
+          snapshot: PermissionSnapshot(
+            recordAudio: true,
+            phoneState: true,
+            callLog: true,
+            answerPhoneCalls: true,
+            overlay: true,
+            notification: true,
+            accessibility: true,
+          ),
+        );
+        expect(state.essentialGranted, isTrue);
+        expect(state.allGranted, isFalse);
+        expect(state.capabilityGroups, hasLength(3));
+        expect(
+          state
+              .capabilityStatus(PermissionCapabilityGroup.enhancedProtection)
+              .isGranted,
+          isTrue,
+        );
+      },
+    );
   });
 }

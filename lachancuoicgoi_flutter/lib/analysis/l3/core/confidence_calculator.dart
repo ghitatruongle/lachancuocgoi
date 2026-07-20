@@ -14,10 +14,7 @@ import 'gemini_response.dart';
 /// If the response includes a [AnalysisResponse.confidenceScore], it is
 /// used (with a penalty for short input text). Otherwise, a heuristic
 /// score is computed from response completeness.
-double calculateConfidence(
-  AnalysisResponse response, [
-  String? originalText,
-]) {
+double calculateConfidence(AnalysisResponse response, [String? originalText]) {
   if (response.confidenceScore != null) {
     final score = response.confidenceScore!.clamp(0.0, 1.0);
     if (originalText != null && originalText.trim().length < 30) {
@@ -53,16 +50,8 @@ double calculateConfidence(
     confidence += (0.05 * reasoningSteps.length).clamp(0.0, 0.15);
   }
   final lowerReason = reason.toLowerCase();
-  final uncertaintyWords = [
-    'có thể',
-    'không chắc',
-    'có lẽ',
-    'hơi',
-    'tạm thời',
-  ];
-  final uncertaintyCount = uncertaintyWords
-      .where(lowerReason.contains)
-      .length;
+  final uncertaintyWords = ['có thể', 'không chắc', 'có lẽ', 'hơi', 'tạm thời'];
+  final uncertaintyCount = uncertaintyWords.where(lowerReason.contains).length;
   if (uncertaintyCount > 0) {
     confidence -= 0.1 * uncertaintyCount;
   }

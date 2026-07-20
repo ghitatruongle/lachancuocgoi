@@ -1,6 +1,7 @@
 package com.lachancuocgoi.lachancuocgoi_flutter.helpers
 
 import android.content.Context
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -41,6 +42,7 @@ class PermissionHelpersTest {
         assertTrue(snapshot.containsKey("recordAudio"))
         assertTrue(snapshot.containsKey("phoneState"))
         assertTrue(snapshot.containsKey("callLog"))
+        assertTrue(snapshot.containsKey("answerPhoneCalls"))
         assertTrue(snapshot.containsKey("overlay"))
         assertTrue(snapshot.containsKey("notification"))
         assertTrue(snapshot.containsKey("accessibility"))
@@ -48,20 +50,16 @@ class PermissionHelpersTest {
     }
 
     @Test
-    fun `snapshot returns boolean values`() {
+    fun `snapshot returns exactly eight permission flags`() {
         val snapshot = PermissionHelpers.getPermissionSnapshot(context)
 
-        snapshot.values.forEach { value ->
-            assertTrue("Value must be Boolean", value is Boolean)
-        }
+        assertEquals(8, snapshot.size)
     }
 
     @Test
+    @Config(sdk = [32])
     fun `hasNotificationPermission returns true for pre-API-33`() {
-        // Robolectric default is API 33+ but we test the simple boolean return
-        val result = PermissionHelpers.hasNotificationPermission(context)
-        // Result depends on Android version, just verify type
-        assertTrue(result || !result)
+        assertTrue(PermissionHelpers.hasNotificationPermission(context))
     }
 
     @Test

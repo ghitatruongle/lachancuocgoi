@@ -15,6 +15,7 @@ void main() {
         SharedPreferences.setMockInitialValues({
           'IS_DARK_THEME': true,
           'ANALYSIS_MODE': 'GEMINI_API',
+          'CLOUD_ANALYSIS_CONSENT_V1': true,
           'AUDIO_BOOST': true,
           'AUTO_ENABLE_SPEAKERPHONE': true,
           'CREATOR_AUDIO_CAPTURE': true,
@@ -47,6 +48,7 @@ void main() {
       SharedPreferences.setMockInitialValues({
         'IS_DARK_THEME': true,
         'ANALYSIS_MODE': 'GEMINI_API',
+        'CLOUD_ANALYSIS_CONSENT_V1': true,
       });
 
       await SharedPreferences.getInstance();
@@ -101,11 +103,12 @@ void main() {
       // Update settings
       const newState = SettingsState(
         isDarkTheme: true,
-    followSystemTheme: false,
+        followSystemTheme: false,
         analysisMode: AnalysisMode.geminiApi,
         audioBoost: true,
         autoEnableSpeakerphone: true,
         creatorAudioCapture: true,
+        cloudAnalysisConsent: true,
       );
       await container
           .read(settingsControllerProvider.notifier)
@@ -131,7 +134,7 @@ void main() {
       // Update settings
       const newState = SettingsState(
         isDarkTheme: true,
-    followSystemTheme: false,
+        followSystemTheme: false,
         analysisMode: AnalysisMode.normal,
         audioBoost: false,
         autoEnableSpeakerphone: false,
@@ -150,7 +153,7 @@ void main() {
     test('copyWith works correctly', () {
       const state = SettingsState(
         isDarkTheme: false,
-    followSystemTheme: false,
+        followSystemTheme: false,
         analysisMode: AnalysisMode.gDetection,
         audioBoost: false,
         autoEnableSpeakerphone: false,
@@ -166,7 +169,7 @@ void main() {
     test('copyWith preserves unmodified fields', () {
       const state = SettingsState(
         isDarkTheme: true,
-    followSystemTheme: false,
+        followSystemTheme: false,
         analysisMode: AnalysisMode.geminiApi,
         audioBoost: true,
         autoEnableSpeakerphone: true,

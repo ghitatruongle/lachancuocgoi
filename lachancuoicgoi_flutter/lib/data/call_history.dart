@@ -74,6 +74,37 @@ class CallHistory {
   /// the first final result was committed).
   final String? recordingError;
 
+  /// Parsed timestamp used by retention cleanup. Current app versions store
+  /// `HH:mm:ss DD/MM/YYYY`; ISO-8601 is also accepted for imported/legacy data.
+  DateTime? get recordedAt => parseStoredDateTime(dateTime);
+
+  static DateTime? parseStoredDateTime(String value) {
+    final trimmed = value.trim();
+    final iso = DateTime.tryParse(trimmed);
+    if (iso != null) return iso;
+
+    final match = RegExp(
+      r'^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?\s+(\d{1,2})/(\d{1,2})/(\d{4})$',
+    ).firstMatch(trimmed);
+    if (match == null) return null;
+    final hour = int.parse(match.group(1)!);
+    final minute = int.parse(match.group(2)!);
+    final second = int.tryParse(match.group(3) ?? '') ?? 0;
+    final day = int.parse(match.group(4)!);
+    final month = int.parse(match.group(5)!);
+    final year = int.parse(match.group(6)!);
+    final parsed = DateTime(year, month, day, hour, minute, second);
+    if (parsed.year != year ||
+        parsed.month != month ||
+        parsed.day != day ||
+        parsed.hour != hour ||
+        parsed.minute != minute ||
+        parsed.second != second) {
+      return null;
+    }
+    return parsed;
+  }
+
   /// Typed view of [recordingError] — null when there's no error.
   /// Use this in app code instead of comparing the raw string.
   RecordingError? get recordingErrorEnum =>

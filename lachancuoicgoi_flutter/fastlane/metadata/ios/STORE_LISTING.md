@@ -1,5 +1,7 @@
 # App Store Metadata — iOS
 
+Release version: 1.6.0+14 (demo)
+
 ## App Name
 Lá Chắn Cuộc Gọi — Xem trước AI
 
@@ -31,12 +33,13 @@ lừa đảo, scam, chống lừa đảo, OTP, ngân hàng, công an, cảnh bá
 
 ## What's New
 Bản xem trước iOS — phát hiện lừa đảo bằng AI trên các kịch bản mô phỏng.
+Trên iOS, mọi phân tích chạy on-device (demo). Không có L3 cloud trên iOS.
 
 ## Marketing URL
 (N/A — xem README.md)
 
 ## Privacy Policy URL
-(N/A — ứng dụng không thu thập dữ liệu cá nhân. Mọi phân tích diễn ra on-device.)
+(https://github.com/nhom-trai-ai/lachancuocgoi_flutter/blob/main/PRIVACY_POLICY.md)
 
 ## Honesty Notice
 Ứng dụng **KHÔNG** chặn cuộc gọi trên iOS. Ứng dụng **KHÔNG** nghe nội dung

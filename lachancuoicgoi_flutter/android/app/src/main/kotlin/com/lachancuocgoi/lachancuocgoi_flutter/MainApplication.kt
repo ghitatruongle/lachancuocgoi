@@ -4,9 +4,15 @@ import android.app.Application
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.os.Build
+import android.os.Looper
+import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeChannels
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.dart.DartExecutor
 
 class MainApplication : Application() {
+
+    @Volatile
+    private var monitoringFlutterEngine: FlutterEngine? = null
 
     companion object {
         const val BACKGROUND_MONITORING_CHANNEL_ID = "BackgroundMonitoringChannel"
@@ -29,9 +35,27 @@ class MainApplication : Application() {
         createNotificationChannels()
     }
 
-    private fun createNotificationChannels() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+    /** Starts the one shared Flutter engine used by UI and background analysis. */
+    @Synchronized
+    fun ensureFlutterEngine(): FlutterEngine {
+        monitoringFlutterEngine?.let { return it }
+        check(Looper.myLooper() == Looper.getMainLooper()) {
+            "FlutterEngine must be created on the Android main thread"
+        }
+        return FlutterEngine(this).also { engine ->
+            NativeBridgeChannels.registerEventChannels(this, engine)
+            NativeBridgeChannels.installBackgroundMethodHandler(this, engine)
+            engine.dartExecutor.executeDartEntrypoint(
+                DartExecutor.DartEntrypoint.createDefault(),
+            )
+            monitoringFlutterEngine = engine
+        }
+    }
 
+    /** Returns the shared engine without creating one during teardown. */
+    fun existingFlutterEngine(): FlutterEngine? = monitoringFlutterEngine
+
+    private fun createNotificationChannels() {
         val manager = getSystemService(NotificationManager::class.java)
 
         val monitoringChannel = NotificationChannel(

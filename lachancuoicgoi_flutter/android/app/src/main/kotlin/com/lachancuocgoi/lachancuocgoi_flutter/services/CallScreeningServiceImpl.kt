@@ -32,9 +32,9 @@ class CallScreeningServiceImpl : CallScreeningService() {
 
     companion object {
         private const val TAG = "CallScreeningSvc"
-        const val PREFS_NAME = "call_screening_prefs"
-        const val KEY_BLOCK_ENABLED = "CALL_SCREENING_BLOCK_ENABLED"
-        const val KEY_BLOCKED_NUMBERS = "blocked_numbers"
+        const val PREFS_NAME = CallScreeningPreferences.PREFS_NAME
+        const val KEY_BLOCK_ENABLED = CallScreeningPreferences.KEY_BLOCK_ENABLED
+        const val KEY_BLOCKED_NUMBERS = CallScreeningPreferences.KEY_BLOCKED_NUMBERS
 
         /**
          * BUG 4 fix: Normalize a phone number to digits-only so that
@@ -80,7 +80,11 @@ class CallScreeningServiceImpl : CallScreeningService() {
                     Log.w(TAG, "respondToCall (block) failed", e)
                 }
                 NativeBridgeEventSink.sendCallEvent(
-                    mapOf("type" to "SCREENING_BLOCKED", "phoneNumber" to phoneNumber)
+                    NativeCallEvent.create(
+                        type = "SCREENING_BLOCKED",
+                        reason = "native_blocklist_match",
+                        rawNumber = phoneNumber,
+                    ).toMap()
                 )
                 return
             }
@@ -88,7 +92,6 @@ class CallScreeningServiceImpl : CallScreeningService() {
 
         val serviceIntent = Intent(this, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_START
-            putExtra("PHONE_NUMBER", phoneNumber)
         }
 
         // Bug #2 fix: always go through safe launcher so we never crash on
@@ -97,7 +100,6 @@ class CallScreeningServiceImpl : CallScreeningService() {
             // Android 14 compliance: Start a visible activity first, then the
             // trampoline launches the foreground service.
             launchTrampoline(serviceIntent)
-            true
         } else {
             // No overlay permission: try foreground service directly.
             // On Android 12+, if the app is not in a foreground-allowed
@@ -121,19 +123,20 @@ class CallScreeningServiceImpl : CallScreeningService() {
             // Notify Flutter so the UI can surface a "monitoring didn't start"
             // state instead of silently failing.
             NativeBridgeEventSink.sendCallEvent(
-                mapOf(
-                    "type" to "SCREENING_FAILED",
-                    "phoneNumber" to phoneNumber,
-                    "reason" to "service_start_failed",
-                )
+                NativeCallEvent.create(
+                    type = "SCREENING_FAILED",
+                    reason = "service_start_failed",
+                    rawNumber = phoneNumber,
+                ).toMap()
             )
         } else {
             // Notify Flutter about incoming call.
             NativeBridgeEventSink.sendCallEvent(
-                mapOf(
-                    "type" to "SCREENING",
-                    "phoneNumber" to phoneNumber,
-                )
+                NativeCallEvent.create(
+                    type = "SCREENING",
+                    reason = "incoming_call_screened",
+                    rawNumber = phoneNumber,
+                ).toMap()
             )
         }
 
@@ -154,16 +157,18 @@ class CallScreeningServiceImpl : CallScreeningService() {
      * started (e.g. ActivityNotFoundException on a weird OEM), fall back to
      * starting the service directly.
      */
-    private fun launchTrampoline(serviceIntent: Intent) {
+    private fun launchTrampoline(serviceIntent: Intent): Boolean {
         val activityIntent = Intent(this, TransparentTrampolineActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
             putExtra("SERVICE_INTENT", serviceIntent)
         }
         try {
             startActivity(activityIntent)
+            return true
         } catch (e: Exception) {
             Log.w(TAG, "startActivity(trampoline) failed — falling back to direct service start", e)
-            ForegroundServiceLauncher.safeStartForegroundService(this, serviceIntent)
+            return ForegroundServiceLauncher.safeStartForegroundService(this, serviceIntent) ==
+                ForegroundServiceLauncher.LaunchResult.SUCCESS
         }
     }
 }

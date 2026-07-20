@@ -22,14 +22,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     defaultConfig {
         applicationId = "com.lachancuocgoi.lachancuocgoi_flutter"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -61,21 +57,42 @@ android {
     }
 
     androidResources {
-        noCompress += listOf("tflite", "vosk", "json", "model-vn")
+        noCompress += listOf("tflite", "vosk", "model-vn")
     }
 
     buildFeatures {
         buildConfig = true
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
+    lint {
+        // Advisory/style checks are intentionally excluded from the release
+        // gate. Dependency versions are pinned as one tested matrix, while
+        // KTX suggestions do not indicate correctness or safety defects.
+        disable += setOf(
+            "AndroidGradlePluginVersion",
+            "GradleDependency",
+            "NewerVersionAvailable",
+            "UseKtx",
+        )
     }
 }
 
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    implementation("com.alphacephei:vosk-android:0.3.47")
+    // 0.3.75 includes Vosk's merged 16 KiB alignment fix for 64-bit ABIs.
+    // Its armeabi-v7a binary remains 4 KiB-aligned, which is valid because the
+    // Google Play 16 KiB requirement applies to 64-bit devices. Keep ARM32 for
+    // older devices and verify every release artifact with the fail-closed tool.
+    implementation("com.alphacephei:vosk-android:0.3.75")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk:1.13.12")
+    testImplementation("org.mockito:mockito-core:5.14.2")
     testImplementation("org.robolectric:robolectric:4.12.2")
     testImplementation("androidx.test:core:1.6.1")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")

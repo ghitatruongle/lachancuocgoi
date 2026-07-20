@@ -11,7 +11,7 @@ class MonitoringStreamHandler {
   StreamSubscription<TranscriptUpdate>? transcriptSub;
   StreamSubscription<double>? rmsSub;
   StreamSubscription<(MonitoringState, int?, String?)>? stateSub;
-  StreamSubscription<CallEvent>? callEventSub;
+  StreamSubscription<NativeCallEvent>? callEventSub;
   StreamSubscription<String>? logsSub;
   bool streamsDead = false;
 
@@ -39,13 +39,20 @@ class MonitoringStreamHandler {
       },
       onDone: () {
         if (controller.disposed) return;
-        SystemLogger.instance.log(LogCategory.stt, 'transcriptStream done — marking subscriptions dead.');
+        SystemLogger.instance.log(
+          LogCategory.stt,
+          'transcriptStream done — marking subscriptions dead.',
+        );
         streamsDead = true;
         transcriptSub?.cancel();
         transcriptSub = null;
       },
       onError: (Object e, StackTrace st) {
-        SystemLogger.instance.log(LogCategory.stt, 'transcriptStream error: $e', level: LogLevel.error);
+        SystemLogger.instance.log(
+          LogCategory.stt,
+          'transcriptStream error: $e',
+          level: LogLevel.error,
+        );
         streamsDead = true;
         transcriptSub?.cancel();
         transcriptSub = null;
@@ -59,13 +66,20 @@ class MonitoringStreamHandler {
       },
       onDone: () {
         if (controller.disposed) return;
-        SystemLogger.instance.log(LogCategory.recording, 'rmsStream done — marking subscriptions dead.');
+        SystemLogger.instance.log(
+          LogCategory.recording,
+          'rmsStream done — marking subscriptions dead.',
+        );
         streamsDead = true;
         rmsSub?.cancel();
         rmsSub = null;
       },
       onError: (Object e, StackTrace st) {
-        SystemLogger.instance.log(LogCategory.recording, 'rmsStream error: $e', level: LogLevel.error);
+        SystemLogger.instance.log(
+          LogCategory.recording,
+          'rmsStream error: $e',
+          level: LogLevel.error,
+        );
         streamsDead = true;
         rmsSub?.cancel();
         rmsSub = null;
@@ -79,13 +93,20 @@ class MonitoringStreamHandler {
       },
       onDone: () {
         if (controller.disposed) return;
-        SystemLogger.instance.log(LogCategory.system, 'monitoringStateStream done — marking subscriptions dead.');
+        SystemLogger.instance.log(
+          LogCategory.system,
+          'monitoringStateStream done — marking subscriptions dead.',
+        );
         streamsDead = true;
         stateSub?.cancel();
         stateSub = null;
       },
       onError: (Object e, StackTrace st) {
-        SystemLogger.instance.log(LogCategory.system, 'monitoringStateStream error: $e', level: LogLevel.error);
+        SystemLogger.instance.log(
+          LogCategory.system,
+          'monitoringStateStream error: $e',
+          level: LogLevel.error,
+        );
         streamsDead = true;
         stateSub?.cancel();
         stateSub = null;
@@ -95,19 +116,28 @@ class MonitoringStreamHandler {
     callEventSub = bridge.callEventStream.listen(
       (event) {
         if (controller.disposed) return;
-        if (event.phoneNumber != null && event.phoneNumber!.isNotEmpty) {
-          controller.phoneNumber = event.phoneNumber;
+        if (event.numberAvailable &&
+            event.maskedNumber != null &&
+            event.maskedNumber!.isNotEmpty) {
+          controller.maskedNumber = event.maskedNumber;
         }
       },
       onDone: () {
         if (controller.disposed) return;
-        SystemLogger.instance.log(LogCategory.system, 'callEventStream done — marking subscriptions dead.');
+        SystemLogger.instance.log(
+          LogCategory.system,
+          'callEventStream done — marking subscriptions dead.',
+        );
         streamsDead = true;
         callEventSub?.cancel();
         callEventSub = null;
       },
       onError: (Object e, StackTrace st) {
-        SystemLogger.instance.log(LogCategory.system, 'callEventStream error: $e', level: LogLevel.error);
+        SystemLogger.instance.log(
+          LogCategory.system,
+          'callEventStream error: $e',
+          level: LogLevel.error,
+        );
         streamsDead = true;
         callEventSub?.cancel();
         callEventSub = null;
@@ -131,11 +161,16 @@ class MonitoringStreamHandler {
           }
 
           LogCategory category = LogCategory.system;
-          if (tagStr.contains('Vosk') || tagStr.contains('Model') || tagStr.contains('gemini') || tagStr.contains('Gemini')) {
+          if (tagStr.contains('Vosk') ||
+              tagStr.contains('Model') ||
+              tagStr.contains('gemini') ||
+              tagStr.contains('Gemini')) {
             category = LogCategory.model;
           } else if (tagStr.contains('Speech') || tagStr.contains('STT')) {
             category = LogCategory.stt;
-          } else if (tagStr.contains('Capture') || tagStr.contains('Audio') || tagStr.contains('Service')) {
+          } else if (tagStr.contains('Capture') ||
+              tagStr.contains('Audio') ||
+              tagStr.contains('Service')) {
             category = LogCategory.recording;
           }
 
@@ -149,7 +184,11 @@ class MonitoringStreamHandler {
         logsSub = null;
       },
       onError: (Object e, StackTrace st) {
-        SystemLogger.instance.log(LogCategory.system, 'logsStream error: $e', level: LogLevel.error);
+        SystemLogger.instance.log(
+          LogCategory.system,
+          'logsStream error: $e',
+          level: LogLevel.error,
+        );
         logsSub?.cancel();
         logsSub = null;
       },

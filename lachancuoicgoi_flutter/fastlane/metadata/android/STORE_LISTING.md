@@ -1,5 +1,15 @@
 # Store Listing — Lá Chắn Cuộc Gọi
 
+Release version: 1.6.0+14
+
+## What's new in 1.6.0
+
+- Không còn hiển thị “An toàn” khi phiên thiếu audio hoặc STT thất bại.
+- Cải thiện độ ổn định của giám sát nền và ngăn lưu trùng phiên.
+- Lịch sử mặc định giữ 30 ngày và dữ liệu nhạy cảm bị loại khỏi backup.
+- Gemini yêu cầu đồng ý cloud; khi không khả dụng app fallback về offline.
+- Dữ liệu phát hiện được bundle trong app, không tải JSON OTA lúc chạy.
+
 ## Vietnamese (vi-VN)
 
 ### App name
@@ -30,8 +40,8 @@ Lá Chắn Cuộc Gọi là ứng dụng chống lừa đảo qua cuộc gọi d
 **Bảo mật:**
 - Hoạt động chính trên thiết bị (on-device). Chỉ gửi transcript (đã strip PII)
   lên đám mây khi cần phân tích L3 (Gemini).
-- Không thu thập dữ liệu cá nhân.
 - Không bán dữ liệu cho bên thứ ba.
+- Xem Chính sách Bảo mật đầy đủ: PRIVACY_POLICY.md
 
 ---
 

@@ -3,9 +3,14 @@ import 'package:flutter/services.dart';
 import '../core/system_logger.dart';
 import 'native_bridge_interface.dart';
 
-class AndroidCallShieldBridge implements NativeBridgeInterface {
+class AndroidCallShieldBridge
+    implements
+        NativeBridgeInterface,
+        TypedMonitoringStartBridge,
+        AnalysisModeSyncBridge,
+        SpeakerphonePreferenceSyncBridge {
   AndroidCallShieldBridge({Duration? defaultTimeout})
-      : _defaultTimeout = defaultTimeout ?? const Duration(seconds: 5);
+    : _defaultTimeout = defaultTimeout ?? const Duration(seconds: 5);
 
   static const _methodChannel = MethodChannel(
     'com.lachancuocgoi/native_bridge',
@@ -45,17 +50,24 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
     try {
       final result = await _methodChannel
           .invokeMethod<bool>(method, arguments)
-          .timeout(actualTimeout, onTimeout: () {
-        SystemLogger.instance.log(
-          LogCategory.bridge,
-          'NativeBridge.$method timed out after ${actualTimeout.inMilliseconds}ms',
-          level: LogLevel.warning,
-        );
-        return false;
-      });
+          .timeout(
+            actualTimeout,
+            onTimeout: () {
+              SystemLogger.instance.log(
+                LogCategory.bridge,
+                'NativeBridge.$method timed out after ${actualTimeout.inMilliseconds}ms',
+                level: LogLevel.warning,
+              );
+              return false;
+            },
+          );
       return result ?? false;
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.$method error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.$method error: $e',
+        level: LogLevel.error,
+      );
       return false;
     }
   }
@@ -65,10 +77,48 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
     String? phoneNumber,
     bool enableSpeakerphone = false,
   }) async {
-    return _invokeWithTimeout(
-      'startMonitoring',
-      {'phoneNumber': phoneNumber, 'enableSpeakerphone': enableSpeakerphone},
+    final result = await startMonitoringTyped(
+      phoneNumber: phoneNumber,
+      enableSpeakerphone: enableSpeakerphone,
     );
+    return result.isSuccess;
+  }
+
+  @override
+  Future<MonitoringStartResult> startMonitoringTyped({
+    String? phoneNumber,
+    bool enableSpeakerphone = false,
+  }) async {
+    try {
+      final raw = await _methodChannel
+          .invokeMethod<Object?>('startMonitoring', {
+            'phoneNumber': phoneNumber,
+            'enableSpeakerphone': enableSpeakerphone,
+          })
+          .timeout(_defaultTimeout);
+      return MonitoringStartResult.fromNative(raw);
+    } on TimeoutException {
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.startMonitoring timed out after '
+        '${_defaultTimeout.inMilliseconds}ms',
+        level: LogLevel.warning,
+      );
+      return const MonitoringStartResult(
+        MonitoringStartStatus.nativeFailure,
+        message: 'Dịch vụ giám sát phản hồi quá chậm.',
+      );
+    } on PlatformException catch (e) {
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.startMonitoring error: $e',
+        level: LogLevel.error,
+      );
+      return MonitoringStartResult(
+        MonitoringStartStatus.nativeFailure,
+        message: e.message ?? 'Dịch vụ giám sát không thể khởi động.',
+      );
+    }
   }
 
   @override
@@ -78,10 +128,9 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
 
   @override
   Future<bool> startCreatorMonitoring({required int devModeExpiresAtMs}) async {
-    return _invokeWithTimeout(
-      'startCreatorMonitoring',
-      {'devModeExpiresAtMs': devModeExpiresAtMs},
-    );
+    return _invokeWithTimeout('startCreatorMonitoring', {
+      'devModeExpiresAtMs': devModeExpiresAtMs,
+    });
   }
 
   @override
@@ -91,17 +140,12 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
 
   @override
   Future<bool> showRedAlert(String reason) async {
-    return _invokeWithTimeout('showRedAlert', {
-      'reason': reason,
-    });
+    return _invokeWithTimeout('showRedAlert', {'reason': reason});
   }
 
   @override
   Future<bool> showOrangeAlert(String reason) async {
-    return _invokeWithTimeout(
-      'showOrangeAlert',
-      {'reason': reason},
-    );
+    return _invokeWithTimeout('showOrangeAlert', {'reason': reason});
   }
 
   @override
@@ -119,7 +163,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
         return PermissionSnapshot.fromMap(result);
       }
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.getPermissionSnapshot error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.getPermissionSnapshot error: $e',
+        level: LogLevel.error,
+      );
     }
     return const PermissionSnapshot();
   }
@@ -132,7 +180,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.openAccessibilitySettings error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.openAccessibilitySettings error: $e',
+        level: LogLevel.error,
+      );
       return false;
     }
   }
@@ -145,7 +197,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.requestCallScreeningRole error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.requestCallScreeningRole error: $e',
+        level: LogLevel.error,
+      );
       return false;
     }
   }
@@ -158,7 +214,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.requestPhoneAndCallLogPermissions error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.requestPhoneAndCallLogPermissions error: $e',
+        level: LogLevel.error,
+      );
       return false;
     }
   }
@@ -171,7 +231,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.checkOverlayPermission error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.checkOverlayPermission error: $e',
+        level: LogLevel.error,
+      );
       return false;
     }
   }
@@ -184,7 +248,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.requestOverlayPermission error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.requestOverlayPermission error: $e',
+        level: LogLevel.error,
+      );
       return false;
     }
   }
@@ -197,7 +265,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.isMonitoringActive error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.isMonitoringActive error: $e',
+        level: LogLevel.error,
+      );
       return false;
     }
   }
@@ -210,7 +282,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.isCreatorMonitoringActive error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.isCreatorMonitoringActive error: $e',
+        level: LogLevel.error,
+      );
       return false;
     }
   }
@@ -222,7 +298,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
         'callerInfo': callerInfo,
       });
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.showIncomingCallOverlay error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.showIncomingCallOverlay error: $e',
+        level: LogLevel.error,
+      );
     }
   }
 
@@ -231,7 +311,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
     try {
       await _methodChannel.invokeMethod<void>('dismissIncomingCallOverlay');
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.dismissIncomingCallOverlay error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.dismissIncomingCallOverlay error: $e',
+        level: LogLevel.error,
+      );
     }
   }
 
@@ -239,25 +323,43 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
   @override
   Future<void> setCallScreeningBlockEnabled(bool enabled) async {
     try {
-      await _methodChannel.invokeMethod<void>(
-        'setCallScreeningBlockEnabled',
-        {'enabled': enabled},
-      );
+      await _methodChannel.invokeMethod<void>('setCallScreeningBlockEnabled', {
+        'enabled': enabled,
+      });
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.setCallScreeningBlockEnabled error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.setCallScreeningBlockEnabled error: $e',
+        level: LogLevel.error,
+      );
     }
   }
 
   @override
   Future<void> setBlockedNumbers(List<String> numbers) async {
     try {
-      await _methodChannel.invokeMethod<void>(
-        'setBlockedNumbers',
-        {'numbers': numbers},
-      );
+      await _methodChannel.invokeMethod<void>('setBlockedNumbers', {
+        'numbers': numbers,
+      });
     } on PlatformException catch (e) {
-      SystemLogger.instance.log(LogCategory.bridge, 'NativeBridge.setBlockedNumbers error: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.bridge,
+        'NativeBridge.setBlockedNumbers error: $e',
+        level: LogLevel.error,
+      );
     }
+  }
+
+  @override
+  Future<void> setAnalysisMode(String mode) async {
+    await _methodChannel.invokeMethod<void>('setAnalysisMode', {'mode': mode});
+  }
+
+  @override
+  Future<void> setAutoEnableSpeakerphone(bool enabled) async {
+    await _methodChannel.invokeMethod<void>('setAutoEnableSpeakerphone', {
+      'enabled': enabled,
+    });
   }
 
   late final Stream<TranscriptUpdate> _cachedTranscriptStream =
@@ -293,11 +395,11 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
       .map((event) => MonitoringState.parse(event?.toString() ?? ''))
       .asBroadcastStream();
 
-  late final Stream<CallEvent> _cachedCallEventStream = _callEventChannel
+  late final Stream<NativeCallEvent> _cachedCallEventStream = _callEventChannel
       .receiveBroadcastStream()
       .map((event) {
-        if (event is Map) return CallEvent.fromMap(event);
-        return const CallEvent(type: 'UNKNOWN');
+        if (event is Map) return NativeCallEvent.fromMap(event);
+        return const NativeCallEvent(type: 'UNKNOWN');
       })
       .asBroadcastStream();
 
@@ -317,7 +419,7 @@ class AndroidCallShieldBridge implements NativeBridgeInterface {
       _cachedMonitoringStateStream;
 
   @override
-  Stream<CallEvent> get callEventStream => _cachedCallEventStream;
+  Stream<NativeCallEvent> get callEventStream => _cachedCallEventStream;
 
   @override
   Stream<String> get logsStream => _cachedLogsStream;

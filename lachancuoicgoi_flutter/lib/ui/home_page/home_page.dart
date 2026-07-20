@@ -44,7 +44,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
 
     final permState = ref.read(permissionControllerProvider);
-    if (!permState.allGranted) {
+    if (!permState.essentialGranted) {
       showDialog<void>(
         context: context,
         barrierDismissible: false,

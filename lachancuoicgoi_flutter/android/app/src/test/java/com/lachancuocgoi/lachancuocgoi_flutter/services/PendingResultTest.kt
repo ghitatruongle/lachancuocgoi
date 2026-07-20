@@ -128,7 +128,8 @@ class PendingResultTest {
 
     @Test
     fun `set replaces previous and cancels its timeout`() {
-        val pending = PendingResult(timeoutMs = 100L)
+        // Use a long timeout so the idleFor doesn't trigger it.
+        val pending = PendingResult(timeoutMs = 5_000L)
         val first = mockk<MethodChannel.Result>(relaxed = true)
         pending.set(first)
 

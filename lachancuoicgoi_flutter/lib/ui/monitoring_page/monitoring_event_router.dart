@@ -1,4 +1,5 @@
 import '../../analysis/analysis_mode_policy.dart';
+import '../../core/analysis_availability.dart';
 import '../../services/native_call_shield_bridge.dart';
 import 'monitoring_state.dart';
 
@@ -7,9 +8,8 @@ import 'monitoring_state.dart';
 // Interprets [MonitoringState] events from the native bridge and updates
 // the [MonitoringPageState] accordingly (network, STT, degraded modes).
 
-typedef StateUpdater = void Function(
-  MonitoringPageState Function(MonitoringPageState) updater,
-);
+typedef StateUpdater =
+    void Function(MonitoringPageState Function(MonitoringPageState) updater);
 
 class MonitoringEventRouter {
   MonitoringEventRouter({
@@ -48,8 +48,14 @@ class MonitoringEventRouter {
       case MonitoringState.stopped:
         _handleStopped(stateData.$3);
       case MonitoringState.idle:
-      case MonitoringState.started:
         break;
+      case MonitoringState.started:
+        _updateState(
+          (s) => s.copyWith(
+            phase: MonitoringPhase.active,
+            clearMonitoringErrorMessage: true,
+          ),
+        );
     }
   }
 
@@ -77,6 +83,9 @@ class MonitoringEventRouter {
         sttFallbackReason: reason,
         sttFallbackBannerId: s.sttFallbackBannerId + 1,
         isSttUnavailable: false,
+        availability: s.transcript.trim().isEmpty
+            ? AnalysisAvailability.pending
+            : s.availability,
         clearSttUnavailableReason: true,
       ),
     );
@@ -86,6 +95,7 @@ class MonitoringEventRouter {
     _updateState(
       (s) => s.copyWith(
         isSttUnavailable: true,
+        availability: AnalysisAvailability.sttUnavailable,
         sttUnavailableReason: reason,
         isSttFallback: false,
         clearSttFallbackReason: true,
@@ -104,11 +114,17 @@ class MonitoringEventRouter {
   void _handleStopped(String? finalTranscript) {
     final trimmed = finalTranscript?.trim();
     if (trimmed != null && trimmed.isNotEmpty) {
-      _updateState((s) => s.copyWith(transcript: trimmed));
+      _updateState(
+        (s) => s.copyWith(
+          transcript: trimmed,
+          availability: AnalysisAvailability.pending,
+        ),
+      );
     }
     _onStoppedEvent();
     final currentState = _getState();
-    if (!currentState.isEndingSession) {
+    if (currentState.phase != MonitoringPhase.stopping &&
+        currentState.phase != MonitoringPhase.saved) {
       _endSession();
     }
   }

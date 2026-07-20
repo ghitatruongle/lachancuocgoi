@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/l1/l1_analysis.dart';
+import 'package:lachancuocgoi_flutter/core/analysis_availability.dart';
 import 'package:lachancuocgoi_flutter/l10n/app_localizations.dart';
 import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
+import 'package:lachancuocgoi_flutter/ui/monitoring_page/monitoring_controller.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/monitoring_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -63,6 +65,19 @@ void main() {
       // because waveform and timer animations run continuously.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
+
+      // Wait until the simulated transcript has been analyzed before taking
+      // the screenshot. The new availability state intentionally renders a
+      // neutral card while data is still pending, so capturing the first frame
+      // would make this golden timing-dependent.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MonitoringPage)),
+      );
+      expect(
+        container.read(monitoringControllerProvider).availability,
+        AnalysisAvailability.sufficient,
+      );
+      await tester.pump(const Duration(milliseconds: 1000));
 
       // Verify the UI matching golden screenshot.
       // Since this is in platform-dependent rendering, we match the Golden target.

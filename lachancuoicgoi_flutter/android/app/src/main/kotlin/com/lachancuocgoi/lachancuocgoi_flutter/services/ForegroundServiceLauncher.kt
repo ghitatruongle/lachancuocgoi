@@ -71,15 +71,6 @@ object ForegroundServiceLauncher {
         context: Context,
         intent: Intent,
     ): LaunchResult {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return try {
-                context.startService(intent)
-                LaunchResult.SUCCESS
-            } catch (e: Exception) {
-                Log.e(TAG, "startService (pre-O) failed", e)
-                LaunchResult.UNKNOWN_ERROR
-            }
-        }
         return try {
             context.startForegroundService(intent)
             LaunchResult.SUCCESS

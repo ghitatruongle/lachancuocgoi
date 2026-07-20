@@ -35,9 +35,7 @@ void main() {
     });
 
     test('throws FormatException when root is an array', () async {
-      final bundle = FakeAssetBundle({
-        'test.json': '[1, 2, 3]',
-      });
+      final bundle = FakeAssetBundle({'test.json': '[1, 2, 3]'});
       final repo = VocabularyRepository(assetBundle: bundle);
       expect(
         () => repo.loadJsonMap('test.json'),
@@ -46,9 +44,7 @@ void main() {
     });
 
     test('throws FormatException when root is a string', () async {
-      final bundle = FakeAssetBundle({
-        'test.json': '"hello"',
-      });
+      final bundle = FakeAssetBundle({'test.json': '"hello"'});
       final repo = VocabularyRepository(assetBundle: bundle);
       expect(
         () => repo.loadJsonMap('test.json'),
@@ -99,7 +95,9 @@ void main() {
 
     test('returns empty for empty situations list', () async {
       final bundle = FakeAssetBundle({
-        'assets/risk_model_sentences.json': jsonEncode(<String, dynamic>{'situations': <String>[]}),
+        'assets/risk_model_sentences.json': jsonEncode(<String, dynamic>{
+          'situations': <String>[],
+        }),
       });
       final repo = VocabularyRepository(assetBundle: bundle);
       expect(await repo.getSituationSentences(), isEmpty);
@@ -176,11 +174,15 @@ void main() {
           'riskLevels': [
             {
               'sentences': ['a'],
-              'threats': {'x': ['b']},
+              'threats': {
+                'x': ['b'],
+              },
             },
             {
               'sentences': ['c'],
-              'threats': {'y': ['d']},
+              'threats': {
+                'y': ['d'],
+              },
             },
           ],
         }),
@@ -202,45 +204,35 @@ void main() {
     });
 
     test('handles CRLF line endings', () async {
-      final bundle = FakeAssetBundle({
-        'assets/vocab.txt': 'a\r\nb\r\nc',
-      });
+      final bundle = FakeAssetBundle({'assets/vocab.txt': 'a\r\nb\r\nc'});
       final repo = VocabularyRepository(assetBundle: bundle);
       final result = await repo.getVocabularyTokens();
       expect(result, ['a', 'b', 'c']);
     });
 
     test('filters empty lines', () async {
-      final bundle = FakeAssetBundle({
-        'assets/vocab.txt': 'a\n\nb\n\nc',
-      });
+      final bundle = FakeAssetBundle({'assets/vocab.txt': 'a\n\nb\n\nc'});
       final repo = VocabularyRepository(assetBundle: bundle);
       final result = await repo.getVocabularyTokens();
       expect(result, ['a', 'b', 'c']);
     });
 
     test('trims whitespace from each line', () async {
-      final bundle = FakeAssetBundle({
-        'assets/vocab.txt': '  a  \n  b  ',
-      });
+      final bundle = FakeAssetBundle({'assets/vocab.txt': '  a  \n  b  '});
       final repo = VocabularyRepository(assetBundle: bundle);
       final result = await repo.getVocabularyTokens();
       expect(result, ['a', 'b']);
     });
 
     test('returns empty list for empty file', () async {
-      final bundle = FakeAssetBundle({
-        'assets/vocab.txt': '',
-      });
+      final bundle = FakeAssetBundle({'assets/vocab.txt': ''});
       final repo = VocabularyRepository(assetBundle: bundle);
       final result = await repo.getVocabularyTokens();
       expect(result, isEmpty);
     });
 
     test('returns single token for single-line file', () async {
-      final bundle = FakeAssetBundle({
-        'assets/vocab.txt': 'only_one',
-      });
+      final bundle = FakeAssetBundle({'assets/vocab.txt': 'only_one'});
       final repo = VocabularyRepository(assetBundle: bundle);
       final result = await repo.getVocabularyTokens();
       expect(result, ['only_one']);
@@ -249,9 +241,7 @@ void main() {
 
   group('VocabularyRepository.loadString', () {
     test('delegates to AssetBundle.loadString()', () async {
-      final bundle = FakeAssetBundle({
-        'custom/path.txt': 'hello',
-      });
+      final bundle = FakeAssetBundle({'custom/path.txt': 'hello'});
       final repo = VocabularyRepository(assetBundle: bundle);
       final result = await repo.loadString('custom/path.txt');
       expect(result, 'hello');

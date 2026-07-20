@@ -20,25 +20,19 @@ object OverlayManager {
         AlertOverlayManager.removeAlertOverlay(context)
     }
 
-    fun showIncomingCallOverlay(context: Context, callerInfo: String) {
-        IncomingCallOverlayManager.showIncomingCallOverlay(context, callerInfo)
-    }
+    fun showMonitoringOverlay(
+        context: Context,
+        startedAtMs: Long = System.currentTimeMillis(),
+    ): Boolean = MonitoringOverlayManager.showMonitoringOverlay(context, startedAtMs)
 
-    fun removeIncomingCallOverlay(context: Context) {
-        IncomingCallOverlayManager.removeIncomingCallOverlay(context)
-    }
-
-    fun showMonitoringOverlay(context: Context) {
-        MonitoringOverlayManager.showMonitoringOverlay(context)
-    }
+    fun updateMonitoringRms(rms: Float) = MonitoringOverlayManager.updateRms(rms)
 
     fun hideMonitoringOverlay(context: Context) {
-        MonitoringOverlayManager.hideMonitoringOverlay(context)
+        MonitoringOverlayManager.hideMonitoringOverlay()
     }
 
     fun removeAll(context: Context) {
         removeAlertOverlay(context)
         hideMonitoringOverlay(context)
-        removeIncomingCallOverlay(context)
     }
 }

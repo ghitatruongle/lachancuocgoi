@@ -10,6 +10,50 @@ import 'package:permission_handler/permission_handler.dart';
 import 'native_call_shield_bridge.dart';
 import '../ui/widgets/permission_rationale_dialog.dart';
 
+/// User-facing capability groups. Core and enhanced protection are required
+/// for the consent-notification + overlay contract; call blocking is optional.
+enum PermissionCapabilityGroup {
+  coreProtection,
+  enhancedProtection,
+  callBlocking,
+}
+
+extension PermissionCapabilityGroupX on PermissionCapabilityGroup {
+  String get title => switch (this) {
+    PermissionCapabilityGroup.coreProtection => 'Bảo vệ cốt lõi',
+    PermissionCapabilityGroup.enhancedProtection => 'Bảo vệ nâng cao',
+    PermissionCapabilityGroup.callBlocking => 'Chặn cuộc gọi',
+  };
+
+  String get description => switch (this) {
+    PermissionCapabilityGroup.coreProtection =>
+      'Phát hiện cuộc gọi, nhận âm thanh và gửi cảnh báo.',
+    PermissionCapabilityGroup.enhancedProtection =>
+      'Hiện cảnh báo nổi và đọc phụ đề cuộc gọi khi thiết bị hỗ trợ.',
+    PermissionCapabilityGroup.callBlocking =>
+      'Từ chối các số bạn chủ động thêm vào danh sách chặn.',
+  };
+
+  bool get isRequired => this != PermissionCapabilityGroup.callBlocking;
+}
+
+class CapabilityGroupStatus {
+  const CapabilityGroupStatus({
+    required this.group,
+    required this.grantedCount,
+    required this.totalCount,
+    required this.missingPermissions,
+  });
+
+  final PermissionCapabilityGroup group;
+  final int grantedCount;
+  final int totalCount;
+  final List<String> missingPermissions;
+
+  bool get isGranted => grantedCount == totalCount;
+  double get progress => totalCount == 0 ? 1 : grantedCount / totalCount;
+}
+
 /// State holder for all permission statuses.
 class PermissionState {
   const PermissionState({
@@ -27,6 +71,50 @@ class PermissionState {
   double get progress =>
       totalPermissions > 0 ? grantedCount / totalPermissions : 0;
   bool get allGranted => snapshot.allGranted;
+  bool get essentialGranted =>
+      capabilityStatus(PermissionCapabilityGroup.coreProtection).isGranted &&
+      capabilityStatus(PermissionCapabilityGroup.enhancedProtection).isGranted;
+  int get essentialGrantedCount =>
+      capabilityStatus(PermissionCapabilityGroup.coreProtection).grantedCount +
+      capabilityStatus(
+        PermissionCapabilityGroup.enhancedProtection,
+      ).grantedCount;
+  int get essentialPermissionCount =>
+      capabilityStatus(PermissionCapabilityGroup.coreProtection).totalCount +
+      capabilityStatus(PermissionCapabilityGroup.enhancedProtection).totalCount;
+  double get essentialProgress =>
+      capabilityStatus(PermissionCapabilityGroup.coreProtection).progress;
+
+  List<CapabilityGroupStatus> get capabilityGroups =>
+      PermissionCapabilityGroup.values.map(capabilityStatus).toList();
+
+  CapabilityGroupStatus capabilityStatus(PermissionCapabilityGroup group) {
+    final entries = switch (group) {
+      PermissionCapabilityGroup.coreProtection => <(String, bool)>[
+        ('Ghi âm', snapshot.recordAudio),
+        ('Trạng thái cuộc gọi', snapshot.phoneState),
+        ('Lịch sử cuộc gọi', snapshot.callLog),
+        ('Tự động trả lời', snapshot.answerPhoneCalls),
+        ('Thông báo', snapshot.notification),
+      ],
+      PermissionCapabilityGroup.enhancedProtection => <(String, bool)>[
+        ('Hiển thị trên ứng dụng khác', snapshot.overlay),
+        ('Trợ năng', snapshot.accessibility),
+      ],
+      PermissionCapabilityGroup.callBlocking => <(String, bool)>[
+        ('Sàng lọc cuộc gọi', snapshot.callScreening),
+      ],
+    };
+    return CapabilityGroupStatus(
+      group: group,
+      grantedCount: entries.where((entry) => entry.$2).length,
+      totalCount: entries.length,
+      missingPermissions: entries
+          .where((entry) => !entry.$2)
+          .map((entry) => entry.$1)
+          .toList(growable: false),
+    );
+  }
 
   PermissionState copyWith({
     PermissionSnapshot? snapshot,
@@ -109,29 +197,41 @@ class PermissionController extends Notifier<PermissionState>
     BuildContext? context,
   ]) async {
     if (context != null &&
-        (!state.snapshot.phoneState || !state.snapshot.callLog)) {
+        (!state.snapshot.phoneState ||
+            !state.snapshot.callLog ||
+            !state.snapshot.answerPhoneCalls)) {
       final proceed = await PermissionRationaleDialog.show(
         context,
         permissionName: 'Trạng thái & Lịch sử cuộc gọi',
         rationale:
-            'Lá Chắn Cuộc Gọi cần quyền đọc trạng thái điện thoại để phát hiện cuộc gọi đến và tự động kích hoạt giám sát. Quyền lịch sử cuộc gọi giúp ghi nhận thời lượng cuộc gọi và cập nhật thông tin lịch sử quét.',
+            'Lá Chắn Cuộc Gọi cần quyền đọc trạng thái điện thoại để phát hiện cuộc gọi đến, quyền trả lời cuộc gọi để chỉ tự động bắt máy sau khi bạn chọn “Có”, và quyền lịch sử cuộc gọi để ghi nhận thời lượng phiên giám sát.',
         icon: Icons.phone,
       );
-      if (!proceed) return state.snapshot.phoneState && state.snapshot.callLog;
+      if (!proceed) {
+        return state.snapshot.phoneState &&
+            state.snapshot.callLog &&
+            state.snapshot.answerPhoneCalls;
+      }
     }
 
     if (defaultTargetPlatform != TargetPlatform.android) {
       await _refresh();
-      return state.snapshot.phoneState && state.snapshot.callLog;
+      return state.snapshot.phoneState &&
+          state.snapshot.callLog &&
+          state.snapshot.answerPhoneCalls;
     }
     try {
       await _bridge.requestPhoneAndCallLogPermissions();
       await _refresh();
-      return state.snapshot.phoneState && state.snapshot.callLog;
+      return state.snapshot.phoneState &&
+          state.snapshot.callLog &&
+          state.snapshot.answerPhoneCalls;
     } on Exception catch (e) {
       debugPrint('Failed to request phone/call log permissions: $e');
       await _refresh();
-      return state.snapshot.phoneState && state.snapshot.callLog;
+      return state.snapshot.phoneState &&
+          state.snapshot.callLog &&
+          state.snapshot.answerPhoneCalls;
     }
   }
 
@@ -245,9 +345,18 @@ class PermissionController extends Notifier<PermissionState>
     if (context != null && !state.snapshot.accessibility) {
       final proceed = await PermissionRationaleDialog.show(
         context,
-        permissionName: 'Trợ năng',
+        permissionName: 'Trợ năng — phát hiện và điều khiển cuộc gọi',
         rationale:
-            'Lá Chắn Cuộc Gọi cần quyền Trợ năng để đọc phụ đề âm thanh cuộc gọi trực tiếp từ hệ thống, giúp bảo vệ bạn ngay cả khi bạn không bật loa ngoài.',
+            'Khi bạn bật quyền này, Lá Chắn Cuộc Gọi sẽ quan sát nội dung '
+            'đang hiển thị trong ứng dụng Điện thoại, Zalo, Messenger, '
+            'WhatsApp, Telegram, Viber, LINE, Signal và Skype để '
+            'phát hiện cuộc gọi đến/đang diễn ra; đọc phụ đề trực tiếp nếu '
+            'có; và nhấn nút Trả lời hoặc Kết thúc chỉ sau khi bạn chọn '
+            '“Có” hoặc “Kết thúc cuộc gọi”.\n\nỨng dụng không dùng Trợ năng '
+            'để đọc tin nhắn, mật khẩu, danh bạ hay thao tác ngoài luồng '
+            'cuộc gọi. Bản ghi được lưu cục bộ trong Lịch sử theo thời hạn '
+            'bạn chọn. Chỉ khi bạn đã tự bật L3/Gemini, phần bản ghi đã ẩn '
+            'thông tin định danh mới được gửi lên Gemini để phân tích.',
         icon: Icons.accessibility_new,
       );
       if (!proceed) return state.snapshot.accessibility;
@@ -299,37 +408,59 @@ class PermissionController extends Notifier<PermissionState>
   ]) async {
     final results = <String, bool>{};
 
-    await _requestStandardRuntimePermissions(context);
-
-    if (context != null && !context.mounted) return results;
-
-    if (!state.snapshot.phoneState || !state.snapshot.callLog) {
-      results['phoneAndCallLog'] = await requestPhoneAndCallLogPermissions(
-        context,
-      );
+    for (final group in PermissionCapabilityGroup.values) {
+      if (context != null && !context.mounted) break;
+      results.addAll(await requestCapabilityGroup(group, context));
     }
 
-    if (context != null && !context.mounted) return results;
+    await _refresh();
+    return results;
+  }
 
-    if (!state.snapshot.overlay) {
-      results['overlay'] = await requestOverlayPermission(context);
+  /// Requests the permissions for one capability group. This avoids asking
+  /// for optional, highly privileged roles during first-run onboarding.
+  Future<Map<String, bool>> requestCapabilityGroup(
+    PermissionCapabilityGroup group, [
+    BuildContext? context,
+  ]) async {
+    final results = <String, bool>{};
+
+    if (group == PermissionCapabilityGroup.coreProtection) {
+      await _requestStandardRuntimePermissions(context);
+      if (context != null && !context.mounted) return results;
+      if (!state.snapshot.phoneState ||
+          !state.snapshot.callLog ||
+          !state.snapshot.answerPhoneCalls) {
+        results['phoneAndCallLog'] = await requestPhoneAndCallLogPermissions(
+          context,
+        );
+      }
+      await _refresh();
+      return results;
     }
 
-    if (context != null && !context.mounted) return results;
-
-    if (!state.snapshot.accessibility) {
-      results['accessibility'] = await requestAccessibilityPermission(context);
+    if (group == PermissionCapabilityGroup.enhancedProtection) {
+      if (!state.snapshot.overlay) {
+        results['overlay'] = await requestOverlayPermission(context);
+        // A special-permission Settings screen is now in front. Do not open
+        // Accessibility Settings on top of it; refresh-on-resume will expose
+        // the next missing permission for the user's next explicit action.
+        return results;
+      }
+      if (context != null && !context.mounted) return results;
+      if (!state.snapshot.accessibility) {
+        results['accessibility'] = await requestAccessibilityPermission(
+          context,
+        );
+      }
+      await _refresh();
+      return results;
     }
-
-    if (context != null && !context.mounted) return results;
 
     if (!state.snapshot.callScreening) {
       results['callScreening'] = await requestCallScreeningPermission(context);
     }
-
-    // Final refresh
     await _refresh();
-
     return results;
   }
 }
@@ -347,6 +478,15 @@ final allPermissionsGrantedProvider = Provider<bool>((ref) {
   return state.allGranted;
 });
 
+/// True when the minimum permissions for call monitoring are ready.
+final essentialPermissionsGrantedProvider = Provider<bool>((ref) {
+  return ref.watch(permissionControllerProvider).essentialGranted;
+});
+
+final capabilityGroupsProvider = Provider<List<CapabilityGroupStatus>>((ref) {
+  return ref.watch(permissionControllerProvider).capabilityGroups;
+});
+
 /// Provider that returns the list of missing permission names.
 final missingPermissionsProvider = Provider<List<String>>((ref) {
   final state = ref.watch(permissionControllerProvider);
@@ -356,6 +496,7 @@ final missingPermissionsProvider = Provider<List<String>>((ref) {
   if (!s.recordAudio) missing.add('Ghi âm');
   if (!s.phoneState) missing.add('Trạng thái cuộc gọi');
   if (!s.callLog) missing.add('Lịch sử cuộc gọi');
+  if (!s.answerPhoneCalls) missing.add('Tự động trả lời cuộc gọi');
   if (!s.overlay) missing.add('Hiển thị trên ứng dụng khác');
   if (!s.notification) missing.add('Thông báo');
   if (!s.accessibility) missing.add('Trợ năng');

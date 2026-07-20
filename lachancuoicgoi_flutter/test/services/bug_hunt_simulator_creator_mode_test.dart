@@ -24,15 +24,12 @@ void main() {
       },
     );
 
-    test(
-      'BUG-CREATOR-2: empty lines throws ArgumentError (constructor)',
-      () {
-        expect(
-          () => SimulatorCreatorMode(lines: const <String>[]),
-          throwsArgumentError,
-        );
-      },
-    );
+    test('BUG-CREATOR-2: empty lines throws ArgumentError (constructor)', () {
+      expect(
+        () => SimulatorCreatorMode(lines: const <String>[]),
+        throwsArgumentError,
+      );
+    });
 
     test(
       'BUG-CREATOR-3: play with valid lines emits increasing transcripts',

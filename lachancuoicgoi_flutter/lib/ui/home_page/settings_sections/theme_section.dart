@@ -5,11 +5,7 @@ import '../../theme/app_theme.dart';
 
 /// Theme settings: "follow system" toggle + manual dark/light mode toggle.
 class ThemeSection extends StatelessWidget {
-  const ThemeSection({
-    super.key,
-    required this.state,
-    required this.onChanged,
-  });
+  const ThemeSection({super.key, required this.state, required this.onChanged});
 
   final SettingsState state;
   final ValueChanged<SettingsState> onChanged;
@@ -21,8 +17,7 @@ class ThemeSection extends StatelessWidget {
         _SettingToggleCard(
           icon: Icons.brightness_auto,
           title: 'Theo hệ thống',
-          description:
-              'Tự động sáng/tối theo cài đặt giao diện thiết bị.',
+          description: 'Tự động sáng/tối theo cài đặt giao diện thiết bị.',
           checked: state.followSystemTheme,
           onChanged: (v) => onChanged(state.copyWith(followSystemTheme: v)),
         ),
@@ -82,7 +77,10 @@ class SettingToggleCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     description,

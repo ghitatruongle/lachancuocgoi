@@ -118,7 +118,11 @@ class AnalysisOrchestrator {
         }
       } on Object catch (e) {
         if (_disposed) return;
-        SystemLogger.instance.log(LogCategory.analysis, 'AnalysisOrchestrator._runRealTimeAnalysis failed: $e', level: LogLevel.error);
+        SystemLogger.instance.log(
+          LogCategory.analysis,
+          'AnalysisOrchestrator._runRealTimeAnalysis failed: $e',
+          level: LogLevel.error,
+        );
         // Propagate fallback result on error
         _onError(
           const AnalysisResult(
@@ -153,7 +157,11 @@ class AnalysisOrchestrator {
       _onResult(result, _getEffectiveMode());
     } on Object catch (e) {
       if (_disposed) return;
-      SystemLogger.instance.log(LogCategory.analysis, 'AnalysisOrchestrator._runAnalysis failed: $e', level: LogLevel.error);
+      SystemLogger.instance.log(
+        LogCategory.analysis,
+        'AnalysisOrchestrator._runAnalysis failed: $e',
+        level: LogLevel.error,
+      );
       if (myGeneration == _analysisGeneration) {
         _onError(
           const AnalysisResult(

@@ -50,8 +50,9 @@ Các bước:
    (key hợp lệ bắt đầu bằng `AIza...`). Lấy key tại [Google AI Studio](https://aistudio.google.com/apikey).
 3. Chạy `flutter pub get` rồi build/run như bình thường.
 
-> ⚠️ **Bảo mật**: không commit `env.json` lên git. Lưu ý rằng key trong `env.json` sẽ bị bundle
-> vào APK — xem `SECURITY.md` để biết khuyến nghị rotate key và phương án an toàn hơn.
+> ⚠️ **Bảo mật**: không đưa `env.json` vào hệ thống quản lý mã nguồn. Key trong
+> file này được bundle vào APK/AAB và có thể bị trích xuất. Xem
+> `docs/API_KEY_SECURITY.md` để biết giới hạn, quota và quy trình xoay key.
 
 ## Chạy test
 
@@ -97,8 +98,8 @@ lachancuocgoi/                    # Repo root (monorepo)
 
 ## Phiên bản
 
-- **SDK**: Dart `>=3.9.0 <4.0.0` (Flutter stable)
-- **Version**: 1.6.0+12
+- **SDK**: Dart `>=3.9.0 <4.0.0` (Flutter `3.44.2`)
+- **Version**: `1.6.0+14`
 - **Platform chính**: Android (nhờ native overlay + Vosk STT)
 - **Platform phụ trợ**: iOS/Web/Desktop (qua simulator bridge với multi-scenario catalog + creator mode)
 
@@ -120,21 +121,15 @@ lachancuocgoi/                    # Repo root (monorepo)
 > claim "chặn cuộc gọi lừa đảo" trên metadata iOS. Xem `fastlane/metadata/` cho
 > listing template.
 
-## Phase 2 — Hoàn thành
+## Dữ liệu và model trong v1.6.0
 
-| Mục | Trạng thái | Mô tả |
-|-----|-----------|-------|
-| **P2-1** Eval harness | ✅ | Corpus JSONL + precision/recall/F1 regression gate (`flutter test --tags eval`) |
-| **P2-2** L2 early-exit | ✅ | Incremental cache cho green results — bỏ re-run GDetection khi delta không chứa risk token |
-| **P2-3** OTA vocab/scenario | ✅ | `RemoteConfigStore` + `DiskAssetLoader` + `CompositeAssetLoader` (disk-first) + Settings UI |
-| **P2-4** Call screening opt-in | ✅ | Block/reject known scam numbers — default OFF, consent UI bắt buộc |
-| **P2-5** model-vn-small | ✅ (infra) | Pubspec entry + `useSmallSttModel` setting toggle + docs (cần file model thật) |
-| **P2-6** i18n / gen-l10n | ✅ | `app_vi.arb` + `AppLocalizations` + Home/Monitoring migrated |
-| **P2-7** Haptics/motion | ✅ | Yellow=light, orange=medium, red=heavy + `MediaQuery.disableAnimations` respect |
-| **P2-8** Simulator bridge | ✅ | Factory `NativeBridgeInterface.create()` — single `SimulatorCallShieldBridge` cho non-Android |
-| **P2-9** iOS honesty | ✅ (Branch A) | README + store listing metadata (`fastlane/metadata/`) |
-| **P2-SEC** API key proxy | ✅ | `ProxyL3Client` abstraction + `docs/API_KEY_SECURITY.md` |
+- Các file từ khóa, kịch bản, scoring và safety vẫn nằm trong `assets/` và
+  được phát hành cùng ứng dụng. App không tải JSON hoặc APK mới khi đang chạy.
+- Android chỉ đóng gói model Vosk đầy đủ tại `assets/model-vn`.
+- L3 gọi Gemini trực tiếp bằng key trong `env.json`; không có backend proxy.
+- Corpus eval gồm 300 ca (120 lành tính, 120 lừa đảo, 60 nhiễu ASR) và chạy
+  L1/L2 thật mà không gọi Gemini.
 
-Chi tiết eval: `docs/eval_corpus_readme.md`
-Chi tiết security: `docs/API_KEY_SECURITY.md`
-Chi tiết model: `docs/MODEL_VN_SMALL.md`
+Chi tiết eval: `docs/eval_corpus_readme.md`  
+Chi tiết security: `docs/API_KEY_SECURITY.md`  
+Ghi chú phát hành: `docs/RELEASE_NOTES_v1.6.0.md`

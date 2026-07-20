@@ -2,7 +2,6 @@ package com.lachancuocgoi.lachancuocgoi_flutter.ui
 
 import android.content.Context
 import android.graphics.PixelFormat
-import android.os.Build
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
@@ -136,13 +135,13 @@ class OverlayWindow {
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
     ): Boolean {
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
-        val params = WindowManager.LayoutParams(width, height, type, flags, PixelFormat.TRANSLUCENT).apply {
+        val params = WindowManager.LayoutParams(
+            width,
+            height,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            flags,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
             this.gravity = gravity
         }
         return attach(context, view, params)

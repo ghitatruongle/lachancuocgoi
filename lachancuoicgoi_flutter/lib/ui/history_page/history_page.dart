@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/settings_controller.dart';
 import '../../data/app_database.dart';
 import '../../data/call_history.dart';
 import '../home_page/settings_dialog.dart';
@@ -198,6 +199,11 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final asyncState = ref.watch(_historyProvider);
+    final retention = ref.watch(
+      settingsControllerProvider.select(
+        (settings) => settings.callHistoryRetention,
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -267,6 +273,28 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     textInputAction: TextInputAction.search,
                     onChanged: _onSearchChanged,
                     onSubmitted: (_) => _focusNode.unfocus(),
+                  ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.privacy_tip_outlined,
+                        size: 16,
+                        color: cs.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: AppSpacing.xxs),
+                      Expanded(
+                        child: Text(
+                          'Chỉ lưu trên thiết bị · ${retention.label}',
+                          style: tt.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 

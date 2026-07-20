@@ -13,17 +13,11 @@ void main() {
     });
 
     test('returns empty string for whitespace-only input', () {
-      expect(
-        TranscriptSaver.prepareTranscriptForLocalStorage('   '),
-        '',
-      );
+      expect(TranscriptSaver.prepareTranscriptForLocalStorage('   '), '');
     });
 
     test('returns empty string for empty input', () {
-      expect(
-        TranscriptSaver.prepareTranscriptForLocalStorage(''),
-        '',
-      );
+      expect(TranscriptSaver.prepareTranscriptForLocalStorage(''), '');
     });
 
     test('preserves internal whitespace', () {
@@ -117,15 +111,13 @@ void main() {
       expect(result, startsWith(tempDir.path));
     });
 
-    test('saves empty transcript', () async {
+    test('refuses to create an empty transcript file', () async {
       final result = await TranscriptSaver.saveTranscript(
         '',
         baseDirectory: tempDir,
         timestamp: DateTime(2025, 1, 1),
       );
-      expect(result, isNotNull);
-      final file = File(result!);
-      expect(await file.readAsString(), '');
+      expect(result, isNull);
     });
 
     test('directory already exists does not throw', () async {
@@ -153,6 +145,29 @@ void main() {
 
     test('transcriptDirectory constant is transcripts', () {
       expect(TranscriptSaver.transcriptDirectory, 'transcripts');
+    });
+
+    test('does not overwrite when two saves share a timestamp', () async {
+      final timestamp = DateTime(2025, 1, 1);
+      final first = await TranscriptSaver.saveTranscript(
+        'first',
+        baseDirectory: tempDir,
+        timestamp: timestamp,
+      );
+      final second = await TranscriptSaver.saveTranscript(
+        'second',
+        baseDirectory: tempDir,
+        timestamp: timestamp,
+      );
+      expect(second, isNot(first));
+      expect(await File(first!).readAsString(), 'first');
+      expect(await File(second!).readAsString(), 'second');
+    });
+
+    test('deleteAll removes locally saved transcripts', () async {
+      await TranscriptSaver.saveTranscript('sensitive', baseDirectory: tempDir);
+      expect(await TranscriptSaver.deleteAll(baseDirectory: tempDir), 1);
+      expect(await Directory('${tempDir.path}/transcripts').exists(), isFalse);
     });
   });
 }

@@ -23,10 +23,10 @@ class SpeakerphoneController(
     /**
      * Enable speakerphone if not already on.
      */
+    @Suppress("DEPRECATION")
     fun enable() {
         try {
             if (!audioManager.isSpeakerphoneOn) {
-                @Suppress("DEPRECATION")
                 audioManager.isSpeakerphoneOn = true
                 changedByService = true
             }

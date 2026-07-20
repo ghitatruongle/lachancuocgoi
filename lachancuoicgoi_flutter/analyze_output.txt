@@ -1,0 +1,70 @@
+Resolving dependencies...
+Downloading packages...
+  _fe_analyzer_shared 99.0.0 (105.0.0 available)
+  analyzer 12.1.0 (14.1.0 available)
+  code_assets 1.0.0 (1.2.1 available)
+  cross_file 0.3.5+2 (0.3.5+4 available)
+  device_info_plus 13.1.0 (13.2.0 available)
+  flutter_lints 4.0.0 (6.0.0 available)
+  hooks 1.0.3 (2.1.0 available)
+  intl 0.20.2 (0.20.3 available)
+  lints 4.0.0 (6.1.0 available)
+  matcher 0.12.19 (0.12.20 available)
+  meta 1.18.0 (1.19.0 available)
+  native_toolchain_c 0.17.6 (0.19.3 available)
+  objective_c 9.3.0 (9.4.1 available)
+  package_config 2.2.0 (3.0.0 available)
+  path_provider 2.1.5 (2.1.6 available)
+  path_provider_android 2.2.22 (2.3.1 available)
+  path_provider_linux 2.2.1 (2.2.2 available)
+  path_provider_platform_interface 2.1.2 (2.1.3 available)
+  permission_handler_apple 9.4.7 (9.4.10 available)
+  record_use 0.6.0 (1.0.0 available)
+  share_plus 13.1.0 (13.2.1 available)
+  shared_preferences_android 2.4.23 (2.4.27 available)
+  sqflite 2.4.2+1 (2.4.3 available)
+  sqflite_android 2.4.2+3 (2.4.3 available)
+  sqflite_common 2.5.6+1 (2.5.11 available)
+  sqflite_common_ffi 2.4.0+3 (2.4.2 available)
+  sqflite_darwin 2.4.2 (2.4.3+1 available)
+  sqflite_platform_interface 2.4.0 (2.4.1 available)
+  sqlite3 3.3.1 (3.4.0 available)
+  synchronized 3.4.0+1 (3.4.1 available)
+  test 1.31.0 (1.31.2 available)
+  test_api 0.7.11 (0.7.13 available)
+  test_core 0.6.17 (0.6.19 available)
+  uuid 4.5.3 (4.6.0 available)
+  vector_math 2.2.0 (2.4.0 available)
+Got dependencies!
+35 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Analyzing lachancuoicgoi_flutter...                             
+
+   info - The imported package 'firebase_core' isn't a dependency of the importing package. Try adding a dependency for 'firebase_core' in the 'pubspec.yaml' file - lib\app\firebase_initializer.dart:3:8 - depend_on_referenced_packages
+  error - Target of URI doesn't exist: 'package:firebase_core/firebase_core.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist - lib\app\firebase_initializer.dart:3:8 - uri_does_not_exist
+   info - The imported package 'firebase_crashlytics' isn't a dependency of the importing package. Try adding a dependency for 'firebase_crashlytics' in the 'pubspec.yaml' file - lib\app\firebase_initializer.dart:4:8 - depend_on_referenced_packages
+  error - Target of URI doesn't exist: 'package:firebase_crashlytics/firebase_crashlytics.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist - lib\app\firebase_initializer.dart:4:8 - uri_does_not_exist
+  error - Undefined name 'Firebase'. Try correcting the name to one that is defined, or defining the name - lib\app\firebase_initializer.dart:22:11 - undefined_identifier
+  error - Undefined name 'FirebaseCrashlytics'. Try correcting the name to one that is defined, or defining the name - lib\app\firebase_initializer.dart:26:11 - undefined_identifier
+  error - Undefined name 'FirebaseCrashlytics'. Try correcting the name to one that is defined, or defining the name - lib\app\firebase_initializer.dart:31:11 - undefined_identifier
+  error - Undefined name 'FirebaseCrashlytics'. Try correcting the name to one that is defined, or defining the name - lib\app\firebase_initializer.dart:32:11 - undefined_identifier
+  error - The name 'FirebaseException' isn't a type and can't be used in an on-catch clause. Try correcting the name to match an existing class - lib\app\firebase_initializer.dart:35:8 - non_type_in_catch_clause
+   info - Catch clause should use 'on' to specify the type of exception being caught. Try adding an 'on' clause before the 'catch' - lib\app\firebase_initializer.dart:39:5 - avoid_catches_without_on_clauses
+warning - The type argument(s) of the constructor 'Future.delayed' can't be inferred. Use explicit type argument(s) for 'Future.delayed' - lib\app\lachancuocgoi_app.dart:97:15 - inference_failure_on_instance_creation
+   info - Dangling library doc comment. Add a 'library' directive after the library comment - tool\verify_16kb_alignment.dart:1:1 - dangling_library_doc_comments
+   info - Don't invoke 'print' in production code. Try using a logging framework - tool\verify_16kb_alignment.dart:46:5 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - tool\verify_16kb_alignment.dart:50:3 - avoid_print
+warning - The value of the local variable 'basename' isn't used. Try removing the variable or using it - tool\verify_16kb_alignment.dart:57:13 - unused_local_variable
+  error - Local variable '_checkAlignment' can't be referenced before it is declared. Try moving the declaration to before the first use, or renaming the local variable so that it doesn't hide a name from an enclosing scope - tool\verify_16kb_alignment.dart:97:21 - referenced_before_declaration
+  error - Local variable '_checkAlignment' can't be referenced before it is declared. Try moving the declaration to before the first use, or renaming the local variable so that it doesn't hide a name from an enclosing scope - tool\verify_16kb_alignment.dart:109:7 - referenced_before_declaration
+warning - Dead code. Try removing the code, or fixing the code before it so that it can be reached - tool\verify_16kb_alignment.dart:115:18 - dead_code
+   info - Don't invoke 'print' in production code. Try using a logging framework - tool\verify_16kb_alignment.dart:122:5 - avoid_print
+   info - The local variable '_checkAlignment' starts with an underscore. Try renaming the variable to not start with an underscore - tool\verify_16kb_alignment.dart:125:8 - no_leading_underscores_for_local_identifiers
+warning - The value of the local variable 'inLoadSegment' isn't used. Try removing the variable or using it - tool\verify_16kb_alignment.dart:128:9 - unused_local_variable
+   info - Don't invoke 'print' in production code. Try using a logging framework - tool\verify_16kb_alignment.dart:140:15 - avoid_print
+   info - Unnecessary braces in a string interpolation. Try removing the braces - tool\verify_16kb_alignment.dart:140:48 - unnecessary_brace_in_string_interps
+   info - Don't invoke 'print' in production code. Try using a logging framework - tool\verify_16kb_alignment.dart:142:15 - avoid_print
+   info - Unnecessary braces in a string interpolation. Try removing the braces - tool\verify_16kb_alignment.dart:142:48 - unnecessary_brace_in_string_interps
+   info - Catch clause should use 'on' to specify the type of exception being caught. Try adding an 'on' clause before the 'catch' - tool\verify_16kb_alignment.dart:145:13 - avoid_catches_without_on_clauses
+   info - Don't invoke 'print' in production code. Try using a logging framework - tool\verify_16kb_alignment.dart:146:13 - avoid_print
+

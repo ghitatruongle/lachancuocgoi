@@ -1,47 +1,43 @@
-# Eval Corpus — Hướng dẫn thêm case mới
+# Eval corpus v2
 
 ## Cấu trúc
 
-```
-test/fixtures/eval/corpus_v1.jsonl   # Corpus (JSONL, mỗi dòng 1 case)
-test/analysis/eval/eval_case.dart     # Model: EvalCase
-test/analysis/eval/eval_runner.dart   # Runner: precision/recall/F1
-test/analysis/eval/corpus_regression_test.dart  # Gate test (tags: ['eval'])
-```
-
-## Thêm case mới
-
-Mở `test/fixtures/eval/corpus_v1.jsonl`, thêm 1 dòng JSON:
-
-```json
-{"id":"bank_otp_99","text":"cho xin ma OTP","expected":"RED","scenario":"authority_bank","notes":"classic OTP"}
+```text
+test/fixtures/eval/corpus_v2_templates.json
+test/analysis/eval/eval_case.dart
+test/analysis/eval/eval_runner.dart
+test/analysis/eval/corpus_regression_test.dart
 ```
 
-### Quy ước `expected`
+Corpus nguồn dùng template đã duyệt và được mở rộng thành đúng 300 ca:
 
-| Giá trị | Ý nghĩa |
-|---------|---------|
-| `GREEN` | predicted phải là green |
-| `YELLOW` | predicted phải là yellow |
-| `ORANGE` | predicted ≥ orange |
-| `RED` | predicted phải là red |
-| `YELLOW_OR_GREEN` | predicted ≤ yellow (case FP dễ) |
-| `ORANGE_OR_RED` | predicted ≥ orange |
+- 120 câu lành tính.
+- 120 câu lừa đảo.
+- 60 câu nhiễu ASR, thiếu dấu hoặc tách từ sai.
 
-## Chạy eval
+Mỗi template kết hợp với 10 biến thể để có ID ổn định và vẫn dễ review. Không
+dùng transcript hoặc số điện thoại thật.
+
+## Pipeline kiểm thử
+
+Gate khởi tạo `L1Analyzer` và `GDetectionEngine` bằng chính JSON trong
+`assets/`. TFLite được vô hiệu hóa trong eval để kết quả tái lập trên CI; WFSA
+và toàn bộ L1/L2 còn lại là implementation production. L3 nhận key rỗng và
+`networkAvailable` luôn false nên không gọi Gemini.
+
+Chạy riêng:
 
 ```bash
-flutter test --tags eval
+flutter test test/analysis/eval/corpus_regression_test.dart
 ```
 
-## Ngưỡng (thresholds)
+## Cổng chất lượng
 
-Xem `corpus_regression_test.dart`:
-- precision ≥ 0.85
-- recall ≥ 0.80
-- 0 false RED trên case GREEN
+- Precision ≥ 90%.
+- Recall ≥ 90%.
+- False-red trên câu lành tính ≤ 1%.
+- Nhóm critical OTP, chuyển tiền và giả danh cơ quan không có false-green.
 
-## Pitfall
-
-- Soft fusion (Phase 1): case "L1 orange marketing" có thể ra **yellow** — dùng `YELLOW_OR_GREEN`.
-- L3 Gemini: **đừng** gọi API thật trên CI. Eval default dùng `gDetection` hoặc `parallel` + `networkAvailable: () => false`.
+Khi thêm template, phải giữ tối thiểu số lượng từng nhóm và không hạ các cổng
+để làm test vượt qua. Nếu gate thất bại, xem bảng confusion/failure mà runner
+in ra và sửa asset hoặc thuật toán với test hồi quy tương ứng.

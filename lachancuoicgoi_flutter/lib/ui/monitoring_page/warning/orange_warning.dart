@@ -19,7 +19,8 @@ class OrangeWarning extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Phase 2 (P2-7): respect reduce-motion / accessibility setting.
-    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) ||
         MediaQuery.accessibleNavigationOf(context);
     return FullScreenWarning(
       color: _orangeColor,
