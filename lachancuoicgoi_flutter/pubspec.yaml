@@ -17,12 +17,12 @@ dependencies:
   go_router: ^17.0.0
   google_generative_ai: ^0.4.6
   path: ^1.9.0
-  path_provider: ^2.1.5
+  path_provider: ^2.1.6
   permission_handler: ^12.0.0
-  share_plus: ^13.1.0
+  share_plus: ^13.2.1
   shared_preferences: ^2.5.5
-  sqflite: ^2.3.3
-  sqflite_common_ffi: ^2.3.5
+  sqflite: ^2.4.3
+  sqflite_common_ffi: ^2.4.2
   tflite_flutter: ^0.12.1
   clock: ^1.1.1
   flutter_ringtone_player: ^4.0.0+4
