@@ -185,4 +185,4 @@ This privacy flow document is maintained alongside `PRIVACY_POLICY.md`. Any chan
 ---
 
 **Last updated:** 18/07/2026  
-**Version:** 1.6.0
+**Version:** 1.6.1

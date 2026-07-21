@@ -5,6 +5,7 @@ import android.graphics.PixelFormat
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
+import com.lachancuocgoi.lachancuocgoi_flutter.diagnostics.MonitoringPerfProbe
 import java.lang.ref.WeakReference
 
 /**
@@ -79,9 +80,14 @@ class OverlayWindow {
             viewRef = WeakReference(view)
             this.params = params
             contextRef = WeakReference(context.applicationContext)
+            MonitoringPerfProbe.mark("overlay_add_view_succeeded")
             true
         } catch (e: Exception) {
             Log.w(TAG, "addView failed: ${e.javaClass.simpleName} ${e.message}")
+            MonitoringPerfProbe.mark(
+                "overlay_add_view_failed",
+                "error=${e.javaClass.simpleName}",
+            )
             viewRef = null
             this.params = null
             false

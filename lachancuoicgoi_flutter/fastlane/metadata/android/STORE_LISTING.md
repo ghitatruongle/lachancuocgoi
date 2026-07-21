@@ -1,8 +1,8 @@
 # Store Listing — Lá Chắn Cuộc Gọi
 
-Release version: 1.6.0+14
+Release version: 1.6.1+15
 
-## What's new in 1.6.0
+## What's new in 1.6.1
 
 - Không còn hiển thị “An toàn” khi phiên thiếu audio hoặc STT thất bại.
 - Cải thiện độ ổn định của giám sát nền và ngăn lưu trùng phiên.

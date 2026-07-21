@@ -11,7 +11,13 @@ function Find-AndroidSdkTool {
   $onPath = Get-Command $Name -ErrorAction SilentlyContinue
   if ($onPath) { return $onPath.Source }
 
-  $sdkRoots = @($env:ANDROID_SDK_ROOT, $env:ANDROID_HOME) |
+  $localProperties = Join-Path $projectRoot 'android\local.properties'
+  $localSdk = if (Test-Path -LiteralPath $localProperties) {
+    (Get-Content -LiteralPath $localProperties |
+      Where-Object { $_ -match '^sdk\.dir=' } |
+      Select-Object -First 1) -replace '^sdk\.dir=', '' -replace '\\\\', '\'
+  }
+  $sdkRoots = @($env:ANDROID_SDK_ROOT, $env:ANDROID_HOME, $localSdk) |
     Where-Object { $_ -and (Test-Path -LiteralPath $_) } |
     Select-Object -Unique
   foreach ($sdkRoot in $sdkRoots) {
@@ -20,8 +26,10 @@ function Find-AndroidSdkTool {
     $candidate = Get-ChildItem -LiteralPath $buildToolsRoot -Directory |
       Sort-Object Name -Descending |
       ForEach-Object {
-        $toolPath = Join-Path $_.FullName "$Name.exe"
+      foreach ($extension in @('.exe', '.bat')) {
+        $toolPath = Join-Path $_.FullName "$Name$extension"
         if (Test-Path -LiteralPath $toolPath) { Get-Item -LiteralPath $toolPath }
+      }
       } |
       Select-Object -First 1
     if ($candidate) { return $candidate.FullName }
@@ -30,7 +38,7 @@ function Find-AndroidSdkTool {
 }
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$releaseName = 'v1.6.0+14'
+$releaseName = 'v1.6.1+15'
 $releaseRoot = Join-Path $projectRoot "build\release\$releaseName"
 $dartSymbols = Join-Path $releaseRoot 'dart-symbols'
 
@@ -81,8 +89,8 @@ try {
 
     $aapt = Find-AndroidSdkTool 'aapt'
     $badging = (& $aapt dump badging $apk | Select-Object -First 1)
-    if ($badging -notmatch "versionCode='14'" -or
-        $badging -notmatch "versionName='1.6.0'") {
+    if ($badging -notmatch "versionCode='15'" -or
+        $badging -notmatch "versionName='1.6.1'") {
       throw "APK version verification failed: $badging"
     }
 
@@ -107,7 +115,7 @@ try {
   Write-Host "APK: $apk"
   Write-Host "Dart symbols: $dartSymbols"
   Write-Host "R8 mapping: $mapping"
-  Write-Host 'Before Play upload, set PLAY_VERSION_CODE_ALREADY_USED=true if code 14 is already used; the verifier will stop.'
+  Write-Host 'Before Play upload, set PLAY_VERSION_CODE_ALREADY_USED=true if code 15 is already used; the verifier will stop.'
 } finally {
   Pop-Location
 }

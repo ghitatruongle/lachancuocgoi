@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 16KB alignment verification for Android 15+ submissions
 - Secret scanner and coverage regression gates in CI
 
+## [1.6.1] - 2026-07-21
+
+### Fixed
+- Overlay monitoring now requests visibility above the keyguard on supported Android devices.
+- FlutterEngine is warmed while the incoming-call consent notification is displayed.
+- Repeated Google SpeechRecognizer busy errors now fall back to Vosk instead of repeatedly rebuilding the recognizer on the main thread.
+- Added physical-device performance instrumentation and cold/warm startup regression tests.
+
 ## [1.6.0] - 2026-07-18
 
 ### Added
@@ -71,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Notes
 
-- **v1.6.0+14** is the current production-ready version
+- **v1.6.1+15** is the current production-ready version
 - **v1.5.3** introduced crash hardening and performance work
 - **FTS5 search** was planned in v1.5.3 but deferred to v1.6.0+; current implementation uses LIKE queries
 - All releases maintain backward compatibility with Android 8.0 (API 26) minimum

@@ -7,6 +7,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.lachancuocgoi.lachancuocgoi_flutter.diagnostics.MonitoringPerfProbe
 import java.lang.ref.WeakReference
 
 /** Detects and controls explicitly supported system and OTT call screens. */
@@ -21,6 +22,7 @@ class UnifiedAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         serviceRef = WeakReference(this)
+        MonitoringPerfProbe.mark("accessibility_service_connected")
         when (pendingAction(this)) {
             ACTION_ANSWER -> answerWithRetry()
             ACTION_END -> endWithRetry()
@@ -38,7 +40,12 @@ class UnifiedAccessibilityService : AccessibilityService() {
                 isTargetCallPackage(packageName) && now - lastScanAtMs >= SCAN_THROTTLE_MS)
         ) {
             lastScanAtMs = now
-            scanForIncomingCall()
+            val scanToken = MonitoringPerfProbe.begin("accessibility_incoming_scan")
+            try {
+                scanForIncomingCall()
+            } finally {
+                MonitoringPerfProbe.end(scanToken)
+            }
         }
 
         if ((event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
@@ -47,7 +54,12 @@ class UnifiedAccessibilityService : AccessibilityService() {
             now - lastCaptionScanAtMs >= CAPTION_THROTTLE_MS
         ) {
             lastCaptionScanAtMs = now
-            rootInActiveWindow?.let(::traverseNodeForCaptions)
+            val captionToken = MonitoringPerfProbe.begin("accessibility_caption_scan")
+            try {
+                rootInActiveWindow?.let(::traverseNodeForCaptions)
+            } finally {
+                MonitoringPerfProbe.end(captionToken)
+            }
         }
     }
 
@@ -134,16 +146,36 @@ class UnifiedAccessibilityService : AccessibilityService() {
     }
 
     private fun answerWithRetry(attempt: Int = 0) {
-        val clicked = findAndClick(ANSWER_TEXT, ANSWER_DESCRIPTIONS)
+        val scanToken = MonitoringPerfProbe.begin(
+            "accessibility_answer_scan",
+            "attempt=${attempt + 1}",
+        )
+        val clicked = try {
+            findAndClick(ANSWER_TEXT, ANSWER_DESCRIPTIONS)
+        } finally {
+            MonitoringPerfProbe.end(scanToken)
+        }
         if (clicked) {
+            MonitoringPerfProbe.mark(
+                "accessibility_answer_retry_finished",
+                "attempt=${attempt + 1},clicked=true",
+            )
             clearPendingAction(this)
             Log.i(TAG, "Supported call was answered through accessibility")
             return
         }
         if (attempt + 1 >= CONTROL_RETRY_COUNT) {
+            MonitoringPerfProbe.mark(
+                "accessibility_answer_retry_finished",
+                "attempt=${attempt + 1},clicked=false",
+            )
             Log.w(TAG, "No supported answer control was found")
             return
         }
+        MonitoringPerfProbe.mark(
+            "accessibility_answer_retry_scheduled",
+            "next_attempt=${attempt + 2},delay_ms=$CONTROL_RETRY_DELAY_MS",
+        )
         handler.postDelayed({ answerWithRetry(attempt + 1) }, CONTROL_RETRY_DELAY_MS)
     }
 
@@ -291,7 +323,15 @@ class UnifiedAccessibilityService : AccessibilityService() {
                 .putString(KEY_PENDING_ACTION, action)
                 .apply()
             mainHandler.post {
-                val service = serviceRef?.get() ?: return@post
+                val service = serviceRef?.get()
+                if (service == null) {
+                    MonitoringPerfProbe.mark(
+                        "accessibility_action_not_dispatched",
+                        "action=$action,reason=service_unavailable",
+                    )
+                    return@post
+                }
+                MonitoringPerfProbe.mark("accessibility_action_dispatched", "action=$action")
                 if (action == ACTION_ANSWER) service.answerWithRetry() else service.endWithRetry()
             }
         }

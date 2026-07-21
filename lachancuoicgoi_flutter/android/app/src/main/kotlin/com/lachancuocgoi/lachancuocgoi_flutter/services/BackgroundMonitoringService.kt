@@ -16,6 +16,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.lachancuocgoi.lachancuocgoi_flutter.diagnostics.MonitoringPerfProbe
 import com.lachancuocgoi.lachancuocgoi_flutter.helpers.MonitoringNotificationBuilder
 import com.lachancuocgoi.lachancuocgoi_flutter.helpers.WatchdogScheduler
 import com.lachancuocgoi.lachancuocgoi_flutter.R
@@ -116,8 +117,14 @@ class BackgroundMonitoringService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
+        val onCreateToken = MonitoringPerfProbe.begin("monitoring_service_on_create")
         super.onCreate()
-        speechToTextManager = SpeechToTextManager(application)
+        val speechManagerToken = MonitoringPerfProbe.begin("speech_manager_constructor")
+        speechToTextManager = try {
+            SpeechToTextManager(application)
+        } finally {
+            MonitoringPerfProbe.end(speechManagerToken)
+        }
         connectivityMonitor = ConnectivityMonitor(application)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         // Wave 3: notification + watchdog scheduling extracted into helpers so
@@ -146,15 +153,25 @@ class BackgroundMonitoringService : Service() {
         // the main thread during startup. Vosk preload involves StorageService.unpack
         // which reads model files from assets — heavy I/O that causes frame drops.
         serviceScope.launch {
+            MonitoringPerfProbe.mark("vosk_preload_dispatch_started")
             try {
                 speechToTextManager.preloadVoskFallback()
             } catch (e: Exception) {
                 Log.w(TAG, "Vosk preload failed (non-fatal)", e)
+                MonitoringPerfProbe.mark(
+                    "vosk_preload_dispatch_failed",
+                    "error=${e.javaClass.simpleName}",
+                )
             }
         }
+        MonitoringPerfProbe.end(onCreateToken)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        MonitoringPerfProbe.mark(
+            "monitoring_service_on_start",
+            "action=${intent?.action.orEmpty()}",
+        )
         if (intent?.action == ACTION_STOP) {
             if (isMonitoringActive || isStopping) {
                 stopMonitoring()
@@ -185,6 +202,7 @@ class BackgroundMonitoringService : Service() {
         } else {
             0
         }
+        val promotionToken = MonitoringPerfProbe.begin("monitoring_service_promote_foreground")
         val promoted = try {
             ForegroundServiceLauncher.safeStartForeground(
                 this,
@@ -195,6 +213,8 @@ class BackgroundMonitoringService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Unable to build or post the foreground notification", e)
             false
+        } finally {
+            MonitoringPerfProbe.end(promotionToken)
         }
         if (!promoted) {
             failForegroundPromotion(startId)
@@ -245,10 +265,12 @@ class BackgroundMonitoringService : Service() {
 
     @Suppress("DEPRECATION")
     private fun startMonitoring() {
+        val startToken = MonitoringPerfProbe.begin("monitoring_service_start_monitoring")
         Log.d(TAG, "Starting dual-source monitoring.")
         NativeBridgeEventSink.sendLog(TAG, "Khởi chạy dịch vụ bảo vệ cuộc gọi ngầm (Google STT + Vosk)...", "INFO")
         isMonitoringActive = true
         isRunning = true
+        MonitoringPerfProbe.mark("monitoring_service_running")
         isStopping = false
         startTime = System.currentTimeMillis()
         if (CallSessionCoordinator.isMonitoringAccepted(applicationContext)) {
@@ -285,8 +307,17 @@ class BackgroundMonitoringService : Service() {
             }
         }
 
-        val googleAvailable =
+        val recognitionAvailableToken =
+            MonitoringPerfProbe.begin("speech_recognition_available_check")
+        val googleAvailable = try {
             android.speech.SpeechRecognizer.isRecognitionAvailable(application)
+        } finally {
+            MonitoringPerfProbe.end(recognitionAvailableToken)
+        }
+        MonitoringPerfProbe.mark(
+            "speech_recognition_availability",
+            "google_available=$googleAvailable",
+        )
 
         // Request audio focus only if starting with Vosk directly
         if (!googleAvailable) {
@@ -299,6 +330,10 @@ class BackgroundMonitoringService : Service() {
         } else {
             hadAudioFocus = false
         }
+        MonitoringPerfProbe.end(
+            startToken,
+            "google_available=$googleAvailable,audio_focus=$hadAudioFocus",
+        )
 
         // Bug #20 fix: snapshot the speakerphone state BEFORE any audio
         // mode change. The previous code captured it after the focus
@@ -373,6 +408,7 @@ class BackgroundMonitoringService : Service() {
                 }
             } else {
                 try {
+                    MonitoringPerfProbe.mark("speech_start_dispatch")
                     speechToTextManager.startListening()
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to start listening", e)
@@ -708,9 +744,21 @@ class BackgroundMonitoringService : Service() {
                     }
                 .build()
             audioFocusRequest = focusRequest
-            audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            val requestToken = MonitoringPerfProbe.begin("audio_focus_request_ipc")
+            val granted = try {
+                audioManager.requestAudioFocus(focusRequest) ==
+                    AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            } finally {
+                MonitoringPerfProbe.end(requestToken)
+            }
+            MonitoringPerfProbe.mark("audio_focus_result", "granted=$granted")
+            granted
         } catch (e: Exception) {
             Log.e(TAG, "Error requesting audio focus", e)
+            MonitoringPerfProbe.mark(
+                "audio_focus_failed",
+                "error=${e.javaClass.simpleName}",
+            )
             false
         }
     }

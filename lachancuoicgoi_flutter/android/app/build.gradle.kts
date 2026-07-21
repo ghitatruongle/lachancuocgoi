@@ -6,6 +6,8 @@ plugins {
 }
 
 val keystorePropertiesFile = rootProject.file("key.properties")
+val monitoringDevicePerf =
+    providers.gradleProperty("monitoringDevicePerf").orNull?.toBoolean() == true
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
         keystorePropertiesFile.inputStream().use(::load)
@@ -16,6 +18,7 @@ android {
     namespace = "com.lachancuocgoi.lachancuocgoi_flutter"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
+    testBuildType = if (monitoringDevicePerf) "profile" else "debug"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -29,6 +32,7 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("boolean", "MONITORING_PERF_PROBES", "false")
     }
 
     signingConfigs {
@@ -43,6 +47,12 @@ android {
     }
 
     buildTypes {
+        getByName("profile") {
+            if (monitoringDevicePerf) {
+                applicationIdSuffix = ".monitoringperf"
+                buildConfigField("boolean", "MONITORING_PERF_PROBES", "true")
+            }
+        }
         release {
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")

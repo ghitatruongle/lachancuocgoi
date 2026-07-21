@@ -43,7 +43,17 @@ try {
   if ($libraries.Count -eq 0) { throw 'APK contains no native .so libraries.' }
 
   $failures = @()
+  $checkedLibraries = 0
+  $skipped32BitLibraries = 0
   foreach ($entry in $libraries) {
+    $abi = ($entry.FullName -split '/')[1]
+    if ($abi -in @('armeabi-v7a', 'x86')) {
+      # Android's 16 KB page-size requirement applies to 64-bit native code.
+      # Keep 32-bit Vosk for legacy devices without making a valid release fail.
+      $skipped32BitLibraries++
+      continue
+    }
+    $checkedLibraries++
     $safeName = ($entry.FullName -replace '[^A-Za-z0-9_.-]', '_')
     $destination = Join-Path $resolvedTemp $safeName
     [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destination, $true)
@@ -69,7 +79,7 @@ try {
   if ($failures.Count -gt 0) {
     throw "16 KB ELF check failed:`n$($failures -join "`n")"
   }
-  Write-Host "16 KB ELF check passed for $($libraries.Count) native libraries."
+  Write-Host "16 KB ELF check passed for $checkedLibraries 64-bit native libraries; skipped $skipped32BitLibraries legacy 32-bit libraries."
 } finally {
   if ($archive) { $archive.Dispose() }
   if (Test-Path -LiteralPath $resolvedTemp) {
