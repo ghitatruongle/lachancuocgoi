@@ -71,7 +71,7 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
   /// Safe to call multiple times — only loads once.
   ///
   /// SECURITY: env.json trong assets bị bundle trong APK, vì vậy người cài
-  /// app có thể trích xuất API key. Kiến trúc v1.6.0 chấp nhận ràng buộc này;
+  /// app có thể trích xuất API key. Kiến trúc v1.6.1 chấp nhận ràng buộc này;
   /// key phải được giới hạn quota/API, theo dõi và xoay khi cần.
   Future<void> ensureLoaded() async {
     if (_envLoaded) return;

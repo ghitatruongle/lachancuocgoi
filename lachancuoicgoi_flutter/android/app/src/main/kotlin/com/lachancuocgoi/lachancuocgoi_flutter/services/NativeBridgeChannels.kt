@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import com.lachancuocgoi.lachancuocgoi_flutter.audio.CreatorAudioCaptureManager
+import com.lachancuocgoi.lachancuocgoi_flutter.diagnostics.MonitoringPerfProbe
 import com.lachancuocgoi.lachancuocgoi_flutter.helpers.PermissionHelpers
 import com.lachancuocgoi.lachancuocgoi_flutter.ui.OverlayManager
 import io.flutter.embedding.engine.FlutterEngine
@@ -57,6 +58,7 @@ object NativeBridgeChannels {
         EventChannel(messenger, MONITORING_STATE_CHANNEL)
             .setStreamHandler(object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    MonitoringPerfProbe.mark("dart_monitoring_listener_ready")
                     NativeBridgeEventSink.monitoringStateSink = events
                     if (CreatorMediaProjectionService.isRunning || BackgroundMonitoringService.isRunning) {
                         events?.success("STARTED")
@@ -72,6 +74,7 @@ object NativeBridgeChannels {
         EventChannel(messenger, CALL_EVENT_CHANNEL)
             .setStreamHandler(object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    MonitoringPerfProbe.mark("dart_call_listener_ready")
                     NativeBridgeEventSink.callEventSink = events
                     NativeBridgeEventSink.onSinksReconnected()
                 }

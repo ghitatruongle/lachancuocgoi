@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.lachancuocgoi.lachancuocgoi_flutter.diagnostics.MonitoringPerfProbe
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -75,6 +76,10 @@ class VoskSttManager(
         if (isDestroyed) return
         _modelLoadState.value = ModelLoadState.Loading
         val sourcePath = MODEL_ASSET_PATHS[assetPathIndex]
+        MonitoringPerfProbe.mark(
+            "vosk_model_load_started",
+            "asset_index=$assetPathIndex,asset=$sourcePath",
+        )
         NativeBridgeEventSink.sendLog(TAG, "Đang tải mô hình Vosk offline từ asset $sourcePath...", "INFO")
         
         modelScope.launch(Dispatchers.IO) {
@@ -108,10 +113,18 @@ class VoskSttManager(
                                 _isReady.value = true
                                 retryCount = 0
                                 _modelLoadState.value = ModelLoadState.Ready(16000.0f)
+                                MonitoringPerfProbe.mark(
+                                    "vosk_model_ready",
+                                    "asset_index=$assetPathIndex,asset=$sourcePath",
+                                )
                                 Log.d(TAG, "Vosk model initialized successfully")
                                 NativeBridgeEventSink.sendLog(TAG, "Mô hình Vosk offline đã sẵn sàng.", "INFO")
                             }
                         } catch (e: Exception) {
+                            MonitoringPerfProbe.mark(
+                                "vosk_model_load_failed",
+                                "asset_index=$assetPathIndex,error=${e.javaClass.simpleName}",
+                            )
                             try { unpackedModel.close() } catch (_: Exception) {}
                             Log.e(TAG, "Failed to create Vosk Recognizer in background", e)
                             NativeBridgeEventSink.sendLog(TAG, "Lỗi tạo Vosk Recognizer: ${e.message}", "ERROR")
@@ -143,6 +156,10 @@ class VoskSttManager(
                 },
                 { exception ->
                     if (isDestroyed) return@unpack
+                    MonitoringPerfProbe.mark(
+                        "vosk_model_unpack_failed",
+                        "asset_index=$assetPathIndex,error=${exception?.javaClass?.simpleName.orEmpty()}",
+                    )
                     val nextAssetPathIndex = assetPathIndex + 1
                     if (nextAssetPathIndex < MODEL_ASSET_PATHS.size) {
                         Log.w(

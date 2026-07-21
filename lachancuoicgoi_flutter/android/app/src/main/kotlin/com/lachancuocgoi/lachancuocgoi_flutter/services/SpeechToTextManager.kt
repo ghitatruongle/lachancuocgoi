@@ -14,6 +14,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.lachancuocgoi.lachancuocgoi_flutter.diagnostics.MonitoringPerfProbe
 import com.lachancuocgoi.lachancuocgoi_flutter.services.stt.SttState
 import com.lachancuocgoi.lachancuocgoi_flutter.services.stt.TranscriptOverlapJoiner
 import kotlinx.coroutines.CoroutineScope
@@ -149,6 +150,9 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
 
     private var consecutiveClientErrors = 0
 
+    private var consecutiveBusyErrors = 0
+    private val BUSY_ERROR_FALLBACK_THRESHOLD = 2
+
     // Google retry: periodically try switching back from Vosk to Google STT
     private var googleRetryCount = 0
     private val googleRetryRunnable = Runnable { attemptGoogleRetry() }
@@ -162,6 +166,8 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
 
     private val recognitionListener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {
+            MonitoringPerfProbe.mark("speech_on_ready")
+            consecutiveBusyErrors = 0
             _isListening.value = true
             _sttState.value = SttState.Listening
             Log.i(TAG, "Google Speech connected & ready for speech (vi-VN)")
@@ -177,6 +183,10 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         }
 
         override fun onError(error: Int) {
+            MonitoringPerfProbe.mark("speech_on_error", "code=$error")
+            if (error != SpeechRecognizer.ERROR_RECOGNIZER_BUSY) {
+                consecutiveBusyErrors = 0
+            }
             val errorMessage = when (error) {
                 SpeechRecognizer.ERROR_AUDIO -> "Audio recording error - may conflict with phone call audio"
                 SpeechRecognizer.ERROR_CLIENT -> "Client side error"
@@ -264,6 +274,16 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                         switchToVoskFallback()
                         return
                     }
+                } else if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) {
+                    consecutiveBusyErrors++
+                    if (consecutiveBusyErrors >= BUSY_ERROR_FALLBACK_THRESHOLD && !isVoskFallbackActive) {
+                        Log.w(TAG, "$consecutiveBusyErrors recognizer-busy errors — switching to Vosk fallback")
+                        NativeBridgeEventSink.sendMonitoringState(
+                            "STT_FALLBACK:VOSK:recognizer_busy_$consecutiveBusyErrors"
+                        )
+                        switchToVoskFallback()
+                        return
+                    }
                 } else {
                     consecutiveAudioErrors = 0
                 }
@@ -277,6 +297,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             } else if (shouldBeListening && isRecoverable && error != SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS && error != SpeechRecognizer.ERROR_CLIENT) {
                 consecutiveError12Count = 0
                 consecutiveAudioErrors = 0
+                consecutiveBusyErrors = 0
                 handler.removeCallbacks(restartRunnable)
                 handler.postDelayed(restartRunnable, 1000)
             }
@@ -395,7 +416,13 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             return
         }
 
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+        val availabilityToken = MonitoringPerfProbe.begin("speech_start_available_check")
+        val recognitionAvailable = try {
+            SpeechRecognizer.isRecognitionAvailable(context)
+        } finally {
+            MonitoringPerfProbe.end(availabilityToken)
+        }
+        if (!recognitionAvailable) {
             Log.w(TAG, "Google Speech recognition not available on this device — Vosk fallback will be used")
             _sttState.value = SttState.Error("Thiết bị không hỗ trợ nhận diện giọng nói", false)
             return
@@ -405,16 +432,31 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         // Only remove our restart callbacks — not all handler callbacks
         handler.removeCallbacks(restartRunnable)
 
+        val enqueuedAtNanos = MonitoringPerfProbe.nowNanos()
+        MonitoringPerfProbe.mark("speech_main_task_enqueued")
         handler.post {
             if (isRestarting) {
+                MonitoringPerfProbe.mark("speech_main_task_skipped", "reason=already_restarting")
                 if (DEBUG_LOGS) Log.d(TAG, "Restart already in progress, skipping.")
                 return@post
             }
+            val queueDelayMs =
+                (MonitoringPerfProbe.nowNanos() - enqueuedAtNanos) / 1_000_000.0
+            val mainTaskToken = MonitoringPerfProbe.begin(
+                "speech_main_task",
+                "queue_ms=$queueDelayMs",
+            )
+            var mainTaskOutcome = "success=true"
             isRestarting = true
             Log.i(TAG, "Starting Google Speech recognition (vi-VN)...")
             _isListening.value = true
-            try { speechRecognizer?.cancel() } catch (_: Exception) {}
-            try { speechRecognizer?.destroy() } catch (_: Exception) {}
+            val cleanupToken = MonitoringPerfProbe.begin("speech_previous_recognizer_cleanup")
+            try {
+                try { speechRecognizer?.cancel() } catch (_: Exception) {}
+                try { speechRecognizer?.destroy() } catch (_: Exception) {}
+            } finally {
+                MonitoringPerfProbe.end(cleanupToken)
+            }
 
             // Bug #3 fix: the entire construction block is wrapped in
             // try/finally so the isRestarting flag is ALWAYS reset, even if
@@ -422,8 +464,23 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             // broken device) or returns null. Without this, a single failure
             // permanently locks all future startListening() calls.
             try {
-                val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+                val createToken = MonitoringPerfProbe.begin("speech_create_recognizer")
+                val recognizer = try {
+                    SpeechRecognizer.createSpeechRecognizer(context).also {
+                        MonitoringPerfProbe.end(
+                            createToken,
+                            "success=${it != null}",
+                        )
+                    }
+                } catch (error: Throwable) {
+                    MonitoringPerfProbe.end(
+                        createToken,
+                        "success=false,error=${error.javaClass.simpleName}",
+                    )
+                    throw error
+                }
                 if (recognizer == null) {
+                    mainTaskOutcome = "success=false,error=null_recognizer"
                     Log.e(TAG, "createSpeechRecognizer returned null — STT permanently unavailable")
                     shouldBeListening = false
                     _sttState.value = SttState.Error("Không thể khởi tạo SpeechRecognizer", false)
@@ -439,13 +496,20 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                     putExtra("android.speech.extra.SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS", 10000)
                 }
                 try {
-                    recognizer.startListening(intent)
+                    val startToken = MonitoringPerfProbe.begin("speech_start_listening_ipc")
+                    try {
+                        recognizer.startListening(intent)
+                    } finally {
+                        MonitoringPerfProbe.end(startToken)
+                    }
                     Log.i(TAG, "Google Speech recognition start requested (awaiting onReadyForSpeech)")
                 } catch (e: Exception) {
+                    mainTaskOutcome = "success=false,error=${e.javaClass.simpleName}"
                     Log.e(TAG, "Error starting Google speech recognition", e)
                     handleError12()
                 }
             } catch (e: Throwable) {
+                mainTaskOutcome = "success=false,error=${e.javaClass.simpleName}"
                 Log.e(TAG, "Unexpected error creating SpeechRecognizer", e)
                 // Don't crash — schedule a retry via the normal restart path.
                 handler.postDelayed(restartRunnable, 2000)
@@ -454,6 +518,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 // from createSpeechRecognizer / setRecognitionListener /
                 // startListening would leave isRestarting=true forever.
                 isRestarting = false
+                MonitoringPerfProbe.end(mainTaskToken, mainTaskOutcome)
             }
         }
     }
@@ -467,6 +532,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         consecutiveError12Count = 0
         consecutiveAudioErrors = 0
         consecutiveClientErrors = 0
+        consecutiveBusyErrors = 0
 
         stopGoogleRetry()
 
@@ -597,6 +663,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         consecutiveClientErrors = 0
         consecutiveAudioErrors = 0
         consecutiveError12Count = 0
+        consecutiveBusyErrors = 0
         _sttState.value = SttState.Error("Mất mạng — chuyển sang nhận diện offline", true)
         onEngineSwitched?.invoke(true)
 
@@ -621,6 +688,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         consecutiveClientErrors = 0
         consecutiveAudioErrors = 0
         consecutiveError12Count = 0
+        consecutiveBusyErrors = 0
         onEngineSwitched?.invoke(false)
 
         stopGoogleRetry()

@@ -5,6 +5,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Looper
+import com.lachancuocgoi.lachancuocgoi_flutter.diagnostics.MonitoringPerfProbe
 import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeChannels
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor
@@ -38,17 +39,55 @@ class MainApplication : Application() {
     /** Starts the one shared Flutter engine used by UI and background analysis. */
     @Synchronized
     fun ensureFlutterEngine(): FlutterEngine {
-        monitoringFlutterEngine?.let { return it }
-        check(Looper.myLooper() == Looper.getMainLooper()) {
-            "FlutterEngine must be created on the Android main thread"
-        }
-        return FlutterEngine(this).also { engine ->
-            NativeBridgeChannels.registerEventChannels(this, engine)
-            NativeBridgeChannels.installBackgroundMethodHandler(this, engine)
-            engine.dartExecutor.executeDartEntrypoint(
-                DartExecutor.DartEntrypoint.createDefault(),
-            )
+        val totalToken = MonitoringPerfProbe.begin("flutter_engine_total")
+        var totalOutcome = "success=false"
+        try {
+            monitoringFlutterEngine?.let { existing ->
+                totalOutcome = "success=true,warm=true"
+                MonitoringPerfProbe.mark("flutter_engine_reused")
+                return existing
+            }
+            check(Looper.myLooper() == Looper.getMainLooper()) {
+                "FlutterEngine must be created on the Android main thread"
+            }
+
+            val constructorToken = MonitoringPerfProbe.begin("flutter_engine_constructor")
+            val engine = try {
+                FlutterEngine(this).also {
+                    MonitoringPerfProbe.end(constructorToken, "success=true")
+                }
+            } catch (error: Throwable) {
+                MonitoringPerfProbe.end(
+                    constructorToken,
+                    "success=false,error=${error.javaClass.simpleName}",
+                )
+                throw error
+            }
+
+            val channelsToken = MonitoringPerfProbe.begin("flutter_engine_channels")
+            try {
+                NativeBridgeChannels.registerEventChannels(this, engine)
+                NativeBridgeChannels.installBackgroundMethodHandler(this, engine)
+            } finally {
+                MonitoringPerfProbe.end(channelsToken)
+            }
+
+            val dartToken = MonitoringPerfProbe.begin("flutter_dart_entrypoint_request")
+            try {
+                engine.dartExecutor.executeDartEntrypoint(
+                    DartExecutor.DartEntrypoint.createDefault(),
+                )
+            } finally {
+                MonitoringPerfProbe.end(dartToken)
+            }
             monitoringFlutterEngine = engine
+            totalOutcome = "success=true,warm=false"
+            return engine
+        } catch (error: Throwable) {
+            totalOutcome = "success=false,error=${error.javaClass.simpleName}"
+            throw error
+        } finally {
+            MonitoringPerfProbe.end(totalToken, totalOutcome)
         }
     }
 

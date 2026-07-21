@@ -59,6 +59,15 @@
             android:launchMode="singleInstance"
             android:excludeFromRecents="true" />
 
+        <activity
+            android:name=".ui.MonitoringOverlayActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/MonitoringOverlayTheme" />
+
         <service
             android:name=".services.UnifiedAccessibilityService"
             android:exported="true"

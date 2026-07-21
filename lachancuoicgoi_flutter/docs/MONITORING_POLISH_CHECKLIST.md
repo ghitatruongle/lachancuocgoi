@@ -24,7 +24,7 @@
 ### 4.4 Final Documentation Review
 - [ ] Verify README accuracy (FTS5 fix confirmed)
 - [ ] Check all links and cross-references
-- [ ] Update version numbers in docs (1.6.0+14)
+- [ ] Update version numbers in docs (1.6.1+15)
 - [ ] Verify CHANGELOG.md format and completeness
 - [ ] Confirm CONTRIBUTING.md setup instructions work
 - [ ] Review ADRs for clarity and completeness

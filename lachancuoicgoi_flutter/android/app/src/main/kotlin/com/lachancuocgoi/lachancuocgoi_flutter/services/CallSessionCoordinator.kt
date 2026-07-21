@@ -15,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.lachancuocgoi.lachancuocgoi_flutter.MainApplication
 import com.lachancuocgoi.lachancuocgoi_flutter.R
+import com.lachancuocgoi.lachancuocgoi_flutter.diagnostics.MonitoringPerfProbe
 import com.lachancuocgoi.lachancuocgoi_flutter.receiver.CallActionReceiver
 import com.lachancuocgoi.lachancuocgoi_flutter.ui.OverlayManager
 import java.util.UUID
@@ -83,14 +84,37 @@ object CallSessionCoordinator {
                 "maskedNumber" to maskedNumber,
             )
         )
+
+        // Warm the shared engine while the consent notification is visible.
+        // FlutterEngine construction is main-thread-only, so doing it after
+        // the user taps Accept causes a visible stall on low-end devices.
+        mainHandler.post {
+            if (currentSession(appContext)?.state != State.PROMPTING) return@post
+            (appContext as? MainApplication)?.let { application ->
+                runCatching { application.ensureFlutterEngine() }
+                    .onFailure { Log.e(TAG, "Unable to prewarm the background Flutter engine", it) }
+            }
+        }
     }
 
     @Synchronized
     fun acceptMonitoring(context: Context, requestedSessionId: String?) {
+        MonitoringPerfProbe.mark("accept_enter")
         val appContext = context.applicationContext
-        val session = currentSession(appContext) ?: return
-        if (session.state != State.PROMPTING || session.id != requestedSessionId) return
+        val session = currentSession(appContext)
+        if (session == null) {
+            MonitoringPerfProbe.mark("accept_rejected", "reason=no_session")
+            return
+        }
+        if (session.state != State.PROMPTING || session.id != requestedSessionId) {
+            MonitoringPerfProbe.mark(
+                "accept_rejected",
+                "reason=session_mismatch,state=${session.state}",
+            )
+            return
+        }
 
+        val preflightToken = MonitoringPerfProbe.begin("accept_preflight")
         val preflightFailure = when {
             !Settings.canDrawOverlays(appContext) ->
                 "Hãy cấp quyền hiển thị trên ứng dụng khác trước khi giám sát."
@@ -103,7 +127,12 @@ object CallSessionCoordinator {
                 "Hãy bật Trợ năng để tự động trả lời cuộc gọi ứng dụng."
             else -> null
         }
+        MonitoringPerfProbe.end(
+            preflightToken,
+            "success=${preflightFailure == null}",
+        )
         if (preflightFailure != null) {
+            MonitoringPerfProbe.mark("accept_rejected", "reason=permission_missing")
             failAcceptedStart(appContext, "permission_missing", preflightFailure)
             return
         }
@@ -117,8 +146,14 @@ object CallSessionCoordinator {
 
         // Android 15 permits a microphone FGS launched from a user notification
         // action. Attach the visible overlay first when permission is available.
-        val overlayVisible = OverlayManager.showMonitoringOverlay(appContext, acceptedAtMs)
+        val overlayToken = MonitoringPerfProbe.begin("accept_overlay_call")
+        val overlayVisible = try {
+            OverlayManager.showMonitoringOverlay(appContext, acceptedAtMs)
+        } finally {
+            MonitoringPerfProbe.end(overlayToken)
+        }
         if (!overlayVisible) {
+            MonitoringPerfProbe.mark("accept_rejected", "reason=overlay_attach_failed")
             failAcceptedStart(
                 appContext,
                 "overlay_attach_failed",
@@ -130,11 +165,17 @@ object CallSessionCoordinator {
         val monitoringIntent = Intent(appContext, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_START
         }
-        val launchResult = ForegroundServiceLauncher.safeStartForegroundService(
-            appContext,
-            monitoringIntent,
-        )
+        val serviceLaunchToken = MonitoringPerfProbe.begin("accept_fgs_start_request")
+        val launchResult = try {
+            ForegroundServiceLauncher.safeStartForegroundService(
+                appContext,
+                monitoringIntent,
+            )
+        } finally {
+            MonitoringPerfProbe.end(serviceLaunchToken)
+        }
         if (launchResult != ForegroundServiceLauncher.LaunchResult.SUCCESS) {
+            MonitoringPerfProbe.mark("accept_rejected", "reason=fgs_${launchResult.name}")
             Log.e(TAG, "Monitoring service launch failed: $launchResult")
             failAcceptedStart(
                 appContext,
@@ -148,9 +189,15 @@ object CallSessionCoordinator {
         // until the notification BroadcastReceiver has returned so the user
         // action cannot trigger a broadcast timeout/ANR. Native transcription
         // events are buffered until Dart attaches its EventChannel listeners.
+        val engineEnqueuedAtNanos = MonitoringPerfProbe.nowNanos()
+        MonitoringPerfProbe.mark("accept_engine_task_enqueued")
         mainHandler.post {
+            val queueDelayMs =
+                (MonitoringPerfProbe.nowNanos() - engineEnqueuedAtNanos) / 1_000_000.0
+            MonitoringPerfProbe.mark("accept_engine_task_started", "queue_ms=$queueDelayMs")
             val current = currentSession(appContext)
             if (current?.state != State.ACCEPTED || current.id != session.id) {
+                MonitoringPerfProbe.mark("accept_engine_task_cancelled", "reason=session_changed")
                 return@post
             }
             val engineReady = (appContext as? MainApplication)?.let { application ->
@@ -161,6 +208,7 @@ object CallSessionCoordinator {
                     .isSuccess
             } ?: false
             if (!engineReady) {
+                MonitoringPerfProbe.mark("accept_engine_failed")
                 requestMonitoringStop(appContext)
                 failAcceptedStart(
                     appContext,
@@ -179,11 +227,19 @@ object CallSessionCoordinator {
                 )
             )
 
-            val answeredByTelecom = session.isSystemCall && answerSystemCall(appContext)
+            val telecomToken = MonitoringPerfProbe.begin("accept_telecom_answer")
+            val answeredByTelecom = try {
+                session.isSystemCall && answerSystemCall(appContext)
+            } finally {
+                MonitoringPerfProbe.end(telecomToken)
+            }
             if (!answeredByTelecom) {
+                MonitoringPerfProbe.mark("accept_accessibility_requested")
                 UnifiedAccessibilityService.requestAnswer(appContext)
             }
+            MonitoringPerfProbe.mark("accept_engine_task_finished")
         }
+        MonitoringPerfProbe.mark("accept_return")
     }
 
     @Synchronized

@@ -99,7 +99,7 @@ lachancuocgoi/                    # Repo root (monorepo)
 ## Phiên bản
 
 - **SDK**: Dart `>=3.9.0 <4.0.0` (Flutter `3.44.2`)
-- **Version**: `1.6.0+14`
+- **Version**: `1.6.1+15`
 - **Platform chính**: Android (nhờ native overlay + Vosk STT)
 - **Platform phụ trợ**: iOS/Web/Desktop (qua simulator bridge với multi-scenario catalog + creator mode)
 
@@ -121,7 +121,7 @@ lachancuocgoi/                    # Repo root (monorepo)
 > claim "chặn cuộc gọi lừa đảo" trên metadata iOS. Xem `fastlane/metadata/` cho
 > listing template.
 
-## Dữ liệu và model trong v1.6.0
+## Dữ liệu và model trong v1.6.1
 
 - Các file từ khóa, kịch bản, scoring và safety vẫn nằm trong `assets/` và
   được phát hành cùng ứng dụng. App không tải JSON hoặc APK mới khi đang chạy.
@@ -132,4 +132,4 @@ lachancuocgoi/                    # Repo root (monorepo)
 
 Chi tiết eval: `docs/eval_corpus_readme.md`  
 Chi tiết security: `docs/API_KEY_SECURITY.md`  
-Ghi chú phát hành: `docs/RELEASE_NOTES_v1.6.0.md`
+Ghi chú phát hành: `docs/RELEASE_NOTES_v1.6.1.md`

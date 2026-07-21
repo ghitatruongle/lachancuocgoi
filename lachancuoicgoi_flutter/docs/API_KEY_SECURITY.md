@@ -1,8 +1,8 @@
-# Bảo mật Gemini API key — v1.6.0
+# Bảo mật Gemini API key — v1.6.1
 
 ## Kiến trúc đã chọn
 
-Phiên bản `1.6.0+14` gọi Gemini trực tiếp từ thiết bị bằng
+Phiên bản `1.6.1+15` gọi Gemini trực tiếp từ thiết bị bằng
 `google_generative_ai`. `EnvironmentApiKeyProvider` đọc và xoay nhiều key từ
 `env.json`; one-shot, incremental chat và summarizer phải dùng chung provider.
 
