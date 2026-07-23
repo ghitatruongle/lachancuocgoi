@@ -56,48 +56,75 @@ app.*.map.json
 **/ios/**/Pods/
 **/ios/.symlinks/
 
-# Environment variables
+# Environment variables / secrets - NEVER COMMIT
 env.json
 .env
 .env.*
+!.env.example
+!env.example.json
 
 # Local tool/IDE config
 .openclaude/
-.qoder/
+.byNara/
 .cursor/
 .cline/
 .windsurf/
 .zcode/
+.fvm/
+.fvmrc
 
 # Sensitive files - never push to git
 hoso/
-
-# Release signing keystore & credentials - NEVER COMMIT
 *.jks
 *.keystore
 **/key.properties
 android/key.properties
 
-# Parent folder exclusions (git-backup and presentations)
+# Parent folder exclusions
 .git-backup-pre-bfg/
 thuyet_trinh.html
 *.html
 
-# Internal docs / temp files
+# Internal docs / temp release notes (local-only)
 docs/HANDOFF_*.md
 docs/eval_corpus_readme.md
 docs/superpowers/
 docs/RELEASE_CHECKLIST_*.md
 docs/RELEASE_NOTES_*.md
 
-# Screenshots / temp images
+# Screenshots / temp images (keep app assets + golden tests)
 screen.png
 *.png
-!assets/*.png
+!assets/**/*.png
+!test/UI/goldens/**/*.png
+!ios/**/*.png
+!macos/**/*.png
+!web/**/*.png
+!android/**/*.png
+screenshots/
+test/UI/failures/
 
-# FVM (Flutter Version Management)
-.fvm/
-.fvmrc
-
-# Temp / debug files
+# Temp / debug / Office lock files
 nul
+~$*.docx
+~$*.doc
+~$*.xlsx
+~$*.pptx
+flutter_*.log
+*analysis_*.txt
+analyze_output.txt
+*.replay
+*hs_err_pid*.log
+*replay_pid*.log
+
+# Local-only device tools (NOT part of the Flutter app)
+android_recorder/
+record_android.ps1
+record_audio_usb.ps1
+record_audio_usb.sh
+record_screen.ps1
+record_screen.sh
+get_call_sounds.ps1
+get_ringtones.ps1
+get_system_audio.ps1
+pull_ringtones.ps1
