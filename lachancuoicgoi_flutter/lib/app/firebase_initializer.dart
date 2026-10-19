@@ -15,7 +15,7 @@ Future<void> initializeFirebase() async {
   if (kIsWeb) return;
 
   // Only initialize on Android for now. iOS/macOS/Linux/Windows/Web use
-  // simulator bridge and don't need Firebase crash reporting in v1.6.1.
+  // simulator bridge and don't need Firebase crash reporting in v1.6.5.
   if (defaultTargetPlatform != TargetPlatform.android) return;
 
   try {
@@ -27,8 +27,9 @@ Future<void> initializeFirebase() async {
       kReleaseMode,
     );
 
-    // Set custom keys for context in Crashlytics dashboard
-    await FirebaseCrashlytics.instance.setCustomKey('appVersion', '1.6.1+15');
+    // Set custom keys for context in Crashlytics dashboard.
+    // Do not attach transcripts, prompts, or free-text user content.
+    await FirebaseCrashlytics.instance.setCustomKey('appVersion', '1.6.5+16');
     await FirebaseCrashlytics.instance.setCustomKey('platform', 'android');
 
     debugPrint('Firebase initialized successfully');

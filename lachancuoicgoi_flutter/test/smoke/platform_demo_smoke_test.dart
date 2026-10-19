@@ -10,6 +10,7 @@ import 'package:lachancuocgoi_flutter/app/lachancuocgoi_app.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 import 'package:lachancuocgoi_flutter/data/app_database.dart';
 import 'package:lachancuocgoi_flutter/data/call_history.dart';
+import 'package:lachancuocgoi_flutter/data/call_history_retention.dart';
 import 'package:lachancuocgoi_flutter/ui/home_page/home_page.dart';
 import 'package:lachancuocgoi_flutter/ui/result_page/result_page.dart';
 import 'package:lachancuocgoi_flutter/ui/simulation_page/simulation_page.dart';
@@ -26,7 +27,18 @@ void main() {
         ..devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      SharedPreferences.setMockInitialValues({'onboarding_completed': true});
+      SharedPreferences.setMockInitialValues({
+        'onboarding_completed': true,
+        // Retention 'forever' so the app-start cleanup never removes the
+        // fixture row while the test runs (retention defaults to 30 days,
+        // which deletes stale fixtures before ResultPage loads).
+        'CALL_HISTORY_RETENTION': CallHistoryRetention.forever.storageName,
+      });
+      // Force Vietnamese UI for assertions against product copy.
+      tester.platformDispatcher.localesTestValue = [const Locale('vi', 'VN')];
+      tester.platformDispatcher.localeTestValue = const Locale('vi', 'VN');
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      addTearDown(tester.platformDispatcher.clearLocaleTestValue);
       final database = InMemoryAppDatabase();
       addTearDown(database.close);
       final historyId = await database.insert(

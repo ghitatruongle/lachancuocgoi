@@ -14,6 +14,7 @@ import 'analyzer.dart';
 import 'health_check.dart';
 import 'l1/l1_analysis.dart';
 import 'l2/l2_analysis.dart';
+import 'l3/core/adaptive_timeout_calculator.dart';
 import 'l3/core/risk_deescalation.dart';
 import 'l3/l3_analysis.dart';
 
@@ -24,65 +25,45 @@ class AnalysisCoordinator {
     L3Analyzer? l3Analyzer,
     RiskDeescalationMachine? sessionDeescalation,
     bool Function()? networkAvailable,
+    AdaptiveTimeoutCalculator? l3TimeoutCalculator,
   }) : _l1Analyzer = l1Analyzer ?? L1Analyzer(),
        _l2Analyzer = l2Analyzer ?? L2Analyzer(),
        _l3Analyzer = l3Analyzer ?? L3Analyzer(),
        _sessionDeescalation = sessionDeescalation ?? RiskDeescalationMachine(),
-       _networkAvailableCallback = networkAvailable;
+       _networkAvailableCallback = networkAvailable,
+       _l3TimeoutCalculator =
+           l3TimeoutCalculator ??
+           AdaptiveTimeoutCalculator(
+             initialTimeoutMs: 1000,
+             minTimeoutMs: 800,
+             maxTimeoutMs: 1800,
+           ),
+       _l3ElevatedTimeoutCalculator = AdaptiveTimeoutCalculator(
+         initialTimeoutMs: 700,
+         minTimeoutMs: 500,
+         maxTimeoutMs: 800,
+       );
 
   static const int _minDeltaDefault = 50;
   static const int _minDeltaOrange = 30;
   static const int _minDeltaRed = 20;
 
-  /// L3 timeout bounds for adaptive calibration.
-  /// Instead of a fixed 1800ms, we measure actual RTT and set timeout = RTT × 2,
-  /// clamped to [min, max]. This avoids over-waiting on fast networks and
-  /// under-waiting on slow ones.
-  static const Duration _l3TimeoutMin = Duration(milliseconds: 800);
-  static const Duration _l3TimeoutMax = Duration(milliseconds: 1800);
-  static const Duration _l3TimeoutElevatedMin = Duration(milliseconds: 500);
-  static const Duration _l3TimeoutElevatedMax = Duration(milliseconds: 800);
+  final AdaptiveTimeoutCalculator _l3TimeoutCalculator;
+  final AdaptiveTimeoutCalculator _l3ElevatedTimeoutCalculator;
 
-  /// Measured RTT (exponential moving average, α=0.3). Null until first
-  /// successful L3 response calibrates it.
-  Duration? _measuredRtt;
-
-  /// Returns an adaptive L3 timeout based on measured RTT.
-  /// Falls back to conservative max until first calibration.
+  /// Returns an adaptive L3 timeout based on measured RTT (via calculator).
   Duration _l3TimeoutFor(bool elevated) {
-    final rtt = _measuredRtt;
-    if (rtt == null) {
-      return elevated ? _l3TimeoutElevatedMax : _l3TimeoutMax;
-    }
-    final doubledMs = rtt.inMilliseconds * 2;
-    if (elevated) {
-      return Duration(
-        milliseconds: doubledMs.clamp(
-          _l3TimeoutElevatedMin.inMilliseconds,
-          _l3TimeoutElevatedMax.inMilliseconds,
-        ),
-      );
-    }
-    return Duration(
-      milliseconds: doubledMs.clamp(
-        _l3TimeoutMin.inMilliseconds,
-        _l3TimeoutMax.inMilliseconds,
-      ),
-    );
+    final ms = elevated
+        ? _l3ElevatedTimeoutCalculator.calculateTimeoutMs()
+        : _l3TimeoutCalculator.calculateTimeoutMs();
+    return Duration(milliseconds: ms);
   }
 
   /// Called after a successful L3 request to calibrate future timeouts.
-  /// Uses EMA (α=0.3) to smooth jitter.
   void recordL3Rtt(Duration rtt) {
-    final previous = _measuredRtt;
-    if (previous == null) {
-      _measuredRtt = rtt;
-    } else {
-      _measuredRtt = Duration(
-        milliseconds: (previous.inMilliseconds * 0.7 + rtt.inMilliseconds * 0.3)
-            .round(),
-      );
-    }
+    final ms = rtt.inMilliseconds;
+    _l3TimeoutCalculator.recordSample(ms);
+    _l3ElevatedTimeoutCalculator.recordSample(ms);
   }
 
   final L1Analyzer _l1Analyzer;

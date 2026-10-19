@@ -54,6 +54,14 @@ Các bước:
 > file này được bundle vào APK/AAB và có thể bị trích xuất. Xem
 > `docs/API_KEY_SECURITY.md` để biết giới hạn, quota và quy trình xoay key.
 
+### Operating model (v1.6.5)
+
+- Production L3 gọi Gemini **trực tiếp từ thiết bị** (không backend proxy runtime).
+- Key lấy từ `env.json` (asset bundle); release **vẫn** ship kèm key đã cấu hình.
+- Proxy/server nếu có trong repo chỉ là **chuẩn bị tương lai**, mặc định tắt, không dùng ở v1.6.5.
+- Threat model: [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md)
+- Chi tiết key: [`docs/API_KEY_SECURITY.md`](docs/API_KEY_SECURITY.md)
+
 ## Chạy test
 
 ```bash
@@ -99,7 +107,7 @@ lachancuocgoi/                    # Repo root (monorepo)
 ## Phiên bản
 
 - **SDK**: Dart `>=3.9.0 <4.0.0` (Flutter `3.44.2`)
-- **Version**: `1.6.1+15`
+- **Version**: `1.6.5+16`
 - **Platform chính**: Android (nhờ native overlay + Vosk STT)
 - **Platform phụ trợ**: iOS/Web/Desktop (qua simulator bridge với multi-scenario catalog + creator mode)
 
@@ -121,7 +129,7 @@ lachancuocgoi/                    # Repo root (monorepo)
 > claim "chặn cuộc gọi lừa đảo" trên metadata iOS. Xem `fastlane/metadata/` cho
 > listing template.
 
-## Dữ liệu và model trong v1.6.1
+## Dữ liệu và model trong v1.6.5
 
 - Các file từ khóa, kịch bản, scoring và safety vẫn nằm trong `assets/` và
   được phát hành cùng ứng dụng. App không tải JSON hoặc APK mới khi đang chạy.
@@ -132,4 +140,4 @@ lachancuocgoi/                    # Repo root (monorepo)
 
 Chi tiết eval: `docs/eval_corpus_readme.md`  
 Chi tiết security: `docs/API_KEY_SECURITY.md`  
-Ghi chú phát hành: `docs/RELEASE_NOTES_v1.6.1.md`
+Ghi chú phát hành: `docs/RELEASE_NOTES_v1.6.5.md`

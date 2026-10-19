@@ -12,6 +12,7 @@ Widget testWrap(Widget child, {List<Override> overrides = const []}) {
   return ProviderScope(
     overrides: overrides,
     child: MaterialApp(
+      locale: const Locale('vi'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: child,
@@ -22,6 +23,7 @@ Widget testWrap(Widget child, {List<Override> overrides = const []}) {
 /// Wraps a dialog widget for testing (shows it via a button tap).
 Widget dialogWrap(Widget dialog) {
   return MaterialApp(
+    locale: const Locale('vi'),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(

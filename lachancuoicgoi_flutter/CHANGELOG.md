@@ -7,12 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.5] - 2026-07-23
+
 ### Added
-- Initial project structure with 3-tier scam detection pipeline
-- Android native integration (foreground service, CallScreeningService, AccessibilityService)
-- PII stripping before cloud analysis
-- 16KB alignment verification for Android 15+ submissions
-- Secret scanner and coverage regression gates in CI
+- Threat model and architecture one-pager for client-only L3 (key-in-APK).
+- `L3CredentialProvider` abstraction with env production path; backend stub **unused**.
+- Adaptive timeout calculator wired into analysis coordinator.
+- Type-safe native bridge method constants.
+- Detection metrics schema (local only).
+- English `app_en.arb` skeleton.
+- Fusion matrix and circuit-breaker unit tests.
+- Dormant L3 proxy OpenAPI + ADR-009 (not wired).
+
+### Changed
+- Analysis layer no longer imports `package:flutter`.
+- Accessibility call-control defaults **off** (opt-in).
+- Version `1.6.1+15` → `1.6.5+16`.
+- Operating model docs lock: no server runtime for L3.
+
+### Security
+- Documented accepted risk of bundled Gemini keys for v1.6.5.
+- Crashlytics custom keys limited to version/platform (no transcript fields).
 
 ## [1.6.1] - 2026-07-21
 
@@ -79,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Notes
 
-- **v1.6.1+15** is the current production-ready version
+- **v1.6.5+16** is the current engineering target (client-only L3)
 - **v1.5.3** introduced crash hardening and performance work
 - **FTS5 search** was planned in v1.5.3 but deferred to v1.6.0+; current implementation uses LIKE queries
 - All releases maintain backward compatibility with Android 8.0 (API 26) minimum

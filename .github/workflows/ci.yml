@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 env:
-  FLUTTER_VERSION: '3.44.2'
+  FLUTTER_VERSION: '3.44.9'
   JAVA_VERSION: '17'
   APP_DIR: lachancuoicgoi_flutter
 
@@ -73,7 +73,10 @@ jobs:
 
       - name: Android lint and Kotlin unit tests
         working-directory: ${{ env.APP_DIR }}/android
-        run: ./gradlew lintDebug testDebugUnitTest --stacktrace 2>&1 | tee ../ci-android.log
+        # Scope to :app — bare task names make Gradle create test tasks for
+        # every Flutter plugin project, which breaks on Windows when the pub
+        # cache sits on a different drive than the project.
+        run: ./gradlew :app:lintDebug :app:testDebugUnitTest --stacktrace 2>&1 | tee ../ci-android.log
 
       - name: Build debug APK
         run: flutter build apk --debug 2>&1 | tee ci-build.log

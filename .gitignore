@@ -24,6 +24,14 @@ __pycache__/
 *.py.backup
 *.swp
 *.swo
+# Python virtual environments (model_ghitav*/env_ghita and future venvs)
+**/env_ghita/
+**/env_*/
+.venv/
+venv/
+
+# Dropped legacy demo skeleton (removed from the tree, never re-add)
+lachancuoicgoi_flutter_demo/
 
 # Build outputs
 dist/
@@ -79,7 +87,6 @@ nul
 
 # Tailieu documents
 tailieu/
-
 # Local tool/IDE config
 .openclaude/
 .qoder/
@@ -93,3 +100,6 @@ hoso/
 .git-backup-pre-bfg/
 thuyet_trinh.html
 *.html
+
+# Editor/tool local metadata
+.freebuff/

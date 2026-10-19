@@ -39,10 +39,30 @@ void main() {
   }
 
   group('OnboardingPage', () {
+    Future<void> finishRationalePager(WidgetTester tester) async {
+      // v1.6.5: onboarding starts with multi-step rationales (5 steps).
+      for (var i = 0; i < 6; i++) {
+        final next = find.text('Tiếp');
+        final done = find.text('Xong');
+        if (done.evaluate().isNotEmpty) {
+          await tester.tap(done);
+          await tester.pumpAndSettle();
+          return;
+        }
+        if (next.evaluate().isNotEmpty) {
+          await tester.tap(next);
+          await tester.pumpAndSettle();
+          continue;
+        }
+        break;
+      }
+    }
+
     testWidgets('renders title "Cấp quyền" in AppBar', (tester) async {
       SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(wrapOnboarding());
       await tester.pumpAndSettle();
+      await finishRationalePager(tester);
 
       expect(find.text('Cấp quyền'), findsOneWidget);
     });
@@ -53,6 +73,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(wrapOnboarding());
       await tester.pumpAndSettle();
+      await finishRationalePager(tester);
 
       expect(find.text('Bảo vệ cuộc gọi của bạn'), findsOneWidget);
       expect(
@@ -69,6 +90,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(wrapOnboarding());
       await tester.pumpAndSettle();
+      await finishRationalePager(tester);
 
       expect(find.text('Bắt đầu cấp quyền'), findsOneWidget);
     });
@@ -79,6 +101,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(wrapOnboarding());
       await tester.pumpAndSettle();
+      await finishRationalePager(tester);
 
       expect(find.text('Bỏ qua (không khuyến khích)'), findsOneWidget);
     });
@@ -88,6 +111,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(wrapOnboarding());
       await tester.pumpAndSettle();
+      await finishRationalePager(tester);
 
       // Section card header
       expect(find.text('Danh sách quyền cần thiết:'), findsOneWidget);
@@ -104,6 +128,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(wrapOnboarding());
       await tester.pumpAndSettle();
+      await finishRationalePager(tester);
 
       // Default snapshot: 0/8 granted
       expect(find.text('0/8 quyền đã cấp'), findsOneWidget);
@@ -124,6 +149,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await finishRationalePager(tester);
 
       expect(find.text('3/8 quyền đã cấp'), findsOneWidget);
     });
@@ -162,6 +188,7 @@ void main() {
 
       await tester.pumpWidget(wrapOnboarding());
       await tester.pumpAndSettle();
+      await finishRationalePager(tester);
 
       await tester.tap(find.text('Bỏ qua (không khuyến khích)'));
       await tester.pumpAndSettle();
@@ -176,6 +203,7 @@ void main() {
         SharedPreferences.setMockInitialValues({});
         await tester.pumpWidget(wrapOnboarding());
         await tester.pumpAndSettle();
+        await finishRationalePager(tester);
 
         // No BackButton should be rendered
         expect(find.byType(BackButton), findsNothing);

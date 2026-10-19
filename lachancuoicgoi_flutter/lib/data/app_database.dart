@@ -233,6 +233,21 @@ CREATE TABLE IF NOT EXISTS call_history (
   Future<int> deleteOlderThan(DateTime cutoff) =>
       callHistoryRepository.deleteOlderThan(cutoff);
 
+  /// Deletes call history records older than [retentionDays] and runs SQLite VACUUM
+  /// to reclaim unused disk space and optimize storage footprint.
+  Future<int> pruneOldHistoryAndVacuum({int retentionDays = 30}) async {
+    final cutoff = DateTime.now().subtract(Duration(days: retentionDays));
+    final count = await deleteOlderThan(cutoff);
+    if (count > 0 && database.isOpen) {
+      try {
+        await database.execute('VACUUM');
+      } on Object catch (_) {
+        // Ignore vacuum errors if database is busy or in-memory
+      }
+    }
+    return count;
+  }
+
   Future<void> close() async {
     await callHistoryRepository.dispose();
     await database.close();
@@ -348,6 +363,12 @@ class InMemoryAppDatabase implements AppDatabase, CallHistoryRepository {
       _streamController.add(List.unmodifiable(_history));
     }
     return deleted;
+  }
+
+  @override
+  Future<int> pruneOldHistoryAndVacuum({int retentionDays = 30}) async {
+    final cutoff = DateTime.now().subtract(Duration(days: retentionDays));
+    return deleteOlderThan(cutoff);
   }
 
   @override

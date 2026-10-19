@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 
-import 'package:flutter/foundation.dart' show debugPrint;
-
 import '../../../core/risk_level.dart';
 import '../../../core/lru_cache.dart';
 import '../../analysis_result.dart';
@@ -201,8 +199,8 @@ class RiskKeywordTrie {
           );
         }
       }
-    } on Object catch (e) {
-      debugPrint('[RiskKeywordTrie] Failed to build trie from $fileName: $e');
+    } on Object catch (_) {
+      // Keep trie empty on parse failure; callers treat as no keyword hits.
     }
     // Phase 7: build Aho-Corasick failure/dictionary links ONCE.
     _buildAhoCorasickLinks(_root);
@@ -265,8 +263,8 @@ class RiskKeywordTrie {
               .add(situation.name);
         }
       }
-    } on Object catch (e) {
-      debugPrint('[RiskKeywordTrie] Failed to load $fileName: $e');
+    } on Object catch (_) {
+      // Topic map stays empty; classifyTopics will return no votes.
     }
   }
 

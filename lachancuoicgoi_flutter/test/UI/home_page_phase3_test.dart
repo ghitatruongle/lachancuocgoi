@@ -22,7 +22,8 @@ void main() {
               NativeBridgeInterface.create(),
             ),
           ],
-          child: const MaterialApp(
+          child: MaterialApp(
+            locale: const Locale('vi'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: HomePage(),
@@ -49,7 +50,8 @@ void main() {
               NativeBridgeInterface.create(),
             ),
           ],
-          child: const MaterialApp(
+          child: MaterialApp(
+            locale: const Locale('vi'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: HomePage(),
@@ -73,7 +75,8 @@ void main() {
               NativeBridgeInterface.create(),
             ),
           ],
-          child: const MaterialApp(
+          child: MaterialApp(
+            locale: const Locale('vi'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: HomePage(),

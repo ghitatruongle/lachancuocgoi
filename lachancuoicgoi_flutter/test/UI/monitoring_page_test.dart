@@ -41,6 +41,7 @@ void main() {
       ProviderScope(
         overrides: [nativeBridgeProvider.overrideWithValue(fakeBridge)],
         child: MaterialApp(
+          locale: const Locale('vi'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: MonitoringPage(

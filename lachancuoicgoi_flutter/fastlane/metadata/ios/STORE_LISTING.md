@@ -1,6 +1,6 @@
 # App Store Metadata — iOS
 
-Release version: 1.6.1+15 (demo)
+Release version: 1.6.5+16 (demo)
 
 ## App Name
 Lá Chắn Cuộc Gọi — Xem trước AI

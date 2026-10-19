@@ -131,10 +131,10 @@ mixin MethodChannelBridge {
       .asBroadcastStream();
 
   late final Stream<(MonitoringState, int?, String?)>
-      cachedMonitoringStateStream = _monitoringStateChannel
-          .receiveBroadcastStream()
-          .map((event) => MonitoringState.parse(event?.toString() ?? ''))
-          .asBroadcastStream();
+  cachedMonitoringStateStream = _monitoringStateChannel
+      .receiveBroadcastStream()
+      .map((event) => MonitoringState.parse(event?.toString() ?? ''))
+      .asBroadcastStream();
 
   late final Stream<NativeCallEvent> cachedCallEventStream = _callEventChannel
       .receiveBroadcastStream()

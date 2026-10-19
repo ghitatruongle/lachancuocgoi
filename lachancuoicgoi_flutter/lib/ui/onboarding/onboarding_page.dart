@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/settings_controller.dart';
 import '../../services/permission_controller.dart';
 import '../theme/app_theme.dart';
+import 'permission_rationale_steps.dart';
 
 /// First-run explanation and minimum-permission setup.
 class OnboardingPage extends ConsumerStatefulWidget {
@@ -19,6 +20,10 @@ class OnboardingPage extends ConsumerStatefulWidget {
 class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   bool _isRequesting = false;
   bool _exitScheduled = false;
+  bool _showRationalePager = true;
+  int _rationaleIndex = 0;
+  late final List<PermissionRationaleStep> _rationaleSteps =
+      defaultPermissionRationaleSteps();
 
   @override
   void initState() {
@@ -78,6 +83,41 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 
     if (permissionState.essentialGranted) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_showRationalePager) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Giải thích quyền (${_rationaleIndex + 1}/${_rationaleSteps.length})',
+          ),
+          automaticallyImplyLeading: false,
+        ),
+        body: SafeArea(
+          child: PermissionRationalePager(
+            steps: _rationaleSteps,
+            index: _rationaleIndex,
+            onBack: () {
+              if (_rationaleIndex > 0) {
+                setState(() => _rationaleIndex--);
+              }
+            },
+            onNext: () {
+              if (_rationaleIndex < _rationaleSteps.length - 1) {
+                setState(() => _rationaleIndex++);
+              }
+            },
+            onSkipOptional: () {
+              if (_rationaleIndex < _rationaleSteps.length - 1) {
+                setState(() => _rationaleIndex++);
+              } else {
+                setState(() => _showRationalePager = false);
+              }
+            },
+            onFinish: () => setState(() => _showRationalePager = false),
+          ),
+        ),
+      );
     }
 
     return Scaffold(

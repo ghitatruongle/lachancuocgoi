@@ -11,6 +11,7 @@ import 'live_conversation.dart';
 import 'system_log_view.dart';
 import 'alert_history_section.dart';
 import 'monitoring_controller.dart';
+import 'monitoring_status_banners.dart';
 import 'risk_level_indicator.dart';
 
 class MonitoringPage extends ConsumerStatefulWidget {
@@ -445,7 +446,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                               scrollDirection: Axis.horizontal,
                               child: Row(
                                 children: [
-                                  _StatusBadge(
+                                  MonitoringStatusBadge(
                                     label: l10n.monitoringModeTarget(
                                       MonitoringController.modeLabel(
                                         state.selectedMode,
@@ -455,7 +456,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                                     textColor: cs.onSurfaceVariant,
                                   ),
                                   const SizedBox(width: 8),
-                                  _StatusBadge(
+                                  MonitoringStatusBadge(
                                     label: l10n.monitoringModeRunning(
                                       MonitoringController.modeLabel(
                                         state.effectiveMode,
@@ -469,7 +470,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                                         : cs.onSecondaryContainer,
                                   ),
                                   const SizedBox(width: 8),
-                                  _StatusBadge(
+                                  MonitoringStatusBadge(
                                     label: state.networkAvailable
                                         ? l10n.monitoringNetworkOk
                                         : l10n.monitoringNetworkError,
@@ -492,7 +493,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                   const SizedBox(height: 8),
 
                   if (state.monitoringErrorMessage != null)
-                    _StatusBanner(
+                    MonitoringStatusBanner(
                       icon: Icons.error_outline,
                       background: cs.errorContainer,
                       foreground: cs.onErrorContainer,
@@ -502,7 +503,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 
                   // STT unavailable (fatal) — highest priority
                   if (state.isSttUnavailable)
-                    _StatusBanner(
+                    MonitoringStatusBanner(
                       icon: Icons.mic_off,
                       background: cs.errorContainer,
                       foreground: cs.onErrorContainer,
@@ -518,7 +519,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 
                   // Degraded without notification permission
                   if (state.isDegradedNoNotification)
-                    _StatusBanner(
+                    MonitoringStatusBanner(
                       icon: Icons.notifications_off_outlined,
                       background: cs.tertiaryContainer,
                       foreground: cs.onTertiaryContainer,
@@ -528,7 +529,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 
                   // Watchdog restart failed
                   if (state.isWatchdogRestartFailed)
-                    _StatusBanner(
+                    MonitoringStatusBanner(
                       icon: Icons.restart_alt,
                       background: cs.errorContainer,
                       foreground: cs.onErrorContainer,
@@ -538,7 +539,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 
                   // STT fallback banner
                   if (state.isSttFallback)
-                    _SttFallbackBanner(
+                    MonitoringSttFallbackBanner(
                       reason: state.sttFallbackReason,
                       onDismiss: controller.dismissSttFallbackBanner,
                     ),
@@ -637,110 +638,4 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 /// for the AudioWaveform widget, which expects one.
 class _ElapsedNotifier extends ValueNotifier<int> {
   _ElapsedNotifier() : super(0);
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.label,
-    required this.backgroundColor,
-    required this.textColor,
-  });
-
-  final String label;
-  final Color backgroundColor;
-  final Color textColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: textColor,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _SttFallbackBanner extends StatelessWidget {
-  const _SttFallbackBanner({required this.reason, required this.onDismiss});
-
-  final String? reason;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-    return _StatusBanner(
-      icon: Icons.mic_none,
-      background: cs.tertiaryContainer,
-      foreground: cs.onTertiaryContainer,
-      message: reason != null && reason!.isNotEmpty
-          ? l10n.monitoringSttFallbackWithReason(reason!)
-          : l10n.monitoringSttFallbackOffline,
-      onDismiss: onDismiss,
-    );
-  }
-}
-
-class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({
-    required this.icon,
-    required this.background,
-    required this.foreground,
-    required this.message,
-    required this.onDismiss,
-  });
-
-  final IconData icon;
-  final Color background;
-  final Color foreground;
-  final String message;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Semantics(
-        liveRegion: true,
-        label: message,
-        child: Material(
-          color: background,
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                Icon(icon, size: 18, color: foreground),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    message,
-                    style: TextStyle(fontSize: 12, color: foreground),
-                  ),
-                ),
-                InkWell(
-                  onTap: onDismiss,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(Icons.close, size: 16, color: foreground),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

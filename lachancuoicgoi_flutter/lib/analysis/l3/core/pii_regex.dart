@@ -65,7 +65,7 @@ final RegExp nationalIdRegex = RegExp(
 
 /// Card numbers: "số thẻ 1234567890123456"
 final RegExp cardNumberRegex = RegExp(
-  r'\b(?:số thẻ|so the|thẻ ngân hàng|the ngan hang|thẻ tín dụng|the tin dung)\b(?:[^\d\n]{0,20})((?:\d[\s-]?){12,18}\d)',
+  r'\b(?:số thẻ|so the|thẻ ngân hàng|the ngan hang|thẻ tín dụng|the tin dung)(?:\b|\s+)(?:[^\d\n]{0,20})((?:\d[\s-]?){11,18}\d)',
   caseSensitive: false,
 );
 

@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import '../../../core/asset_loader.dart';
 import '../../../core/logger.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../../common/text_normalizer.dart';
 
@@ -153,11 +152,8 @@ class SafetyFilter {
       // Log so config load failures are diagnosable.
       if (logger != null) {
         logger.warning('[SafetyFilter] Failed to load $configFile: $e', e, st);
-      } else {
-        debugPrint(
-          '[WARN] [SafetyFilter] Failed to load $configFile: $e | Error: $e\n$st',
-        );
       }
+      // No Flutter debugPrint fallback — analysis layer stays pure Dart.
     }
     // Pre-compute normalized phrase lists once after config is loaded.
     _rebuildNormalizedLists();

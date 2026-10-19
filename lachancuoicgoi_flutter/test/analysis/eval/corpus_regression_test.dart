@@ -72,4 +72,53 @@ void main() {
     expect(report.falseRedRate, lessThanOrEqualTo(0.01));
     expect(report.criticalFalseGreen, 0);
   }, tags: ['eval']);
+
+  test('corpus_v3 adversarial L1/L2 regression gate', () async {
+    final corpusJson = await File(
+      'test/fixtures/eval/corpus_v3_templates.json',
+    ).readAsString();
+    final cases = parseEvalTemplateCorpus(corpusJson);
+
+    expect(cases, hasLength(greaterThanOrEqualTo(100)));
+    expect(
+      cases.where((item) => item.group == 'adversarial_benign'),
+      isNotEmpty,
+    );
+    expect(cases.where((item) => item.group == 'adversarial_scam'), isNotEmpty);
+
+    const assetLoader = FlutterAssetLoader();
+    final l1 = L1Analyzer(assetLoader: assetLoader);
+    final gDetection = GDetectionEngine(assetLoader: assetLoader);
+    final l2 = L2Analyzer(
+      assetLoader: assetLoader,
+      gDetectionEngine: gDetection,
+      intentClassifier: const DisabledIntentClassifier(),
+    );
+    await Future.wait(<Future<void>>[l1.initialize(), l2.initialize()]);
+
+    final coordinator = AnalysisCoordinator(
+      l1Analyzer: l1,
+      l2Analyzer: l2,
+      l3Analyzer: L3Analyzer(
+        apiKeyProvider: StaticApiKeyProvider(const <String>[]),
+      ),
+      networkAvailable: () => false,
+    );
+
+    final report = await const EvalRunner().run(
+      cases: cases,
+      mode: AnalysisMode.parallel,
+      coordinator: coordinator,
+    );
+
+    // ignore: avoid_print
+    print(report.toMarkdownTable());
+
+    // Soft gates for adversarial set: precision/recall still high on risky
+    // cases; false-red measured only on pure red mislabels of benign.
+    expect(report.precision, greaterThanOrEqualTo(0.80));
+    expect(report.recall, greaterThanOrEqualTo(0.80));
+    expect(report.falseRedRate, lessThanOrEqualTo(0.02));
+    expect(report.criticalFalseGreen, 0);
+  }, tags: ['eval']);
 }

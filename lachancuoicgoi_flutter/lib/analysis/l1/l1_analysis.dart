@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-
-import 'package:flutter/foundation.dart' show compute;
+import 'dart:isolate';
 
 import '../../core/risk_level.dart';
 import '../../core/logger.dart';
@@ -19,7 +18,7 @@ import 'helpers/bigram_corrections_loader.dart';
 import 'l1_result.dart';
 import 'l1_safety_filter.dart';
 
-/// Top-level JSON decode function for compute() — isolates can't capture closures.
+/// Top-level JSON decode for [Isolate.run] — isolates can't capture closures.
 Object? _jsonDecode(String text) => jsonDecode(text);
 
 class L1Analyzer implements Analyzer {
@@ -292,7 +291,8 @@ class L1Analyzer implements Analyzer {
       );
       // Offload JSON decode to a background isolate — risk_model_vocabulary.json
       // is ~68KB and parsing it synchronously causes jank on low-end devices.
-      final decoded = await compute(_jsonDecode, jsonText);
+      // Isolate.run keeps the analysis layer free of package:flutter.
+      final decoded = await Isolate.run(() => _jsonDecode(jsonText));
       if (decoded is! Map<String, dynamic>) {
         _buildFallbackTrie();
         return;

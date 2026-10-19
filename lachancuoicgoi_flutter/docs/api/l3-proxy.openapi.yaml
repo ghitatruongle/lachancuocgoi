@@ -1,0 +1,38 @@
+openapi: 3.0.3
+info:
+  title: L3 Proxy (FUTURE — not used in v1.6.5)
+  version: 0.0.0-dormant
+  description: |
+    Design sketch only. The production app v1.6.5 does NOT call this API.
+    Keys remain on-device via env.json.
+paths:
+  /v1/analyze:
+    post:
+      summary: Analyze redacted transcript (future)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                redactedTranscript:
+                  type: string
+                installId:
+                  type: string
+              required: [redactedTranscript]
+      responses:
+        '200':
+          description: Risk JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  riskLevel:
+                    type: string
+                    enum: [GREEN, YELLOW, ORANGE, RED]
+                  summary:
+                    type: string
+                  confidence:
+                    type: number

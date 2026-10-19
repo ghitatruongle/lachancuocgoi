@@ -1,0 +1,63 @@
+{
+  "adversarial_benign": {
+    "expected": "YELLOW_OR_GREEN",
+    "variants": [
+      "Cảm ơn anh đã hỗ trợ.",
+      "Tôi sẽ kiểm tra lại sau.",
+      "Không cần làm gấp đâu.",
+      "Gia đình tôi đều khỏe.",
+      "Hẹn gặp lại vào tuần sau."
+    ],
+    "templates": [
+      {"id":"weather_plan","scenario":"daily","text":"Mai trời mưa to, nhớ mang áo ấm khi đi làm. {variant}"},
+      {"id":"weekend_plan","scenario":"daily","text":"Cuối tuần cả nhà đi picnic công viên như đã hẹn. {variant}"},
+      {"id":"relative_chat","scenario":"family","text":"Con gọi báo đã tới nơi an toàn và đang nghỉ ngơi. {variant}"},
+      {"id":"school_notice","scenario":"school","text":"Ngày mai lớp học bắt đầu lúc tám giờ và các em nhớ mang theo sách. {variant}"},
+      {"id":"garden","scenario":"hobby","text":"Mấy chậu hoa ngoài ban công cần được tưới thêm nước. {variant}"},
+      {"id":"recipe","scenario":"cooking","text":"Món canh này chỉ cần nấu thêm năm phút rồi tắt bếp. {variant}"},
+      {"id":"bus","scenario":"transport","text":"Chuyến xe buýt cuối cùng rời bến lúc chín giờ tối. {variant}"},
+      {"id":"football","scenario":"sport","text":"Đội bóng của khu phố sẽ tập luyện vào sáng chủ nhật. {variant}"},
+      {"id":"meeting","scenario":"work","text":"Cuộc họp nhóm được dời sang ba giờ chiều tại phòng số hai. {variant}"},
+      {"id":"birthday","scenario":"celebration","text":"Sinh nhật của bà năm nay tổ chức tại nhà vào cuối tháng. {variant}"}
+    ]
+  },
+  "adversarial_scam": {
+    "expected": "ORANGE_OR_RED",
+    "variants": [
+      "Phải làm ngay trong hôm nay.",
+      "Không được tắt máy giữa chừng.",
+      "Giữ bí mật tuyệt đối với người thân.",
+      "Chỉ còn mười phút để xử lý.",
+      "Làm đúng theo từng bước tôi hướng dẫn."
+    ],
+    "templates": [
+      {"id":"deepfake_child","scenario":"critical_transfer","isCritical":true,"text":"Con đang cấp cứu, bố mẹ chuyển tiền gấp vào tài khoản này và đừng gọi lại. {variant}"},
+      {"id":"job_online","scenario":"job_scam","text":"Việc nhẹ lương cao trên điện thoại, nạp tiền vốn trước để nhận đơn hàng. {variant}"},
+      {"id":"cod_fake","scenario":"delivery_fee","text":"Bưu kiện bị giữ, chuyển tiền phí hải quan vào số tài khoản cá nhân trước khi nhận hàng. {variant}"},
+      {"id":"zalo_otp","scenario":"critical_otp","isCritical":true,"text":"Tôi là nhân viên ngân hàng, hãy đọc mã OTP vừa gửi để mở khóa tài khoản. {variant}"},
+      {"id":"facebook_ads","scenario":"investment","text":"Gói đầu tư tiền ảo cam kết không lỗ, chuyển tiền ngay để giữ suất lợi nhuận cao. {variant}"},
+      {"id":"court_summons","scenario":"critical_authority","isCritical":true,"text":"Tôi gọi từ cơ quan điều tra, anh chị liên quan vụ rửa tiền và có thể bị bắt tạm giam. {variant}"},
+      {"id":"electric_cut","scenario":"utility_scam","text":"Cán bộ thuế yêu cầu chuyển khoản phí xử lý hồ sơ ngay qua số tài khoản cá nhân. {variant}"},
+      {"id":"wifi_refund","scenario":"remote_control","text":"Cài ứng dụng hỗ trợ từ đường link này rồi bật chia sẻ màn hình để tôi sửa tài khoản. {variant}"},
+      {"id":"stock_room","scenario":"investment","text":"Gói đầu tư chứng khoán kín cam kết lãi cố định, chuyển thêm tiền để không mất suất. {variant}"},
+      {"id":"passport_hold","scenario":"authority_fee","text":"Viện kiểm sát thông báo lệnh phong tỏa, phải kê khai tài sản và chuyển khoản để xác minh. {variant}"}
+    ]
+  },
+  "adversarial_noise": {
+    "expected": "ORANGE_OR_RED",
+    "variants": [
+      "lam ngay di",
+      "khong duoc tat may",
+      "giu bi mat nhe",
+      "gap lam roi",
+      "xac nhan bay gio"
+    ],
+    "templates": [
+      {"id":"otp_noise_v3","scenario":"critical_otp","isCritical":true,"text":"nhan vien ngan hang bao doc ma otp ma xac thuc de mo khoa tai khoan {variant}"},
+      {"id":"transfer_noise_v3","scenario":"critical_transfer","isCritical":true,"text":"cong an dieu tra yeu cau chuyen tien vao tai khoan an toan {variant}"},
+      {"id":"authority_noise_v3","scenario":"critical_authority","isCritical":true,"text":"co quan dieu tra vu rua tien se bat tam giam neu khong chuyen khoan {variant}"},
+      {"id":"password_noise_v3","scenario":"critical_otp","isCritical":true,"text":"bo phan bao mat can mat khau internet banking va ma xac thuc {variant}"},
+      {"id":"safe_account_noise_v3","scenario":"critical_transfer","isCritical":true,"text":"tai khoan bi phong toa chuyen toan bo tien sang tai khoan an toan {variant}"}
+    ]
+  }
+}

@@ -51,6 +51,7 @@ class BackgroundMonitoringService : Service() {
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private val finalizationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val lifecycleState = MonitoringLifecycleState()
     private lateinit var speechToTextManager: SpeechToTextManager
     private lateinit var audioManager: AudioManager
     private lateinit var connectivityMonitor: ConnectivityMonitor
@@ -130,6 +131,7 @@ class BackgroundMonitoringService : Service() {
         // Wave 3: notification + watchdog scheduling extracted into helpers so
         // this service body focuses on lifecycle and STT orchestration.
         notificationBuilder = MonitoringNotificationBuilder(this, BackgroundMonitoringService::class.java)
+        lifecycleState.onServiceCreated()
         // watchdogScheduler is `by lazy` — initialized on first use.
         
         speechToTextManager.onEngineSwitched = { isVosk ->
@@ -220,6 +222,7 @@ class BackgroundMonitoringService : Service() {
             failForegroundPromotion(startId)
             return START_NOT_STICKY
         }
+        lifecycleState.onForegroundPromoted()
 
         if (isMonitoringActive || isStopping) {
             Log.i(TAG, "Ignoring duplicate start request while monitoring is active.")
@@ -265,6 +268,8 @@ class BackgroundMonitoringService : Service() {
 
     @Suppress("DEPRECATION")
     private fun startMonitoring() {
+        lifecycleState.onMonitoringStarted()
+
         val startToken = MonitoringPerfProbe.begin("monitoring_service_start_monitoring")
         Log.d(TAG, "Starting dual-source monitoring.")
         NativeBridgeEventSink.sendLog(TAG, "Khởi chạy dịch vụ bảo vệ cuộc gọi ngầm (Google STT + Vosk)...", "INFO")
@@ -504,6 +509,7 @@ class BackgroundMonitoringService : Service() {
         isStopping = true
         isMonitoringActive = false
         isRunning = false
+        lifecycleState.onMonitoringStopped()
         // Clear the persisted flag FIRST so watchdog doesn't auto-restart
         persistMonitoringActive(false)
         connectivityJob?.cancel()
@@ -560,6 +566,7 @@ class BackgroundMonitoringService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        lifecycleState.onDestroyed()
         speechToTextManager.releaseVoskModel()
         isMonitoringActive = false
         isRunning = false

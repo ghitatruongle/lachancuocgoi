@@ -197,6 +197,11 @@ class UnifiedAccessibilityService : AccessibilityService() {
         textKeywords: List<String>,
         descriptionKeywords: List<String>,
     ): Boolean {
+        // v1.6.5: call-control clicks are opt-in (default OFF).
+        if (!isCallControlEnabled(this)) {
+            Log.i(TAG, "Call control via accessibility is disabled (default)")
+            return false
+        }
         return runCatching {
             windows.orEmpty().any { window ->
                 val root = window.root ?: return@any false
@@ -266,6 +271,8 @@ class UnifiedAccessibilityService : AccessibilityService() {
         private const val TAG = "UnifiedAccessibility"
         private const val PREFS = "accessibility_call_actions"
         private const val KEY_PENDING_ACTION = "pending_action"
+        /** Opt-in: when false (default), answer/end clicks are no-ops. */
+        private const val KEY_CALL_CONTROL_ENABLED = "call_control_enabled"
         private const val ACTION_ANSWER = "answer"
         private const val ACTION_END = "end"
         private const val SCAN_THROTTLE_MS = 350L
@@ -316,8 +323,30 @@ class UnifiedAccessibilityService : AccessibilityService() {
 
         fun requestEnd(context: Context) = requestAction(context, ACTION_END)
 
+        /** v1.6.5 default OFF — user must opt in to answer/end via accessibility. */
+        fun isCallControlEnabled(context: Context): Boolean =
+            context.applicationContext
+                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getBoolean(KEY_CALL_CONTROL_ENABLED, false)
+
+        fun setCallControlEnabled(context: Context, enabled: Boolean) {
+            context.applicationContext
+                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_CALL_CONTROL_ENABLED, enabled)
+                .apply()
+        }
+
         private fun requestAction(context: Context, action: String) {
             val appContext = context.applicationContext
+            if (!isCallControlEnabled(appContext)) {
+                Log.i(TAG, "Ignoring accessibility $action — call control disabled")
+                MonitoringPerfProbe.mark(
+                    "accessibility_action_not_dispatched",
+                    "action=$action,reason=call_control_disabled",
+                )
+                return
+            }
             appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .edit()
                 .putString(KEY_PENDING_ACTION, action)

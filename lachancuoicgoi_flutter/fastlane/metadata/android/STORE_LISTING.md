@@ -1,6 +1,6 @@
 # Store Listing — Lá Chắn Cuộc Gọi
 
-Release version: 1.6.1+15
+Release version: 1.6.5+16
 
 ## What's new in 1.6.1
 

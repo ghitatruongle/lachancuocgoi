@@ -1,0 +1,118 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Call Shield",
+  "@appTitle": {"description": "Application name"},
+
+  "settings": "Settings",
+  "@settings": {"description": "Settings button tooltip"},
+  "permissions": "Permissions",
+  "@permissions": {"description": "Permissions button tooltip"},
+  "instructions": "Guide",
+  "@instructions": {"description": "Instructions button tooltip"},
+
+  "homeSubtitle": "Real-time call analysis to detect scams.",
+  "@homeSubtitle": {},
+  "homeLiveCaptionTip": "Recommended: turn on Live Caption for best protection",
+  "@homeLiveCaptionTip": {},
+  "appInfoSemantic": "Call Shield app information",
+  "@appInfoSemantic": {},
+  "startMonitoring": "Start monitoring",
+  "@startMonitoring": {},
+  "startMonitoringSemantic": "Start call monitoring",
+  "@startMonitoringSemantic": {},
+  "simulationMode": "Simulation mode",
+  "@simulationMode": {},
+  "history": "History",
+  "@history": {},
+  "antiScamTips": "Anti-scam tips",
+  "@antiScamTips": {},
+  "homePermissionWarning": "Some permissions are missing — monitoring may be less effective.",
+  "@homePermissionWarning": {},
+
+  "demoMode": "Demo mode",
+  "@demoMode": {},
+  "demoModeDescription": "This platform does not attach to real calls. The app runs simulated scripts to try the AI. Full features (STT, overlay, call screening) are on Android.",
+  "@demoModeDescription": {},
+  "demoModeSemantic": "Demo mode — not attached to real calls",
+  "@demoModeSemantic": {},
+  "featuresOnThisDevice": "Features on this device",
+  "@featuresOnThisDevice": {},
+
+  "monitoringSubtitle": "Scam & abuse detection",
+  "@monitoringSubtitle": {},
+  "monitoringEndCall": "End call",
+  "@monitoringEndCall": {},
+  "monitoringSavingResult": "Saving result...",
+  "@monitoringSavingResult": {},
+  "monitoringEndCallSemantic": "End call and save result",
+  "@monitoringEndCallSemantic": {},
+  "monitoringLiveConversation": "Live conversation",
+  "@monitoringLiveConversation": {},
+  "monitoringSimulationTranscript": "Simulation script",
+  "@monitoringSimulationTranscript": {},
+  "monitoringSystemLog": "System log",
+  "@monitoringSystemLog": {},
+  "monitoringSimulationPrefix": "Simulation: {title}",
+  "@monitoringSimulationPrefix": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "monitoringSimulationDefault": "Simulation",
+  "@monitoringSimulationDefault": {},
+  "monitoringRiskSemantic": "Current call risk level: {level}",
+  "@monitoringRiskSemantic": {
+    "placeholders": {
+      "level": {"type": "String"}
+    }
+  },
+  "monitoringWaveformSemantic": "Live call audio waveform",
+  "@monitoringWaveformSemantic": {},
+  "monitoringModeTarget": "Target: {mode}",
+  "@monitoringModeTarget": {
+    "placeholders": {
+      "mode": {"type": "String"}
+    }
+  },
+  "monitoringModeRunning": "Running: {mode}",
+  "@monitoringModeRunning": {
+    "placeholders": {
+      "mode": {"type": "String"}
+    }
+  },
+  "monitoringNetworkOk": "Network: OK",
+  "@monitoringNetworkOk": {},
+  "monitoringNetworkError": "Network: Error",
+  "@monitoringNetworkError": {},
+
+  "monitoringSttFatal": "Mic/STT error — speech cannot be heard. Check microphone permission and try again.",
+  "@monitoringSttFatal": {},
+  "monitoringSttFatalWithReason": "Mic/STT error — speech cannot be heard ({reason}). Check microphone permission and try again.",
+  "@monitoringSttFatalWithReason": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "monitoringNotificationDegraded": "Enable notifications for stable monitoring. Android may stop the app mid-call without notification permission.",
+  "@monitoringNotificationDegraded": {},
+  "monitoringWatchdogFailed": "Could not recover the background monitoring service. Stop and start the session again.",
+  "@monitoringWatchdogFailed": {},
+  "monitoringSttFallbackOffline": "STT switched to offline mode (Vosk)",
+  "@monitoringSttFallbackOffline": {},
+  "monitoringSttFallbackWithReason": "Offline STT (Vosk): {reason}",
+  "@monitoringSttFallbackWithReason": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+
+  "riskLevelLabel": "Risk level",
+  "@riskLevelLabel": {},
+  "warningDismissButton": "GOT IT",
+  "@warningDismissButton": {},
+  "warningRedTitle": "DANGER",
+  "@warningRedTitle": {},
+  "warningOrangeTitle": "WARNING",
+  "@warningOrangeTitle": {}
+}

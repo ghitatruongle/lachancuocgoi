@@ -179,6 +179,15 @@ class _LachancuocgoiAppState extends ConsumerState<LachancuocgoiApp> {
       themeMode: settings.followSystemTheme
           ? ThemeMode.system
           : (settings.isDarkTheme ? ThemeMode.dark : ThemeMode.light),
+      // Prefer device language when supported; otherwise Vietnamese (product default).
+      localeResolutionCallback: (deviceLocale, supported) {
+        for (final locale in supported) {
+          if (locale.languageCode == deviceLocale?.languageCode) {
+            return locale;
+          }
+        }
+        return const Locale('vi');
+      },
       localizationsDelegates: _localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: ref.watch(appRouterProvider),

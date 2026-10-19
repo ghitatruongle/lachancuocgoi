@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
 import '../../../core/asset_loader.dart';
@@ -298,18 +297,10 @@ void _isolateMain(SendPort mainSendPort) async {
         // Previously this only logged a warning and continued with a
         // positional mapping that silently shifted when intents were added.
         if (modelLabelOrder.isEmpty) {
-          debugPrint(
-            '[TFLiteIntent] No model labels provided — cannot safely map '
-            'output indices to intents. AI path disabled.',
-          );
+          // Isolate cannot use instance AppLogger; leave AI path disabled.
           isModelAligned = false;
         } else if (numClasses != modelLabelOrder.length) {
-          debugPrint(
-            '[TFLiteIntent] FATAL: Model output classes ($numClasses) != '
-            'label file (${modelLabelOrder.length}). '
-            'Index→intent mapping is unreliable — AI path DISABLED to prevent '
-            'misclassification.',
-          );
+          // Misaligned label file — disable AI path to prevent misclassification.
           isModelAligned = false;
         } else {
           isModelAligned = true;

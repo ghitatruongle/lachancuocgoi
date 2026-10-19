@@ -38,7 +38,7 @@ function Find-AndroidSdkTool {
 }
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$releaseName = 'v1.6.1+15'
+$releaseName = 'v1.6.5+16'
 $releaseRoot = Join-Path $projectRoot "build\release\$releaseName"
 $dartSymbols = Join-Path $releaseRoot 'dart-symbols'
 
@@ -90,7 +90,7 @@ try {
     $aapt = Find-AndroidSdkTool 'aapt'
     $badging = (& $aapt dump badging $apk | Select-Object -First 1)
     if ($badging -notmatch "versionCode='15'" -or
-        $badging -notmatch "versionName='1.6.1'") {
+        $badging -notmatch "versionName='1.6.5'") {
       throw "APK version verification failed: $badging"
     }
 

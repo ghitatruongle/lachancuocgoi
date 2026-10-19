@@ -8,10 +8,12 @@ import 'package:lachancuocgoi_flutter/analysis/analysis_providers.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_result.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_level.dart';
 import 'package:lachancuocgoi_flutter/analysis/health_check.dart';
+import 'package:lachancuocgoi_flutter/app/settings_controller.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 import 'package:lachancuocgoi_flutter/data/alert_history_entry.dart';
 import 'package:lachancuocgoi_flutter/data/app_database.dart';
 import 'package:lachancuocgoi_flutter/data/call_history.dart';
+import 'package:lachancuocgoi_flutter/data/call_history_retention.dart';
 import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/monitoring_controller.dart';
 
@@ -93,6 +95,18 @@ class ManualMockAppDatabase implements AppDatabase {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// No-op retention service so the post-save cleanup hook in the controller
+/// runs against a stub instead of the real service (whose deleteOlderThan
+/// call would fail on [ManualMockAppDatabase] and log a warning every run).
+class _NoopRetentionService extends CallHistoryRetentionService {
+  @override
+  Future<int> cleanup(
+    AppDatabase database,
+    CallHistoryRetention retention, {
+    DateTime? now,
+  }) async => 0;
+}
+
 class ManualMockNativeBridge implements NativeBridgeInterface {
   @override
   Stream<TranscriptUpdate> get transcriptStream => const Stream.empty();
@@ -134,6 +148,9 @@ void main() {
           analysisCoordinatorProvider.overrideWithValue(mockCoordinator),
           appDatabaseFutureProvider.overrideWith((ref) async => mockDatabase),
           nativeBridgeProvider.overrideWithValue(mockBridge),
+          callHistoryRetentionServiceProvider.overrideWithValue(
+            _NoopRetentionService(),
+          ),
         ],
       );
 

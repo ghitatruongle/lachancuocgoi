@@ -17,6 +17,7 @@ import 'intent/intent_classifier_factory.dart';
 import 'intent/intent_output_mapper.dart';
 import 'intent/scam_intent.dart';
 import '../l3/core/response_cache.dart';
+import 'l2_initialization.dart';
 import 'l2_result.dart';
 import 'safety/safety_filter.dart';
 import 'wfsa/scam_graph_builder.dart';
@@ -47,12 +48,20 @@ class L2Analyzer implements Analyzer {
            ),
        _wfsaEngine =
            wfsaEngine ?? WfsaEngine(ScamGraphBuilder.buildDefaultGraphs()),
-       _cache = cache ?? ResponseCache<AnalysisResult>();
+       _cache = cache ?? ResponseCache<AnalysisResult>() {
+    _initialization = L2Initialization(
+      gDetectionEngine: _gDetectionEngine,
+      intentClassifier: _intentClassifier,
+      assetLoader: _assetLoader,
+      logger: _logger,
+    );
+  }
 
   final L2Config config;
   final ResponseCache<AnalysisResult> _cache;
   final AssetLoader _assetLoader;
   final AppLogger? _logger;
+  late final L2Initialization _initialization;
 
   double get aiHighConfidenceThreshold => config.aiHighConfidenceThreshold;
   double get aiDirectConfidence => config.aiDirectConfidence;
@@ -70,15 +79,8 @@ class L2Analyzer implements Analyzer {
   static const String _confirmedScamTopicMarker = 'Chủ đề Lừa đảo';
 
   // Phase 2.3: Concurrency limiter — only one analyze() runs at a time.
-  // Prevents CPU spike from concurrent TFLite + GDetection + WFSA.
+  // Prevents CPU thrash from concurrent TFLite + GDetection + WFSA.
   Future<void> _analysisMutex = Future.value();
-
-  // BUG FIX (Bug #4): Guard concurrent initialize() calls so that multiple
-  // callers share the same in-flight init Future instead of each spawning
-  // a redundant Future.wait. Sub-components (GDetectionEngine, TFLite) have
-  // their own guards, but without this top-level guard each concurrent caller
-  // still creates and awaits its own Future.wait object, doubling overhead.
-  Future<void>? _initFuture;
 
   // Generation counter: incremented at the start of each analyze() call.
   // When a mutex timeout forces a new analysis to start while the previous
@@ -101,34 +103,7 @@ class L2Analyzer implements Analyzer {
   AnalysisLevel get level => AnalysisLevel.l2;
 
   @override
-  Future<void> initialize() async {
-    // BUG FIX (Bug #4): Cache the init Future so concurrent callers share a
-    // single attempt. Without this guard, each concurrent caller creates its
-    // own Future.wait — harmless (sub-component guards deduplicate) but
-    // wasteful and confusing in logs.
-    final pending = _initFuture;
-    if (pending != null) return pending;
-
-    // Bug fix: clear _initFuture on failure to allow retry
-    // (previously cached failed future permanently, making L2 unusable)
-    try {
-      final future = _doInitialize();
-      _initFuture = future;
-      return await future;
-    } catch (e) {
-      _initFuture = null; // Allow retry on next call
-      rethrow;
-    }
-  }
-
-  Future<void> _doInitialize() async {
-    // Chạy song song 3 component — mỗi component đã có Future.delayed nội bộ
-    await Future.wait(<Future<void>>[
-      _gDetectionEngine.initialize(),
-      _intentClassifier.initialize(),
-      SafetyFilter.loadConfig(assetLoader: _assetLoader, logger: _logger),
-    ]);
-  }
+  Future<void> initialize() => _initialization.initialize();
 
   @override
   bool get isReady => _gDetectionEngine.isReady;
@@ -202,7 +177,7 @@ class L2Analyzer implements Analyzer {
   void dispose() {
     _intentClassifier.close();
     _gDetectionEngine.dispose();
-    _initFuture = null;
+    _initialization.invalidate();
   }
 
   Future<AnalysisResult> analyze(

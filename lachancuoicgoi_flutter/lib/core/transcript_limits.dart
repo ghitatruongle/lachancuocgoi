@@ -66,7 +66,8 @@ class TranscriptLimits {
 
   /// Logs a warning if transcript was truncated.
   void logTruncationWarning(int originalLength) {
-    final msg = 'Transcript truncated from $originalLength bytes to '
+    final msg =
+        'Transcript truncated from $originalLength bytes to '
         '$maxTranscriptLength bytes';
     SystemLogger.instance.log(
       LogCategory.analysis,

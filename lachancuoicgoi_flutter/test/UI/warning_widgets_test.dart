@@ -7,6 +7,7 @@ import 'package:lachancuocgoi_flutter/ui/monitoring_page/warning/orange_warning.
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(
+    locale: const Locale('vi'),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: child,

@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
-
 import '../analysis_level.dart';
 import '../analysis_result.dart';
 import '../analyzer.dart';
@@ -582,9 +580,7 @@ class L3Analyzer implements Analyzer {
   }
 
   // Backward-compatible accessors for tests that inspect internal state.
-  @visibleForTesting
   int get consecutiveErrors => _circuitBreaker.consecutiveErrors;
 
-  @visibleForTesting
   String get errorRateString => _circuitBreaker.getErrorRateString();
 }
