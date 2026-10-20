@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lachancuocgoi_flutter/services/permission_controller.dart';
 import 'package:lachancuocgoi_flutter/services/bridge_models.dart';
 
-/// Creates a [ProviderContainer] and returns the [PermissionController] notifier.
-/// This is the correct way to create a [Notifier]-based controller in tests.
 ProviderContainer createContainer() {
   return ProviderContainer(overrides: []);
 }
@@ -69,10 +67,7 @@ void main() {
           if (call.method == 'requestPermissions') {
             final permissions =
                 (call.arguments as List<dynamic>?) ?? <dynamic>[];
-            return <int, int>{
-              for (final p in permissions)
-                p as int: 1, // 1 = PermissionStatus.granted
-            };
+            return <int, int>{for (final p in permissions) p as int: 1};
           }
           return null;
         });
@@ -92,7 +87,7 @@ void main() {
       permissionMap['notification'] = true;
 
       final controller = createController(container!);
-      // Wait for the initial _refresh() to complete
+
       await tester.pump();
 
       expect(controller.state.snapshot.recordAudio, isTrue);
@@ -110,7 +105,6 @@ void main() {
           .where((c) => c.method == 'getPermissionSnapshot')
           .length;
 
-      // Call refresh immediately — should be throttled
       await controller.refresh();
       await controller.refresh();
       await controller.refresh();
@@ -119,8 +113,6 @@ void main() {
           .where((c) => c.method == 'getPermissionSnapshot')
           .length;
 
-      // Only 1 extra call should have been made (the initial one from constructor + 0 throttled)
-      // Actually the constructor's _refresh is async, so we might see 1 or 2 total
       expect(callCountAfter - callCountBefore, lessThanOrEqualTo(1));
     });
 
@@ -129,10 +121,8 @@ void main() {
       await tester.pump();
       expect(controller.state.snapshot.recordAudio, isFalse);
 
-      // Change the native response
       permissionMap['recordAudio'] = true;
 
-      // Wait for throttle to expire in fake time
       await tester.pump(const Duration(milliseconds: 600));
       await controller.refresh();
 
@@ -143,16 +133,14 @@ void main() {
       tester,
     ) async {
       final controller = createController(container!);
-      // Wait for initial _refresh() to complete
+
       await tester.pump(const Duration(milliseconds: 100));
 
       final stateBefore = controller.state;
 
-      // Wait for throttle to expire, then refresh again with same data
       await tester.pump(const Duration(milliseconds: 600));
       await controller.refresh();
 
-      // State should be the same object (no copyWith was called)
       expect(controller.state.snapshot, equals(stateBefore.snapshot));
     });
   });
@@ -163,7 +151,6 @@ void main() {
       final controller = createController(container!);
       await tester.pump();
 
-      // Wait for throttle
       await tester.pump(const Duration(milliseconds: 600));
       final result = await controller.requestMicrophonePermission();
 
@@ -205,8 +192,7 @@ void main() {
 
       final result = await controller.requestOverlayPermission();
       expect(result, isTrue);
-      // Lifecycle resume triggers refresh in production.
-      // In test, call refresh explicitly.
+
       await tester.pump(const Duration(milliseconds: 600));
       await controller.refresh();
       expect(controller.state.snapshot.overlay, isTrue);
@@ -221,7 +207,7 @@ void main() {
 
       final result = await controller.requestCallScreeningPermission();
       expect(result, isTrue);
-      // Lifecycle resume triggers refresh in production.
+
       await tester.pump(const Duration(milliseconds: 600));
       await controller.refresh();
       expect(controller.state.snapshot.callScreening, isTrue);
@@ -233,7 +219,6 @@ void main() {
       final controller = createController(container!);
       await tester.pump();
 
-      // Set all to true after requests
       permissionMap['recordAudio'] = true;
       permissionMap['phoneState'] = true;
       permissionMap['callLog'] = true;
@@ -247,7 +232,7 @@ void main() {
       final results = await controller.requestAllPermissions();
 
       expect(results, isA<Map<String, bool>>());
-      // After all requests, allGranted should be true
+
       expect(controller.state.snapshot.allGranted, isTrue);
     });
 
@@ -267,7 +252,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
       final results = await controller.requestAllPermissions();
 
-      // All already granted, so individual request methods shouldn't be called
       expect(results, isEmpty);
     });
   });

@@ -9,8 +9,6 @@ abstract interface class ApiKeyProvider {
 
   int getKeyCount();
 
-  /// True nếu keys đang được load từ bundled assets (env.json ship cùng APK).
-  /// Bị set bởi [EnvironmentApiKeyProvider] khi fallback vào rootBundle.
   bool get isLoadedFromAssets => false;
 }
 
@@ -26,7 +24,6 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
        _singleKey = singleKey ?? const String.fromEnvironment('GEMINI_API_KEY'),
        _assetLoader = assetLoader,
        _logger = logger {
-    // Parse dart-define keys eagerly so getApiKeys() works without ensureLoaded().
     _keys = _parseKeys();
   }
 
@@ -35,21 +32,14 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
   final AssetLoader? _assetLoader;
   final AppLogger? _logger;
 
-  /// Mutable list — populated eagerly from dart-define in constructor,
-  /// and optionally extended by [ensureLoaded] from env.json asset.
   List<String> _keys = [];
   bool _envLoaded = false;
 
-  /// True nếu [ensureLoaded] đã fallback sang đọc env.json từ rootBundle
-  /// (nghĩa là keys bị bundle trong APK — không an toàn).
   bool _loadedFromAssets = false;
 
   @override
   bool get isLoadedFromAssets => _loadedFromAssets;
 
-  /// Sentinel patterns cho placeholder keys (AIzaReplace..., REPLACE_ME, etc.).
-  /// Khi env.json chứa các giá trị này, keys bị bỏ qua hoàn toàn — tránh
-  /// tình trạng dev commit nhầm env.example.json thay vì env.json thật.
   static const List<String> _placeholderPatterns = <String>[
     'aizareplace',
     'aizayour',
@@ -60,24 +50,15 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
     'placeholder',
   ];
 
-  /// True nếu value trông như placeholder (AIzaReplace..., REPLACE_ME, etc.).
-  /// Public để test.
   static bool isPlaceholderKey(String value) {
     final lower = value.toLowerCase();
     return _placeholderPatterns.any(lower.contains);
   }
 
-  /// Load keys from `env.json` asset if dart-define keys were not provided.
-  /// Safe to call multiple times — only loads once.
-  ///
-  /// SECURITY: env.json trong assets bị bundle trong APK, vì vậy người cài
-  /// app có thể trích xuất API key. Kiến trúc v1.6.1 chấp nhận ràng buộc này;
-  /// key phải được giới hạn quota/API, theo dõi và xoay khi cần.
   Future<void> ensureLoaded() async {
     if (_envLoaded) return;
     _envLoaded = true;
 
-    // If dart-define already provided keys, no need to load env.json.
     if (_keys.isNotEmpty) return;
 
     try {
@@ -99,14 +80,13 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
     }
   }
 
-  /// Parse JSON string và validate keys (loại bỏ placeholder, validate format).
   void _parseAndIngestEnvJson(String raw) {
     final json = jsonDecode(raw) as Map<String, dynamic>;
     final seen = <String>{..._keys};
     var placeholderCount = 0;
     for (final entry in json.entries) {
       if (entry.key.startsWith('_')) {
-        continue; // skip _comment, _warning, _format
+        continue;
       }
       final value = entry.value;
       if (value is! String) continue;
@@ -128,7 +108,6 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
     }
   }
 
-  /// Log warning nếu keys đang load từ assets (không an toàn).
   void _warnAboutBundledKeys() {
     const isRelease = bool.fromEnvironment('dart.vm.product');
     if (isRelease) {
@@ -169,7 +148,6 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
       }
     }
 
-    // Thêm singleKey nếu chưa có trong comma list
     final singleKey = _singleKey.trim();
     if (singleKey.isNotEmpty) {
       final decoded = _validateAndDecode(singleKey);
@@ -181,8 +159,6 @@ class EnvironmentApiKeyProvider implements ApiKeyProvider {
     return normalized;
   }
 
-  /// Decode key và validate format hợp lệ (phải bắt đầu bằng 'AIza').
-  /// Trả về null nếu key không hợp lệ.
   String? _validateAndDecode(String raw) {
     if (raw.isEmpty) return null;
     if (isSupportedGeminiKey(raw)) return raw;
@@ -208,8 +184,6 @@ class StaticApiKeyProvider implements ApiKeyProvider {
   @override
   int getKeyCount() => _keys.length;
 
-  // Static provider luôn inject keys từ constructor → không bao giờ
-  // load từ bundled assets. isLoadedFromAssets = false là an toàn.
   @override
   bool get isLoadedFromAssets => false;
 }

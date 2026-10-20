@@ -90,7 +90,7 @@ class MainActivity : ComponentActivity() {
     private val requestPhonePermissionsLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         val readPhoneStateGranted = permissions[Manifest.permission.READ_PHONE_STATE] ?: false
         val readCallLogGranted = permissions[Manifest.permission.READ_CALL_LOG] ?: false
-        
+
         if (readPhoneStateGranted && readCallLogGranted) {
             Toast.makeText(this, "Quyền điện thoại đã được cấp", Toast.LENGTH_SHORT).show()
         } else {
@@ -156,9 +156,9 @@ class MainActivity : ComponentActivity() {
         }
 
         _intentFlow.value = intent
-        
+
         checkAndRequestInitialPermissions()
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             requestDrawOverlayPermission()
         }
@@ -189,12 +189,12 @@ class MainActivity : ComponentActivity() {
         val hasPhoneAccess =
             ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
-        
+
         if (!phonePermissionRequested && !hasPhoneAccess) {
             requestCallLogPermission()
             permissionPrefs.edit().putBoolean(KEY_PHONE_PERMISSION_REQUESTED, true).apply()
         }
-        
+
         if (!audioPermissionRequested &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestRecordAudioPermission()
@@ -214,7 +214,7 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_ALERT_REASON = "com.example.lachancuocgoi.EXTRA_ALERT_REASON"
         const val ACTION_SHOW_ORANGE_ALERT = "com.example.lachancuocgoi.ACTION_SHOW_ORANGE_ALERT"
         const val EXTRA_ORANGE_ALERT_REASON = "com.example.lachancuocgoi.EXTRA_ORANGE_ALERT_REASON"
-        
+
         private const val KEY_PHONE_PERMISSION_REQUESTED = "phone_permission_requested"
         private const val KEY_AUDIO_PERMISSION_REQUESTED = "audio_permission_requested"
     }
@@ -262,7 +262,7 @@ fun CallShieldApp(
                     navController.navigate("monitoring") { launchSingleTop = true }
                     onIntentHandled()
                 }
-                
+
                 when (validIntent.action) {
                     MainActivity.ACTION_START_MONITORING -> {
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
@@ -317,7 +317,7 @@ fun CallShieldApp(
                     arguments = listOf(navArgument("simulatedScenarioTitle") { type = NavType.StringType; nullable = true; defaultValue = null })
                 ) { backStackEntry ->
                     val scenarioTitle = backStackEntry.arguments?.getString("simulatedScenarioTitle")
-                    
+
                     MonitoringPage(
                         navController = navController,
                         onShowSettings = onShowSettings,
@@ -352,7 +352,7 @@ fun CallShieldApp(
 
             if (showSettingsDialog) {
                 SettingsDialog(
-                    settings = settingsState, 
+                    settings = settingsState,
                     onSettingsChange = { newSettings ->
                         settingsState = newSettings
                         with(sharedPreferences.edit()) {
@@ -376,7 +376,6 @@ fun CallShieldApp(
                     onRequestForegroundService = onRequestForegroundService
                 )
             }
-
 
             redAlertReason?.let { reason ->
                 RedWarning(title = reason, onDismiss = { redAlertReason = null })

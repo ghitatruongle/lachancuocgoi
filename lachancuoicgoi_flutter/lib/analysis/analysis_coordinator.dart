@@ -51,7 +51,6 @@ class AnalysisCoordinator {
   final AdaptiveTimeoutCalculator _l3TimeoutCalculator;
   final AdaptiveTimeoutCalculator _l3ElevatedTimeoutCalculator;
 
-  /// Returns an adaptive L3 timeout based on measured RTT (via calculator).
   Duration _l3TimeoutFor(bool elevated) {
     final ms = elevated
         ? _l3ElevatedTimeoutCalculator.calculateTimeoutMs()
@@ -59,7 +58,6 @@ class AnalysisCoordinator {
     return Duration(milliseconds: ms);
   }
 
-  /// Called after a successful L3 request to calibrate future timeouts.
   void recordL3Rtt(Duration rtt) {
     final ms = rtt.inMilliseconds;
     _l3TimeoutCalculator.recordSample(ms);
@@ -74,10 +72,8 @@ class AnalysisCoordinator {
 
   AnalysisResult? _lastParallelResult;
 
-  /// Optional speech rate (chars/sec) provided by the UI layer.
   double _speechRate = 0;
 
-  /// Network flag updated by the monitoring layer (default: online).
   bool _networkAvailableFlag = true;
 
   void setSpeechRate(double charsPerSecond) {
@@ -328,8 +324,7 @@ class AnalysisCoordinator {
     if (!_l2Analyzer.isReady) {
       await _l2Analyzer.initialize();
     }
-    // Prefer full readiness (GDetection + intent). If only GDetection is
-    // ready we still run L2 in degraded mode rather than skipping entirely.
+
     final l2Future = _l2Analyzer.isReady
         ? Future.value(_l2Analyzer.analyze(incrementalText, fullText))
         : Future.value(
@@ -348,10 +343,6 @@ class AnalysisCoordinator {
     return (results[0], results[1]);
   }
 
-  /// Fast-track rules (Phase 1):
-  /// - L1 **red** alone → critical hard path (OTP / immediate danger).
-  /// - L2 ≥ orange → trust on-device AI without waiting for L3.
-  /// - L1 orange alone does **not** skip L3 (reduces false positives).
   AnalysisResult? _parallelFastTrack(
     AnalysisResult l1Result,
     AnalysisResult l2Result,
@@ -374,7 +365,7 @@ class AnalysisCoordinator {
     try {
       final result = await l3Future.timeout(budget);
       stopwatch.stop();
-      // Calibrate future timeouts based on this successful RTT.
+
       recordL3Rtt(stopwatch.elapsed);
       return result ?? AnalysisFallback.defaultForMode(AnalysisMode.geminiApi);
     } on TimeoutException {
@@ -434,8 +425,6 @@ class AnalysisCoordinator {
 
   int getProcessedTextLength(AnalysisMode mode) {
     if (mode == AnalysisMode.parallel) {
-      // Use the max cursor so we don't re-run prematurely on a lagging tier,
-      // but never skip text that L1 has not yet consumed.
       return math.max(
         _l1Analyzer.processedTextLength,
         math.max(
@@ -539,7 +528,6 @@ class AnalysisCoordinator {
     };
   }
 
-  /// Human-readable health snapshot for settings / dev panel.
   Map<String, String> healthSummary() {
     final reports = runAllHealthChecks();
     final fallbackTotal = FallbackTracker.instance.total;

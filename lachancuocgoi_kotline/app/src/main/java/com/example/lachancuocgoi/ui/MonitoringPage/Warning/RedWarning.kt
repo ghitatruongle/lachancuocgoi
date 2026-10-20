@@ -84,7 +84,7 @@ fun RedWarning(
                 .fillMaxSize()
                 .background(Color.Red.copy(alpha = 0.95f))
         ) {
-            // 1. NỘI DUNG PHẢI VIẾT TRƯỚC (NẰM DƯỚI)
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -125,7 +125,6 @@ fun RedWarning(
                 Spacer(modifier = Modifier.height(40.dp))
             }
 
-            // 2. NÚT X VIẾT SAU CÙNG (NẰM TRÊN CÙNG) ĐỂ LUÔN BẤM ĐƯỢC
             Surface(
                 onClick = onDismiss,
                 shape = CircleShape,

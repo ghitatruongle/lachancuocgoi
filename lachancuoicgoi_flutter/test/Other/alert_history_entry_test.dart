@@ -84,7 +84,6 @@ void main() {
         displayedReason: '',
       );
 
-      // Sourced from the canonical RiskLevel palette (single source of truth).
       expect(entry.getRiskLevelColor(), RiskLevel.red.colorValue);
     });
 

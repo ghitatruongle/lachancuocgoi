@@ -8,12 +8,6 @@ import 'package:vibration/vibration.dart';
 
 import '../../../l10n/app_localizations.dart';
 
-/// Shared full-screen warning dialog used by both RedWarning and OrangeWarning.
-///
-/// When [isUrgent] is true (RED alert), the widget plays a repeating
-/// heavy haptic feedback pattern every 600ms — this is the "Rung dồn dập"
-/// described in the thesis, designed to break the victim's psychological
-/// manipulation state by creating a strong, persistent physical interruption.
 class FullScreenWarning extends StatefulWidget {
   const FullScreenWarning({
     super.key,
@@ -34,13 +28,8 @@ class FullScreenWarning extends StatefulWidget {
   final Color buttonColor;
   final VoidCallback onDismiss;
 
-  /// When true, plays heavy haptic feedback in a loop to break the
-  /// scammer's psychological hold on the victim (RED alert).
   final bool isUrgent;
 
-  /// Phase 2 (P2-7): when true, vibration/haptic patterns are suppressed
-  /// to respect the user's reduce-motion / accessibility setting. The
-  /// ringtone (sound) still plays — only motion/tactile feedback is skipped.
   final bool reduceMotion;
 
   @override
@@ -57,17 +46,12 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
   }
 
   Future<void> _startAlerts() async {
-    // Phase 2 (P2-7): skip vibration/haptics when reduce-motion is active.
-    // The ringtone (sound) still plays — only tactile feedback is suppressed.
     if (widget.isUrgent) {
-      // Mức độ nguy hiểm (Đỏ): Chuông báo động + Rung liên tục
       try {
         unawaited(
           FlutterRingtonePlayer().playAlarm(looping: true, volume: 1.0),
         );
-      } on Exception catch (_) {
-        // Fallback
-      }
+      } on Exception catch (_) {}
 
       if (!widget.reduceMotion) {
         final bool hasVibrator = await Vibration.hasVibrator();
@@ -88,12 +72,9 @@ class _FullScreenWarningState extends State<FullScreenWarning> {
         }
       }
     } else {
-      // Mức độ cảnh báo (Cam): Âm thanh thông báo + Rung 1 lần
       try {
         unawaited(FlutterRingtonePlayer().playNotification(volume: 1.0));
-      } on Exception catch (_) {
-        // Fallback
-      }
+      } on Exception catch (_) {}
 
       if (!widget.reduceMotion) {
         final bool hasVibrator = await Vibration.hasVibrator();

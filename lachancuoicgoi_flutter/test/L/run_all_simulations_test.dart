@@ -1,9 +1,3 @@
-// Run all 27 simulation scenarios through the real L2 (gDetection) analyzer
-// and report expected vs actual risk level.
-//
-// Uses FlutterAssetLoader so the real JSON assets + WFSA graphs are loaded,
-// matching what runs on-device.
-
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -14,7 +8,6 @@ import 'package:lachancuocgoi_flutter/analysis/l2/l2_analysis.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 import 'package:lachancuocgoi_flutter/services/flutter_services_impl.dart';
 
-/// Expected risk level from situation_test.json → RiskLevel enum.
 RiskLevel _parseExpected(String json) => switch (json.toLowerCase()) {
   'red' => RiskLevel.red,
   'orange' => RiskLevel.orange,
@@ -22,7 +15,6 @@ RiskLevel _parseExpected(String json) => switch (json.toLowerCase()) {
   _ => RiskLevel.green,
 };
 
-/// Convert script lines into a single transcript string.
 String _buildTranscript(List<dynamic> script) {
   return script
       .map((e) {
@@ -36,11 +28,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('Simulate all 27 scenarios through L2 analyzer', () async {
-    // Load the situation_test.json from bundled assets.
     final raw = await rootBundle.loadString('assets/situation_test.json');
     final scenarios = jsonDecode(raw) as List<dynamic>;
 
-    // Build a real-asset L2 analyzer (no TFLite).
     final l2 = L2Analyzer(
       assetLoader: const FlutterAssetLoader(),
       intentClassifier: const DisabledIntentClassifier(),
@@ -61,15 +51,12 @@ void main() {
       );
       final transcript = _buildTranscript(s['script'] as List<dynamic>);
 
-      // Reset L2 state between scenarios (prevent state leakage).
       l2.resetSession();
 
-      // Run analysis.
       final result = await l2.analyze(transcript, transcript);
 
       final actual = result.overallRiskLevel;
-      // Relax: accept at-least-as-severe matches (e.g. ORANGE expected, RED is
-      // even safer — over-detection is acceptable for a scam shield).
+
       final pass = actual.index >= expected.index;
       if (pass) {
         passCount++;
@@ -77,7 +64,6 @@ void main() {
         failCount++;
       }
 
-      // Debug: print matches + metadata for FAILs.
       if (!pass) {
         debugPrint('  [DEBUG] "$title"');
         debugPrint('    Risk: ${actual.name} | Reason: ${result.reason}');
@@ -101,7 +87,6 @@ void main() {
       );
     }
 
-    // Print full table.
     debugPrint('');
     debugPrint(
       '═══════════════════════════════════════════════════════════════════',
@@ -129,7 +114,6 @@ void main() {
       '═══════════════════════════════════════════════════════════════════',
     );
 
-    // Soft assertion — print results regardless.
     expect(scenarios.length, equals(26));
   });
 }

@@ -104,9 +104,6 @@ List<EvalCase> parseEvalJsonl(String jsonl) {
   return cases;
 }
 
-/// Expands a compact, reviewed template corpus into the concrete cases used
-/// by the regression gate. This keeps 300 cases maintainable while ensuring
-/// every generated transcript has a stable ID and category.
 List<EvalCase> parseEvalTemplateCorpus(String rawJson) {
   final decoded = jsonDecode(rawJson);
   if (decoded is! Map<String, dynamic>) {

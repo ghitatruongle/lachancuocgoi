@@ -3,12 +3,6 @@ package com.lachancuocgoi.lachancuocgoi_flutter.helpers
 import android.media.AudioManager
 import android.util.Log
 
-/**
- * Speakerphone control extracted from `BackgroundMonitoringService.kt` (Wave 2 refactor).
- *
- * Manages enabling/disabling speakerphone during a call, tracking whether the
- * service changed the speakerphone state so it can be restored on stop.
- */
 class SpeakerphoneController(
     private val audioManager: AudioManager,
     private val initialState: Boolean,
@@ -20,9 +14,6 @@ class SpeakerphoneController(
     private var changedByService: Boolean = false
     private val snapshot: Boolean = initialState
 
-    /**
-     * Enable speakerphone if not already on.
-     */
     @Suppress("DEPRECATION")
     fun enable() {
         try {
@@ -35,9 +26,6 @@ class SpeakerphoneController(
         }
     }
 
-    /**
-     * Restore speakerphone to the snapshot state if the service changed it.
-     */
     @Suppress("DEPRECATION")
     fun disable() {
         try {
@@ -50,3 +38,4 @@ class SpeakerphoneController(
         }
     }
 }
+

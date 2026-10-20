@@ -31,7 +31,6 @@ class ResponseCache<T> {
   }
 
   void put(String key, T value, {RiskLevel? riskLevel}) {
-    // Sweep expired entries trước khi insert để tránh rò rỉ
     sweepExpired();
     final hashedKey = _hashKey(key);
     _cache.remove(hashedKey);
@@ -45,8 +44,6 @@ class ResponseCache<T> {
     }
   }
 
-  /// Removes all expired entries from the cache.
-  /// Returns the number of entries removed.
   int sweepExpired() {
     final now = DateTime.now();
     final keysToRemove = <String>[];

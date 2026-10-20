@@ -34,8 +34,6 @@ class KeyHealthTracker {
   final Map<int, int> _keyTokensUsed = <int, int>{};
   final Map<int, DateTime> _keyTokenResetTime = <int, DateTime>{};
 
-  // Giả định 1M tokens / phút (free tier limit cho Gemini)
-  // Đặt ngưỡng an toàn là 900k tokens để predictive cooldown
   static const int _predictiveCooldownThreshold = 900000;
 
   int _preferredKeyIndex = 0;
@@ -61,7 +59,6 @@ class KeyHealthTracker {
 
     if (currentTokens >= _predictiveCooldownThreshold &&
         _keyStatuses[keyIndex] == KeyStatus.active) {
-      // Predictive cooldown: Tạm ngưng key 1 phút trước khi dính 429
       _keyStatuses[keyIndex] = KeyStatus.cooldown;
       _keyCooldownUntil[keyIndex] = DateTime.now().add(
         const Duration(minutes: 1),
@@ -128,9 +125,7 @@ class KeyHealthTracker {
         active.add(index);
       }
     }
-    // Shuffle để tránh race condition: 2 luồng concurrent cùng lấy key 0.
-    // Bằng cách shuffle, các luồng khác nhau sẽ bắt đầu với key khác nhau,
-    // giảm khả năng cả 2 cùng đánh vào key đầu tiên.
+
     active.shuffle();
     return active;
   }

@@ -17,21 +17,18 @@ data class CallHistory(
     val transcript: String,
     val audioPath: String?,
     val analysisResult: String? = null,
-    val analysisType: String? = null, // Thêm trường để lưu loại phân tích
-    
+    val analysisType: String? = null,
+
     @ColumnInfo(name = "alert_history")
-    val alertHistory: String? = null // JSON string của List<AlertHistoryEntry>
+    val alertHistory: String? = null
 ) {
-    /**
-     * Chuyển JSON string thành List<AlertHistoryEntry>
-     * Với error handling đầy đủ và logging để debug
-     */
+
     fun getAlertHistoryList(): List<AlertHistoryEntry> {
         if (alertHistory.isNullOrBlank()) return emptyList()
-        
+
         return try {
             val array = Gson().fromJson(
-                alertHistory, 
+                alertHistory,
                 Array<AlertHistoryEntry>::class.java
             )
             array?.toList() ?: emptyList()
@@ -43,11 +40,9 @@ data class CallHistory(
             emptyList()
         }
     }
-    
+
     companion object {
-        /**
-         * Chuyển List<AlertHistoryEntry> thành JSON string để lưu vào database
-         */
+
         fun alertHistoryToJson(history: List<AlertHistoryEntry>): String {
             return Gson().toJson(history)
         }

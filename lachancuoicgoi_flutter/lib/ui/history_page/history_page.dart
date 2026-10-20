@@ -11,7 +11,6 @@ import '../home_page/settings_dialog.dart';
 import '../theme/app_theme.dart';
 import 'history_item_card.dart';
 
-// ─── Controller ────────────────────────────────────────────────────────
 class _HistoryState {
   const _HistoryState({
     this.items = const [],
@@ -45,8 +44,6 @@ final _historyProvider =
     );
 
 class _HistoryController extends AsyncNotifier<_HistoryState> {
-  /// Kích thước trang — chỉ load 20 bản ghi mỗi lần thay vì toàn bộ bảng
-  /// (mỗi bản ghi chứa full transcript nên rất tốn RAM).
   static const int _pageSize = 20;
 
   StreamSubscription<void>? _dbSubscription;
@@ -69,11 +66,10 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
   void _subscribeToDb(AppDatabase db) {
     _dbSubscription?.cancel();
     _dbSubscription = db.changes.listen((_) async {
-      if (_dbSubscription == null) return; // Guard against events after cancel
+      if (_dbSubscription == null) return;
       final s = state.value;
       if (s == null || s.searchQuery.isNotEmpty) return;
-      // Re-query đúng số item đang hiển thị để giữ vị trí cuộn,
-      // thay vì load toàn bộ bảng vào RAM.
+
       final limit = s.items.length > _pageSize ? s.items.length : _pageSize;
       final items = await db.getAllPaginated(limit: limit, offset: 0);
       final current = state.value;
@@ -120,7 +116,6 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
     );
   }
 
-  /// Lazy load trang kế tiếp khi người dùng cuộn gần cuối danh sách.
   Future<void> loadMore() async {
     final s = state.value;
     if (s == null || s.isLoadingMore || !s.hasMore) return;
@@ -164,7 +159,6 @@ class _HistoryController extends AsyncNotifier<_HistoryState> {
   }
 }
 
-// ─── Page ──────────────────────────────────────────────────────────────
 class HistoryPage extends ConsumerStatefulWidget {
   const HistoryPage({super.key});
 
@@ -186,7 +180,6 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   }
 
   void _onSearchChanged(String value) {
-    // Debounce 300ms — tránh query DB theo từng ký tự gõ.
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
@@ -235,7 +228,6 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             child: Column(
               children: [
-                // ── Search bar ──
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: TextField(
@@ -298,7 +290,6 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                   ),
                 ),
 
-                // ── Header row ──
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Row(
@@ -318,7 +309,6 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
 
-                // ── List / Empty (with pull-to-refresh) ──
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: () =>
@@ -342,7 +332,6 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                           )
                         : NotificationListener<ScrollNotification>(
                             onNotification: (n) {
-                              // Lazy load: cuộn gần cuối thì tải trang kế.
                               if (n.metrics.pixels >=
                                   n.metrics.maxScrollExtent - 200) {
                                 ref.read(_historyProvider.notifier).loadMore();

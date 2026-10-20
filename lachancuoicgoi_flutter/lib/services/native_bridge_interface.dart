@@ -9,20 +9,7 @@ import 'simulator_call_shield_bridge.dart';
 
 export 'bridge_models.dart';
 
-/// Abstract interface for the native bridge.
-///
-/// Allows faking the bridge in tests without touching EventChannels.
 abstract class NativeBridgeInterface {
-  /// Phase 2 (P2-8): Factory that selects the correct bridge implementation
-  /// for the current platform. On Android it returns [AndroidCallShieldBridge]
-  /// (production native bridge with timeout-hardened MethodChannel calls). On
-  /// all other platforms (iOS, Web, Desktop) it returns
-  /// [SimulatorCallShieldBridge] which runs scripted scam-call scenarios so the
-  /// AI pipeline can be demoed without real call interception.
-  ///
-  /// This replaces the previous monolithic [NativeCallShieldBridge] which
-  /// contained both Android and simulation code in one class, causing drift
-  /// between the two code paths.
   static NativeBridgeInterface create() {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return AndroidCallShieldBridge();
@@ -52,7 +39,6 @@ abstract class NativeBridgeInterface {
   Future<void> showIncomingCallOverlay(String callerInfo);
   Future<void> dismissIncomingCallOverlay();
 
-  // Phase 2 (P2-4): Call screening opt-in — block/reject known scam numbers.
   Future<void> setCallScreeningBlockEnabled(bool enabled);
   Future<void> setBlockedNumbers(List<String> numbers);
 
@@ -63,8 +49,6 @@ abstract class NativeBridgeInterface {
   Stream<String> get logsStream;
 }
 
-/// Optional v1.6 capability implemented by bridges that understand the typed
-/// native start-result wire schema.
 abstract interface class TypedMonitoringStartBridge {
   Future<MonitoringStartResult> startMonitoringTyped({
     String? phoneNumber,
@@ -72,15 +56,10 @@ abstract interface class TypedMonitoringStartBridge {
   });
 }
 
-/// Optional capability used to mirror the selected analysis mode to the
-/// Android process. Simulator/test bridges can omit it safely.
 abstract interface class AnalysisModeSyncBridge {
   Future<void> setAnalysisMode(String mode);
 }
 
-/// Optional capability that mirrors the user's speakerphone preference into
-/// the Android process. This is needed when monitoring starts from a native
-/// incoming-call notification before Flutter has a visible Activity.
 abstract interface class SpeakerphonePreferenceSyncBridge {
   Future<void> setAutoEnableSpeakerphone(bool enabled);
 }
@@ -103,9 +82,6 @@ extension NativeBridgeSpeakerphonePreferenceSync on NativeBridgeInterface {
   }
 }
 
-/// Typed adapter that keeps existing `NativeBridgeInterface` fakes compatible.
-/// Dart's `implements` does not inherit concrete methods, so making the new
-/// method part of the original interface would break every legacy embedder.
 extension NativeBridgeTypedMonitoringStart on NativeBridgeInterface {
   Future<MonitoringStartResult> startMonitoringWithResult({
     String? phoneNumber,

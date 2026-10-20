@@ -32,8 +32,6 @@ void main() {
     });
 
     test('matches threat sentence with fuzzy skip (1 token gap)', () {
-      // 'doc ma otp vua gui' in model. With skip, inserting 1 token can still match.
-      // The trie allows skipping 1 token between consecutive trie nodes.
       final tokens = GFlash.tokenize('vui long doc ma otp vua gui cho toi');
       final result = matcher.match(tokens);
       expect(result, isNotNull);
@@ -48,7 +46,6 @@ void main() {
     });
 
     test('safe match takes priority over threat match', () {
-      // If both safe and threat match, safe check runs first
       final model = RiskModelSentences.fromJson({
         'riskLevels': [
           {
@@ -137,7 +134,7 @@ void main() {
       final tokens = GFlash.tokenize('tinh huong nguy hiem cap');
       final result = m.match(tokens);
       expect(result, isNotNull);
-      expect(result!.level, 3); // Red checked first
+      expect(result!.level, 3);
     });
   });
 }

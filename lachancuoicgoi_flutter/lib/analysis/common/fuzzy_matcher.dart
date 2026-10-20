@@ -68,9 +68,6 @@ class FuzzyMatcher {
     return r1[b.length];
   }
 
-  /// Original linear-scan fuzzy matching. O(n*m) where n=candidates, m=string
-  /// length. For repeated queries against the same candidate set, prefer
-  /// [findClosestIndexed] with a pre-built [BKTreeIndex].
   static String? findClosest(
     String token,
     Iterable<String> candidates, {
@@ -96,9 +93,6 @@ class FuzzyMatcher {
     return bestDistance <= maxDistance ? best : null;
   }
 
-  /// BK-tree indexed fuzzy matching. O(log n) average per query after O(n log n)
-  /// index build. Uses [BKTreeIndex] to prune search space via triangle
-  /// inequality, then optionally pre-filters with trigram overlap.
   static String? findClosestIndexed(
     String token,
     BKTreeIndex index, {
@@ -113,28 +107,15 @@ class FuzzyMatcher {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// BK-Tree Index
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// Burkhard-Keller tree for fast approximate string matching.
-///
-/// Build once from the candidate keyword set, then search repeatedly.
-/// Each search prunes branches using the triangle inequality:
-/// if d(query, node) = n, only children at distance n±maxDistance need
-/// to be explored.
 class BKTreeIndex {
   BKTreeIndex._({required this.root, required this.size});
 
   final BKNode? root;
   final int size;
 
-  /// Trigram index for pre-filtering: maps trigram → set of candidate indices.
   final Map<String, Set<int>> _trigramIndex = {};
   final List<String> _allCandidates = [];
 
-  /// Build a BK-tree from a collection of candidate strings.
-  /// O(n * log n) average, O(n²) worst case (degenerate tree).
   factory BKTreeIndex.build(Iterable<String> candidates) {
     final list = candidates.toList();
     BKNode? root;
@@ -142,9 +123,9 @@ class BKTreeIndex {
 
     for (var i = 0; i < list.length; i++) {
       final word = list[i];
-      // Insert into BK-tree
+
       root = _insertNode(root, word);
-      // Build trigram index
+
       final trigrams = _extractTrigrams(word);
       for (final tri in trigrams) {
         trigramIndex.putIfAbsent(tri, () => <int>{}).add(i);
@@ -156,15 +137,12 @@ class BKTreeIndex {
       .._trigramIndex.addAll(trigramIndex);
   }
 
-  /// Search for the closest string within [maxDistance] edit distance.
-  /// Returns null if no candidate is within range.
   String? search(String query, {int maxDistance = 2}) {
     if (root == null) return null;
 
     String? best;
     var bestDist = maxDistance + 1;
 
-    // Stack-based DFS to avoid recursion overhead
     final stack = <BKNode>[root!];
 
     while (stack.isNotEmpty) {
@@ -181,8 +159,6 @@ class BKTreeIndex {
         if (dist == 0) return best;
       }
 
-      // Triangle inequality: only explore children whose distance from
-      // the current node is in [dist - maxDistance, dist + maxDistance].
       final lo = dist - maxDistance;
       final hi = dist + maxDistance;
       for (final entry in node.children.entries) {
@@ -195,20 +171,14 @@ class BKTreeIndex {
     return bestDist <= maxDistance ? best : null;
   }
 
-  /// Search with trigram pre-filtering for better performance on large sets.
-  /// First filters candidates by trigram overlap, then does exact edit
-  /// distance only on survivors.
   String? searchWithTrigramFilter(String query, {int maxDistance = 2}) {
     if (root == null || _allCandidates.isEmpty) return null;
 
-    // For short queries (< 4 chars), trigram filtering is unreliable —
-    // fall back to BK-tree search.
     final queryTrigrams = _extractTrigrams(query);
     if (queryTrigrams.length < 2) {
       return search(query, maxDistance: maxDistance);
     }
 
-    // Count trigram hits per candidate
     final hitCounts = <int, int>{};
     for (final tri in queryTrigrams) {
       final candidates = _trigramIndex[tri];
@@ -219,11 +189,8 @@ class BKTreeIndex {
       }
     }
 
-    // Minimum trigram overlap: if edit distance ≤ d, at least
-    // max(0, |trigrams(query)| - d * 3) trigrams must match.
     final minOverlap = (queryTrigrams.length - maxDistance * 3).clamp(0, 999);
 
-    // Filter candidates and do exact edit distance
     String? best;
     var bestDist = maxDistance + 1;
 
@@ -243,8 +210,6 @@ class BKTreeIndex {
       }
     }
 
-    // Fallback: if trigram filter was too aggressive (all filtered out),
-    // use BK-tree search as safety net.
     if (best == null && bestDist > maxDistance) {
       return search(query, maxDistance: maxDistance);
     }
@@ -255,7 +220,7 @@ class BKTreeIndex {
   static BKNode _insertNode(BKNode? node, String word) {
     if (node == null) return BKNode(word);
     final dist = FuzzyMatcher.levenshtein(word, node.word, maxDistance: 99);
-    if (dist == 0) return node; // duplicate
+    if (dist == 0) return node;
     node.children[dist] = _insertNode(node.children[dist], word);
     return node;
   }

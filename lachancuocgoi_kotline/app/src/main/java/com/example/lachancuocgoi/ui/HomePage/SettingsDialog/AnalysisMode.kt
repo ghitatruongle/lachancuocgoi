@@ -15,23 +15,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
-/**
- * Xác định chế độ phân tích sẽ được sử dụng.
- */
 enum class AnalysisMode {
-    NORMAL,       // Cấp 1: Thuật toán bình thường
-    GDetection, // Cấp 2: Hệ thống GDetection
-    GEMINI_API    // Cấp 3: Gọi API Gemini
+    NORMAL,
+    GDetection,
+    GEMINI_API
 }
 
-/**
- * Composable để người dùng chọn Độ nhạy phân tích.
- */
 @Composable
 fun AnalysisSensitivitySetting(
     selectedMode: AnalysisMode,
     onModeSelected: (AnalysisMode) -> Unit,
-    enabled: Boolean = true // Giữ lại tham số enabled cho mục đích chung
+    enabled: Boolean = true
 ) {
     val options = listOf(
         Triple(AnalysisMode.NORMAL, "Cấp 1: Cơ bản", "Phân tích nhanh dựa trên từ khóa."),
@@ -52,7 +46,7 @@ fun AnalysisSensitivitySetting(
                     .fillMaxWidth()
                     .selectable(
                         selected = (selectedMode == mode),
-                        onClick = { onModeSelected(mode) }, // (SỬA LỖI) Cho phép chọn tất cả các chế độ
+                        onClick = { onModeSelected(mode) },
                         enabled = enabled
                     )
                     .padding(vertical = 4.dp),

@@ -158,8 +158,6 @@ void main() {
     test(
       'discounts yellow risk to green when safety discount <= 0.5',
       () async {
-        // SafetyFilter needs to be loaded for this to work
-        // This test verifies the discount logic path exists
         final analyzer = L2Analyzer(
           gDetectionEngine: _FakeGDetectionEngine(
             GResult(
@@ -184,7 +182,7 @@ void main() {
           'test',
           'xin chào cảm ơn bạn nhé',
         );
-        // With safety phrases, yellow may be discounted to green
+
         expect(
           result.overallRiskLevel.index,
           lessThanOrEqualTo(RiskLevel.yellow.index),
@@ -195,7 +193,6 @@ void main() {
 
   group('L2Analyzer — _mergeContextResult', () {
     test('uses WFSA risk when higher than GDetection risk', () async {
-      // Create a WFSA engine with active scenarios that will produce high scores
       final wfsaEngine = WfsaEngine(ScamGraphBuilder.buildDefaultGraphs());
       final analyzer = L2Analyzer(
         gDetectionEngine: _FakeGDetectionEngine(
@@ -211,7 +208,6 @@ void main() {
       );
       await analyzer.initialize();
 
-      // Even with green GDetection, WFSA may elevate risk if it detects patterns
       final result = await analyzer.analyze(
         'test context',
         'test text here for analysis',
@@ -249,7 +245,6 @@ void main() {
 
       final result = await analyzer.analyze('test', 'công an chuyển tiền test');
 
-      // Should have distinct matches (no duplicates)
       final keywords = result.matches.map((m) => m.keyword).toList();
       expect(keywords.toSet().length, keywords.length);
     });
@@ -288,7 +283,6 @@ void main() {
       );
       await analyzer.initialize();
 
-      // Fire 3 concurrent analyses
       final results = await Future.wait([
         analyzer.analyze('a', 'text one'),
         analyzer.analyze('b', 'text two'),
@@ -302,8 +296,6 @@ void main() {
     });
   });
 }
-
-// ─── Test fakes ──────────────────────────────────────────────────────────────
 
 class _FakeGDetectionEngine extends GDetectionEngine {
   _FakeGDetectionEngine(this._result);

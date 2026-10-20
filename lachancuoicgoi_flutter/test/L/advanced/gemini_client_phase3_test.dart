@@ -24,17 +24,14 @@ void main() {
 
       await client.query<String>('test', (text, _) => text);
 
-      // quota error → continue → tries all 5 fallback models
       expect(timestamps.length, geminiFallbackModels.length);
 
-      // Check delays increase: ~0ms, ~1000ms, ~2000ms
       final delay1 = timestamps[1].difference(timestamps[0]).inMilliseconds;
       final delay2 = timestamps[2].difference(timestamps[1]).inMilliseconds;
 
-      // First retry: ~1s
       expect(delay1, greaterThan(800));
       expect(delay1, lessThan(1500));
-      // Second retry: ~2s
+
       expect(delay2, greaterThan(1500));
       expect(delay2, lessThan(2500));
     });
@@ -82,7 +79,6 @@ void main() {
 
         await client.query<String>('test', (text, _) => text);
 
-        // Unknown error → break (not continue) → only 1 model tried
         expect(callCount, 1);
       },
     );
@@ -106,7 +102,6 @@ void main() {
 
       await client.query<String>('test', (text, _) => text);
 
-      // Auth error → break immediately
       expect(callCount, 1);
     });
 
@@ -127,16 +122,10 @@ void main() {
             },
       );
 
-      // _recordFailure() is called per model attempt (3 per query).
-      // Circuit breaker opens after 5 consecutive failures.
-      // Query 1: 3 failures (total: 3)
-      // Query 2: 3 failures (total: 6, circuit opens at 5)
-      // Query 3: blocked by circuit breaker
       for (var i = 0; i < 3; i++) {
         await client.query<String>('fail', (text, _) => text);
       }
 
-      // 4th query should be blocked by circuit breaker
       final result = await client.query<String>('fail', (text, _) => text);
       expect(result.isFailure, isTrue);
       expect(result.error.toString(), contains('Circuit breaker open'));
@@ -164,7 +153,7 @@ void main() {
 
       final result = await client.query<String>('test', (text, _) => text);
       expect(result.isSuccess, isTrue);
-      // First model failed (quota), second model succeeded
+
       expect(callCount, 2);
     });
   });

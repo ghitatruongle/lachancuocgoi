@@ -19,7 +19,6 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  /// Prevents showing the permission dialog more than once per app session.
   bool _hasCheckedPermissions = false;
 
   @override
@@ -34,9 +33,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (_hasCheckedPermissions) return;
     _hasCheckedPermissions = true;
 
-    // Bug #7 fix: only auto-show permission dialog on Android/iOS where native
-    // permissions are relevant. On Web/Desktop, permission_handler may throw
-    // MissingPluginException and the dialog shows confusing states.
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.android &&
             defaultTargetPlatform != TargetPlatform.iOS)) {
@@ -98,7 +94,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                     const SizedBox(height: AppSpacing.sm),
                   ],
 
-                  // ── Hero card ──
                   Semantics(
                     label: l10n.appInfoSemantic,
                     child: Card(
@@ -147,7 +142,6 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                   const Spacer(flex: 2),
 
-                  // ── Info card ──
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.sm,
@@ -176,7 +170,6 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                   const SizedBox(height: AppSpacing.sm),
 
-                  // ── Start monitoring button ──
                   SizedBox(
                     width: double.infinity,
                     height: 56,
@@ -184,8 +177,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                       button: true,
                       label: l10n.startMonitoringSemantic,
                       child: ElevatedButton(
-                        // Demo platforms: allow open monitoring (scripted STT).
-                        // Android: require microphone.
                         onPressed:
                             PlatformCapabilities.current.isDemoMode ||
                                 permissionState.snapshot.recordAudio
@@ -217,11 +208,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                   ),
 
-                  // Bug #4 fix: show a warning when recordAudio is granted
-                  // (button enabled) but other critical permissions are still
-                  // missing. Previously the user would enter monitoring with
-                  // no feedback that overlay alerts, accessibility transcription,
-                  // or call-screening auto-start would be non-functional.
                   if (permissionState.snapshot.recordAudio &&
                       (!permissionState.snapshot.overlay ||
                           !permissionState.snapshot.accessibility ||
@@ -249,7 +235,6 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                   const SizedBox(height: AppSpacing.sm),
 
-                  // ── Two sub-buttons row ──
                   Row(
                     children: [
                       Expanded(
@@ -276,7 +261,6 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                   const SizedBox(height: AppSpacing.xs),
 
-                  // ── Tips lesson button ──
                   Semantics(
                     button: true,
                     label: l10n.antiScamTips,

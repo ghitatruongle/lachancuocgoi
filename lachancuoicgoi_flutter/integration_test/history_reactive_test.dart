@@ -42,8 +42,7 @@ void main() {
 
     Future<void> bootHistory(WidgetTester tester) async {
       await tester.pumpWidget(harness.widget);
-      // Bounded pumps so the RefreshIndicator's overscroll physics
-      // doesn't keep the test waiting forever.
+
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
@@ -129,7 +128,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(searchField, 'red');
       await tester.pumpAndSettle();
-      // Wait for 300ms debounce + async SQLite query to complete.
+
       await Future<void>.delayed(const Duration(milliseconds: 1000));
       await tester.pumpAndSettle();
 

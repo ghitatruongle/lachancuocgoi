@@ -27,9 +27,7 @@ void main() {
       'Start → transcript arrives → analysis runs → end → history row',
       (tester) async {
         await tester.pumpWidget(harness.widget);
-        // A few pumps are enough to flush post-frame callbacks; we
-        // deliberately avoid pumpAndSettle because the controller's
-        // 1s elapsed-time timer keeps frames scheduled forever.
+
         for (var i = 0; i < 5; i++) {
           await tester.pump(const Duration(milliseconds: 50));
         }
@@ -54,9 +52,8 @@ void main() {
           await tester.pump(const Duration(milliseconds: 50));
         }
 
-        // Wait for the 1200ms analysis debounce + analysis run.
         await tester.pump(const Duration(milliseconds: 1500));
-        // Process async analysis completions.
+
         for (var i = 0; i < 5; i++) {
           await tester.pump(const Duration(milliseconds: 100));
         }
@@ -64,7 +61,7 @@ void main() {
         const finalTranscript = 'Chuyển khoản 50 triệu để xác minh';
         bridge.sendMonitoringState('STOPPED:12:$finalTranscript');
         await tester.pump();
-        // Allow endSession() to run and navigation intent to propagate.
+
         for (var i = 0; i < 10; i++) {
           await tester.pump(const Duration(milliseconds: 200));
         }
@@ -123,7 +120,6 @@ void main() {
 
       bridge.setMonitoringActive(active: false);
 
-      // Give initAfterFrame() time to call startMonitoring once.
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 200));
       }
@@ -136,7 +132,6 @@ void main() {
 
       bridge.setMonitoringActive(active: false);
 
-      // Advance 61s so the health check timer fires once.
       await tester.pump(const Duration(seconds: 61));
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 100));

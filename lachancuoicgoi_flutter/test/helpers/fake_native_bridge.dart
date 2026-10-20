@@ -2,11 +2,6 @@ import 'dart:async';
 
 import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
 
-/// A fake implementation of [NativeBridgeInterface] for widget tests.
-///
-/// Provides controllable streams that don't depend on platform EventChannels.
-/// Use this in tests instead of `NativeCallShieldBridge.instance` to avoid
-/// EventChannel hangs.
 class FakeNativeBridge implements NativeBridgeInterface {
   FakeNativeBridge();
 
@@ -17,7 +12,6 @@ class FakeNativeBridge implements NativeBridgeInterface {
   final _callEventController = StreamController<NativeCallEvent>.broadcast();
   final _logsController = StreamController<String>.broadcast();
 
-  // Track calls for verification
   int startMonitoringCalls = 0;
   int stopMonitoringCalls = 0;
   int showRedAlertCalls = 0;
@@ -44,8 +38,6 @@ class FakeNativeBridge implements NativeBridgeInterface {
   @override
   Stream<String> get logsStream => _logsController.stream;
 
-  // ── Helpers to emit events in tests ──────────────────────────────────
-
   void emitTranscript(String text) =>
       _transcriptController.add(TranscriptUpdate(text: text, isPartial: false));
   void emitPartialTranscript(String text) =>
@@ -57,8 +49,6 @@ class FakeNativeBridge implements NativeBridgeInterface {
       _monitoringStateController.add((state, null, null));
   void emitCallEvent(NativeCallEvent event) => _callEventController.add(event);
   void emitLog(String logLine) => _logsController.add(logLine);
-
-  // ── MethodChannel stubs ──────────────────────────────────────────────
 
   @override
   Future<bool> startMonitoring({
@@ -144,13 +134,11 @@ class FakeNativeBridge implements NativeBridgeInterface {
     dismissIncomingCallOverlayCalls++;
   }
 
-  // Phase 2 (P2-4): Call screening opt-in stubs.
   @override
   Future<void> setCallScreeningBlockEnabled(bool enabled) async {}
   @override
   Future<void> setBlockedNumbers(List<String> numbers) async {}
 
-  /// Dispose all stream controllers. Call in tearDown.
   void dispose() {
     _transcriptController.close();
     _rmsController.close();

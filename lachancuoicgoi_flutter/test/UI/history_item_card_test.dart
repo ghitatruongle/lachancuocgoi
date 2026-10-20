@@ -46,7 +46,6 @@ void main() {
         ),
       );
 
-      // Risk level badge shows Vietnamese name
       expect(find.text('Nguy hiểm'), findsOneWidget);
     });
 
@@ -171,7 +170,6 @@ void main() {
         ),
       );
 
-      // The 4px wide risk color bar container exists
       final containers = find.byType(Container);
       expect(containers, findsWidgets);
     });

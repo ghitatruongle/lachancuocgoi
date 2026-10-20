@@ -186,7 +186,6 @@ void main() {
 
     group('high confidence (>= 0.85)', () {
       test('returns base risk level', () {
-        // Red intent with high confidence → red
         expect(
           ScamIntent.authPoliceLawsuit.riskLevelForConfidence(0.85),
           RiskLevel.red,
@@ -196,13 +195,11 @@ void main() {
           RiskLevel.red,
         );
 
-        // Orange intent with high confidence → orange
         expect(
           ScamIntent.investmentScam.riskLevelForConfidence(0.90),
           RiskLevel.orange,
         );
 
-        // Yellow intent with high confidence → yellow
         expect(
           ScamIntent.charityDonation.riskLevelForConfidence(0.85),
           RiskLevel.yellow,
@@ -212,19 +209,16 @@ void main() {
 
     group('medium-high confidence (>= 0.70 and < 0.85)', () {
       test('returns base risk level (no de-escalation)', () {
-        // Red intent at 0.75 confidence → still red
         expect(
           ScamIntent.authPoliceLawsuit.riskLevelForConfidence(0.75),
           RiskLevel.red,
         );
 
-        // Orange intent at 0.70 confidence → still orange
         expect(
           ScamIntent.investmentScam.riskLevelForConfidence(0.70),
           RiskLevel.orange,
         );
 
-        // Yellow intent at 0.70 confidence → still yellow
         expect(
           ScamIntent.charityDonation.riskLevelForConfidence(0.70),
           RiskLevel.yellow,
@@ -234,7 +228,6 @@ void main() {
 
     group('medium confidence (>= 0.50 and < 0.70)', () {
       test('de-escalates once from base risk level', () {
-        // Red → orange
         expect(
           ScamIntent.authPoliceLawsuit.riskLevelForConfidence(0.50),
           RiskLevel.orange,
@@ -244,13 +237,11 @@ void main() {
           RiskLevel.orange,
         );
 
-        // Orange → yellow
         expect(
           ScamIntent.investmentScam.riskLevelForConfidence(0.50),
           RiskLevel.yellow,
         );
 
-        // Yellow → green
         expect(
           ScamIntent.charityDonation.riskLevelForConfidence(0.55),
           RiskLevel.green,
@@ -260,21 +251,16 @@ void main() {
 
     group('low confidence (< 0.50)', () {
       test('de-escalates twice from base risk level, minimum yellow', () {
-        // Red → orange → yellow (twice de-escalated, clamped at yellow)
         expect(
           ScamIntent.authPoliceLawsuit.riskLevelForConfidence(0.30),
           RiskLevel.yellow,
         );
 
-        // Orange → yellow → green, but green.index < yellow.index
-        // so it clamps to yellow
         expect(
           ScamIntent.investmentScam.riskLevelForConfidence(0.30),
           RiskLevel.yellow,
         );
 
-        // Yellow → green → green, but green.index < yellow.index
-        // so it clamps to yellow
         expect(
           ScamIntent.charityDonation.riskLevelForConfidence(0.30),
           RiskLevel.yellow,
@@ -282,7 +268,6 @@ void main() {
       });
 
       test('returns at least yellow for any non-safe intent', () {
-        // Test every non-safe intent at 0.0 confidence.
         for (final intent in ScamIntent.values) {
           if (intent == ScamIntent.safe) continue;
           final level = intent.riskLevelForConfidence(0.0);

@@ -36,7 +36,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Empty list => SizedBox.shrink
       expect(find.byType(Card), findsNothing);
       expect(find.textContaining('LỊCH SỬ CẢNH BÁO'), findsNothing);
     });
@@ -67,7 +66,6 @@ void main() {
       await tester.pumpWidget(wrap(AlertHistorySection(alertHistory: [entry])));
       await tester.pumpAndSettle();
 
-      // RED risk level shows red circle emoji
       expect(find.textContaining('🔴'), findsOneWidget);
     });
 
@@ -95,7 +93,6 @@ void main() {
       await tester.pumpWidget(wrap(AlertHistorySection(alertHistory: entries)));
       await tester.pumpAndSettle();
 
-      // Entries are shown in reverse order
       expect(find.text('First alert'), findsOneWidget);
       expect(find.text('Second alert'), findsOneWidget);
     });

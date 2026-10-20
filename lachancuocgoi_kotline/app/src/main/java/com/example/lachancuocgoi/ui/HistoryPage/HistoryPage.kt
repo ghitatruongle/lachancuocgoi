@@ -124,7 +124,7 @@ fun HistoryPage(
         }
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues).padding(horizontal = 16.dp)) {
-            // Cập nhật thanh tìm kiếm chuyên nghiệp hơn
+
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.updateSearchQuery(it) },
@@ -186,7 +186,7 @@ fun HistoryPage(
                                 if (direction == SwipeToDismissBoxValue.EndToStart) {
                                     itemToDelete = item
                                 }
-                                false // Do not dismiss automatically
+                                false
                             }
                         )
 

@@ -4,17 +4,9 @@ import com.example.lachancuocgoi.Analysis.KeywordMatch
 import android.util.Log
 import kotlin.math.min
 
-/**
- * [B3 UPGRADE] Engine tìm kiếm mẫu câu trong văn bản đã token hóa.
- * [FIX] Pattern keyword được normalize qua GFlash trước khi so khớp với tokens.
- */
 object GPatternMatcher {
     private const val TAG = "GPatternMatcher"
 
-    /**
-     * Cache normalized keywords để tránh re-tokenize mỗi lần call.
-     * Key = raw keyword string, Value = first token (hoặc joined tokens).
-     */
     private val normalizedKeywordCache = mutableMapOf<String, String>()
 
     private fun normalizeKeyword(raw: String): String {
@@ -23,10 +15,6 @@ object GPatternMatcher {
         }
     }
 
-    /**
-     * Tìm kiếm các mẫu câu trong văn bản.
-     * keywordMatches: Set các keyword L2 đã tìm thấy trong transcript (với index)
-     */
     fun matchPatterns(
         tokens: List<String>,
         patterns: List<ScamPattern>,
@@ -34,7 +22,6 @@ object GPatternMatcher {
     ): List<MatchedPattern> {
         val results = mutableListOf<MatchedPattern>()
 
-        // Build map for efficient lookup: Index -> List<KeywordMatch> starting at this index
         val matchesByIndex = keywordMatches.groupBy { it.startIndex }
 
         patterns.forEach { pattern ->
@@ -95,7 +82,7 @@ object GPatternMatcher {
                 if (matchRemainingSequence(nextIndex, patternIndex + 1, tokens, pattern, matchesByIndex, capturedElements)) {
                     return true
                 }
-                capturedElements.removeAt(capturedElements.lastIndex) // Backtrack
+                capturedElements.removeAt(capturedElements.lastIndex)
             }
         }
 
@@ -112,21 +99,14 @@ object GPatternMatcher {
 
         return when (element) {
             is PatternElement.Keyword -> {
-                // [FIX - Critical] Normalize the pattern keyword via GFlash before comparing.
-                // tokens[] are already normalized (lowercase, no diacritics, slang-replaced).
-                // Previously element.value was raw Vietnamese → never matched normalized tokens.
-                // Now we normalize the keyword to match, and also try single-token prefix match
-                // for multi-word keywords stored as a single phrase.
+
                 val normalizedSingle = normalizeKeyword(element.value)
-                // normalizedSingle may be multi-word (e.g. "chuyen tien"), but tokens[index]
-                // is a single token. So we only match if normalizedSingle is exactly one token.
+
                 val normalizedTokens = normalizedSingle.split(" ").filter { it.isNotBlank() }
                 if (normalizedTokens.size == 1) {
                     tokens[index] == normalizedTokens[0]
                 } else {
-                    // Multi-word keyword: match the first token here; remaining tokens will be
-                    // matched via sequential wildcard steps added by GDetectionEngine at load time.
-                    // For now fall back to prefix-match of the first token.
+
                     tokens[index] == (normalizedTokens.firstOrNull() ?: "")
                 }
             }

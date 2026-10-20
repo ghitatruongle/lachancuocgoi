@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../analysis/analysis_mode.dart';
 import '../../theme/app_theme.dart';
 
-/// Analysis mode selection card (normal / gDetection / gemini / parallel).
 class AnalysisSection extends StatelessWidget {
   const AnalysisSection({
     super.key,

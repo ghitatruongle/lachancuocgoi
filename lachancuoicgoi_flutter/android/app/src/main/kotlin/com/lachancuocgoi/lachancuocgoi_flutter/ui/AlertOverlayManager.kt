@@ -29,9 +29,6 @@ import com.lachancuocgoi.lachancuocgoi_flutter.R
 
 object AlertOverlayManager {
 
-    // Bug #11, #12 fix: use OverlayWindow helper for view lifecycle + use
-    // MediaPlayer guarded with try/finally to ensure release() runs even if
-    // prepare() throws.
     private val overlayWindow = OverlayWindow()
 
     private var alarmPlayer: MediaPlayer? = null
@@ -62,7 +59,6 @@ object AlertOverlayManager {
             gravity = Gravity.CENTER
             setPadding(dpToPx(context, 24), dpToPx(context, 24), dpToPx(context, 24), dpToPx(context, 24))
 
-            // Slide down animation setup
             translationY = -200f
             alpha = 0f
 
@@ -135,10 +131,6 @@ object AlertOverlayManager {
             ))
         }
 
-        // Bug #11, #12 fix: route through OverlayWindow helper which handles
-        // addView failures and the weak reference. On attach failure we
-        // explicitly stop the alarm sound (Bug #12 fix) to avoid the audio
-        // playing without a visible overlay.
         val attached = overlayWindow.attachOverlay(
             context,
             rootLayout,
@@ -155,7 +147,6 @@ object AlertOverlayManager {
             return
         }
 
-        // Animation
         ObjectAnimator.ofFloat(rootLayout, "translationY", 0f).apply {
             duration = 300
             interpolator = DecelerateInterpolator()
@@ -220,11 +211,6 @@ object AlertOverlayManager {
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             ?: return
 
-        // Bug #12 fix: wrap MediaPlayer construction + setDataSource + prepare
-        // in try/finally so `release()` runs even if `prepare()` throws
-        // (which can happen on devices where the alarm URI is invalid or
-        // the codec fails). Previously the catch block set alarmPlayer=null
-        // but the partially-constructed MediaPlayer leaked.
         val player = try {
             MediaPlayer().apply {
                 setAudioAttributes(
@@ -244,8 +230,6 @@ object AlertOverlayManager {
         }
         if (player == null) return
 
-        // Set the field BEFORE start() so any racing stopAlarmSound() call
-        // sees the player and can release it.
         alarmPlayer = player
         try {
             player.start()
@@ -261,10 +245,10 @@ object AlertOverlayManager {
         if (player == null) return
         try {
             if (player.isPlaying) player.stop()
-        } catch (_: Exception) { /* ignore */ }
+        } catch (_: Exception) {  }
         try {
             player.release()
-        } catch (_: Exception) { /* ignore */ }
+        } catch (_: Exception) {  }
     }
 
     private fun getVibrator(context: Context): Vibrator? {
@@ -277,3 +261,4 @@ object AlertOverlayManager {
         }
     }
 }
+

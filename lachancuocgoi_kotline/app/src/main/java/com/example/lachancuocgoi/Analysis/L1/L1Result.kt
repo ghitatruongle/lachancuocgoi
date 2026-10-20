@@ -16,9 +16,6 @@ object L1ResultParser {
         "mật khẩu otp", "xác minh otp", "gửi mã", "nhận mã"
     )
 
-    /**
-     * Kiểm tra xem có chứa keyword nguy hiểm cần RED ngay lập tức
-     */
     private fun containsCriticalKeyword(matches: Set<KeywordMatch>): Boolean {
         return matches.any { match ->
             CRITICAL_KEYWORDS.any { critical ->
@@ -27,13 +24,6 @@ object L1ResultParser {
         }
     }
 
-    /**
-     * P1 Weighted Scoring: score = max_level_ordinal × count_weight per category.
-     * count_weight: 1 kw → 0.30 | 2 kw → 0.65 | 3 kw → 0.85 | 4+ kw → 1.00
-     * Threshold: best_score < 1.00 → YELLOW | 1.00–1.99 → ORANGE | ≥ 2.00 → RED
-     * Single Lv3 kw = 0.90 → YELLOW (reduces FP for common words like "tài khoản")
-     * CRITICAL: Nếu chứa OTP/verification keywords → AUTO RED
-     */
     fun parse(matches: Set<KeywordMatch>, totalTokens: Int = 0): AnalysisResult {
         Log.d(TAG, "Parsing matches: $matches")
 
@@ -44,7 +34,7 @@ object L1ResultParser {
                 reason = "Không tìm thấy từ khóa rủi ro.",
                 analysisLevel = AnalysisLevel.L1,
                 alertEnabled = false,
-                confidence = 0.9f  // GREEN khi không có match = rất tự tin
+                confidence = 0.9f
             )
             Log.d(TAG, "No matches found, returning: $result")
             return result
@@ -52,16 +42,10 @@ object L1ResultParser {
 
         val matchedKeywords = matches.toList()
 
-        // Nhóm theo category để tính weighted score
         val categoryGroups = matches.groupBy { it.category }
 
-        // Category có >= 2 keywords = significant (đáng tin cậy hơn)
         val significantCategories = categoryGroups.filter { it.value.size >= 2 }
 
-        // P1: Weighted scoring per category
-        // score = max_level_ordinal * count_weight
-        // count_weight: 1 kw → 0.30, 2 kw → 0.65, 3 kw → 0.85, 4+ kw → 1.00
-        // Ngưỡng: score < 0.70 → YELLOW | 0.70–1.95 → ORANGE | ≥ 2.00 → RED
         data class CatScore(val score: Float, val count: Int, val maxLevel: Int)
         val catScores = categoryGroups.mapValues { (_, kws) ->
             val maxLevel = kws.maxOf { it.level.ordinal }
@@ -80,9 +64,9 @@ object L1ResultParser {
 
         val adjustedRiskLevel = when {
             hasCriticalKeyword -> RiskLevel.RED
-            bestScore < 1.00f -> RiskLevel.YELLOW   // 1 kw bất kỳ level
-            bestScore < 2.00f -> RiskLevel.ORANGE   // 2 kw Lv3, hoặc 3 kw Lv2
-            else              -> RiskLevel.RED       // 3+ kw Lv3, hoặc 4+ kw bất kỳ
+            bestScore < 1.00f -> RiskLevel.YELLOW
+            bestScore < 2.00f -> RiskLevel.ORANGE
+            else              -> RiskLevel.RED
         }
 
         val reason = buildString {
@@ -102,7 +86,6 @@ object L1ResultParser {
             }
         }
 
-        // Tính confidence: dựa trên co-occurrence + proportion
         val confidence = calculateConfidence(matches.size, significantCategories.size, totalTokens)
 
         val result = AnalysisResult(
@@ -118,19 +101,13 @@ object L1ResultParser {
         return result
     }
 
-    /**
-     * Tính confidence cho L1:
-     * - Nhiều matches + significant categories → cao
-     * - Ít matches, không có significant → thấp hơn
-     * - Proportion của matches trong tổng tokens cũng ảnh hưởng
-     */
     private fun calculateConfidence(matchCount: Int, significantCategoryCount: Int, totalTokens: Int): Float {
-        var conf = 0.3f  // Base: có ít nhất 1 match
-        // Bonus cho số lượng matches (diminishing returns)
+        var conf = 0.3f
+
         conf += minOf(matchCount * 0.1f, 0.3f)
-        // Bonus cho significant categories (co-occurrence)
+
         conf += minOf(significantCategoryCount * 0.15f, 0.3f)
-        // Bonus cho proportion (nếu match chiếm tỷ lệ cao trong text)
+
         if (totalTokens > 0) {
             val proportion = matchCount.toFloat() / totalTokens
             conf += minOf(proportion, 0.1f)

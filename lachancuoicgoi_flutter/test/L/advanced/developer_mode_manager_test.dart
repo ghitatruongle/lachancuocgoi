@@ -10,8 +10,6 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Provider reads SharedPreferences asynchronously in build();
-      // after a microtask tick, the async _restore() completes.
       await Future<void>.delayed(Duration.zero);
 
       final state = container.read(developerModeProvider);
@@ -38,15 +36,15 @@ void main() {
 
     testWidgets('tap counter resets after timeout (2000ms)', (tester) async {
       final controller = DeveloperModeController();
-      // Tap 5 times
+
       for (var i = 0; i < 5; i++) {
         controller.onTitleTap();
       }
-      // Wait past timeout
+
       await tester.pump(const Duration(milliseconds: 2100));
-      // Next tap should reset counter (since timeout passed)
+
       expect(controller.onTitleTap(), DeveloperTapResult.nothing);
-      // Tapping 8 more times + 1 final = 10 total (to trigger showPassword)
+
       for (var i = 0; i < 8; i++) {
         controller.onTitleTap();
       }
@@ -119,15 +117,13 @@ void main() {
       final controller = container.read(developerModeProvider.notifier);
       await controller.activate();
 
-      // First deactivate tap
       expect(controller.onTitleTap(), DeveloperTapResult.nothing);
-      // Second
+
       expect(controller.onTitleTap(), DeveloperTapResult.nothing);
-      // Third should trigger deactivation
+
       final thirdResult = controller.onTitleTap();
       expect(thirdResult, DeveloperTapResult.deactivated);
 
-      // deactivate() now updates state synchronously before async persistence
       final state = container.read(developerModeProvider);
       expect(state.isActive, isFalse);
     });
@@ -140,16 +136,15 @@ void main() {
       final controller = container.read(developerModeProvider.notifier);
       await controller.activate();
 
-      // Tap twice
       controller.onTitleTap();
       controller.onTitleTap();
-      // Wait past timeout
+
       await tester.pump(const Duration(milliseconds: 2100));
-      // Next tap should reset counter
+
       expect(controller.onTitleTap(), DeveloperTapResult.nothing);
-      // One more
+
       expect(controller.onTitleTap(), DeveloperTapResult.nothing);
-      // Third
+
       expect(controller.onTitleTap(), DeveloperTapResult.deactivated);
     });
   });
@@ -176,11 +171,8 @@ void main() {
       final afterActivation = DateTime.now().millisecondsSinceEpoch;
 
       final state = container.read(developerModeProvider);
-      // Expiry should be activation + 10 minutes
-      expect(
-        state.expiresAtEpochMs,
-        greaterThan(beforeActivation + 599_000),
-      ); // ~10 min in ms
+
+      expect(state.expiresAtEpochMs, greaterThan(beforeActivation + 599_000));
       expect(state.expiresAtEpochMs, lessThan(afterActivation + 601_000));
     });
   });

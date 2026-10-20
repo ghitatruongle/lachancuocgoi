@@ -7,8 +7,6 @@ import 'package:lachancuocgoi_flutter/analysis/analysis_mode.dart';
 import 'package:lachancuocgoi_flutter/services/developer_mode_manager.dart';
 import 'package:lachancuocgoi_flutter/ui/widgets/app_action_buttons.dart';
 
-/// Fake settings controller for testing SettingsActionButton (which opens
-/// SettingsDialog, a ConsumerStatefulWidget).
 class _FakeSettingsController extends Notifier<SettingsState>
     implements SettingsController {
   @override
@@ -34,7 +32,6 @@ class _FakeSettingsController extends Notifier<SettingsState>
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// Fake dev mode controller.
 class _FakeDevModeController extends Notifier<DeveloperModeState>
     implements DeveloperModeController {
   @override

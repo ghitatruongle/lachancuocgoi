@@ -28,14 +28,12 @@ void main() {
       cache.put('b', 2);
       cache.put('c', 3);
 
-      // Access 'a' to promote it to MRU
       expect(cache.get('a'), 1);
 
-      // Now insert 'd' (capacity exceeded). 'b' is the LRU and should be evicted.
       cache.put('d', 4);
 
-      expect(cache.get('b'), isNull); // Evicted
-      expect(cache.get('a'), 1); // Still here (MRU)
+      expect(cache.get('b'), isNull);
+      expect(cache.get('a'), 1);
       expect(cache.get('c'), 3);
       expect(cache.get('d'), 4);
     });
@@ -46,13 +44,11 @@ void main() {
       cache.put('b', 2);
       cache.put('c', 3);
 
-      // check containsKey for 'a' (does not promote it)
       expect(cache.containsKey('a'), isTrue);
 
-      // insert 'd', 'a' is still the LRU and should be evicted
       cache.put('d', 4);
 
-      expect(cache.containsKey('a'), isFalse); // Evicted!
+      expect(cache.containsKey('a'), isFalse);
       expect(cache.containsKey('b'), isTrue);
     });
 
@@ -85,13 +81,12 @@ void main() {
         });
 
         expect(result, 1);
-        expect(callCount, 0); // Not called
+        expect(callCount, 0);
 
-        // insert 'd', 'b' should be evicted because 'a' was promoted
         cache.put('d', 4);
 
-        expect(cache.get('b'), isNull); // Evicted
-        expect(cache.get('a'), 1); // Kept
+        expect(cache.get('b'), isNull);
+        expect(cache.get('a'), 1);
       },
     );
 
@@ -121,10 +116,8 @@ void main() {
       cache.put('b', 2);
       cache.put('c', 3);
 
-      // Access 'a' to make it MRU
       cache.get('a');
 
-      // Order should be 'b', 'c', 'a'
       final order = cache.entries.map((e) => e.key).toList();
       expect(order, ['b', 'c', 'a']);
     });
@@ -136,8 +129,6 @@ void main() {
     });
     group('evicting multiple when capacity exceeded drastically', () {
       test('reduces size to maxSize', () {
-        // In practice _evictIfNeeded is called after every put, so it never exceeds by more than 1.
-        // But if someone manually modifies the internal map, it should evict until maxSize.
         final cache = LruCache<String, int>(maxSize: 2);
         cache.put('a', 1);
         cache.put('b', 2);

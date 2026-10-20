@@ -40,7 +40,6 @@ void main() {
 
   group('OnboardingPage', () {
     Future<void> finishRationalePager(WidgetTester tester) async {
-      // v1.6.5: onboarding starts with multi-step rationales (5 steps).
       for (var i = 0; i < 6; i++) {
         final next = find.text('Tiếp');
         final done = find.text('Xong');
@@ -107,16 +106,13 @@ void main() {
     });
 
     testWidgets('shows missing permission names in checklist', (tester) async {
-      // All permissions false by default → all should appear in the list.
       SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(wrapOnboarding());
       await tester.pumpAndSettle();
       await finishRationalePager(tester);
 
-      // Section card header
       expect(find.text('Danh sách quyền cần thiết:'), findsOneWidget);
 
-      // Some expected missing permission names
       expect(find.text('Ghi âm'), findsOneWidget);
       expect(find.text('Trạng thái cuộc gọi'), findsOneWidget);
       expect(find.text('Lịch sử cuộc gọi'), findsOneWidget);
@@ -130,7 +126,6 @@ void main() {
       await tester.pumpAndSettle();
       await finishRationalePager(tester);
 
-      // Default snapshot: 0/8 granted
       expect(find.text('0/8 quyền đã cấp'), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
     });
@@ -156,7 +151,7 @@ void main() {
 
     testWidgets('continues when core permissions are granted', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      // Grant both required capability groups; call screening remains optional.
+
       await tester.pumpWidget(
         wrapOnboarding(
           snapshot: const PermissionSnapshot(
@@ -167,7 +162,6 @@ void main() {
             overlay: true,
             notification: true,
             accessibility: true,
-            // callScreening left false
           ),
         ),
       );
@@ -180,7 +174,7 @@ void main() {
 
     testWidgets('skip button marks onboarding as completed', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      // Use a tall viewport so the skip button is visible (default 600 is too short).
+
       tester.view.physicalSize = const Size(400, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -205,7 +199,6 @@ void main() {
         await tester.pumpAndSettle();
         await finishRationalePager(tester);
 
-        // No BackButton should be rendered
         expect(find.byType(BackButton), findsNothing);
       },
     );

@@ -97,7 +97,6 @@ void main() {
         ),
       );
 
-      // Button is disabled so tap won't fire.
       final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
       expect(button.onPressed, isNull);
     });
@@ -138,7 +137,6 @@ void main() {
         ),
       );
 
-      // No wrapping SizedBox with width: double.infinity.
       final sizedBoxes = tester.widgetList<SizedBox>(
         find.ancestor(
           of: find.byType(ElevatedButton),

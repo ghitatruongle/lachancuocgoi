@@ -29,19 +29,11 @@ class L2Analyzer(
 
     override val level = AnalysisLevel.L2
 
-    // WFSA Engine cho nhận diện kịch bản lừa đảo theo ngữ cảnh độc lập
     private val wfsaEngine = WfsaEngine(ScamGraphBuilder.buildDefaultGraphs())
 
-    // Session state tự quản lý
     private var processedTextLength = 0
     private var lastResult: AnalysisResult = AnalysisResult(RiskLevel.GREEN, emptyList(), analysisLevel = AnalysisLevel.L2)
 
-    /**
-     * Khởi tạo các engine của L2
-     */
-    /**
-     * (SỬA BUG 4) Giờ là suspend function để đợi GDetectionEngine.initialize() hoàn tất.
-     */
     override suspend fun initialize() {
         gDetectionEngine.initialize()
         intentClassifier.initialize()
@@ -82,10 +74,6 @@ class L2Analyzer(
         }
     }
 
-    /**
-     * (SỬA BUG 3) Reset tất cả trạng thái phiên, bao gồm cả cờ tắt Luồng 1.
-     * Trước đây isLuong1Disabled không được reset → AI bị tắt vĩnh viễn sau 1 lần lỗi.
-     */
     override fun resetSession() {
         wfsaEngine.resetSession()
         processedTextLength = 0
@@ -100,9 +88,6 @@ class L2Analyzer(
 
     override fun getLastResult(): AnalysisResult = lastResult
 
-    /**
-     * Sealed class thay thế magic string "10101_TRIGGERED" — Type-safe Luồng 1 result.
-     */
     private sealed class Luong1Result {
         data class Success(
             val prediction: IntentPrediction,
@@ -118,7 +103,6 @@ class L2Analyzer(
             return@coroutineScope emptyResult
         }
 
-        // LUỒNG 1: DÙNG AI (MobileBERT)
         val luong1Deferred = async(Dispatchers.Default) {
              if (!intentClassifier.isReady()) {
                  Luong1Result.Fallback
@@ -136,42 +120,36 @@ class L2Analyzer(
                  val isAiConfident = topIntent != null &&
                      topIntent.confidence >= AI_ASSIST_CONFIDENCE &&
                      confidenceMargin >= AI_ASSIST_MARGIN
-                 
+
                  if (isAiConfident) {
                      Luong1Result.Success(topIntent!!, confidenceMargin)
                  } else {
                      Luong1Result.Fallback
                  }
              } catch (e: Exception) {
-                 // Lỗi tạm thời (vd: OOM), vẫn tiếp tục sử dụng luồng 2 và thử lại AI vào lượt sau
+
                  Luong1Result.Fallback
              }
         }
 
-        // LUỒNG 2: DÙNG GDetection & WFSA
-        // GDetection chạy song song với Luồng 1 (không phụ thuộc BERT)
         val gDetectionDeferred = async(Dispatchers.Default) {
             gDetectionEngine.performFullAnalysis(fullText)
         }
 
-        // Chờ cả 2 kết quả
         val luong1Result = luong1Deferred.await()
         val gResult = gDetectionDeferred.await()
-        
-        // Trích xuất intent predictions từ Luồng 1 để truyền cho WFSA
+
         val intentForWfsa = when (luong1Result) {
             is Luong1Result.Success -> listOf(luong1Result.prediction)
             is Luong1Result.Fallback -> emptyList()
         }
 
-        // WFSA + SafetyFilter chạy sau khi có cả GDetection result và BERT intent
         val parsedGDetectionResult = L2ResultParser.parse(gResult)
 
-        // FIX: Giờ WFSA nhận được BERT predictions thực tế thay vì luôn emptyList()
         var wfsaScore = wfsaEngine.analyzeSegment(incrementalText, intentForWfsa)
         val safetyDiscount = SafetyFilter.calculateSafetyDiscount(fullText)
         wfsaScore *= safetyDiscount
-        
+
         val wfsaRiskLevel = when {
             wfsaScore >= 50.0 -> RiskLevel.RED
             wfsaScore >= 20.0 -> RiskLevel.YELLOW
@@ -190,7 +168,7 @@ class L2Analyzer(
 
         val finalRiskLevel: RiskLevel
         val finalReason: String?
-        
+
         if (wfsaRiskLevel > gDetectionRiskLevel) {
             finalRiskLevel = wfsaRiskLevel
             finalReason = if (wfsaScore >= 50.0) "Cảnh báo L2 nghiêm trọng (Theo ngữ cảnh)" else "Cảnh báo L2: Có phát hiện dấu hiệu lừa đảo"
@@ -198,7 +176,7 @@ class L2Analyzer(
             finalRiskLevel = gDetectionRiskLevel
             finalReason = parsedGDetectionResult.reason
         }
-        
+
         val result2 = AnalysisResult(
             overallRiskLevel = finalRiskLevel,
             matches = parsedGDetectionResult.matches,
@@ -209,7 +187,7 @@ class L2Analyzer(
 
         when (luong1Result) {
             is Luong1Result.Success -> {
-                // Luồng 1 (AI) thành công
+
                 val topIntent = luong1Result.prediction
                 val intentLabel = topIntent.intent.getDisplayName()
                 val intentRisk = topIntent.intent.getRiskLevel(topIntent.confidence)
@@ -221,15 +199,13 @@ class L2Analyzer(
                     result2.overallRiskLevel >= RiskLevel.YELLOW &&
                     topIntent.confidence >= AI_ASSIST_CONFIDENCE &&
                     luong1Result.confidenceMargin >= AI_ASSIST_MARGIN
-                
+
                 val matches = mutableListOf(KeywordMatch(
                     keyword = intentLabel,
                     level = intentRisk,
                     category = "Luồng 1 (AI) Độ tin cậy: ${(topIntent.confidence * 100).toInt()}% | Margin: ${(luong1Result.confidenceMargin * 100).toInt()}%"
                 ))
 
-                // [A3] CROSS-VALIDATION: Nếu AI nói SAFE nhưng GDetection phát hiện RED
-                // hoặc confirmed scam topic → KHÔNG tin AI blind, dùng kết quả GDetection
                 val gDetectionOverride = isSafeIntent && (
                     result2.overallRiskLevel >= RiskLevel.RED ||
                     result2.matches.any { it.category == "Chủ đề Lừa đảo" }
@@ -252,9 +228,7 @@ class L2Analyzer(
                     lastResult = res
                     return@coroutineScope res
                 }
-                // ─── [A4] HIGH-CONFIDENCE FAST PATH ──────────────────────────────────
-                // Khi GhitaV3 trả về kết quả với độ tin cậy ≥ 80% → ưu tiên AI ngay lập tức
-                // Không cần kiểm tra margin vì 80% là ngưỡng rất cao — model chắc chắn
+
                 val isAiHighConfidence = !isSafeIntent &&
                     topIntent.confidence >= AI_HIGH_CONFIDENCE_THRESHOLD
 
@@ -282,8 +256,6 @@ class L2Analyzer(
                     lastResult = res
                     return@coroutineScope res
                 }
-
-
 
                 if (isAiDirectWinner) {
                     val res = AnalysisResult(
@@ -322,10 +294,9 @@ class L2Analyzer(
                     return@coroutineScope result2
             }
             is Luong1Result.Fallback -> {
-                // NHÁNH 2 LUÔN CHẠY KHI LUỒNG 1 LỖI HOẶC KHÔNG ĐỦ TỰ TIN
+
                 val matches = result2.matches.toMutableList()
-                
-                // [D2] Thêm WFSA active scenario info
+
                 val wfsaInfo = wfsaEngine.activeScenarioName
                 val wfsaStage = wfsaEngine.activeScenarioStage
                 val fallbackLabel = if (wfsaInfo != null && wfsaStage != null) {
@@ -350,12 +321,12 @@ class L2Analyzer(
     }
 
     companion object {
-        // Ngưỡng 1: AI ≥ 80% → ưu tiên tối cao, bỏ qua margin check
+
         private const val AI_HIGH_CONFIDENCE_THRESHOLD = 0.80f
-        // Ngưỡng 2: AI ≥ 62% và margin ≥ 15% → AI direct winner
+
         private const val AI_DIRECT_CONFIDENCE = 0.62f
         private const val AI_DIRECT_MARGIN = 0.15f
-        // Ngưỡng 3: AI ≥ 50% và margin ≥ 8% → Fuse với GDetection context
+
         private const val AI_ASSIST_CONFIDENCE = 0.5f
         private const val AI_ASSIST_MARGIN = 0.08f
     }

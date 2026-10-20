@@ -4,13 +4,6 @@ import '../../services/developer_mode_manager.dart';
 import '../../services/native_call_shield_bridge.dart';
 import 'monitoring_state.dart';
 
-// ─── Monitoring Starter ────────────────────────────────────────────────
-//
-// Handles starting the native monitoring service (creator mode or normal
-// mode) based on current settings and developer mode state.
-//
-// Extracted from [MonitoringController] to reduce class size.
-
 class MonitoringStarter {
   MonitoringStarter({
     required NativeBridgeInterface Function() getBridge,
@@ -42,8 +35,6 @@ class MonitoringStarter {
 
   Future<bool>? _startOperation;
 
-  /// Starts live monitoring if appropriate. Concurrent calls share one
-  /// operation and an already-active session is returned unchanged.
   Future<bool> startLiveMonitoringIfNeeded({required bool isDisposed}) {
     if (isDisposed) return Future.value(false);
     if (_isSimulationSession() || _hasTestAnalyzerOverride()) {
@@ -83,8 +74,6 @@ class MonitoringStarter {
     final settings = _getSettings();
     final devMode = _getDevMode();
 
-    // Re-check permissions at start time so a failed attempt can be retried
-    // after the user updates Android permissions.
     final permissionSnapshot = await bridge.getPermissionSnapshot();
     final requiredGranted =
         permissionSnapshot.recordAudio &&
@@ -167,14 +156,12 @@ class MonitoringStarter {
     );
   }
 
-  /// Moves a completed start attempt back to idle for a health-check retry.
   void resetAttempt() {
     if (_startOperation == null) {
       _updateState((s) => s.copyWith(phase: MonitoringPhase.idle));
     }
   }
 
-  /// Resets all state for a new session.
   void reset() {
     _startOperation = null;
   }

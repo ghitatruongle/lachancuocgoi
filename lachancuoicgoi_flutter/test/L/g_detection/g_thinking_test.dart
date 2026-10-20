@@ -173,8 +173,6 @@ void main() {
     });
 
     test('charity scenario with tier1 still escalates due to safety net', () {
-      // When tier1 is present + good scenario match with level >= 3,
-      // the safety net overrides the charity cap to RED.
       final result = GThinking.analyze(
         allMatchedKeywords: {
           const KeywordMatch(
@@ -193,13 +191,12 @@ void main() {
         ),
         config: const ScoringConfig(scenarioAlertThreshold: 0.6),
       );
-      // Safety net: tier1 + scenario level >= 3 → RED
+
       expect(result.riskLevel, RiskLevel.red);
       expect(result.alertEnabled, isTrue);
     });
 
     test('charity scenario without tier1 caps at yellow', () {
-      // Without any tier1 keywords, charity should cap at yellow
       final result = GThinking.analyze(
         allMatchedKeywords: {},
         topTopic: null,
@@ -237,8 +234,8 @@ void main() {
       );
       expect(result.riskScore, isNotNull);
       expect(result.riskScore!.finalScore, greaterThan(0));
-      expect(result.riskScore!.keywordScore, 1.0); // red -> 1.0
-      expect(result.riskScore!.topicScore, 1.0); // topTopic not null -> 1.0
+      expect(result.riskScore!.keywordScore, 1.0);
+      expect(result.riskScore!.topicScore, 1.0);
     });
   });
 }

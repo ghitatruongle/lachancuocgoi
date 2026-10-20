@@ -12,7 +12,6 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.lang.ref.WeakReference
 
-/** Channels that must remain available even when no FlutterActivity is visible. */
 object NativeBridgeChannels {
     const val METHOD_CHANNEL = "com.lachancuocgoi/native_bridge"
     private const val TRANSCRIPT_CHANNEL = "com.lachancuocgoi/transcript_stream"
@@ -97,7 +96,6 @@ object NativeBridgeChannels {
             })
     }
 
-    /** Installs the subset of native methods needed by headless monitoring. */
     fun installBackgroundMethodHandler(context: Context, engine: FlutterEngine) {
         val appContext = context.applicationContext
         MethodChannel(engine.dartExecutor.binaryMessenger, METHOD_CHANNEL)
@@ -178,7 +176,7 @@ object NativeBridgeChannels {
                         )
                         result.success(true)
                     }
-                    // These operations require a visible Activity/system dialog.
+
                     "startCreatorMonitoring",
                     "requestCallScreeningRole",
                     "requestPhoneAndCallLogPermissions",
@@ -198,3 +196,4 @@ object NativeBridgeChannels {
         runCatching { context.startService(intent) }
     }
 }
+

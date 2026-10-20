@@ -7,12 +7,6 @@ import '../../analysis_result.dart';
 import 'g_flash.dart';
 import 'g_models.dart';
 
-/// Aho-Corasick trie for risk-keyword matching + topic classification.
-///
-/// Extracted from `GDetectionEngine` (Sprint 3). Owns the trie data structure,
-/// transition cache, topic map, and all keyword-extraction / topic-voting
-/// logic. The engine constructs this collaborator and delegates `build` and
-/// `extractKeywords`/`classifyTopics` to it.
 class RiskKeywordTrie {
   RiskKeywordTrie();
 
@@ -22,9 +16,6 @@ class RiskKeywordTrie {
   final Map<String, List<String>> _keywordToTopicsMap =
       <String, List<String>>{};
 
-  /// Trie transition cache: maps (nodeIdentity, token) → next node.
-  /// LRU-bounded to [maxTransitionCacheSize] entries per session to prevent
-  /// unbounded memory growth during long monitoring sessions.
   static const int maxTransitionCacheSize = 1000;
   final LruCache<int, Map<String, TrieNode>> _trieTransitionCache =
       LruCache<int, Map<String, TrieNode>>(maxSize: maxTransitionCacheSize);
@@ -34,10 +25,6 @@ class RiskKeywordTrie {
   bool get isBuilt => _isBuilt;
   bool get isEmpty => _root.children.isEmpty;
 
-  /// Builds the trie from the vocabulary JSON and the topic-map JSON.
-  /// [loadJson] must return a decoded `Map<String, Object?>` for the given
-  /// file name — the caller (engine) supplies this so the trie has no asset
-  /// dependency of its own.
   Future<void> build({
     required Future<Map<String, Object?>> Function(String fileName) loadJson,
     required String vocabularyFile,
@@ -48,41 +35,27 @@ class RiskKeywordTrie {
     _isBuilt = true;
   }
 
-  /// Walks the trie over [tokens] collecting ALL matches in a single O(n)
-  /// pass via Aho-Corasick failure/dictionary links.
-  ///
-  /// Phase 7: trước đây nested loop O(tokens × max_keyword_length) + yield mỗi
-  /// 200 tokens để tránh jank. Giờ O(n) tuyến tính → không cần yield (single
-  /// pass rất nhanh ngay cả với transcript 2000+ tokens). Matches bao gồm cả
-  /// overlapping/contained keywords nhờ dictionary-link chain walk.
   Future<Set<KeywordMatch>> extractKeywords(List<String> tokens) async {
     final matches = <KeywordMatch>{};
     var current = _root;
 
-    // Early termination: if we find enough RED-level keywords (>=3),
-    // stop scanning and return immediately.
     const earlyTermRedThreshold = 3;
     var redCount = 0;
 
     for (var i = 0; i < tokens.length; i++) {
       final token = tokens[i];
 
-      // Trie transition cache: avoid re-walking failure links for
-      // the same (state, token) pair.
-      // LRU-bounded: old entries auto-evict when cache exceeds 1000 entries.
       final nodeId = identityHashCode(current);
       var cachedTransitions = _trieTransitionCache.get(nodeId);
       if (cachedTransitions != null && cachedTransitions.containsKey(token)) {
         current = cachedTransitions[token]!;
       } else {
-        // Walk failure links to find next state.
         while (current != _root && !current.children.containsKey(token)) {
           current = current.failureLink ?? _root;
         }
         final child = current.children[token];
         current = child ?? _root;
 
-        // Cache the transition for future use.
         if (cachedTransitions == null) {
           cachedTransitions = <String, TrieNode>{};
           _trieTransitionCache.put(nodeId, cachedTransitions);
@@ -90,7 +63,6 @@ class RiskKeywordTrie {
         cachedTransitions[token] = current;
       }
 
-      // Emit all keywords ending at position i (via dictionary-link chain).
       final child = current;
       var dictNode = child.dictionaryLink;
       while (dictNode != null && dictNode.keywordData != null) {
@@ -115,7 +87,6 @@ class RiskKeywordTrie {
         dictNode = next;
       }
 
-      // Early termination: enough RED evidence found, skip remaining tokens.
       if (redCount >= earlyTermRedThreshold) {
         break;
       }
@@ -124,9 +95,6 @@ class RiskKeywordTrie {
     return matches;
   }
 
-  /// Classifies the dominant topic from the matched keywords. Returns the
-  /// topic name whose confirmation count meets [topicConfirmationThreshold],
-  /// or `null` if no topic is confident enough.
   String? classifyTopics(Set<KeywordMatch> foundKeywords) {
     if (foundKeywords.isEmpty) return null;
 
@@ -149,12 +117,10 @@ class RiskKeywordTrie {
     return bestEntry?.key;
   }
 
-  /// Resets the transition cache (but keeps the built trie and topic map).
   void resetCache() {
     _trieTransitionCache.clear();
   }
 
-  /// Releases all internal state for GC.
   void dispose() {
     _root = TrieNode();
     _keywordToTopicsMap.clear();
@@ -162,12 +128,9 @@ class RiskKeywordTrie {
     _isBuilt = false;
   }
 
-  /// Called on memory pressure — evicts non-critical cached data.
   void onMemoryPressure() {
     _trieTransitionCache.clear();
   }
-
-  // ─── Private: trie construction ─────────────────────────────────────
 
   Future<void> _buildTrie(
     Future<Map<String, Object?>> Function(String fileName) loadJson,
@@ -199,26 +162,20 @@ class RiskKeywordTrie {
           );
         }
       }
-    } on Object catch (_) {
-      // Keep trie empty on parse failure; callers treat as no keyword hits.
-    }
-    // Phase 7: build Aho-Corasick failure/dictionary links ONCE.
+    } on Object catch (_) {}
+
     _buildAhoCorasickLinks(_root);
   }
 
-  /// Build Aho-Corasick failure + dictionary links cho trie (BFS).
   void _buildAhoCorasickLinks(TrieNode root) {
-    // Queue from dart:collection gives O(1) removeFirst; using a List +
-    // removeAt(0) here was O(n) per pop, making link construction O(n²)
-    // in the total node count.
     final queue = Queue<TrieNode>();
-    // Root's direct children: failure → root, dictionary → self (nếu có data).
+
     for (final child in root.children.values) {
       child.failureLink = root;
       child.dictionaryLink = child.keywordData != null ? child : null;
       queue.add(child);
     }
-    // BFS theo độ sâu.
+
     while (queue.isNotEmpty) {
       final current = queue.removeFirst();
       for (final entry in current.children.entries) {
@@ -239,8 +196,6 @@ class RiskKeywordTrie {
       }
     }
   }
-
-  // ─── Private: topic map construction ────────────────────────────────
 
   Future<void> _buildTopicMap(
     Future<Map<String, Object?>> Function(String fileName) loadJson,
@@ -263,9 +218,7 @@ class RiskKeywordTrie {
               .add(situation.name);
         }
       }
-    } on Object catch (_) {
-      // Topic map stays empty; classifyTopics will return no votes.
-    }
+    } on Object catch (_) {}
   }
 
   String _categoryForKeyword(RiskLevelData riskLevelData, String keyword) {

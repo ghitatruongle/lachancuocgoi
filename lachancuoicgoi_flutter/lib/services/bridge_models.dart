@@ -1,10 +1,3 @@
-// ─── Data Models for the native call shield bridge ──────────────────────────
-//
-// Shared between [NativeBridgeInterface], [NativeCallShieldBridge], and all
-// bridge implementations. Extracted so the models, interface, and Android
-// implementation each live in a focused file.
-
-/// Monitoring lifecycle states emitted by the native side.
 enum MonitoringState {
   idle,
   started,
@@ -12,23 +5,14 @@ enum MonitoringState {
   networkAvailable,
   networkLost,
 
-  /// Sprint 2 (C1): native STT switched to the Vosk offline fallback.
-  /// The `transcript` slot of the parsed tuple carries the reason
-  /// (e.g. "error12_loop" or "network_errors_3") which the UI can
-  /// surface in its banner.
   sttFallbackVosk,
 
-  /// Both Google and Vosk STT failed to start — monitoring is blind.
   sttUnavailable,
 
-  /// Android 13+: missing POST_NOTIFICATIONS — FGS runs degraded.
   degradedNoNotification,
 
-  /// Watchdog failed to restart BackgroundMonitoringService.
   watchdogRestartFailed;
 
-  /// Duration and final transcript when state is [stopped]. Reason string
-  /// when state is [sttFallbackVosk] / [sttUnavailable]. Otherwise null.
   static (MonitoringState, int?, String?) parse(String raw) {
     if (raw.startsWith('STOPPED:')) {
       final parts = raw.split(':');
@@ -75,7 +59,6 @@ enum MonitoringState {
   }
 }
 
-/// Stable status values returned by the native `startMonitoring` method.
 enum MonitoringStartStatus {
   started,
   alreadyRunning,
@@ -84,11 +67,6 @@ enum MonitoringStartStatus {
   nativeFailure,
 }
 
-/// Typed result for starting the platform monitoring service.
-///
-/// Android v1.6 returns a map with `status` and `message`. During a rolling
-/// upgrade (and in older test doubles), a legacy boolean is still accepted so
-/// Flutter never mistakes a channel type mismatch for a successful start.
 class MonitoringStartResult {
   const MonitoringStartResult(this.status, {this.message});
 
@@ -157,11 +135,6 @@ class MonitoringStartResult {
   int get hashCode => Object.hash(status, message);
 }
 
-/// A privacy-safe telephony event emitted by the Android native layer.
-///
-/// The wire schema intentionally has no raw phone-number field. Consumers may
-/// display or persist [maskedNumber], but must never try to recover a number
-/// from legacy/unknown payload fields.
 class NativeCallEvent {
   const NativeCallEvent({
     required this.type,
@@ -199,11 +172,8 @@ class NativeCallEvent {
   }
 }
 
-/// Source-compatible name for older embedders. It resolves to the new,
-/// privacy-safe schema and therefore does not expose `phoneNumber` or `source`.
 typedef CallEvent = NativeCallEvent;
 
-/// Snapshot of all call-shield permissions at a point in time.
 class PermissionSnapshot {
   const PermissionSnapshot({
     this.recordAudio = false,
@@ -287,14 +257,12 @@ class PermissionSnapshot {
   );
 }
 
-/// Result of stopping a monitoring session.
 class MonitoringStopResult {
   const MonitoringStopResult({this.durationSeconds, this.finalTranscript});
   final int? durationSeconds;
   final String? finalTranscript;
 }
 
-/// A single transcript event from the native side.
 class TranscriptUpdate {
   const TranscriptUpdate({required this.text, required this.isPartial});
   final String text;

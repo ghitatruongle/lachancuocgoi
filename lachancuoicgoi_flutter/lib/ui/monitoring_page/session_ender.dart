@@ -14,14 +14,6 @@ import 'audio_amplitude_handler.dart';
 import 'monitoring_formatters.dart';
 import 'monitoring_state.dart';
 
-// ─── Session Ender ──────────────────────────────────────────────────────
-//
-// Handles end-of-session logic: stops native monitoring, waits for the
-// stopped event, runs final analysis, persists the result to the database,
-// and emits a [NavigationIntent].
-//
-// Extracted from [MonitoringController] to reduce class size.
-
 class SessionEnder {
   SessionEnder({
     required NativeBridgeInterface Function() getBridge,
@@ -44,7 +36,6 @@ class SessionEnder {
 
   bool get stoppedEventReceived => _stoppedEventReceived;
 
-  /// Called when a [MonitoringState.stopped] event arrives from native.
   void onStoppedEvent() {
     _stoppedEventReceived = true;
     final completer = _stoppedCompleter;
@@ -52,16 +43,12 @@ class SessionEnder {
     _stoppedCompleter = null;
   }
 
-  /// Ensures the stopped completer is created if we haven't received the
-  /// stopped event yet (for non-simulation sessions).
   void prepareForStop({required bool isSimulationSession}) {
     if (!_stoppedEventReceived && !isSimulationSession) {
       _stoppedCompleter = Completer<void>();
     }
   }
 
-  /// Ends the monitoring session, persists the result, and returns a
-  /// [NavigationIntent] (either [NavigateToResult] or [NavigateToHome]).
   Future<NavigationIntent?> endSession({
     required MonitoringPageState Function() getState,
     required bool isCreatorMode,
@@ -122,16 +109,12 @@ class SessionEnder {
 
       if (isDisposed) return null;
 
-      // Guard: orchestrator may not be ready if initAfterFrame wasn't called
-      // (e.g. test with overridden analyzer). Proceed without analysis if so.
       final orch = getOrchestrator();
       if (hasCoordinator() && orch != null) {
         await orch.ensureAnalysisComplete();
       }
       if (isDisposed) return null;
 
-      // Read the latest state after the native STOPPED event and final
-      // analysis; the transcript may have changed while we were awaiting.
       final state = getState();
       final risk = state.peakRiskLevel.index > state.riskLevel.index
           ? state.peakRiskLevel
@@ -192,9 +175,6 @@ class SessionEnder {
       try {
         await _cleanupAfterSave?.call(db);
       } on Object catch (error) {
-        // Retention is housekeeping, so its failure must not turn an already
-        // persisted session into a failed save or leave a recovery snapshot
-        // that could create a duplicate row on the next launch.
         SystemLogger.instance.log(
           LogCategory.system,
           'Post-save history retention cleanup failed: $error',
@@ -217,7 +197,6 @@ class SessionEnder {
     }
   }
 
-  /// Resets all state for a new session.
   void reset() {
     _endOperation = null;
     _stoppedEventReceived = false;

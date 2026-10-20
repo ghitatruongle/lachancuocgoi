@@ -46,13 +46,6 @@ class LogEntry {
   }
 }
 
-/// Unified logger that implements [AppLogger] for dependency injection
-/// and provides a buffered, streamed log for the UI System Log viewer.
-///
-/// All logging in the app should go through this singleton to ensure:
-/// 1. Logs are visible in the UI log viewer
-/// 2. Logs are printed to console with consistent formatting
-/// 3. The analysis layer can use [AppLogger] interface via DI
 class SystemLogger extends ChangeNotifier implements AppLogger {
   SystemLogger._();
   static final SystemLogger instance = SystemLogger._();
@@ -84,8 +77,6 @@ class SystemLogger extends ChangeNotifier implements AppLogger {
     caseSensitive: false,
   );
 
-  /// Removes secrets and user content before it reaches memory, disk or
-  /// console output. The scrubber intentionally favours over-redaction.
   @visibleForTesting
   static String scrubForLogging(String value) {
     var scrubbed = value
@@ -114,7 +105,6 @@ class SystemLogger extends ChangeNotifier implements AppLogger {
     return scrubbed;
   }
 
-  /// Logs a message with the given [category] and [level].
   void log(
     LogCategory category,
     String message, {
@@ -151,14 +141,9 @@ class SystemLogger extends ChangeNotifier implements AppLogger {
         }),
       );
     } on Object {
-      // Never recurse into the logger when its own best-effort store fails.
+      assert(true);
     }
   }
-
-  // ─── AppLogger implementation ─────────────────────────────────────
-  //
-  // These methods route through [log()] so all output appears in the
-  // UI System Log viewer with consistent formatting.
 
   @override
   void debug(String message) {
@@ -197,7 +182,6 @@ class SystemLogger extends ChangeNotifier implements AppLogger {
     return buffer.toString();
   }
 
-  /// Returns at most the most recent 500 already-scrubbed entries.
   String exportScrubbed({int maxEntries = 500}) {
     final bounded = maxEntries.clamp(0, 500);
     final start = _logs.length > bounded ? _logs.length - bounded : 0;
@@ -215,7 +199,7 @@ class SystemLogger extends ChangeNotifier implements AppLogger {
     try {
       await LocalLogStore.instance.clear();
     } on Object {
-      // Best effort only: an unavailable filesystem must not break reset.
+      assert(true);
     }
   }
 

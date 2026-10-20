@@ -10,7 +10,6 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.lachancuocgoi.lachancuocgoi_flutter.diagnostics.MonitoringPerfProbe
 import java.lang.ref.WeakReference
 
-/** Detects and controls explicitly supported system and OTT call screens. */
 class UnifiedAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private var isCallActive = false
@@ -93,9 +92,7 @@ class UnifiedAccessibilityService : AccessibilityService() {
                     reason = "accessibility_incoming_call",
                 )
             } else if (!isCallActive) {
-                // The service may connect after the user already answered.
-                // Track the active screen, but never prompt without incoming
-                // call semantics.
+
                 isCallActive = true
             }
             return
@@ -197,7 +194,7 @@ class UnifiedAccessibilityService : AccessibilityService() {
         textKeywords: List<String>,
         descriptionKeywords: List<String>,
     ): Boolean {
-        // v1.6.5: call-control clicks are opt-in (default OFF).
+
         if (!isCallControlEnabled(this)) {
             Log.i(TAG, "Call control via accessibility is disabled (default)")
             return false
@@ -271,7 +268,7 @@ class UnifiedAccessibilityService : AccessibilityService() {
         private const val TAG = "UnifiedAccessibility"
         private const val PREFS = "accessibility_call_actions"
         private const val KEY_PENDING_ACTION = "pending_action"
-        /** Opt-in: when false (default), answer/end clicks are no-ops. */
+
         private const val KEY_CALL_CONTROL_ENABLED = "call_control_enabled"
         private const val ACTION_ANSWER = "answer"
         private const val ACTION_END = "end"
@@ -323,7 +320,6 @@ class UnifiedAccessibilityService : AccessibilityService() {
 
         fun requestEnd(context: Context) = requestAction(context, ACTION_END)
 
-        /** v1.6.5 default OFF — user must opt in to answer/end via accessibility. */
         fun isCallControlEnabled(context: Context): Boolean =
             context.applicationContext
                 .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -377,3 +373,4 @@ class UnifiedAccessibilityService : AccessibilityService() {
         }
     }
 }
+

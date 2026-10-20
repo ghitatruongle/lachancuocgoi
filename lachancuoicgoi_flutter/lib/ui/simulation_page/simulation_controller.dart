@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/developer_mode_manager.dart';
 import 'simulation_data.dart';
 
-// ─── State ─────────────────────────────────────────────────────────────
 class SimulationUiState {
   const SimulationUiState({
     this.scenarios,
@@ -25,7 +24,6 @@ class SimulationUiState {
   final bool isDevMode;
 }
 
-// ─── Controller ────────────────────────────────────────────────────────
 final simulationControllerProvider =
     NotifierProvider<SimulationController, SimulationUiState>(
       SimulationController.new,

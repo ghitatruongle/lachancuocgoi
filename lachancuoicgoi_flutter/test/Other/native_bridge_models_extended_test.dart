@@ -14,7 +14,7 @@ void main() {
       final (state, duration, transcript) = MonitoringState.parse('STOPPED:45');
       expect(state, MonitoringState.stopped);
       expect(duration, 45);
-      // parts.length == 2 so no transcript part
+
       expect(transcript, isNull);
     });
 

@@ -3,11 +3,6 @@ import '../../core/analysis_availability.dart';
 import '../../services/native_call_shield_bridge.dart';
 import 'monitoring_state.dart';
 
-// ─── Monitoring Event Router ───────────────────────────────────────────
-//
-// Interprets [MonitoringState] events from the native bridge and updates
-// the [MonitoringPageState] accordingly (network, STT, degraded modes).
-
 typedef StateUpdater =
     void Function(MonitoringPageState Function(MonitoringPageState) updater);
 
@@ -30,7 +25,6 @@ class MonitoringEventRouter {
   final void Function() _endSession;
   final void Function(bool networkAvailable)? _onNetworkChanged;
 
-  /// Routes a monitoring state event to the appropriate handler.
   void handleMonitoringStateEvent((MonitoringState, int?, String?) stateData) {
     final monitoringState = stateData.$1;
     switch (monitoringState) {

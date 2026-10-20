@@ -1,16 +1,3 @@
-// Sprint 4.2b — characterization tests for AnalysisMode.parallel.
-//
-// The parallel path was the only AnalysisMode with no direct coverage
-// before this file. These tests pin down its observable contract:
-//   • L1/L2 fast-track: a high-risk L1 or L2 short-circuits past L3.
-//   • L1+L2+L3 fusion: when no layer hits orange, all three are fused.
-//   • Incremental delta-gate: under-threshold deltas reuse the last result.
-//   • resetMode(parallel) clears the cached parallel result.
-//
-// L2 is driven by a _FakeGDetectionEngine so we can script its risk level
-// without loading TFLite/assets. L1 uses a real L1Analyzer against a tiny
-// in-memory vocabulary (so we control what it flags as red). L3 uses a
-// GeminiClient stub backed by StaticApiKeyProvider.
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -35,13 +22,12 @@ void main() {
 
   group('AnalysisCoordinator — parallel analyze (full transcript)', () {
     test('fast-tracks when L1 hits red, skipping L3', () async {
-      // L1 flags 'mã OTP' as red via the in-memory vocabulary.
       final l1 = _newL1();
       await l1.initialize();
-      // L2 stays green.
+
       final l2 = _newL2(_greenGResult());
       await l2.initialize();
-      // L3 is not ready, so if the coordinator consulted it we'd know.
+
       final l3 = _notReadyL3();
       final coordinator = AnalysisCoordinator(
         l1Analyzer: l1,
@@ -59,13 +45,12 @@ void main() {
     });
 
     test('fuses L1+L2+L3 when no layer fast-tracks', () async {
-      // L1 green (no critical keyword in this text).
       final l1 = _newL1();
       await l1.initialize();
-      // L2 green.
+
       final l2 = _newL2(_greenGResult());
       await l2.initialize();
-      // L3 returns a red verdict via the stubbed GeminiClient.
+
       final l3 = _newL3Returning(level: 'red', reason: 'L3 lừa đảo');
       final coordinator = AnalysisCoordinator(
         l1Analyzer: l1,
@@ -78,7 +63,6 @@ void main() {
         AnalysisMode.parallel,
       );
 
-      // Highest risk across the three layers wins → L3's red.
       expect(result.overallRiskLevel, RiskLevel.red);
       expect(result.analysisLevel, AnalysisLevel.l3);
       expect(result.reason, contains('L3 lừa đảo'));
@@ -101,7 +85,6 @@ void main() {
           l3Analyzer: l3,
         );
 
-        // First call: large delta triggers a real run and caches the result.
         final firstText = 'A' * 200;
         final first = await coordinator.analyzeIncremental(
           firstText,
@@ -109,8 +92,6 @@ void main() {
         );
         expect(first.overallRiskLevel, RiskLevel.green);
 
-        // Second call: text barely grew (delta < adaptiveMinDelta) → the
-        // coordinator reuses the cached green result instead of re-running.
         final second = await coordinator.analyzeIncremental(
           '$firstText xx',
           AnalysisMode.parallel,
@@ -122,9 +103,7 @@ void main() {
     test('resetMode(parallel) clears cached parallel result', () async {
       final l1 = _newL1();
       await l1.initialize();
-      // L2 returns red on the first call (fast-track + cache), then green
-      // afterwards, so we can observe that the cache was cleared rather
-      // than the L2 verdict itself changing.
+
       final l2 = _newL2WithEngine(
         _SequenceGDetectionEngine([
           _redGResult(reason: 'L2 red'),
@@ -139,16 +118,12 @@ void main() {
         l3Analyzer: l3,
       );
 
-      // Prime the cached parallel result with a red fast-track.
       final first = await coordinator.analyzeIncremental(
         'A' * 200,
         AnalysisMode.parallel,
       );
       expect(first.overallRiskLevel, RiskLevel.red);
 
-      // Without reset, a tiny-delta second call would reuse the cached red
-      // result. After reset the cache is cleared, so the coordinator
-      // re-evaluates against L2's next verdict (green) → green.
       coordinator.resetMode(AnalysisMode.parallel);
       final second = await coordinator.analyzeIncremental(
         'A' * 201,
@@ -158,8 +133,6 @@ void main() {
     });
   });
 }
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
 
 L1Analyzer _newL1() {
   return L1Analyzer(
@@ -204,8 +177,6 @@ L3Analyzer _newL3Returning({required String level, required String reason}) {
 }
 
 L3Analyzer _notReadyL3() {
-  // No API key → not ready. The coordinator's parallel path will then
-  // fall back to a default L3 green result instead of consulting Gemini.
   return L3Analyzer(apiKeyProvider: StaticApiKeyProvider(const <String>[]));
 }
 
@@ -244,9 +215,6 @@ class _ScriptedGDetectionEngine extends GDetectionEngine {
   Future<GResult> performFullAnalysis(String text) async => _result;
 }
 
-/// Returns each scripted [GResult] in order, then repeats the last one for
-/// any further calls. Used to make a single L2 instance change its verdict
-/// across successive parallel runs.
 class _SequenceGDetectionEngine extends GDetectionEngine {
   _SequenceGDetectionEngine(this._results);
 

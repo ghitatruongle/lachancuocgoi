@@ -1,16 +1,3 @@
-// Bug #22 tests: MethodChannel timeout wrapper on AndroidCallShieldBridge.
-//
-// Verifies that:
-//  - When the platform-thread takes too long, invokeMethod is cancelled
-//    after the timeout and a default value is returned.
-//  - When the platform-thread responds normally, no timeout fires and the
-//    real value is propagated.
-//  - PlatformException is still swallowed and a default is returned.
-//
-// BUG-BASELINE-3 fix: Inject 100ms timeout via constructor for fast tests.
-// Production code defaults to 5s. Each timeout test now takes ~100ms instead
-// of ~5s, reducing test suite time by ~10s per timeout test.
-
 import 'dart:async';
 
 import 'package:flutter/services.dart';
@@ -26,7 +13,6 @@ void main() {
   late AndroidCallShieldBridge bridge;
 
   setUp(() {
-    // BUG-BASELINE-3 fix: inject 100ms timeout for fast tests (production uses 5s).
     bridge = AndroidCallShieldBridge(
       defaultTimeout: const Duration(milliseconds: 100),
     );
@@ -49,21 +35,14 @@ void main() {
     },
   );
 
-  // BUG-BASELINE-3 fix: Previously used FakeAsync which cannot control the
-  // real Timer created by Future.timeout(). The production code's
-  // _invokeWithTimeout uses .timeout(5s) with an onTimeout callback that
-  // returns false. With real async the timeout fires correctly.
-  //
-  // Now injected with 100ms timeout for fast tests.
   test(
     'startMonitoring returns false on timeout',
     () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(methodChannel, (call) async {
-            // Never completes — simulate a hung platform thread.
             return Completer<bool>().future;
           });
-      // Injected timeout (100ms) fires → onTimeout returns false.
+
       final result = await bridge.startMonitoring(phoneNumber: '+84987654321');
       expect(result, isFalse);
     },

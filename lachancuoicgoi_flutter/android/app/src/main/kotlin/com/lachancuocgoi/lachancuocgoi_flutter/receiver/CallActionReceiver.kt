@@ -6,7 +6,6 @@ import android.content.Intent
 import com.lachancuocgoi.lachancuocgoi_flutter.diagnostics.MonitoringPerfProbe
 import com.lachancuocgoi.lachancuocgoi_flutter.services.CallSessionCoordinator
 
-/** Handles the explicit actions from the incoming-call prompt and overlay. */
 class CallActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val token = MonitoringPerfProbe.begin(
@@ -35,3 +34,4 @@ class CallActionReceiver : BroadcastReceiver() {
         }
     }
 }
+

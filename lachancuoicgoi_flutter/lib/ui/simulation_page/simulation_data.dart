@@ -1,5 +1,3 @@
-// Data classes for bundled simulation scenarios.
-
 class SimulationScenarioData {
   const SimulationScenarioData({
     this.id = '',
@@ -22,8 +20,6 @@ class SimulationScenarioData {
   final List<SimulationScriptLine> script;
   final String iconEmoji;
 
-  /// Explicit catalog metadata supported by the v1.6 schema. Older bundled
-  /// data has no flag, so the controller uses a deterministic fallback.
   final bool isFeatured;
 
   factory SimulationScenarioData.fromJson(Map<String, dynamic> json) {
@@ -135,7 +131,7 @@ class SimulationScenarioData {
         code.contains('SEXTORTION')) {
       return 'Mạng xã hội';
     }
-    // Preserve already human-readable category labels.
+
     if (!RegExp(r'^[A-Z0-9_]+$').hasMatch(code)) return value!.trim();
     return 'Lừa đảo';
   }

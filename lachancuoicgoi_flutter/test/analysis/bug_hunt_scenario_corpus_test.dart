@@ -1,5 +1,3 @@
-// Bug Hunt Phase C.2 — Scenario corpus test from risk_scenarios_master.json
-
 import 'dart:convert';
 import 'dart:io';
 
@@ -48,7 +46,7 @@ void main() {
       var scenariosAnalyzed = 0;
       for (final scenario in scenarios!) {
         if (scenario is! Map) continue;
-        // Try feeding the description + name as transcript.
+
         final name = scenario['name'] as String? ?? '';
         final description = scenario['description'] as String? ?? '';
         final transcript = '$name. $description';

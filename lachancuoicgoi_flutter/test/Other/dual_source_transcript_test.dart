@@ -34,10 +34,6 @@ void main() {
     });
 
     test('partial only (no cumulative) → null (mirrors Kotlin combine)', () {
-      // The Kotlin combine block in BackgroundMonitoringService returns
-      // null whenever the cumulative is blank, even if a partial is
-      // present. This test pins that behaviour so a future refactor
-      // doesn't accidentally change the contract.
       final result = combineTranscriptSources(
         stt: '',
         partial: 'wor',
@@ -95,8 +91,7 @@ void main() {
         accessibility: 'world',
       );
       expect(result, isNotNull);
-      // accessibility is longer, so it becomes cumulative
-      // partial appended on new line.
+
       expect(result!.text, 'world\nwor');
       expect(result.isPartial, isTrue);
     });
@@ -113,9 +108,6 @@ void main() {
     });
 
     test('partial present but cumulative blank → null (no emit)', () {
-      // Same as above: when there's no cumulative (stt or accessibility)
-      // we don't emit. This avoids spamming the UI with isolated
-      // partials that have no final counterpart.
       final result = combineTranscriptSources(
         stt: '',
         partial: 'wor',

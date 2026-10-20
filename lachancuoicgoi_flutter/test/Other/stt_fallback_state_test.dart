@@ -27,14 +27,12 @@ void main() {
     });
 
     test('STT_FALLBACK:VOSK: with empty reason → null reason', () {
-      // Edge case: "STT_FALLBACK:VOSK:" + "" — handled by checking length.
       final (state, _, reason) = MonitoringState.parse('STT_FALLBACK:VOSK:');
       expect(state, MonitoringState.sttFallbackVosk);
       expect(reason, isNull);
     });
 
     test('STT_FALLBACK:UNKNOWN:foo falls through to idle (unknown prefix)', () {
-      // Only VOSK is supported; other engines would need a separate branch.
       final (state, _, _) = MonitoringState.parse('STT_FALLBACK:GOOGLE:foo');
       expect(state, MonitoringState.idle);
     });

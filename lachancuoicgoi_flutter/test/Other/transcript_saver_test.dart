@@ -121,7 +121,6 @@ void main() {
     });
 
     test('directory already exists does not throw', () async {
-      // Create the directory first
       await Directory('${tempDir.path}/transcripts').create();
       final result = await TranscriptSaver.saveTranscript(
         'test',
@@ -132,10 +131,9 @@ void main() {
     });
 
     test('returns null when path is a file (not a directory)', () async {
-      // Create a file where the directory should be
       final blocker = File('${tempDir.path}/transcripts');
       await blocker.writeAsString('blocker');
-      // Should not throw — returns null or succeeds depending on OS
+
       await TranscriptSaver.saveTranscript(
         'test',
         baseDirectory: tempDir,

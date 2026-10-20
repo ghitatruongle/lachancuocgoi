@@ -1,9 +1,6 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 
-/// Method names shared with Kotlin [NativeBridgeChannels] / MainActivity.
-///
-/// Prefer these constants over raw strings when adding bridge calls.
 abstract final class NativeBridgeMethods {
   static const checkOverlayPermission = 'checkOverlayPermission';
   static const checkCallScreeningStatus = 'checkCallScreeningStatus';
@@ -12,10 +9,6 @@ abstract final class NativeBridgeMethods {
   static const getPermissionsStatus = 'getPermissionsStatus';
 }
 
-/// Centralized, Type-Safe MethodChannel contract wrapper for Android Native interop.
-///
-/// Prevents unhandled [PlatformException] or [TypeError] crashes across the
-/// Flutter-Kotlin boundary.
 class NativeBridgeContract {
   NativeBridgeContract({MethodChannel? channel})
     : _channel =
@@ -23,7 +16,6 @@ class NativeBridgeContract {
 
   final MethodChannel _channel;
 
-  /// Invokes a native method with strict type-checking and fallback handling.
   Future<T?> invokeTypeSafeMethod<T>(
     String method, [
     dynamic arguments,
@@ -43,7 +35,6 @@ class NativeBridgeContract {
     }
   }
 
-  /// Checks whether native overlay permission is granted on Android.
   Future<bool> checkOverlayPermission() async {
     final granted = await invokeTypeSafeMethod<bool>(
       NativeBridgeMethods.checkOverlayPermission,
@@ -53,7 +44,6 @@ class NativeBridgeContract {
     return granted ?? false;
   }
 
-  /// Checks whether CallScreeningService is active on Android.
   Future<bool> checkCallScreeningStatus() async {
     final active = await invokeTypeSafeMethod<bool>(
       NativeBridgeMethods.checkCallScreeningStatus,

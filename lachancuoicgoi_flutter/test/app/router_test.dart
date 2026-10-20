@@ -27,8 +27,7 @@ void main() {
 
     test('router configuration starts at "/"', () {
       final router = container.read(appRouterProvider);
-      // go_router 14.x doesn't expose initialLocation directly,
-      // but the router was created with '/' as initialLocation
+
       expect(router, isA<GoRouter>());
     });
 
@@ -48,9 +47,6 @@ void main() {
     );
 
     test('router is created successfully with all routes', () {
-      // In go_router 14.x, routerDelegate.routes is not publicly exposed.
-      // We verify the router was constructed without error, which validates
-      // that all 7 route builders compile and are non-null.
       final router = container.read(appRouterProvider);
       expect(router, isA<GoRouter>());
     });

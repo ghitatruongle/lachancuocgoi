@@ -41,8 +41,6 @@ class MainActivity : FlutterActivity() {
         private const val REQUEST_PHONE_PERMISSIONS = 1003
     }
 
-    // Bug #1, #23 fix: replace raw MethodChannel.Result? fields with PendingResult
-    // helpers that auto-clear in onDestroy and never fire twice. See services/PendingResult.kt.
     private val pendingPhonePermissionResult = PendingResult()
     private val pendingCreatorMonitoringResult = PendingResult()
     private var pendingCreatorDevModeExpiresAtMs: Long = 0L
@@ -59,14 +57,11 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        // Bug #1, #23 fix: clear pending results so they never leak across
-        // Activity destruction (e.g. config change while permission dialog is up).
+
         pendingPhonePermissionResult.cancel()
         pendingCreatorMonitoringResult.cancel()
         MonitoringStartCoordinator.cancel()
-        // Read the process-owned engine directly. This remains safe if Android
-        // destroys a partially-created Activity whose Flutter delegate was
-        // never initialized.
+
         (application as? MainApplication)?.existingFlutterEngine()?.let { engine ->
             NativeBridgeChannels.installBackgroundMethodHandler(applicationContext, engine)
         }
@@ -86,10 +81,7 @@ class MainActivity : FlutterActivity() {
             return
         }
         if (requestCode == REQUEST_CALL_SCREENING_ROLE) {
-            // Bug #4 fix: when the user returns from the system role-picker
-            // dialog, refresh the permission snapshot so Flutter UI reflects
-            // the actual state. Without this, the UI would stay "not granted"
-            // until the user manually relaunched the page.
+
             refreshPermissionSnapshot()
             return
         }
@@ -164,9 +156,7 @@ class MainActivity : FlutterActivity() {
                 grantedMap[Manifest.permission.READ_PHONE_STATE] == PackageManager.PERMISSION_GRANTED &&
                     grantedMap[Manifest.permission.READ_CALL_LOG] == PackageManager.PERMISSION_GRANTED &&
                     grantedMap[Manifest.permission.ANSWER_PHONE_CALLS] == PackageManager.PERMISSION_GRANTED
-            // Bug #23 fix: idempotent — calling success multiple times is safe,
-            // and if the Activity was destroyed, cancel() in onDestroy already
-            // cleared the pending result so this is a safe no-op.
+
             pendingPhonePermissionResult.success(granted)
             return
         }
@@ -176,7 +166,6 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // MethodChannel
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             NativeBridgeChannels.METHOD_CHANNEL,
@@ -215,8 +204,7 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
                     "showIncomingCallOverlay" -> {
-                        // Legacy API intentionally disabled: incoming consent
-                        // is notification-only and must never open an overlay.
+
                         result.success(false)
                     }
                     "dismissIncomingCallOverlay" -> {
@@ -266,13 +254,13 @@ class MainActivity : FlutterActivity() {
                         result.success(isAccessibilityServiceEnabled())
                     }
                     "isMonitoringActive" -> {
-                        // Check if BackgroundMonitoringService is running
+
                         result.success(isServiceRunning(BackgroundMonitoringService::class.java))
                     }
                     "isCreatorMonitoringActive" -> {
                         result.success(isServiceRunning(CreatorMediaProjectionService::class.java))
                     }
-                    // Phase 2 (P2-4): call screening opt-in bridge methods.
+
                     "setCallScreeningBlockEnabled" -> {
                         val enabled = call.argument<Boolean>("enabled") ?: false
                         val prefs = getSharedPreferences(
@@ -313,8 +301,6 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        // EventChannels are registered once by MainApplication so transcript,
-        // RMS, call, and monitoring events remain connected without an Activity.
         NativeBridgeChannels.registerEventChannels(applicationContext, flutterEngine)
     }
 
@@ -397,15 +383,12 @@ class MainActivity : FlutterActivity() {
         }
 
         val launchResponse = startMonitoringService(enableSpeakerphone)
-        // STARTED here means only that Android accepted the asynchronous
-        // service request. The service completes that response after it has
-        // successfully promoted itself and entered the active state.
+
         if (launchResponse.status != MonitoringStartStatus.STARTED) {
             MonitoringStartCoordinator.complete(launchResponse)
         }
     }
 
-    /** Use one parser for both the initial Activity intent and onNewIntent. */
     private fun handleCallIntent(intent: Intent?) {
         NativeCallEvent.fromActivityIntent(intent)?.let { event ->
             NativeBridgeEventSink.sendCallEvent(event.toMap())
@@ -416,7 +399,7 @@ class MainActivity : FlutterActivity() {
         val intent = Intent(this, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_STOP
         }
-        // Always use startService for ACTION_STOP because we don't want a new foreground notification
+
         startService(intent)
         Log.d(TAG, "Stopped BackgroundMonitoringService")
     }
@@ -452,8 +435,7 @@ class MainActivity : FlutterActivity() {
             result.success(true)
             return
         }
-        // Bug #1 fix: PendingResult.set() auto-times out after 30s, preventing
-        // Flutter-side deadlock if the MediaProjection dialog is dismissed.
+
         pendingCreatorMonitoringResult.set(result)
         pendingCreatorDevModeExpiresAtMs = devModeExpiresAtMs
         val projectionManager =
@@ -480,7 +462,6 @@ class MainActivity : FlutterActivity() {
             return
         }
 
-        // Bug #23 fix: idempotent wrapper — auto-clears in onDestroy().
         pendingPhonePermissionResult.set(result)
         requestPermissions(
             arrayOf(
@@ -509,32 +490,15 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun isServiceRunning(serviceClass: Class<*>): Boolean {
-        // Bug #26 fix: was O(n) `firstOrNull` over a `Map<KClass, ...>` —
-        // switch to direct `Class<*>` lookup, O(1).
+
         return serviceRunningCheckers[serviceClass]?.invoke() ?: false
     }
 
-    /**
-     * Map of [Class] → predicate. Add a new entry here when introducing a
-     * new foreground service. The predicate should return the service's
-     * `isRunning` flag so the bridge can answer `isXxxActive` queries
-     * without using the deprecated `ActivityManager.getRunningServices`.
-     */
     private val serviceRunningCheckers: Map<Class<*>, () -> Boolean> = mapOf(
         BackgroundMonitoringService::class.java to { BackgroundMonitoringService.isRunning },
         CreatorMediaProjectionService::class.java to { CreatorMediaProjectionService.isRunning },
     )
 
-    /**
-     * Bug #2 / #8 helper: wrap [Context.startForegroundService] with the
-     * `ForegroundServiceLauncher.safeStartForegroundService` catch-all so
-     * we never crash on Android 12+ `ForegroundServiceStartNotAllowedException`.
-     *
-     * On [ForegroundServiceLauncher.LaunchResult.NOT_ALLOWED], we do NOT
-     * fall back to `startService()` — that would start a background service
-     * that gets killed within 5s (Android 12+ background execution limits).
-     * Instead, we log a warning and let the caller decide what to do.
-     */
     private fun Context.safeStartForegroundService(intent: Intent): ForegroundServiceLauncher.LaunchResult {
         val result = ForegroundServiceLauncher.safeStartForegroundService(this, intent)
         if (result == ForegroundServiceLauncher.LaunchResult.NOT_ALLOWED) {
@@ -543,20 +507,6 @@ class MainActivity : FlutterActivity() {
         return result
     }
 
-    /**
-     * Bug #4 helper: re-emit the current permission snapshot to Flutter so the
-     * UI updates after the user returns from a system permission/settings
-     * dialog (call-screening role, accessibility, overlay, notifications).
-     * Called from [onActivityResult] when the user comes back from any
-     * external activity we launched.
-     *
-     * Bug #4 fix v2: previously used `sendMonitoringState("PERMISSION_SNAPSHOT:$map")`
-     * which stringified a Map<String, Boolean> via toString(). Dart side
-     * would have to parse this back to a structured object — fragile and
-     * locale-sensitive (toString uses platform locale for booleans? no but
-     * could change). Now we send via sendCallEvent which natively carries
-     * Map<String, Any?> payload — same EventChannel, no parsing needed.
-     */
     private fun refreshPermissionSnapshot() {
         val snapshot = getPermissionSnapshot()
         NativeBridgeEventSink.sendCallEvent(
@@ -567,3 +517,4 @@ class MainActivity : FlutterActivity() {
         )
     }
 }
+

@@ -6,22 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/system_logger.dart';
 import 'native_bridge_interface.dart';
 
-// Re-export the interface + models so existing imports of this file keep
-// working. Consumers that only need types should import native_bridge_interface
-// directly; this export is for backward compatibility.
 export 'native_bridge_interface.dart';
-
-// ─── Legacy Android bridge (P2-8) ───────────────────────────────────────────
-//
-// Phase 2 (P2-8): This class is kept for backward compatibility with existing
-// tests that reference [NativeCallShieldBridge.instance] directly. Production
-// code now uses [NativeBridgeInterface.create()] which selects
-// [AndroidCallShieldBridge] or [SimulatorCallShieldBridge] per platform.
-//
-// All iOS/desktop simulation code has been removed — the single source of
-// truth for simulation is [SimulatorCallShieldBridge]. This class is now a
-// clean Android-only MethodChannel bridge (functionally equivalent to
-// [AndroidCallShieldBridge]).
 
 class NativeCallShieldBridge
     implements
@@ -48,7 +33,6 @@ class NativeCallShieldBridge
   );
   static const _logsChannel = EventChannel('com.lachancuocgoi/logs');
 
-  /// Default MethodChannel timeout (same posture as [AndroidCallShieldBridge]).
   static const Duration _defaultTimeout = Duration(seconds: 5);
 
   Future<bool> _invokeBool(
@@ -82,11 +66,8 @@ class NativeCallShieldBridge
     }
   }
 
-  /// Tears down any cached resources. Kept for test compatibility.
   @visibleForTesting
   void dispose() {}
-
-  // ─── MethodChannel calls (Android-only) ─────────────────────────────────
 
   @override
   Future<bool> startMonitoring({
@@ -222,8 +203,6 @@ class NativeCallShieldBridge
     return _invokeBool('requestOverlayPermission');
   }
 
-  /// Extra method not on [NativeBridgeInterface] — kept for test
-  /// compatibility.
   Future<bool> isAccessibilityEnabled() async {
     return _invokeBool('isAccessibilityEnabled');
   }
@@ -282,7 +261,6 @@ class NativeCallShieldBridge
     }
   }
 
-  // Phase 2 (P2-4): Call screening opt-in bridge methods.
   @override
   Future<void> setCallScreeningBlockEnabled(bool enabled) async {
     try {
@@ -328,8 +306,6 @@ class NativeCallShieldBridge
         .invokeMethod<void>('setAutoEnableSpeakerphone', {'enabled': enabled})
         .timeout(_defaultTimeout);
   }
-
-  // ─── EventChannel streams (cached to prevent memory leaks) ─────────────
 
   late final Stream<TranscriptUpdate> _cachedTranscriptStream =
       _transcriptChannel
@@ -393,14 +369,6 @@ class NativeCallShieldBridge
   @override
   Stream<String> get logsStream => _cachedLogsStream;
 }
-
-// ─── Riverpod Provider ────────────────────────────────────────────────────────
-//
-// Phase 2 (P2-8): the provider now delegates to [NativeBridgeInterface.create()]
-// which selects [AndroidCallShieldBridge] or [SimulatorCallShieldBridge]
-// depending on the platform. [NativeCallShieldBridge] is kept for backward
-// compatibility with existing tests that reference [NativeCallShieldBridge.instance]
-// but is no longer the production bridge.
 
 final nativeBridgeProvider = Provider<NativeBridgeInterface>((ref) {
   return NativeBridgeInterface.create();

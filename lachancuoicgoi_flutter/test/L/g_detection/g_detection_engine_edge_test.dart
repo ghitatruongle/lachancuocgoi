@@ -13,7 +13,6 @@ void main() {
       final engine = GDetectionEngine(assetProvider: (fileName) => '{}');
       await engine.initialize();
 
-      // Trie is empty so engine should NOT be ready
       expect(engine.isReady, isFalse);
     });
 
@@ -23,7 +22,6 @@ void main() {
       );
       await engine.initialize();
 
-      // Should gracefully handle parse errors
       expect(engine.isReady, isFalse);
     });
 
@@ -39,12 +37,10 @@ void main() {
       );
       await engine.initialize();
 
-      // No keywords loaded means trie is empty, engine not ready
       expect(engine.isReady, isFalse);
     });
 
     test('initialize with null/missing lists uses empty defaults', () async {
-      // JSON with no riskLevels, no slang_map, etc.
       final engine = GDetectionEngine(
         assetProvider: (fileName) =>
             jsonEncode(<String, Object?>{'someUnknownKey': 'someValue'}),
@@ -76,8 +72,7 @@ void main() {
       final engine = _newMinimalEngine();
       await engine.initialize();
 
-      // Generate 10000+ character string
-      final longText = 'xin chao ' * 1200; // ~10800 chars
+      final longText = 'xin chao ' * 1200;
       expect(longText.length, greaterThan(10000));
 
       final result = await engine.performFullAnalysis(longText);
@@ -140,7 +135,6 @@ void main() {
         await engine.initialize();
         expect(engine.isReady, isTrue);
 
-        // Second initialize should be a no-op
         await engine.initialize();
         expect(engine.isReady, isTrue);
       },
@@ -148,11 +142,11 @@ void main() {
 
     test('performFullAnalysis when not initialized auto-initializes', () async {
       final engine = _newMinimalEngine();
-      // Do NOT call initialize() explicitly
+
       expect(engine.isReady, isFalse);
 
       final result = await engine.performFullAnalysis('xin chao');
-      // Should auto-initialize and process
+
       expect(result.riskLevel, isA<RiskLevel>());
       expect(engine.isReady, isTrue);
     });
@@ -192,7 +186,6 @@ void main() {
     test(
       'engine returns green result when not ready after failed init',
       () async {
-        // Engine with no valid assets
         final engine = GDetectionEngine(assetProvider: (fileName) => '{}');
         await engine.initialize();
         expect(engine.isReady, isFalse);
@@ -205,7 +198,6 @@ void main() {
   });
 }
 
-/// Creates a minimal engine with enough data to be considered "ready".
 GDetectionEngine _newMinimalEngine() {
   final assets = <String, Object?>{
     GDetectionEngine.vocabularyFile: {

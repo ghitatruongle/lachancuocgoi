@@ -24,7 +24,6 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-/// In-memory database helper for integration tests.
 class TestDb {
   TestDb._(this.database, this.dbPath);
 
@@ -73,7 +72,6 @@ class TestDb {
   }
 }
 
-/// Fake [NativeBridgeInterface] used by integration tests.
 class FakeIntegrationBridge implements NativeBridgeInterface {
   FakeIntegrationBridge();
 
@@ -355,11 +353,6 @@ Override _settingsOverride(AnalysisMode mode) => settingsControllerProvider
 Override _devModeOverride() =>
     developerModeProvider.overrideWith(_TestDevModeController.new);
 
-/// State-only permission override — sidesteps the async
-/// `_refresh()` race in [PermissionController] by pre-seeding the state
-/// before [HomePage] reads it. We extend [PermissionController] so the
-/// provider's `PermissionController` type is preserved; the notifier
-/// methods are no-ops.
 class _TestPermissionController extends PermissionController {
   _TestPermissionController(super.bridge, this._initial);
   final PermissionState _initial;
@@ -379,8 +372,6 @@ Override _permissionOverride(
   );
 }
 
-/// (Type alias removed — see [IntegrationTestHarness.build].)
-
 class HarnessWidget extends StatelessWidget {
   const HarnessWidget({super.key, required this.overrides});
   final List<Override> overrides;
@@ -391,9 +382,6 @@ class HarnessWidget extends StatelessWidget {
   }
 }
 
-/// Where to drop the test user when the harness boots. Defaults to
-/// `/` (the production home page). For tests that target a deeper
-/// route, pass [IntegrationTestHarness.build]'s `initialRoute`.
 class IntegrationTestHarness {
   IntegrationTestHarness._({
     required this.widget,

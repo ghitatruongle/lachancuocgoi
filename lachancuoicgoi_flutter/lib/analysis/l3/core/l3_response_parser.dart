@@ -3,19 +3,7 @@ import 'dart:convert';
 import '../../../core/risk_level.dart';
 import 'gemini_response.dart';
 
-// ─── L3 Response Parser ────────────────────────────────────────────────
-//
-// Parses raw LLM response text into structured [AnalysisResponse] objects.
-// Handles JSON extraction from markdown blocks, risk level parsing with
-// keyword-based fallback inference, and reason string assembly.
-//
-// Extracted from [L3Analyzer] to reduce class size and enable independent
-// testing of parsing logic.
-
 class L3ResponseParser {
-  /// Parses a raw LLM response string into an [AnalysisResponse].
-  ///
-  /// Throws [FormatException] if the response is blank or not valid JSON.
   AnalysisResponse parse(String responseText) {
     if (responseText.trim().isEmpty) {
       throw const FormatException('Response is blank');
@@ -28,17 +16,13 @@ class L3ResponseParser {
     return AnalysisResponse.fromJson(decoded.cast<String, Object?>());
   }
 
-  /// Extracts JSON from a response that may contain markdown code blocks
-  /// or other surrounding text.
   String extractJson(String responseText) {
-    // Try to find a markdown json block first
     final markdownRegex = RegExp(r'```json\s*(\{.*?\})\s*```', dotAll: true);
     final match = markdownRegex.firstMatch(responseText);
     if (match != null) {
       return match.group(1) ?? responseText;
     }
 
-    // Fallback to finding the first { and last }
     final startIndex = responseText.indexOf('{');
     final endIndex = responseText.lastIndexOf('}');
     if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
@@ -47,10 +31,6 @@ class L3ResponseParser {
     return responseText;
   }
 
-  /// Maps a risk level string to a [RiskLevel] enum value.
-  ///
-  /// Falls back to [_inferLevelFromReason] if the level string is not
-  /// recognized.
   RiskLevel parseRiskLevel(String? level, String? reason) {
     switch (level?.trim().toLowerCase()) {
       case 'red':
@@ -66,9 +46,6 @@ class L3ResponseParser {
     }
   }
 
-  /// Infers a [RiskLevel] from Vietnamese keywords in the reason text.
-  ///
-  /// Used as a fallback when the LLM does not provide a valid level string.
   RiskLevel inferLevelFromReason(String? reason) {
     final lower = reason?.toLowerCase() ?? '';
     final redWords = <String>[
@@ -109,7 +86,6 @@ class L3ResponseParser {
     return RiskLevel.green;
   }
 
-  /// Assembles a human-readable reason string from the response fields.
   String assembleReason(AnalysisResponse response) {
     final reasonParts = <String>[
       if ((response.label ?? '').trim().isNotEmpty) '[${response.label}]',
@@ -121,8 +97,6 @@ class L3ResponseParser {
     return joined.isNotEmpty ? reasonParts.join(' ') : 'Phân tích hoàn tất';
   }
 
-  /// Checks if the text ends at a sentence boundary (including Vietnamese
-  /// sentence-ending particles).
   bool isSentenceBoundary(String text) {
     final trimmed = text.trimRight();
     if (trimmed.isEmpty) {

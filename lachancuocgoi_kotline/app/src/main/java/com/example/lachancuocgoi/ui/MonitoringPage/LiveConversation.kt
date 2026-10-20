@@ -22,7 +22,6 @@ import com.example.lachancuocgoi.Analysis.KeywordMatch
 fun LiveConversation(transcript: String, matches: List<KeywordMatch>) {
     val listState = rememberLazyListState()
 
-    // Sửa lỗi hiển thị: Thay thế dấu '+' bằng khoảng trắng nếu có (đề phòng lỗi encode/decode)
     val cleanTranscript = transcript.replace("+", " ")
 
     LaunchedEffect(cleanTranscript) {
@@ -34,11 +33,10 @@ fun LiveConversation(transcript: String, matches: List<KeywordMatch>) {
     val annotatedTranscript = buildAnnotatedString {
         append(cleanTranscript)
         matches.forEach { match ->
-            // Update: Chỉ highlight nếu mức độ rủi ro là Vàng, Cam hoặc Đỏ
-            // Filter keywords based on risk level (Yellow, Orange, Red)
+
             if (match.level != com.example.lachancuocgoi.RiskLevel.GREEN) {
                  val keyword = match.keyword
-                 // Kiểm tra từ khóa trong bản text sạch
+
                  var startIndex = cleanTranscript.indexOf(keyword, ignoreCase = true)
                  while (startIndex >= 0) {
                      val endIndex = startIndex + keyword.length

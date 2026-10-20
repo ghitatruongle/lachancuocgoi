@@ -1,8 +1,5 @@
 import '../../../core/risk_level.dart';
 
-/// High-level grouping of scam intents for fusion logic.
-/// Allows L2 to reason about "this call is Financial + Government"
-/// (compound scam) without tracking individual intents.
 enum IntentSuperCategory {
   government,
   financial,
@@ -176,7 +173,6 @@ extension ScamIntentExtensions on ScamIntent {
         : twiceDeescalated;
   }
 
-  /// High-level category grouping for fusion logic.
   IntentSuperCategory get superCategory {
     return switch (this) {
       ScamIntent.authPoliceLawsuit ||

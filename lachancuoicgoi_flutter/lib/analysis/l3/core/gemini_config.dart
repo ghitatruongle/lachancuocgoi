@@ -15,8 +15,6 @@ class GeminiConfig {
   final Duration timeout;
   final String? responseMimeType;
 
-  /// Config cho phân tích L3 (classification với JSON response).
-  /// Dùng temperature thấp + topK=1 (greedy) để output ổn định, deterministic.
   static GeminiConfig forAnalysis() {
     return const GeminiConfig(
       modelName: 'gemini-flash-latest',
@@ -28,7 +26,6 @@ class GeminiConfig {
     );
   }
 
-  /// Config cho tóm tắt cuộc gọi (cần độ sáng tạo vừa phải).
   static GeminiConfig forSummarization() {
     return const GeminiConfig(
       modelName: 'gemini-flash-latest',

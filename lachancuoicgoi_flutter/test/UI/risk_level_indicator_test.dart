@@ -77,7 +77,6 @@ void main() {
           .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
           .value!;
 
-      // Risk should increase: green < orange < red
       expect(greenValue, lessThan(orangeValue));
       expect(orangeValue, lessThan(redValue));
       expect(redValue, 1.0);

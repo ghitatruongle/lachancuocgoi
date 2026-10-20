@@ -26,30 +26,22 @@ class SettingsState {
 
   final bool isDarkTheme;
 
-  /// When true, [ThemeMode.system] is used (ignores [isDarkTheme] for mode).
   final bool followSystemTheme;
   final AnalysisMode analysisMode;
   final bool audioBoost;
   final bool autoEnableSpeakerphone;
   final bool creatorAudioCapture;
 
-  /// Phase 2 (P2-4): Call screening opt-in — block/reject known scam numbers.
-  /// Default OFF. The user must explicitly enable this in Settings with consent.
   final bool callScreeningBlockEnabled;
 
-  /// Phase 2 (P2-4): List of phone numbers to block when
-  /// [callScreeningBlockEnabled] is true.
   final List<String> blockedNumbers;
 
   final bool onboardingCompleted;
 
-  /// Local transcript/history retention. Defaults to 30 days.
   final CallHistoryRetention callHistoryRetention;
 
-  /// Explicit opt-in for sending transcript-derived content to cloud AI.
   final bool cloudAnalysisConsent;
 
-  /// Whether persisted settings have finished loading from SharedPreferences.
   final bool isLoaded;
 
   SettingsState copyWith({
@@ -88,7 +80,6 @@ class SettingsState {
 final settingsControllerProvider =
     NotifierProvider<SettingsController, SettingsState>(SettingsController.new);
 
-/// Lightweight gate L3/cloud clients can read before every request.
 final cloudAnalysisConsentProvider = Provider<bool>((ref) {
   return ref.watch(
     settingsControllerProvider.select((state) => state.cloudAnalysisConsent),
@@ -124,12 +115,9 @@ class _SettingsCloudAnalysisConsentStore extends CloudAnalysisConsentStore {
 class SettingsController extends Notifier<SettingsState> {
   static const _cloudConsentKey = 'CLOUD_ANALYSIS_CONSENT_V1';
   static const _legacyCloudConsentKey = 'CLOUD_ANALYSIS_CONSENT';
-  // Generation counter: incremented on every update() call.
-  // _load() captures the generation at start and only applies if unchanged.
+
   int _generation = 0;
 
-  /// Whether the persisted settings have been loaded.
-  /// Used to avoid a flash when the initial theme differs from persisted.
   bool _loaded = false;
   bool get loaded => _loaded;
 
@@ -141,9 +129,7 @@ class SettingsController extends Notifier<SettingsState> {
       followSystemTheme: true,
       analysisMode: AnalysisMode.gDetection,
       audioBoost: false,
-      // Android cannot directly capture the remote side of a normal phone
-      // call. New installs therefore default to speakerphone so the microphone
-      // can hear both sides; an explicit user choice is still persisted.
+
       autoEnableSpeakerphone: true,
       creatorAudioCapture: false,
     );
@@ -155,15 +141,13 @@ class SettingsController extends Notifier<SettingsState> {
     try {
       prefs = await SharedPreferences.getInstance();
     } on Exception {
-      // Unsupported test/desktop hosts may not register the plugin. Keep the
-      // safe defaults and still let routing leave its loading state.
       _loaded = true;
       if (ref.mounted && generationAtStart == _generation) {
         state = state.copyWith(isLoaded: true);
       }
       return;
     }
-    // If update() was called while we were loading, don't overwrite.
+
     if (generationAtStart != _generation) return;
     final loadedState = _enforceCloudConsent(
       SettingsState(
@@ -190,7 +174,7 @@ class SettingsController extends Notifier<SettingsState> {
             false,
       ),
     );
-    // v1.6 ships only the bundled full STT model.
+
     unawaited(prefs.remove('USE_SMALL_STT_MODEL'));
     _loaded = true;
     if (!ref.mounted) return;
@@ -236,8 +220,6 @@ class SettingsController extends Notifier<SettingsState> {
     return update(state.copyWith(cloudAnalysisConsent: granted));
   }
 
-  /// Clears sensitive preferences after their corresponding local stores have
-  /// been erased. Theme and other harmless UI preferences are preserved.
   Future<SettingsState> resetSensitivePreferences() async {
     final next = state.copyWith(
       cloudAnalysisConsent: false,

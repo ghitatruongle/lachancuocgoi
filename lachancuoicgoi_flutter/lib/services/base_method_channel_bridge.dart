@@ -5,18 +5,7 @@ import 'package:flutter/services.dart';
 import '../core/system_logger.dart';
 import 'native_bridge_interface.dart';
 
-/// Shared MethodChannel and EventChannel infrastructure for Android bridges.
-///
-/// Both [AndroidCallShieldBridge] and the legacy [NativeCallShieldBridge]
-/// communicate with the same native channels. This abstract base class
-/// eliminates ~400 lines of duplicated channel declarations, timeout wrappers,
-/// and stream caching logic.
-///
-/// Concrete subclasses implement [NativeBridgeInterface] methods that need
-/// platform-specific behavior (if any).
 abstract class BaseMethodChannelBridge implements NativeBridgeInterface {
-  // ─── Channel declarations ────────────────────────────────────────────────
-
   static const _methodChannel = MethodChannel(
     'com.lachancuocgoi/native_bridge',
   );
@@ -32,10 +21,7 @@ abstract class BaseMethodChannelBridge implements NativeBridgeInterface {
   );
   static const _logsChannel = EventChannel('com.lachancuocgoi/logs');
 
-  /// Default MethodChannel timeout.
   Duration get defaultTimeout;
-
-  // ─── Timeout wrapper ─────────────────────────────────────────────────────
 
   Future<bool> invokeBool(
     String method, [
@@ -94,8 +80,6 @@ abstract class BaseMethodChannelBridge implements NativeBridgeInterface {
       return null;
     }
   }
-
-  // ─── EventChannel streams ────────────────────────────────────────────────
 
   late final Stream<TranscriptUpdate> cachedTranscriptStream =
       _transcriptChannel

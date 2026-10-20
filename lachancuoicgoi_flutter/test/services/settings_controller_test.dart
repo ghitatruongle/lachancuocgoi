@@ -36,10 +36,8 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Read triggers build() which calls _load()
       container.read(settingsControllerProvider);
 
-      // Wait for _load() to complete in fake time
       await tester.pump();
 
       final state = container.read(settingsControllerProvider);
@@ -108,7 +106,6 @@ void main() {
       expect(state.analysisMode, AnalysisMode.geminiApi);
       expect(state.audioBoost, isTrue);
 
-      // Verify persistence
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool('IS_DARK_THEME'), isTrue);
       expect(prefs.getString('ANALYSIS_MODE'), 'GEMINI_API');

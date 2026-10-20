@@ -16,21 +16,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/fake_native_bridge.dart';
 
-/// Sprint 1 (A7) end-to-end test: drives `MonitoringController.endSession()`
-/// to verify the inserted `CallHistory` row carries the right
-/// `recordingError` and `summary` text.
-///
-/// This is the most important new test in Sprint 1+2 because it covers
-/// the wiring of three production features:
-///   1. Sprint 1 (A7) `recordingError` derivation in `endSession()`.
-///   2. Sprint 1 (A7) summary text for blank-transcript rows.
-///   3. The `recordingError` column in the v6 schema.
-///
-/// We drive the controller directly through a `ProviderContainer`
-/// (without mounting the widget tree) so that:
-///   - the GoRouter-free path of `endSession` is exercised
-///   - the `state.navigationIntent = NavigateToResult(id)` assignment
-///     does NOT call `context.go(...)` (that listener is in the page)
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -67,8 +52,6 @@ void main() {
     await db.database.close();
   });
 
-  /// Set up the controller with a no-op test analyzer, mutate state,
-  /// call endSession() in runAsync, and return the inserted row.
   Future<CallHistory?> driveEndSession({
     required String transcript,
     double peakAmplitude = 0.0,
@@ -97,14 +80,11 @@ void main() {
           : AnalysisAvailability.sufficient,
     );
 
-    // Escape the fake async zone so the awaits inside endSession
-    // (DB insert) actually run.
     await Future<void>.delayed(const Duration(milliseconds: 1));
     await c.endSession();
     return (await db.callHistoryDao.getAll()).firstOrNull;
   }
 
-  // ─── Case 1: no audio (silent) ──────────────────────────────────────
   test(
     'endSession with empty transcript + zero amplitudes → noAudio',
     () async {
@@ -121,7 +101,6 @@ void main() {
     },
   );
 
-  // ─── Case 2: STT failed (heard something but engine failed) ──────────
   test(
     'endSession with empty transcript + loud amplitudes → sttFailed',
     () async {
@@ -137,7 +116,6 @@ void main() {
     },
   );
 
-  // ─── Case 3: success path (transcript present) ──────────────────────
   test('endSession with non-empty transcript → null recordingError', () async {
     final row = await driveEndSession(
       transcript: 'Anh ơi cho em xin OTP',
@@ -150,7 +128,6 @@ void main() {
     expect(row.summary, isNotEmpty);
   });
 
-  // ─── Case 4: threshold boundary at 0.5 ──────────────────────────────
   test(
     'endSession with empty transcript + amplitude == 0.5 → sttFailed',
     () async {
@@ -164,7 +141,6 @@ void main() {
     },
   );
 
-  // ─── Case 5: empty amplitudes list → 0.0 max → noAudio ──────────────
   test(
     'endSession with empty transcript + empty amplitudes → noAudio',
     () async {
@@ -178,7 +154,6 @@ void main() {
     },
   );
 
-  // ─── Case 6: stopMonitoring is called on the bridge ────────────────
   test('endSession calls stopMonitoring on the bridge', () async {
     await driveEndSession(
       transcript: 'hello',
@@ -280,7 +255,6 @@ void main() {
     expect(controller.maskedNumber, '******5678');
   });
 
-  // ─── Case 7: navigationIntent carries the inserted id ─────────────
   test('endSession emits NavigateToResult with the inserted id', () async {
     final c = container.read(monitoringControllerProvider.notifier);
     final analyzer = L1Analyzer(

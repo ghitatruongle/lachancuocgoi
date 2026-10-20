@@ -11,7 +11,6 @@ void main() {
     testWidgets(
       'SharedPreferences pre-initialization makes _load() resolve fast',
       (tester) async {
-        // Simulate main.dart pre-initializing SharedPreferences
         SharedPreferences.setMockInitialValues({
           'IS_DARK_THEME': true,
           'ANALYSIS_MODE': 'GEMINI_API',
@@ -21,16 +20,13 @@ void main() {
           'CREATOR_AUDIO_CAPTURE': true,
         });
 
-        // Pre-initialize (simulating main.dart)
         await SharedPreferences.getInstance();
 
         final container = ProviderContainer();
         addTearDown(container.dispose);
 
-        // Read triggers build() which calls _load()
         container.read(settingsControllerProvider);
 
-        // Wait for _load() to complete in fake time
         await tester.pump();
 
         final state = container.read(settingsControllerProvider);
@@ -59,7 +55,6 @@ void main() {
       final startTime = DateTime.now();
       container.read(settingsControllerProvider);
 
-      // Wait for _load() to complete in fake time
       await tester.pump();
       final elapsed = DateTime.now().difference(startTime).inMilliseconds;
 
@@ -72,16 +67,13 @@ void main() {
     testWidgets('default state used before _load() completes', (tester) async {
       SharedPreferences.setMockInitialValues({});
 
-      // Don't pre-initialize — simulate the old behavior
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Initial read returns defaults
       final initialState = container.read(settingsControllerProvider);
       expect(initialState.isDarkTheme, isFalse);
       expect(initialState.analysisMode, AnalysisMode.gDetection);
 
-      // After _load() completes, state is updated
       await tester.pump();
 
       final loadedState = container.read(settingsControllerProvider);
@@ -97,10 +89,8 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Wait for initial _load() to complete
       await tester.pump();
 
-      // Update settings
       const newState = SettingsState(
         isDarkTheme: true,
         followSystemTheme: false,
@@ -114,7 +104,6 @@ void main() {
           .read(settingsControllerProvider.notifier)
           .update(newState);
 
-      // Verify persistence to SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool('IS_DARK_THEME'), isTrue);
       expect(prefs.getString('ANALYSIS_MODE'), 'GEMINI_API');
@@ -131,7 +120,6 @@ void main() {
 
       await tester.pump();
 
-      // Update settings
       const newState = SettingsState(
         isDarkTheme: true,
         followSystemTheme: false,
@@ -144,7 +132,6 @@ void main() {
           .read(settingsControllerProvider.notifier)
           .update(newState);
 
-      // Verify persistence
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool('IS_DARK_THEME'), isTrue);
       expect(prefs.getString('ANALYSIS_MODE'), 'NORMAL');

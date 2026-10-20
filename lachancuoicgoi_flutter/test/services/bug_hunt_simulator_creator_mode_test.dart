@@ -1,7 +1,3 @@
-// Bug Hunt Phase B.7 — SimulatorCreatorMode edge cases
-//
-// Reference: docs/superpowers/specs/.../Mục 8 — Creator Mode
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/services/simulator/simulator_creator_mode.dart';
 
@@ -15,7 +11,7 @@ void main() {
         final sub = mode.transcriptStream.listen(emitted.add);
         await mode.play(tickIntervalMs: 1, sentenceIntervalTicks: 1);
         await Future<void>.delayed(const Duration(milliseconds: 10));
-        // Re-start — should reset state, not double-fire.
+
         await mode.play(tickIntervalMs: 1, sentenceIntervalTicks: 1);
         await Future<void>.delayed(const Duration(milliseconds: 20));
         await sub.cancel();
@@ -41,9 +37,9 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 60));
         await sub.cancel();
         await mode.dispose();
-        // Should emit at least 1 transcript.
+
         expect(emitted, isNotEmpty);
-        // The last emitted should contain all 3 lines.
+
         expect(emitted.last, contains('X'));
         expect(emitted.last, contains('Y'));
         expect(emitted.last, contains('Z'));

@@ -97,7 +97,7 @@ void main() {
       );
 
       final map = history.toMap(includeId: true);
-      // id == 0, so it should be excluded
+
       expect(map.containsKey('id'), isFalse);
     });
 

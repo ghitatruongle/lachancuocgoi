@@ -27,8 +27,6 @@ class TranscriptSaver {
         return null;
       }
 
-      // Application support storage is private app data and is not exposed as
-      // a user document. Callers may still inject a directory in tests.
       final base = baseDirectory ?? await getApplicationSupportDirectory();
       final directory = Directory(path.join(base.path, transcriptDirectory));
       if (!await directory.exists()) {
@@ -62,13 +60,12 @@ class TranscriptSaver {
         try {
           if (await temp.exists()) await temp.delete();
         } on FileSystemException {
-          // Best-effort removal of an interrupted atomic write.
+          assert(true);
         }
       }
     }
   }
 
-  /// Deletes all locally exported transcripts and returns the file count.
   static Future<int> deleteAll({Directory? baseDirectory}) async {
     try {
       final base = baseDirectory ?? await getApplicationSupportDirectory();

@@ -7,7 +7,6 @@ import 'package:lachancuocgoi_flutter/analysis/health_check.dart';
 
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 
-/// A fake AnalysisCoordinator that returns controllable results.
 class FakeAnalysisCoordinator extends AnalysisCoordinator {
   FakeAnalysisCoordinator({AnalysisResult? resultToReturn, this.errorToThrow})
     : _resultToReturn =
@@ -48,7 +47,6 @@ class FakeAnalysisCoordinator extends AnalysisCoordinator {
   }
 }
 
-/// A minimal Analyzer implementation for testing.
 class FakeAnalyzer implements Analyzer {
   FakeAnalyzer({this.ready = true});
 
@@ -101,16 +99,9 @@ class FakeAnalyzer implements Analyzer {
   }
 
   @override
-  void dispose() {
-    // FakeAnalyzer owns no native resources.
-  }
+  void dispose() {}
 }
 
-/// A no-op Analyzer that always returns [RiskLevel.green] and reports
-/// itself as healthy. Use this in tests that don't care about the
-/// analysis path at all (e.g. database round-trips, UI rendering, or
-/// session-recovery tests) so the L1 coordinator short-circuits without
-/// having to load TFLite models.
 class FakeNoOpAnalyzer extends FakeAnalyzer {
   FakeNoOpAnalyzer() : super(ready: true);
 
@@ -126,7 +117,5 @@ class FakeNoOpAnalyzer extends FakeAnalyzer {
   AnalysisResult get lastResult => _green;
 
   @override
-  void resetSession() {
-    // no-op
-  }
+  void resetSession() {}
 }

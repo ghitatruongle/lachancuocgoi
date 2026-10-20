@@ -10,8 +10,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'native_call_shield_bridge.dart';
 import '../ui/widgets/permission_rationale_dialog.dart';
 
-/// User-facing capability groups. Core and enhanced protection are required
-/// for the consent-notification + overlay contract; call blocking is optional.
 enum PermissionCapabilityGroup {
   coreProtection,
   enhancedProtection,
@@ -54,7 +52,6 @@ class CapabilityGroupStatus {
   double get progress => totalCount == 0 ? 1 : grantedCount / totalCount;
 }
 
-/// State holder for all permission statuses.
 class PermissionState {
   const PermissionState({
     this.snapshot = const PermissionSnapshot(),
@@ -134,11 +131,8 @@ class PermissionState {
   }
 }
 
-/// Controller for managing Android permissions via native bridge.
 class PermissionController extends Notifier<PermissionState>
     with WidgetsBindingObserver {
-  /// Backward-compatible constructor for tests that instantiate directly.
-  /// In production, use [ProviderContainer] / [NotifierProvider] which calls [build].
   PermissionController([NativeBridgeInterface? bridge])
     : _storedBridge = bridge;
 
@@ -164,7 +158,6 @@ class PermissionController extends Notifier<PermissionState>
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS);
 
-  /// Microphone (and similar) via permission_handler; snapshot refreshed from native.
   Future<bool> requestMicrophonePermission([BuildContext? context]) async {
     if (context != null && !state.snapshot.recordAudio) {
       final proceed = await PermissionRationaleDialog.show(
@@ -192,7 +185,6 @@ class PermissionController extends Notifier<PermissionState>
     }
   }
 
-  /// READ_PHONE_STATE / READ_CALL_LOG (Android) via permission_handler.
   Future<bool> requestPhoneAndCallLogPermissions([
     BuildContext? context,
   ]) async {
@@ -235,7 +227,6 @@ class PermissionController extends Notifier<PermissionState>
     }
   }
 
-  /// POST_NOTIFICATIONS (Android 13+) / notification (iOS).
   Future<bool> requestNotificationPermission([BuildContext? context]) async {
     if (context != null && !state.snapshot.notification) {
       final proceed = await PermissionRationaleDialog.show(
@@ -282,20 +273,16 @@ class PermissionController extends Notifier<PermissionState>
     await _refresh();
   }
 
-  /// Refresh permission snapshot from native.
-  /// Throttled to avoid rapid successive platform channel calls
-  /// and unnecessary widget rebuilds.
   Future<void> _refresh() async {
     final now = clock.now();
     if (_lastRefreshTime != null &&
         now.difference(_lastRefreshTime!).inMilliseconds < 500) {
-      return; // Skip if refreshed within last 500ms
+      return;
     }
     _lastRefreshTime = now;
     try {
       final snapshot = await _bridge.getPermissionSnapshot();
-      // Riverpod's Notifier does have ref.mounted, so we check it here
-      // before updating state.
+
       if (!ref.mounted) return;
       if (snapshot != state.snapshot) {
         state = state.copyWith(snapshot: snapshot, lastUpdated: clock.now());
@@ -305,20 +292,16 @@ class PermissionController extends Notifier<PermissionState>
     }
   }
 
-  /// Public refresh method.
   Future<void> refresh() => _refresh();
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Reset throttle so resume always triggers a fresh snapshot.
       _lastRefreshTime = null;
       _refresh();
     }
   }
 
-  /// Request overlay permission.
-  /// Lifecycle-based refresh handles state update when user returns from settings.
   Future<bool> requestOverlayPermission([BuildContext? context]) async {
     if (context != null && !state.snapshot.overlay) {
       final proceed = await PermissionRationaleDialog.show(
@@ -339,8 +322,6 @@ class PermissionController extends Notifier<PermissionState>
     }
   }
 
-  /// Request accessibility permission.
-  /// Lifecycle-based refresh handles state update when user returns from settings.
   Future<bool> requestAccessibilityPermission([BuildContext? context]) async {
     if (context != null && !state.snapshot.accessibility) {
       final proceed = await PermissionRationaleDialog.show(
@@ -370,8 +351,6 @@ class PermissionController extends Notifier<PermissionState>
     }
   }
 
-  /// Request call screening role.
-  /// Lifecycle-based refresh handles state update when user returns from settings.
   Future<bool> requestCallScreeningPermission([BuildContext? context]) async {
     if (context != null && !state.snapshot.callScreening) {
       final proceed = await PermissionRationaleDialog.show(
@@ -392,7 +371,6 @@ class PermissionController extends Notifier<PermissionState>
     }
   }
 
-  /// Check if monitoring is active.
   Future<bool> checkMonitoringActive() async {
     try {
       return await _bridge.isMonitoringActive();
@@ -402,7 +380,6 @@ class PermissionController extends Notifier<PermissionState>
     }
   }
 
-  /// Request all missing permissions in sequence.
   Future<Map<String, bool>> requestAllPermissions([
     BuildContext? context,
   ]) async {
@@ -417,8 +394,6 @@ class PermissionController extends Notifier<PermissionState>
     return results;
   }
 
-  /// Requests the permissions for one capability group. This avoids asking
-  /// for optional, highly privileged roles during first-run onboarding.
   Future<Map<String, bool>> requestCapabilityGroup(
     PermissionCapabilityGroup group, [
     BuildContext? context,
@@ -442,9 +417,7 @@ class PermissionController extends Notifier<PermissionState>
     if (group == PermissionCapabilityGroup.enhancedProtection) {
       if (!state.snapshot.overlay) {
         results['overlay'] = await requestOverlayPermission(context);
-        // A special-permission Settings screen is now in front. Do not open
-        // Accessibility Settings on top of it; refresh-on-resume will expose
-        // the next missing permission for the user's next explicit action.
+
         return results;
       }
       if (context != null && !context.mounted) return results;
@@ -465,20 +438,16 @@ class PermissionController extends Notifier<PermissionState>
   }
 }
 
-// ─── Riverpod Providers ───────────────────────────────────────────────────────
-
 final permissionControllerProvider =
     NotifierProvider<PermissionController, PermissionState>(
       PermissionController.new,
     );
 
-/// Provider that returns true when all permissions are granted.
 final allPermissionsGrantedProvider = Provider<bool>((ref) {
   final state = ref.watch(permissionControllerProvider);
   return state.allGranted;
 });
 
-/// True when the minimum permissions for call monitoring are ready.
 final essentialPermissionsGrantedProvider = Provider<bool>((ref) {
   return ref.watch(permissionControllerProvider).essentialGranted;
 });
@@ -487,7 +456,6 @@ final capabilityGroupsProvider = Provider<List<CapabilityGroupStatus>>((ref) {
   return ref.watch(permissionControllerProvider).capabilityGroups;
 });
 
-/// Provider that returns the list of missing permission names.
 final missingPermissionsProvider = Provider<List<String>>((ref) {
   final state = ref.watch(permissionControllerProvider);
   final s = state.snapshot;

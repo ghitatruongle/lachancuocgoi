@@ -2,34 +2,19 @@ import 'dart:convert';
 
 import 'alert_history_entry.dart';
 
-/// Why no usable transcript was captured for a session.
-///
-/// Stored on disk as the lower-snake string of [name] (e.g.
-/// [killed] → `"killed"`) for compatibility with the existing DB
-/// schema — previous versions wrote the literal strings.
 enum RecordingError {
-  /// No microphone data was ever received. Typical causes: mic
-  /// permission denied, wrong audio source, device muted.
   noAudio('noAudio'),
 
-  /// Microphone produced audio but STT returned an empty transcript.
   sttFailed('sttFailed'),
 
-  /// The session was killed by the OS before [endSession] could run.
-  /// Reported from a recovery snapshot.
   killed('killed'),
 
-  /// Reserved: session ended before any final result was committed.
-  /// Not produced by current code paths.
   partial('partial');
 
   const RecordingError(this.wireName);
 
-  /// Stable string written to the `recordingError` DB column.
   final String wireName;
 
-  /// Parse a wire string back into the enum. Unknown / null values
-  /// return null (the "no error" case).
   static RecordingError? fromWire(String? value) {
     if (value == null || value.isEmpty) return null;
     for (final candidate in RecordingError.values) {
@@ -67,15 +52,8 @@ class CallHistory {
   final String? analysisType;
   final String? alertHistory;
 
-  /// Why no transcript was captured, or null if everything was fine.
-  /// Sprint 1 (A7): distinguishes "we never heard anything" (noAudio) from
-  /// "we heard something but the engine failed" (sttFailed). The schema
-  /// reserves the value `partial` for future use (e.g. session ended before
-  /// the first final result was committed).
   final String? recordingError;
 
-  /// Parsed timestamp used by retention cleanup. Current app versions store
-  /// `HH:mm:ss DD/MM/YYYY`; ISO-8601 is also accepted for imported/legacy data.
   DateTime? get recordedAt => parseStoredDateTime(dateTime);
 
   static DateTime? parseStoredDateTime(String value) {
@@ -105,13 +83,9 @@ class CallHistory {
     return parsed;
   }
 
-  /// Typed view of [recordingError] — null when there's no error.
-  /// Use this in app code instead of comparing the raw string.
   RecordingError? get recordingErrorEnum =>
       RecordingError.fromWire(recordingError);
 
-  /// Construct a [CallHistory] from a [RecordingError] (preferred over
-  /// passing the raw string).
   factory CallHistory.withRecordingError({
     int id = 0,
     required String dateTime,
@@ -142,7 +116,6 @@ class CallHistory {
     );
   }
 
-  /// Sentinel object to distinguish "not passed" from "explicitly null".
   static const _null = Object();
 
   CallHistory copyWith({

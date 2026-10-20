@@ -34,7 +34,7 @@ class VoskSttManager(
         private const val TAG = "VoskSttManager"
         private const val MAX_RETRIES = 3
         private const val RETRY_DELAY_MS = 5000L
-        // v1.6 ships one production model only.
+
         private val MODEL_ASSET_PATHS = listOf(
             "flutter_assets/assets/model-vn",
             "model-vn",
@@ -81,7 +81,7 @@ class VoskSttManager(
             "asset_index=$assetPathIndex,asset=$sourcePath",
         )
         NativeBridgeEventSink.sendLog(TAG, "Đang tải mô hình Vosk offline từ asset $sourcePath...", "INFO")
-        
+
         modelScope.launch(Dispatchers.IO) {
             StorageService.unpack(
                 context,
@@ -253,12 +253,7 @@ class VoskSttManager(
 
     fun destroy() {
         isDestroyed = true
-        // Bug #37 fix: route close() calls through the main looper so they
-        // serialize with any in-flight model init (which also posts on the
-        // main handler). Previously, calling close() from a non-main thread
-        // while modelScope was still running could close the model WHILE
-        // init was loading it → JNI native crash. By posting close() to the
-        // main handler we ensure strict ordering.
+
         handler.removeCallbacksAndMessages(null)
         handler.post {
             try { modelScope.cancel() } catch (_: Exception) {}
@@ -272,3 +267,4 @@ class VoskSttManager(
         }
     }
 }
+

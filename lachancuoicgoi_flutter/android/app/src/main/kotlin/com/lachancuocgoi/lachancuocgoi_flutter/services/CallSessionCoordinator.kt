@@ -20,13 +20,6 @@ import com.lachancuocgoi.lachancuocgoi_flutter.receiver.CallActionReceiver
 import com.lachancuocgoi.lachancuocgoi_flutter.ui.OverlayManager
 import java.util.UUID
 
-/**
- * Single source of truth for one detected call.
- *
- * Both PHONE_STATE and Accessibility can report the same call repeatedly. This
- * coordinator de-duplicates that stream, shows one consent prompt, accepts one
- * answer, and finalizes one history-producing monitoring session.
- */
 object CallSessionCoordinator {
     const val ACTION_ACCEPT = "com.lachancuocgoi.action.ACCEPT_MONITORING"
     const val ACTION_DECLINE = "com.lachancuocgoi.action.DECLINE_MONITORING"
@@ -85,9 +78,6 @@ object CallSessionCoordinator {
             )
         )
 
-        // Warm the shared engine while the consent notification is visible.
-        // FlutterEngine construction is main-thread-only, so doing it after
-        // the user taps Accept causes a visible stall on low-end devices.
         mainHandler.post {
             if (currentSession(appContext)?.state != State.PROMPTING) return@post
             (appContext as? MainApplication)?.let { application ->
@@ -144,8 +134,6 @@ object CallSessionCoordinator {
             .apply()
         cancelConsentNotification(appContext)
 
-        // Android 15 permits a microphone FGS launched from a user notification
-        // action. Attach the visible overlay first when permission is available.
         val overlayToken = MonitoringPerfProbe.begin("accept_overlay_call")
         val overlayVisible = try {
             OverlayManager.showMonitoringOverlay(appContext, acceptedAtMs)
@@ -185,10 +173,6 @@ object CallSessionCoordinator {
             return
         }
 
-        // Creating a FlutterEngine can be slow on low-end phones. Defer it
-        // until the notification BroadcastReceiver has returned so the user
-        // action cannot trigger a broadcast timeout/ANR. Native transcription
-        // events are buffered until Dart attaches its EventChannel listeners.
         val engineEnqueuedAtNanos = MonitoringPerfProbe.nowNanos()
         MonitoringPerfProbe.mark("accept_engine_task_enqueued")
         mainHandler.post {
@@ -257,12 +241,10 @@ object CallSessionCoordinator {
         )
     }
 
-    /** Ends the physical call, monitoring, overlays, and history session once. */
     fun endFromUser(context: Context) {
         finishAcceptedSession(context.applicationContext, endPhysicalCall = true, "overlay_end")
     }
 
-    /** Called for PHONE_STATE=IDLE or when an OTT call screen disappears. */
     @Synchronized
     fun onCallEnded(context: Context, reason: String) {
         val appContext = context.applicationContext
@@ -281,7 +263,6 @@ object CallSessionCoordinator {
         }
     }
 
-    /** Called by the FGS so an external stop cannot leave a stale overlay. */
     fun onMonitoringServiceStopped(context: Context) {
         val appContext = context.applicationContext
         OverlayManager.removeAll(appContext)
@@ -410,10 +391,7 @@ object CallSessionCoordinator {
     }
 
     private fun failAcceptedStart(context: Context, reason: String, message: String) {
-        // Keep the session in a terminal-for-this-call state until IDLE/the
-        // OTT call screen closes. Marking it ENDED here would allow another
-        // repeated RINGING accessibility event to show the consent prompt in
-        // a loop during the same physical call.
+
         prefs(context).edit().putString(KEY_STATE, State.DECLINED.name).apply()
         OverlayManager.removeAll(context)
         cancelConsentNotification(context)
@@ -479,3 +457,4 @@ object CallSessionCoordinator {
 
     const val SYSTEM_CALL_SOURCE = "Điện thoại"
 }
+

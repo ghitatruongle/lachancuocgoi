@@ -93,7 +93,7 @@ object CreatorAudioCaptureManager {
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
-    @SuppressLint("MissingPermission") // Checked by startCapture before entering this method.
+    @SuppressLint("MissingPermission")
     private fun startCaptureInternal(projection: MediaProjection): AudioRecord? {
         val captureConfig = try {
             val builder = AudioPlaybackCaptureConfiguration.Builder(projection)
@@ -103,7 +103,7 @@ object CreatorAudioCaptureManager {
             try {
                 builder.addMatchingUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
             } catch (_: Exception) {
-                // Android can reject VOICE_COMMUNICATION on some devices; other usages still work.
+
             }
             builder.build()
         } catch (e: SecurityException) {
@@ -143,3 +143,4 @@ object CreatorAudioCaptureManager {
         ERROR,
     }
 }
+

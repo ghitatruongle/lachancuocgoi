@@ -4,7 +4,6 @@ import 'scam_intent.dart';
 
 enum IntentOutputType { float32, uint8, int8 }
 
-/// Result of multi-label intent classification.
 class MultiLabelResult {
   final List<IntentPrediction> activeIntents;
   final ScamIntent? primaryIntent;
@@ -22,16 +21,6 @@ class MultiLabelResult {
 class IntentOutputMapper {
   const IntentOutputMapper._();
 
-  /// Parse a labels.txt file (one ScamIntent name per line, matching the
-  /// TFLite model's output tensor class order) into a [ScamIntent] list.
-  ///
-  /// This is the critical bridge between the trained model's class ordering
-  /// and the app's [ScamIntent] enum. Without it, the code assumes
-  /// `intentLabels[i] == model neuron i`, which breaks when intents are added
-  /// to the enum without retraining the model.
-  ///
-  /// Lines starting with `#` or empty lines are ignored.
-  /// Throws [ArgumentError] if any line is not a valid [ScamIntent] name.
   static List<ScamIntent> parseLabelFile(String content) {
     final labels = <ScamIntent>[];
     for (final rawLine in content.split(RegExp(r'\r?\n'))) {
@@ -53,16 +42,9 @@ class IntentOutputMapper {
     return labels;
   }
 
-  /// Platt scaling parameters (sigmoid calibration).
-  /// calibrated = 1 / (1 + exp(a * logit + b))
-  /// Default a=-1.2, b=0.3 — gentle calibration that reduces overconfidence
-  /// without collapsing the distribution.
   static const double _plattA = -1.2;
   static const double _plattB = 0.3;
 
-  /// Apply Platt scaling to raw logits, returning calibrated probabilities.
-  /// Each logit is passed through a sigmoid: p = 1/(1+exp(a*x+b))
-  /// then the result is re-normalised to sum to 1.
   static List<double> plattCalibrate(
     List<double> logits, {
     double a = _plattA,
@@ -73,7 +55,7 @@ class IntentOutputMapper {
       final p = 1.0 / (1.0 + math.exp(a * logits[i] + b));
       return p;
     });
-    // Re-normalise so probabilities sum to 1.
+
     final sum = calibrated.fold<double>(0, (s, v) => s + v);
     if (sum == 0 || sum.isNaN) {
       return List<double>.filled(logits.length, 1.0 / logits.length);
@@ -84,8 +66,6 @@ class IntentOutputMapper {
     return calibrated;
   }
 
-  /// Multi-label classification: returns all intents whose calibrated
-  /// confidence >= [threshold]. Also computes active super-categories.
   static MultiLabelResult multiLabelPredict(
     List<double> logits, {
     double threshold = 0.15,
@@ -106,7 +86,6 @@ class IntentOutputMapper {
     }
     active.sort((a, b) => b.confidence.compareTo(a.confidence));
 
-    // Derive active super-categories.
     final categories = <IntentSuperCategory>{};
     for (final p in active) {
       categories.add(p.intent.superCategory);
@@ -126,8 +105,6 @@ class IntentOutputMapper {
     int zeroPoint = 0,
     List<ScamIntent>? labelOrder,
   }) {
-    // When labelOrder is provided (from model_labels.txt), use it to size the
-    // output. Otherwise fall back to intentLabels for backward compatibility.
     final labels = labelOrder ?? intentLabels;
     final classCount = math.min(rawOutput.length, labels.length);
     if (classCount == 0) return const <double>[];
@@ -163,7 +140,6 @@ class IntentOutputMapper {
     return predictions;
   }
 
-  /// Convenience: decode raw TFLite output → Platt-calibrated predictions.
   static List<IntentPrediction> calibratedPredictions(
     List<num> rawOutput, {
     IntentOutputType outputType = IntentOutputType.float32,

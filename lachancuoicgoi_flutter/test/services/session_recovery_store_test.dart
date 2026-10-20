@@ -157,7 +157,7 @@ void main() {
       });
       final loaded = await SessionRecoveryStore.load();
       expect(loaded, isNull);
-      // After clear(), the snapshot is gone.
+
       final afterClear = await SessionRecoveryStore.load();
       expect(afterClear, isNull);
     });

@@ -9,20 +9,17 @@ object TranscriptionHub {
     val transcriptFlow = _transcriptFlow.asStateFlow()
 
     private var fullHistory = ""
-    private const val MAX_COMPARE_LENGTH = 1000 
-    private const val MAX_HISTORY_RETAIN = 5000 // Giới hạn bộ nhớ lưu trữ
+    private const val MAX_COMPARE_LENGTH = 1000
+    private const val MAX_HISTORY_RETAIN = 5000
 
     @Synchronized
     fun postTranscript(newText: String) {
         val cleanedNewText = newText.trim()
         if (cleanedNewText.isEmpty()) return
 
-        // (SỬA BUG 6) Giới hạn bộ nhớ lịch sử — cắt tại RANH GIỚI TỪ.
-        // Trước đây cắt theo index ký tự → có thể cắt giữa từ tiếng Việt
-        // ("chuyể" thay vì "chuyển") → dẫn đến duplicate detection sai.
         if (fullHistory.length > MAX_HISTORY_RETAIN) {
             val cutPoint = fullHistory.length - MAX_COMPARE_LENGTH
-            // Tìm khoảng trắng gần nhất SAU vị trí cắt để không đứt từ
+
             val safeCutPoint = fullHistory.indexOf(' ', cutPoint).let { spaceIdx ->
                 if (spaceIdx != -1) spaceIdx + 1 else cutPoint
             }
@@ -39,10 +36,9 @@ object TranscriptionHub {
             return
         }
 
-        // Tách từ bằng regex để xử lý khoảng trắng thừa
         val wordsHistory = historyToCompare.split(Regex("\\s+")).filter { it.isNotBlank() }.takeLast(10)
         val wordsNew = cleanedNewText.split(Regex("\\s+")).filter { it.isNotBlank() }
-        
+
         var overlapIndex = 0
         for (i in 1..wordsNew.size.coerceAtMost(wordsHistory.size)) {
             val historySub = wordsHistory.takeLast(i).joinToString(" ").lowercase(Locale.ROOT)

@@ -20,7 +20,6 @@ void main() {
       tracker.markError(0, 'Timeout');
       tracker.markError(0, 'Timeout');
 
-      // Reset via success
       tracker.markSuccess(0);
 
       final summary = tracker.getHealthSummary();
@@ -73,7 +72,6 @@ void main() {
       expect(summary[0].lastErrorMessage, contains('429'));
       expect(summary[0].cooldownUntil, isNotNull);
 
-      // Cooldown should be sometime tomorrow
       final tomorrow = DateTime.now().add(const Duration(days: 1));
       expect(summary[0].cooldownUntil!.day, tomorrow.day);
     });
@@ -112,11 +110,10 @@ void main() {
         final tracker = KeyHealthTracker(
           StaticApiKeyProvider(const ['AIzaKey1']),
         );
-        // markQuotaExceeded sets cooldown until midnight (future)
+
         tracker.markQuotaExceeded(0);
         expect(tracker.getHealthSummary()[0].status, KeyStatus.cooldown);
 
-        // Call recovery — cooldown not expired yet, so key stays cooldown
         tracker.recoverCooldownKeysIfNeeded();
         expect(tracker.getHealthSummary()[0].status, KeyStatus.cooldown);
       },
@@ -194,11 +191,10 @@ void main() {
       final tracker = KeyHealthTracker(
         StaticApiKeyProvider(List.generate(10, (i) => 'AIzaK$i')),
       );
-      // Run multiple times — at least some should differ from [0,1,2,...]
+
       final runs = List.generate(5, (_) => tracker.getActiveKeyIndices());
       final allFirst = runs.map((r) => r.first).toSet();
-      // With 10 keys and 5 runs, it's very unlikely all first elements are identical
-      // unless the shuffle is deterministic (which it shouldn't be)
+
       expect(allFirst.length, greaterThan(1));
     });
   });

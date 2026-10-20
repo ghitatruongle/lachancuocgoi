@@ -9,7 +9,6 @@ import com.lachancuocgoi.lachancuocgoi_flutter.services.CallSessionCoordinator
 import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeEventSink
 import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeCallEvent
 
-/** PHONE_STATE adapter. Session de-duplication lives in [CallSessionCoordinator]. */
 class CallReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != TelephonyManager.ACTION_PHONE_STATE_CHANGED) return
@@ -59,3 +58,4 @@ class CallReceiver : BroadcastReceiver() {
         const val TAG = "CallReceiver"
     }
 }
+

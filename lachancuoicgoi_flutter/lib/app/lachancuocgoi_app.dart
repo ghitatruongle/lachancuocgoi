@@ -15,8 +15,6 @@ import 'native_call_event_coordinator.dart';
 import 'router.dart';
 import 'settings_controller.dart';
 
-// Phase 2 (P2-6): AppLocalizations delegate reference, kept at top-level so the
-// generated localization code is tree-shaken only when truly unused.
 const _localizationsDelegates = <LocalizationsDelegate<dynamic>>[
   ...AppLocalizations.localizationsDelegates,
   GlobalMaterialLocalizations.delegate,
@@ -102,11 +100,6 @@ class _LachancuocgoiAppState extends ConsumerState<LachancuocgoiApp> {
     );
   }
 
-  /// BUG 2 fix (P2-4 review): sync Flutter-persisted call screening state
-  /// into native SharedPreferences so CallScreeningService (which runs in a
-  /// separate background process) sees the correct blocklist even after app
-  /// reinstall / cache clear. Without this, the Flutter UI shows "enabled"
-  /// but native never sees the list until the user re-toggles manually.
   void _syncCallScreeningToNative() {
     if (_callScreeningSynced) return;
     final settings = ref.read(settingsControllerProvider);
@@ -114,7 +107,7 @@ class _LachancuocgoiAppState extends ConsumerState<LachancuocgoiApp> {
     _callScreeningSynced = true;
 
     final bridge = ref.read(nativeBridgeProvider);
-    // Delay sync to allow native service to fully initialize, preventing timeouts
+
     unawaited(
       (() async {
         await Future<void>.delayed(const Duration(seconds: 2));
@@ -126,9 +119,6 @@ class _LachancuocgoiAppState extends ConsumerState<LachancuocgoiApp> {
     );
   }
 
-  /// Mirrors the persisted analysis mode into native SharedPreferences so the
-  /// background monitoring overlay can show the active L1/L2/L3/L1L2L3 label.
-  /// Runs on load and whenever the user changes the mode.
   void _syncAnalysisModeToNative(SettingsState settings) {
     final mode = settings.analysisMode.storageName;
     final speakerphone = settings.autoEnableSpeakerphone;
@@ -139,7 +129,6 @@ class _LachancuocgoiAppState extends ConsumerState<LachancuocgoiApp> {
     _lastSyncedAnalysisMode = mode;
     _lastSyncedSpeakerphonePreference = speakerphone;
     final bridge = ref.read(nativeBridgeProvider);
-    // Delay sync to allow native service to fully initialize
     unawaited(
       (() async {
         await Future<void>.delayed(const Duration(seconds: 2));
@@ -159,8 +148,6 @@ class _LachancuocgoiAppState extends ConsumerState<LachancuocgoiApp> {
     _nativeCallEventCoordinator.setReady(
       settings.isLoaded && settings.onboardingCompleted,
     );
-    // Wait until persisted settings are loaded to avoid a theme flash
-    // that causes Android Activity recreate (manifest android:theme mismatch).
     if (!settings.isLoaded) {
       return const MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -179,7 +166,6 @@ class _LachancuocgoiAppState extends ConsumerState<LachancuocgoiApp> {
       themeMode: settings.followSystemTheme
           ? ThemeMode.system
           : (settings.isDarkTheme ? ThemeMode.dark : ThemeMode.light),
-      // Prefer device language when supported; otherwise Vietnamese (product default).
       localeResolutionCallback: (deviceLocale, supported) {
         for (final locale in supported) {
           if (locale.languageCode == deviceLocale?.languageCode) {

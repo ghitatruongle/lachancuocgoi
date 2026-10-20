@@ -53,10 +53,9 @@ void main() {
     });
 
     test('scenario with requiredContext fails when context absent', () {
-      // Scenario S1 requires context 'dieu tra' or 'lenh bat'
       final tokens = GFlash.tokenize('toi la cong an');
       final result = matcher.match(tokens);
-      // Should not match without required context
+
       expect(result, isNull);
     });
 
@@ -66,7 +65,6 @@ void main() {
       );
       final result = matcher.match(tokens);
       if (result != null) {
-        // Hints should contribute bonus
         expect(result.similarityScore, greaterThan(0.3));
       }
     });

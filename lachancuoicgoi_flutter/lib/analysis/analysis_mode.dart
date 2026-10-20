@@ -33,15 +33,12 @@ enum AnalysisMode {
 }
 
 extension AnalysisModeX on AnalysisMode {
-  /// Canonical names (used in storage and `storageName`). All other
-  /// accepted spellings map to one of these — keep the case set tight
-  /// so adding a new mode only requires touching one switch arm.
   static const _aliases = <String, AnalysisMode>{
     'NORMAL': AnalysisMode.normal,
     'GDetection': AnalysisMode.gDetection,
     'GEMINI_API': AnalysisMode.geminiApi,
     'PARALLEL': AnalysisMode.parallel,
-    // Lowercase fallbacks (legacy / enum.name).
+
     'normal': AnalysisMode.normal,
     'gDetection': AnalysisMode.gDetection,
     'geminiApi': AnalysisMode.geminiApi,

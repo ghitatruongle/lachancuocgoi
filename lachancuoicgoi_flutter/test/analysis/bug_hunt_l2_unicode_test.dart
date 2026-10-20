@@ -1,8 +1,3 @@
-// Bug Hunt Phase B.1 — L2 (G-Detection + WFSA) Unicode + state audit
-//
-// Spec: docs/superpowers/specs/2026-06-28-bug-hunt-campaign-design.md
-//       section "Mục 1 — 3 máy phân tích L1, L2, L3"
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/intent/intent_classifier.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/l2_analysis.dart';
@@ -22,14 +17,14 @@ void main() {
         await l2.initialize();
         const inputs = <String>[
           'mã OTP',
-          'Ma OTP', // Latin (no diacritic)
+          'Ma OTP',
           'MA OTP',
           'Mã Otp',
           'MÃ OTP',
         ];
         for (final input in inputs) {
           final result = await l2.analyze(input, input);
-          // Without scenario matcher, should return green or low-risk.
+
           expect(result.analysisLevel.name, anyOf('l2', 'L2'));
         }
       },
@@ -42,7 +37,7 @@ void main() {
       l2.resetSession();
       expect(l2.processedTextLength, 0);
       final result = await l2.analyze('an toàn', 'an toàn');
-      // Without leftover state, should not re-emit orange from previous run.
+
       expect(result.overallRiskLevel.name, isNot('orange'));
       expect(result.overallRiskLevel.name, isNot('red'));
     });

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 
-/// Shared status chip used on the monitoring page header.
 class MonitoringStatusBadge extends StatelessWidget {
   const MonitoringStatusBadge({
     super.key,

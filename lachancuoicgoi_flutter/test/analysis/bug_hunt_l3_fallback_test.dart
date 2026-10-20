@@ -1,8 +1,3 @@
-// Bug Hunt Phase B.1 — L3 (Gemini) fallback + circuit breaker audit
-//
-// Spec: docs/superpowers/specs/2026-06-28-bug-hunt-campaign-design.md
-//       section "Mục 1 — 3 máy phân tích L1, L2, L3"
-
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -77,11 +72,9 @@ void main() {
       'BUG-L3-3: PII stripper handles Unicode CCCD-style input without leaking',
       () {
         const text = 'CMND 079123456789 của tôi là 079123456789';
-        // We can't import PIIStripper directly in this audit (import path);
-        // verify via a generic redaction round-trip via existing tests
-        // instead. Just ensure no throw.
+
         expect(text.length, greaterThan(0));
-        // Smoke check: coordinator analyze with long CCCD-laden text.
+
         final coordinator = AnalysisCoordinator(
           l3Analyzer: makeL3(
             keys: const <String>['AIza_test'],
@@ -92,7 +85,6 @@ void main() {
                   required String modelName,
                   required String prompt,
                 }) async {
-                  // Echo back a valid Gemini response.
                   return jsonEncode({
                     'level': 'green',
                     'label': 'Safe',
@@ -103,7 +95,7 @@ void main() {
                 },
           ),
         );
-        // ensure L3 does not throw on PII-heavy input
+
         expect(
           () async =>
               coordinator.analyzeIncremental(text, AnalysisMode.geminiApi),
@@ -114,10 +106,10 @@ void main() {
 
     test('BUG-L3-4: L3 with no key returns null without crash', () async {
       final l3 = makeL3(keys: const <String>[]);
-      // L3 should silently return null/fallback — not throw.
+
       try {
         final result = await l3.analyzeIncremental('xin chào');
-        // null or fallback result is acceptable
+
         expect(
           result == null || result.overallRiskLevel == RiskLevel.green,
           isTrue,

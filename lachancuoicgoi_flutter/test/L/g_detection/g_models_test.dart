@@ -122,7 +122,7 @@ void main() {
       final w = ScoringWeights.fromJson({'keyword': 0.3, 'sentiment': 0.1});
       expect(w.keyword, 0.3);
       expect(w.sentiment, 0.1);
-      // Others keep defaults
+
       expect(w.topic, 0.15);
     });
   });
@@ -397,10 +397,6 @@ void main() {
   });
 
   group('KeywordTrieData', () {
-    test('constructor stores fields', () {
-      // Use from RiskLevel enum import
-      // KeywordTrieData requires RiskLevel which we can test with green
-      // This is mostly a data class test
-    });
+    test('constructor stores fields', () {});
   });
 }

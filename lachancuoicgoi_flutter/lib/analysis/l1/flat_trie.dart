@@ -1,11 +1,3 @@
-/// Flat-array Aho-Corasick trie used by [L1Analyzer] for fast multi-pattern
-/// keyword matching.
-///
-/// Nodes are stored in parallel arrays for cache efficiency:
-/// - [childrenMaps]: token → child node id
-/// - [nodeMetadata]: packed (riskLevel | category | isMatch flag)
-/// - [failureLinks]: Aho-Corasick failure transitions
-/// - [dictionaryLinks]: suffix links to dictionary (output) nodes
 class FlatTrie {
   FlatTrie({int initialCapacity = 2000})
     : childrenMaps = List<Map<String, int>?>.filled(

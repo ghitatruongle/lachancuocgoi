@@ -148,8 +148,6 @@ void main() {
     test(
       'falls back to second key when first key fails with auth error',
       () async {
-        // Pre-exhaust key 0 so only key 1 is active — this ensures deterministic
-        // behavior regardless of shuffle order in getActiveKeyIndices().
         final provider = StaticApiKeyProvider(const [
           'AIzaExhaustedKey',
           'AIzaWorkingKey',
@@ -179,7 +177,7 @@ void main() {
         expect(result.isSuccess, isTrue);
         expect(attemptedKeys, contains('AIzaWorkingKey'));
         expect(attemptedKeys, isNot(contains('AIzaExhaustedKey')));
-        // Exhausted key stays exhausted, working key stays active
+
         final summary = tracker.getHealthSummary();
         expect(summary[0].status, KeyStatus.exhausted);
         expect(summary[1].status, KeyStatus.active);

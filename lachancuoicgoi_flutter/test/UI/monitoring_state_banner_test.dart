@@ -20,7 +20,7 @@ void main() {
       expect(updated.isSttFallback, isTrue);
       expect(updated.sttFallbackReason, 'error12_loop');
       expect(updated.sttFallbackBannerId, 1);
-      // Original is unchanged
+
       expect(original.isSttFallback, isFalse);
     });
 
@@ -61,8 +61,6 @@ void main() {
     });
   });
 
-  // Verify the static `formatElapsedTime` and `_formatDateTime` behave
-  // well for use in B5 recovery.
   group('Sprint 2 (B5) — helper methods', () {
     test('formatElapsedTime formats seconds as MM:SS', () {
       expect(MonitoringController.formatElapsedTime(0), '00:00');

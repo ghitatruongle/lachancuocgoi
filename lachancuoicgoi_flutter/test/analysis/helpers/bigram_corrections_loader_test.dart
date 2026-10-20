@@ -1,8 +1,3 @@
-// Unit tests for BigramCorrectionsLoader (Wave 3 refactor).
-//
-// Verifies that the extracted helper preserves the original behavior of
-// L1Analyzer._loadBigramCorrections.
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/l1/helpers/bigram_corrections_loader.dart';
 
@@ -42,7 +37,7 @@ void main() {
       BigramCorrectionsLoader.loadFromJson(json, corrections, null);
 
       expect(corrections['a']!.length, 3);
-      // Sorted longest first
+
       expect(corrections['a']![0].from.length, 3);
       expect(corrections['a']![1].from.length, 2);
       expect(corrections['a']![2].from.length, 1);

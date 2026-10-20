@@ -3,24 +3,14 @@ package com.example.lachancuocgoi.Analysis.L3.core
 import com.example.lachancuocgoi.RiskLevel
 import java.security.MessageDigest
 
-/**
- * Simple LRU cache cho Gemini responses.
- *
- * Features:
- * - LRU eviction khi đạt maxSize
- * - Dynamic TTL based on risk level (RED=30s, ORANGE=2min, YELLOW/GREEN=5min)
- * - Thread-safe với synchronized
- *
- * @param maxSize Số lượng entries tối đa
- */
 class ResponseCache<T>(
     private val maxSize: Int = 100
 ) {
 
     companion object {
-        private const val TTL_RED_MS = 30_000L      // 30 seconds for RED (high risk changes fast)
-        private const val TTL_ORANGE_MS = 120_000L // 2 minutes for ORANGE
-        private const val TTL_DEFAULT_MS = 300_000L // 5 minutes default (GREEN/YELLOW)
+        private const val TTL_RED_MS = 30_000L
+        private const val TTL_ORANGE_MS = 120_000L
+        private const val TTL_DEFAULT_MS = 300_000L
     }
 
     private val cache = object : LinkedHashMap<String, CacheEntry<T>>(
@@ -89,9 +79,6 @@ class ResponseCache<T>(
     )
 }
 
-/**
- * Statistics về cache usage.
- */
 data class CacheStats(
     val size: Int,
     val maxSize: Int

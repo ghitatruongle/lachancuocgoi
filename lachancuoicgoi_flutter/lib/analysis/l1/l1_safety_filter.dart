@@ -3,21 +3,8 @@ import '../../core/logger.dart';
 import '../analysis_config.dart';
 import '../analysis_result.dart';
 import '../common/text_normalizer.dart';
-import 'l1_analysis.dart';
 
-/// Safety context filtering for L1 keyword matches.
-///
-/// Implements 6 rules to reduce false positives:
-/// 1. Negation preceding the keyword
-/// 2. Safe beneficiary after financial keyword
-/// 3. General safe context in wider window
-/// 4. Question context (informational, not scam)
-/// 5. Family context after financial keyword
-/// 6. Repeated safe indicators across transcript
-///
-/// Extracted from [L1Analyzer] to reduce class size.
 class L1SafetyFilter {
-  /// Filters out matches that are likely false positives based on context.
   static Set<KeywordMatch> filterSafeMatches({
     required Set<KeywordMatch> matches,
     required List<String> tokens,
@@ -41,7 +28,6 @@ class L1SafetyFilter {
     final familyTerms = config.familyTerms;
     final questionPatterns = getQuestionPatterns();
 
-    // Pre-compute full transcript text for global safe context check (Rule 6).
     final fullText = TextNormalizer.normalize(
       tokens.join(' '),
       applySlang: true,
@@ -61,7 +47,6 @@ class L1SafetyFilter {
         continue;
       }
 
-      // Get context around the match
       final startPrefix = (match.startIndex - windowSize).clamp(
         0,
         tokens.length,
@@ -80,7 +65,6 @@ class L1SafetyFilter {
 
       bool shouldFilter = false;
 
-      // Rule 1: Negation preceding the keyword
       final normalizedPrefix = TextNormalizer.normalize(
         prefixText,
         applySlang: true,
@@ -89,7 +73,6 @@ class L1SafetyFilter {
         shouldFilter = true;
       }
 
-      // Rule 2: Safe beneficiary succeeding a financial keyword
       if (!shouldFilter) {
         final normalizedKeyword = TextNormalizer.normalize(
           match.keyword,
@@ -108,7 +91,6 @@ class L1SafetyFilter {
         }
       }
 
-      // Rule 3: General safe context
       if (!shouldFilter) {
         for (final safe in generalSafePhrases) {
           if (wholeContextText.contains(safe)) {
@@ -118,7 +100,6 @@ class L1SafetyFilter {
         }
       }
 
-      // Rule 4: Question context
       if (!shouldFilter) {
         final normalizedPrefixCtx = TextNormalizer.normalize(
           prefixText,
@@ -132,7 +113,6 @@ class L1SafetyFilter {
         }
       }
 
-      // Rule 5: Family context in suffix
       if (!shouldFilter) {
         final normalizedKeyword = TextNormalizer.normalize(
           match.keyword,
@@ -155,7 +135,6 @@ class L1SafetyFilter {
         }
       }
 
-      // Rule 6: Repeated safe sender across full transcript
       if (!shouldFilter && globalSafeCount >= 2) {
         shouldFilter = true;
       }
@@ -172,8 +151,6 @@ class L1SafetyFilter {
     return filtered;
   }
 
-  /// Applies risk density escalation: when multiple yellow/orange matches
-  /// cluster within 10 tokens, they upgrade to a single red match.
   static Set<KeywordMatch> applyRiskDensity(
     Set<KeywordMatch> matches,
     int totalTokens,

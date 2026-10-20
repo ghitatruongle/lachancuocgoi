@@ -34,14 +34,10 @@ import 'session_ender.dart';
 
 export 'monitoring_state.dart';
 
-// ─── Provider ──────────────────────────────────────────────────────────
-
 final monitoringControllerProvider =
     NotifierProvider<MonitoringController, MonitoringPageState>(
       MonitoringController.new,
     );
-
-// ─── Controller ────────────────────────────────────────────────────────
 
 class MonitoringController extends Notifier<MonitoringPageState> {
   bool _initialized = false;
@@ -50,7 +46,6 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   bool get disposed => _disposed;
   MonitoringPageState get currentState => state;
 
-  // Coordinator — resolved lazily in initAfterFrame.
   AnalysisCoordinator? _coordinatorInstance;
   AnalysisCoordinator get coordinator {
     final instance = _coordinatorInstance;
@@ -65,13 +60,11 @@ class MonitoringController extends Notifier<MonitoringPageState> {
 
   bool get hasTestAnalyzerOverride => _l1AnalyzerOverride != null;
 
-  // Widget parameters
   String? _simulatedScenarioTitle;
   String? _simulatedTranscript;
   List<Map<String, dynamic>>? _simulatedScriptLines;
   L1Analyzer? _l1AnalyzerOverride;
 
-  // Sub-services (delegated responsibilities)
   late final AudioAmplitudeHandler _audioHandler;
   AnalysisOrchestrator? _orchInstance;
   late final AlertManager _alertManager;
@@ -80,21 +73,15 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   late final MonitoringSimulationHelper simulationHelper;
   late final MonitoringStreamHandler streamHandler;
 
-  // Extracted sub-services
   late final SessionEnder _sessionEnder;
   late final MonitoringStarter _starter;
   late final MonitoringEventRouter _eventRouter;
 
-  // Navigation
   Timer? _timer;
 
-  // Settings listener
   ProviderSubscription<SettingsState>? _settingsSub;
 
-  /// Privacy-safe caller identifier received from the native bridge.
   String? maskedNumber;
-
-  // ─── Build ─────────────────────────────────────────────────────────
 
   @override
   MonitoringPageState build() {
@@ -116,7 +103,6 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       onRestart: () => _runRestartSequence(),
     );
 
-    // Initialize extracted sub-services
     _sessionEnder = SessionEnder(
       getBridge: () => ref.read(nativeBridgeProvider),
       getDatabase: () => ref.read(appDatabaseFutureProvider.future),
@@ -159,23 +145,17 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     simulationHelper = MonitoringSimulationHelper(this);
     streamHandler = MonitoringStreamHandler(this);
 
-    // Analysis orchestrator is created lazily after coordinator is available
-    // (see initAfterFrame).
-
     ref.onDispose(() {
       _disposeInternal();
     });
     return const MonitoringPageState();
   }
 
-  // ─── Public API ────────────────────────────────────────────────────
-
   AudioAmplitudeHandler get audioHandler => _audioHandler;
   AnalysisOrchestrator get analysisOrchestrator => _orch;
   AlertManager get alertManager => _alertManager;
   HealthCheckService get healthCheckService => _healthCheckService;
 
-  // Backward-compatible getters for existing callers
   ChangeNotifier get waveformNotifier => _audioHandler.waveformNotifier;
   List<double> get currentAmplitudes => _audioHandler.amplitudes;
   int get currentAmplitudeWriteIndex => _audioHandler.writeIndex;
@@ -184,7 +164,6 @@ class MonitoringController extends Notifier<MonitoringPageState> {
   Future<AppDatabase> get appDatabase =>
       ref.read(appDatabaseFutureProvider.future);
 
-  /// Initialize the controller with widget parameters.
   void init({
     String? simulatedScenarioTitle,
     String? simulatedTranscript,
@@ -306,7 +285,6 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _coordinatorInstance = ref.read(analysisCoordinatorProvider);
     _coordinatorInstance?.setNetworkAvailable(state.networkAvailable);
 
-    // Create orchestrator now that coordinator is available.
     _ensureOrchestratorCreated();
 
     final hasStructuredScript =
@@ -458,8 +436,6 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     state = state.copyWith(clearMonitoringErrorMessage: true);
   }
 
-  // ─── Helpers ────────────────────────────────────────────────────────
-
   bool isSimulationSession() {
     final title = _simulatedScenarioTitle?.trim() ?? '';
     final script = _simulatedTranscript?.trim() ?? '';
@@ -468,7 +444,6 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     return hasStructured || title.isNotEmpty || script.isNotEmpty;
   }
 
-  // Backward-compatible static/instance methods delegating to formatters.
   static String modeLabel(AnalysisMode mode) => formatters.modeLabel(mode);
   String formatSessionDateTime() => formatters.formatSessionDateTime();
   static String formatElapsedTime(int seconds) =>
@@ -477,11 +452,9 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       formatters.formatElapsedTime(seconds);
   String formatDateTime(DateTime value) => formatters.formatDateTime(value);
 
-  // ─── Private ────────────────────────────────────────────────────────
-
   void _ensureOrchestratorCreated() {
     if (_orchInstance != null) return;
-    if (_coordinatorInstance == null) return; // coordinator not ready yet
+    if (_coordinatorInstance == null) return;
     _orchInstance = AnalysisOrchestrator(
       coordinator: coordinator,
       getEffectiveMode: () => state.effectiveMode,
@@ -493,7 +466,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
 
   AnalysisOrchestrator get _orch {
     _ensureOrchestratorCreated();
-    // Should not happen in normal flow, but guard against it.
+
     assert(
       _orchInstance != null,
       'AnalysisOrchestrator accessed before coordinator is ready',
@@ -559,14 +532,11 @@ class MonitoringController extends Notifier<MonitoringPageState> {
       isAnalyzing: false,
     );
 
-    // Phase 2 (P2-7): trigger haptic for ALL risk levels (including yellow),
-    // not just alertEnabled. The AlertManager internally gates haptics by
-    // risk level and reduceMotion.
     _alertManager.triggerNativeAlert(result);
 
     if (result.alertEnabled) {
       _alertManager.processResult(result);
-      // Sync alert history from AlertManager to state for persistence.
+
       state = state.copyWith(alertHistory: _alertManager.alertHistory);
     }
   }
@@ -610,8 +580,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _simulatedTranscript = null;
     _simulatedScriptLines = null;
     _l1AnalyzerOverride = null;
-    // Reset singleton analyzer state (L1/L2/L3 + WFSA + GDetection) so stale
-    // scores from the previous call/simulation don't leak into the new session.
+
     _coordinatorInstance?.reset();
     _coordinatorInstance = null;
     _orchInstance?.dispose();
@@ -632,10 +601,7 @@ class MonitoringController extends Notifier<MonitoringPageState> {
     _audioHandler.dispose();
     simulationHelper.stopSimulationPlayback();
     streamHandler.cancelStreams();
-    // Bug #44 fix: null out _disposed marker BEFORE closing _settingsSub
-    // so any in-flight settings listener callback (Riverpod may invoke
-    // callbacks synchronously on close) sees _disposed=true and bails
-    // out instead of trying to update state on a disposed controller.
+
     _settingsSub?.close();
     _settingsSub = null;
   }

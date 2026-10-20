@@ -29,8 +29,7 @@ class GeminiChatSession {
   }) : _chatExecutor = chatExecutor ?? _defaultChatExecutor;
 
   static const Duration _minInterval = Duration(seconds: 1);
-  // Max number of Content entries in _safeHistory (user + model = 2 per exchange).
-  // 20 entries = 10 exchanges. Prevents exceeding Gemini context window.
+
   static const int _maxHistoryEntries = 20;
   static const List<String> _fallbackModels = geminiFallbackModels;
 
@@ -43,9 +42,7 @@ class GeminiChatSession {
   int _currentKeyIndex = 0;
   int _currentModelIndex = 0;
   DateTime? _lastCallTime;
-  // Rate-limit serialization chain (see _applyRateLimit). Prevents concurrent
-  // sendMessage() calls from both reading a stale _lastCallTime and firing
-  // closer together than _minInterval.
+
   Future<void> _rateLimitChain = Future<void>.value();
   final List<Content> _safeHistory = <Content>[];
 
@@ -127,7 +124,6 @@ class GeminiChatSession {
             );
             final parsed = parser(responseText, modelName);
 
-            // L3 Resilience: Cost tracking
             final historyTextLength = _safeHistory.fold<int>(
               0,
               (sum, content) =>
@@ -201,8 +197,6 @@ class GeminiChatSession {
   }
 
   Future<void> _applyRateLimit() async {
-    // Serialize through a Future chain so concurrent callers queue up rather
-    // than each reading a stale _lastCallTime and firing together.
     final completer = Completer<void>();
     final previous = _rateLimitChain;
     _rateLimitChain = completer.future;

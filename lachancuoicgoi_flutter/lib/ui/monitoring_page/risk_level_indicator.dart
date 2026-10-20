@@ -5,7 +5,6 @@ import '../../core/risk_level.dart';
 import '../../l10n/app_localizations.dart';
 import '../theme/risk_level_colors.dart';
 
-/// Animated risk level progress bar with color transitions.
 class RiskLevelIndicator extends StatelessWidget {
   const RiskLevelIndicator({
     super.key,
@@ -20,8 +19,7 @@ class RiskLevelIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
-    // Phase 2 (P2-7): respect the user's reduce-motion / accessibility setting.
-    // When active, skip the color transition animation entirely.
+
     final reduceMotion =
         MediaQuery.disableAnimationsOf(context) ||
         MediaQuery.accessibleNavigationOf(context);

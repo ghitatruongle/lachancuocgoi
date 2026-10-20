@@ -16,8 +16,6 @@ class CallHistoryDao {
     yield* _changeController.stream.asyncMap((_) => getAll());
   }
 
-  /// Emits whenever the table changes — dùng cho UI phân trang để
-  /// tự re-query trang hiện tại thay vì load toàn bộ bảng vào RAM.
   Stream<void> get changes => _changeController.stream;
 
   Future<int> insert(CallHistory callHistory) async {
@@ -35,7 +33,6 @@ class CallHistoryDao {
     return rows.map(CallHistory.fromMap).toList();
   }
 
-  /// Returns [limit] items starting at [offset], ordered by id DESC.
   Future<List<CallHistory>> getAllPaginated({
     int limit = 20,
     int offset = 0,
@@ -49,7 +46,6 @@ class CallHistoryDao {
     return rows.map(CallHistory.fromMap).toList();
   }
 
-  /// Returns total number of records.
   Future<int> count() async {
     final result = await _db.rawQuery(
       'SELECT COUNT(*) as cnt FROM call_history',
@@ -58,8 +54,6 @@ class CallHistoryDao {
     return (result.first['cnt'] as int?) ?? 0;
   }
 
-  /// Searches call_history across transcript, summary, riskLevel, dateTime,
-  /// and analysisType columns. Returns paginated results ordered by id DESC.
   Future<List<CallHistory>> search(
     String query, {
     int limit = 20,
@@ -83,7 +77,6 @@ class CallHistoryDao {
     return rows.map(CallHistory.fromMap).toList();
   }
 
-  /// Returns total count of search results.
   Future<int> searchCount(String query) async {
     if (query.isEmpty) return count();
     final escaped = _escapeLike(query);
@@ -119,8 +112,6 @@ class CallHistoryDao {
     _notifyChanged();
   }
 
-  /// Deletes records older than [cutoff]. Only id/date columns are read so
-  /// large transcripts never need to be loaded just to enforce retention.
   Future<int> deleteOlderThan(DateTime cutoff) async {
     final rows = await _db.query(
       'call_history',
@@ -133,7 +124,7 @@ class CallHistoryDao {
       final recordedAt = stored == null
           ? null
           : CallHistory.parseStoredDateTime(stored);
-      // Unknown legacy formats are retained rather than deleted by guesswork.
+
       if (id != null && recordedAt != null && recordedAt.isBefore(cutoff)) {
         ids.add(id);
       }
@@ -142,7 +133,6 @@ class CallHistoryDao {
 
     var deleted = 0;
     await _db.transaction((txn) async {
-      // Stay below SQLite's common 999 bind-variable limit.
       for (var start = 0; start < ids.length; start += 500) {
         final end = start + 500 < ids.length ? start + 500 : ids.length;
         final chunk = ids.sublist(start, end);
@@ -182,7 +172,6 @@ class CallHistoryDao {
     await _changeController.close();
   }
 
-  /// Escapes SQLite LIKE wildcards (%, _) so user input is treated literally.
   static String _escapeLike(String input) {
     return input
         .replaceAll(r'\', r'\\')

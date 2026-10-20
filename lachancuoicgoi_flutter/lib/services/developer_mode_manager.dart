@@ -39,12 +39,7 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
   static const int _deactivateTaps = 3;
   static const int _tapTimeoutMs = 2000;
   static const int _durationMs = 600000;
-  // The dev-mode password is stored as a SHA-256 hash rather than cleartext.
-  // Previously the literal password ('110210') was baked into the APK and
-  // trivially extractable via apktool/jadx. Storing only the digest means
-  // reverse-engineering the APK no longer reveals the password, and it can be
-  // rotated in future builds simply by replacing this digest.
-  // Digest = sha256('110210').
+
   static const String _passwordHash =
       '252342c7f49f80e619a9ddfd621e2cfeceac60db0973176004613350842e02c0';
   static const String _prefsKeyActivatedAt = 'DEV_MODE_ACTIVATED_AT_MS';
@@ -65,9 +60,9 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
   }
 
   Future<void> _restore() async {
-    if (_restored) return; // Prevent double restore.
+    if (_restored) return;
     final prefs = await SharedPreferences.getInstance();
-    if (!ref.mounted) return; // Provider disposed while awaiting.
+    if (!ref.mounted) return;
     _activatedAtMs = prefs.getInt(_prefsKeyActivatedAt) ?? 0;
     _restored = true;
     _refreshState();
@@ -115,8 +110,6 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_prefsKeyActivatedAt, _activatedAtMs);
     } on Object catch (e) {
-      // If persist fails, revert in-memory state to avoid contradiction
-      // between isActive (reads _activatedAtMs) and persisted state.
       _activatedAtMs = 0;
       SystemLogger.instance.log(
         LogCategory.system,
@@ -138,8 +131,6 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_prefsKeyActivatedAt);
     } on Object catch (e) {
-      // Non-fatal — in-memory state is already cleared. On next restart
-      // the restore will see an expired activation and deactivate.
       SystemLogger.instance.log(
         LogCategory.system,
         'DeveloperMode.deactivate() persist failed: $e',
@@ -173,8 +164,6 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
   void _refreshState() {
     final remaining = _remainingSeconds();
     if (remaining < 0) {
-      // Only deactivate if we were previously active (not a fresh start).
-      // This prevents calling deactivate() on first restore when expired.
       if (state.isActive) {
         unawaited(deactivate());
       } else {
@@ -193,8 +182,7 @@ class DeveloperModeController extends Notifier<DeveloperModeState> {
 
   void _startTicker() {
     _ticker?.cancel();
-    // 10s interval — reduces rebuilds from 600 to 60 over 10 minutes.
-    // Countdown display can round to nearest 10s without hurting UX.
+
     _ticker = Timer.periodic(const Duration(seconds: 10), (_) {
       final remaining = _remainingSeconds();
       if (remaining < 0) {

@@ -49,7 +49,7 @@ void main() {
       await db.callHistoryDao.insert(makeEntry(transcript: 'Second'));
       final all = await db.callHistoryDao.getAll();
       expect(all, hasLength(2));
-      expect(all[0].transcript, 'Second'); // DESC order
+      expect(all[0].transcript, 'Second');
       expect(all[1].transcript, 'First');
     });
 
@@ -77,7 +77,7 @@ void main() {
         offset: 2,
       );
       expect(page2, hasLength(2));
-      // Should be different from page 1
+
       final page1 = await db.callHistoryDao.getAllPaginated(
         limit: 2,
         offset: 0,
@@ -144,9 +144,8 @@ void main() {
     });
 
     test('search is case sensitive (SQLite default)', () async {
-      // SQLite LIKE is case-insensitive for ASCII by default
       final results = await db.callHistoryDao.search('otp');
-      // May or may not match depending on SQLite collation
+
       expect(results, isA<List<CallHistory>>());
     });
   });

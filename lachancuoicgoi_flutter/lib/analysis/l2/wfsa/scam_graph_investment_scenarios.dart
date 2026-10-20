@@ -1,10 +1,5 @@
 part of 'scam_graph_builder.dart';
 
-/// Investment scam scenarios: forex, crypto, MLM, "việc nhẹ lương cao",
-/// stock, ICO/IDO, skincare MLM, Ponzi (8 scenarios).
-///
-/// Wave 6 addition: 2026-06-30. Feature-flagged in analysis_config.
-/// Conservative threshold: ≥3 keyword + WFSA terminal required.
 List<ScenarioGraph> _investmentScenarios() {
   return <ScenarioGraph>[
     ScamGraphBuilder._linear(

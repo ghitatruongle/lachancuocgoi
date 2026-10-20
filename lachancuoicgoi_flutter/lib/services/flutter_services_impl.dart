@@ -4,10 +4,6 @@ import '../core/logger.dart';
 import '../core/system_logger.dart';
 import '../core/asset_loader.dart';
 
-/// Legacy [AppLogger] implementation that delegates to [SystemLogger].
-///
-/// This class is kept for backward compatibility. New code should use
-/// [SystemLogger.instance] directly or inject [AppLogger] via Riverpod.
 class FlutterLogger implements AppLogger {
   const FlutterLogger();
 

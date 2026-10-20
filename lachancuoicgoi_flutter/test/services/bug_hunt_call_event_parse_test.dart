@@ -1,5 +1,3 @@
-// Bug Hunt Phase B.9 — privacy-safe native call-event parsing.
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/services/bridge_models.dart';
 
@@ -10,7 +8,7 @@ void main() {
         'type': 'RINGING',
         'timestampMs': 123,
         'numberAvailable': false,
-        // A legacy/raw field must never be consumed.
+
         'phoneNumber': '+84912345678',
       });
 

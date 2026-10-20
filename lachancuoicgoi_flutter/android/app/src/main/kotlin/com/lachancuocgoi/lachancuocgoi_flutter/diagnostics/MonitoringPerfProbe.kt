@@ -11,13 +11,6 @@ import java.util.Locale
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicLong
 
-/**
- * Opt-in, low-overhead timing probe for physical-device monitoring tests.
- *
- * The generated build flag is false for normal debug/release builds. It is
- * enabled only by the dedicated `-PmonitoringDevicePerf=true` profile build.
- * No caller data, transcript text, or phone number is recorded.
- */
 object MonitoringPerfProbe {
     data class Event(
         val runId: String,
@@ -167,3 +160,4 @@ object MonitoringPerfProbe {
     private fun sanitize(value: String): String =
         value.replace('|', '/').replace('\n', ' ').replace('\r', ' ')
 }
+

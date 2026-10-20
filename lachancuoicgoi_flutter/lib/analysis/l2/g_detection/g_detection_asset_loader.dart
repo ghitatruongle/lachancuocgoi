@@ -12,14 +12,6 @@ import 'g_thinking.dart';
 import 'scenario_matcher.dart';
 import 'sentence_matcher.dart';
 
-/// Loads and parses the L2/G-Detection JSON assets.
-///
-/// Extracted from `GDetectionEngine` (Sprint 3, Cluster A). Owns the
-/// `AssetLoader` / `GDetectionAssetProvider` source pair, the isolate-aware
-/// JSON decoder, and the per-file config parsers. The engine constructs this
-/// collaborator and delegates all I/O + parsing to it; the loader never
-/// mutates engine state — it returns parsed domain objects (or applies global
-/// side-effects like [GFlash.loadSlangConfig] / [GThinking.loadTierConfig]).
 class GDetectionAssetLoader {
   GDetectionAssetLoader({
     AssetLoader? assetLoader,
@@ -35,14 +27,10 @@ class GDetectionAssetLoader {
   final AppLogger? _logger;
   FutureOr<String> Function(String fileName)? _assetProvider;
 
-  /// Swaps the asset source and signals that the next load is stale. Mirrors
-  /// the engine's `setAssetProvider` so the public API stays unchanged.
   void setAssetProvider(FutureOr<String> Function(String fileName) provider) {
     _assetProvider = provider;
   }
 
-  /// Loads `slang_config.json` and pushes it into the global [GFlash] state.
-  /// On failure, resets slang to empty (the engine treats slang as best-effort).
   Future<void> loadSlangMap(String fileName) async {
     try {
       final decoded = await loadJsonMap(fileName);
@@ -61,8 +49,6 @@ class GDetectionAssetLoader {
     }
   }
 
-  /// Loads `scoring_config.json` into a [ScoringConfig]. Returns the default
-  /// config on failure so the engine can keep scoring with safe fallbacks.
   Future<ScoringConfig> loadScoringConfig(String fileName) async {
     try {
       return ScoringConfig.fromJson(await loadJsonMap(fileName));
@@ -73,8 +59,6 @@ class GDetectionAssetLoader {
     }
   }
 
-  /// Loads `tier_config.json` and pushes the tier sets into [GThinking].
-  /// On failure, resets all tiers to empty (defensive).
   Future<void> loadTierConfig(String fileName) async {
     try {
       final config = TierConfig.fromJson(await loadJsonMap(fileName));
@@ -94,8 +78,6 @@ class GDetectionAssetLoader {
     }
   }
 
-  /// Loads `phrase_patterns.json` into a list of [ScamPattern]s. Returns an
-  /// empty list on failure (no patterns → only keyword/trie evidence applies).
   Future<List<ScamPattern>> loadPatterns(String fileName) async {
     try {
       final config = PatternConfigDTO.fromJson(await loadJsonMap(fileName));
@@ -108,8 +90,6 @@ class GDetectionAssetLoader {
     }
   }
 
-  /// Loads `risk_scenarios_master.json` into a [ScenarioMatcher]. Returns
-  /// `null` on failure (engine skips scenario matching when null).
   Future<ScenarioMatcher?> loadSituationMatcher(String fileName) async {
     try {
       final masterModel = RiskScenariosMaster.fromJson(
@@ -123,8 +103,6 @@ class GDetectionAssetLoader {
     }
   }
 
-  /// Loads `risk_model_sentences.json` into a [SentenceMatcher]. Returns
-  /// `null` on failure (engine skips sentence matching when null).
   Future<SentenceMatcher?> loadSentenceMatcher(String fileName) async {
     try {
       final sentencesModel = RiskModelSentences.fromJson(
@@ -138,22 +116,15 @@ class GDetectionAssetLoader {
     }
   }
 
-  /// Fetches [fileName] as raw text using the injected provider, falling back
-  /// to the asset bundle (`assets/<fileName>`) when no provider is set.
   Future<String> loadString(String fileName) async {
     final provider = _assetProvider;
     if (provider != null) {
       return await provider(fileName);
     }
-    // BUG-L2-5 fix: _assetLoader now non-nullable with NoopAssetLoader default.
-    // If NoopAssetLoader returns empty JSON, downstream parsers will gracefully
-    // degrade to zero-vocabulary mode. StateError only thrown if explicitly needed.
+
     return _assetLoader.loadString('assets/$fileName');
   }
 
-  /// Loads [fileName] and decodes it as a JSON object. Large files (> 10KB)
-  /// are decoded on a background isolate via [Isolate.run] to avoid frame jank
-  /// during L2 init; small files decode inline to skip isolate spawn cost.
   Future<Map<String, Object?>> loadJsonMap(String fileName) async {
     final text = await loadString(fileName);
     final decoded = text.length > _isolateDecodeThreshold
@@ -166,5 +137,4 @@ class GDetectionAssetLoader {
   }
 }
 
-/// Top-level để dùng được với [Isolate.run] — decode JSON trên isolate riêng.
 Object? _decodeJsonString(String text) => jsonDecode(text);

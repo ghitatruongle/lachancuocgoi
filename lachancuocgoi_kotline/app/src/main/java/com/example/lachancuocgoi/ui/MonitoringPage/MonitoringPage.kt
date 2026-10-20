@@ -73,8 +73,6 @@ fun MonitoringPage(
         viewModel.updateSettings(settingsState)
     }
 
-    // ── Creator Mode: MediaProjection permission (Developer Mode only) ──────────────────────
-    // Launcher nhận kết quả từ system dialog "Bắt đầu ghi màn hình?"
     val mediaProjectionManager = remember {
         context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
     }
@@ -84,7 +82,7 @@ fun MonitoringPage(
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             com.example.lachancuocgoi.services.CreatorMediaProjectionService.onMediaProjectionReady = { projection ->
                 viewModel.setMediaProjection(projection)
-                // Giờ mới bắt đầu listen (projection đã sẵn)
+
                 if (simulatedScenarioTitle == null) viewModel.startListening()
             }
             val intent = android.content.Intent(context, com.example.lachancuocgoi.services.CreatorMediaProjectionService::class.java).apply {
@@ -95,7 +93,7 @@ fun MonitoringPage(
             androidx.core.content.ContextCompat.startForegroundService(context, intent)
         } else {
             Toast.makeText(context, "[Dev] Chứa cấp quyền ghi màn hình. Chạy không có audio capture.", Toast.LENGTH_LONG).show()
-            if (simulatedScenarioTitle == null) viewModel.startListening() // vẫn chạy bình thường
+            if (simulatedScenarioTitle == null) viewModel.startListening()
         }
     }
 
@@ -116,14 +114,13 @@ fun MonitoringPage(
         if (simulatedScenarioTitle != null) {
             viewModel.loadAndStartSimulation(context, simulatedScenarioTitle)
         } else {
-            // Double-check: chỉ request MediaProjection nếu cả 2 điều kiện đúng
-            // (1) Developer Mode đang active  VÀ  (2) Setting creatorAudioCapture = true
+
             val shouldRequestProjection = settingsState.creatorAudioCapture
                 && DeveloperModeManager.isDevModeActive()
             if (shouldRequestProjection) {
-                // Launch system dialog: "[App] sẽ bắt đầu chụp màn hình"
+
                 projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
-                // startListening() sẽ được gọi trong projectionLauncher callback (ở trên)
+
             } else {
                 viewModel.startListening()
             }

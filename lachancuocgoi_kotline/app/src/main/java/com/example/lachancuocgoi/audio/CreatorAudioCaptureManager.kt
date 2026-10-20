@@ -14,36 +14,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
-/**
- * ⚠️  CHỈ DÀNH CHO DEVELOPER MODE ⚠️
- *
- * Capture audio hệ thống từ các ứng dụng VoIP (Zalo, Telegram, WhatsApp...)
- * bằng [AudioPlaybackCaptureConfiguration] (API 29+).
- *
- * Chức năng:
- *  - Lấy luồng PCM raw (16kHz, mono) từ audio đang phát trên loa hệ thống
- *  - Cung cấp [AudioRecord] để SpeechToTextManager đọc và chuyển sang text
- *  - KHÔNG lưu audio xuống disk
- *  - KHÔNG hoạt động với cuộc gọi GSM/PSTN (hardware protected)
- *
- * Cách mở khóa: Nhấn "Cài đặt" 10 lần → nhập mật mã → bật toggle trong Settings.
- *
- * Caller phải tự kiểm tra [DeveloperModeManager.isActive] trước khi gọi [startCapture].
- */
 object CreatorAudioCaptureManager {
 
     private const val TAG = "CreatorAudioCapture"
 
-    // PCM config — khớp với config mà SpeechToTextManager mong đợi
-    const val SAMPLE_RATE = 16_000        // 16 kHz — tốt nhất cho STT tiếng Việt
+    const val SAMPLE_RATE = 16_000
     const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
     const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
 
-    // Buffer = 320ms để cân bằng latency vs. overhead
     val BUFFER_SIZE: Int = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)
-        .coerceAtLeast(SAMPLE_RATE * 2 * 320 / 1000)   // ≥ 320ms worth of PCM
+        .coerceAtLeast(SAMPLE_RATE * 2 * 320 / 1000)
 
-    // ── Internal state ────────────────────────────────────────────────────────
     private val _state = MutableStateFlow(CaptureState.IDLE)
     val state: StateFlow<CaptureState> = _state.asStateFlow()
 
@@ -63,17 +44,6 @@ object CreatorAudioCaptureManager {
 
     @Volatile private var audioRecord: AudioRecord? = null
 
-    // ── Public API ────────────────────────────────────────────────────────────
-
-    /**
-     * Bắt đầu capture audio hệ thống từ [projection].
-     *
-     * @param projection MediaProjection token nhận được từ system dialog "Bắt đầu chụp màn hình?"
-     * @return [AudioRecord] đang trong trạng thái RECORDING, hoặc null nếu thiết bị
-     *         không hỗ trợ (API < 29) hoặc có lỗi khởi tạo.
-     *
-     * Caller chịu trách nhiệm đọc PCM từ AudioRecord trả về trong một coroutine riêng.
-     */
     fun startCapture(projection: MediaProjection): AudioRecord? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             Log.w(TAG, "AudioPlaybackCapture requires Android 10+. Skipping.")
@@ -95,10 +65,6 @@ object CreatorAudioCaptureManager {
         }
     }
 
-    /**
-     * Dừng capture và giải phóng tài nguyên AudioRecord.
-     * An toàn để gọi nhiều lần.
-     */
     fun stopCapture() {
         try {
             audioRecord?.let { record ->
@@ -116,22 +82,15 @@ object CreatorAudioCaptureManager {
         }
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
-
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun startCaptureInternal(projection: MediaProjection): AudioRecord? {
-        // Capture audio hệ thống cho STT.
-        // - USAGE_MEDIA/GAME/UNKNOWN: nhạc, video, game
-        // - USAGE_VOICE_COMMUNICATION: Android CẤM capture (privacy) → thử thêm,
-        //   bắt exception nếu bị reject, fallback về config không có nó.
-        // Lưu ý: AudioPlaybackCaptureConfiguration.Builder KHÔNG có addMatchingContentType.
-        //   Chỉ có addMatchingUsage/addMatchingUid/excludeUid/excludeUsage.
+
         val captureConfig = try {
             val builder = AudioPlaybackCaptureConfiguration.Builder(projection)
                 .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
                 .addMatchingUsage(AudioAttributes.USAGE_GAME)
                 .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
-            // Thử thêm VOICE_COMMUNICATION — có thể bị Android cấm
+
             try {
                 builder.addMatchingUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                 Log.d(TAG, "USAGE_VOICE_COMMUNICATION added to capture config")
@@ -173,11 +132,9 @@ object CreatorAudioCaptureManager {
         return record
     }
 
-    // ── State enum ────────────────────────────────────────────────────────────
-
     enum class CaptureState {
-        IDLE,       // Chưa khởi động
-        CAPTURING,  // Đang capture
-        ERROR       // Lỗi khởi tạo
+        IDLE,
+        CAPTURING,
+        ERROR
     }
 }

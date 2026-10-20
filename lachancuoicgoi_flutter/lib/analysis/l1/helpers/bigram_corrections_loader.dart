@@ -1,12 +1,7 @@
-// Wave 3 refactor: Extract bigram corrections loading from L1Analyzer.
-//
-// Pure parsing logic with no Flutter dependencies. Can be unit tested directly.
-
 import 'dart:convert';
 
 import '../../../core/logger.dart';
 
-/// Represents a single bigram correction entry.
 class TokenCorrection {
   final List<String> from;
   final List<String> to;
@@ -14,13 +9,7 @@ class TokenCorrection {
   const TokenCorrection(this.from, this.to);
 }
 
-/// Helper for loading and parsing bigram corrections from JSON.
 class BigramCorrectionsLoader {
-  /// Loads corrections from JSON string and populates the output map.
-  ///
-  /// @param jsonText JSON string containing `corrections` array.
-  /// @param corrections Output map keyed by first word of `from` list.
-  /// @param logger Optional logger for error reporting.
   static void loadFromJson(
     String jsonText,
     Map<String, List<TokenCorrection>> corrections,
@@ -45,7 +34,6 @@ class BigramCorrectionsLoader {
             .add(TokenCorrection(from, to));
       }
 
-      // Sort by length (longest first) for greedy matching.
       for (final list in corrections.values) {
         list.sort((a, b) => b.from.length.compareTo(a.from.length));
       }

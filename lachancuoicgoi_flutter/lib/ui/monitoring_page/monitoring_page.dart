@@ -44,7 +44,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Deferred init — must not modify provider state during initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = ref.read(monitoringControllerProvider.notifier);
       controller.init(
@@ -55,9 +54,7 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
       );
       controller.maskedNumber = widget.initialMaskedNumber;
       controller.initAfterFrame();
-      // Seed the elapsed-time notifier with the current value now that the
-      // controller has been initialized (it was previously assigned inside
-      // build() on every rebuild).
+
       _elapsedNotifier.value = ref
           .read(monitoringControllerProvider)
           .elapsedSeconds;
@@ -98,11 +95,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     ref.read(monitoringControllerProvider.notifier).onLifecycleChanged(state);
 
-    // On resume, re-check for a pending navigation intent. The ref.listen in
-    // build() does not fire while the widget tree is inactive, so an intent
-    // set while backgrounded would otherwise be lost. Both this path and the
-    // build() listener delegate to _consumeNavigationIntent, which is
-    // idempotent (it clears the intent first), so it's safe for both to run.
     if (state == AppLifecycleState.resumed) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -111,11 +103,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
     }
   }
 
-  /// Reads the pending navigation intent (if any), clears it, and performs
-  /// the navigation. Idempotent: a no-op when there is no intent. Centralizes
-  /// the navigation logic so the lifecycle-resume path and the ref.listen
-  /// path can't diverge. Navigation runs in a post-frame callback to avoid
-  /// calling context.go() during a build phase (which go_router warns about).
   void _consumeNavigationIntent() {
     final intent = ref.read(monitoringControllerProvider).navigationIntent;
     if (intent == null) return;
@@ -133,24 +120,15 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
-    // Listen for navigation intents while the widget is active. The lifecycle
-    // resume path covers the backgrounded case. Both are idempotent.
     ref.listen<MonitoringPageState>(monitoringControllerProvider, (prev, next) {
       if (next.navigationIntent == null) return;
-      // Defer navigation out of the listener (which fires synchronously during
-      // a provider notification) to avoid navigating during build/dispose.
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _consumeNavigationIntent();
       });
     });
 
-    // Drive the elapsed-time notifier from a targeted listener on
-    // elapsedSeconds only, instead of assigning _elapsedNotifier.value inside
-    // build(). Previously build() reassigned the value every rebuild, and
-    // since the controller bumps elapsedSeconds once per second the whole
-    // page (risk card, status badges, chips) rebuilt every second for no
-    // reason — the notifier already has its own ValueListenableBuilder.
     ref.listen<MonitoringPageState>(monitoringControllerProvider, (prev, next) {
       if (prev?.elapsedSeconds != next.elapsedSeconds) {
         _elapsedNotifier.value = next.elapsedSeconds;
@@ -160,8 +138,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
     final state = ref.watch(monitoringControllerProvider);
     final controller = ref.read(monitoringControllerProvider.notifier);
 
-    // Phase 2 (P2-7): propagate the user's reduce-motion / accessibility
-    // preference to the AlertManager so haptics are suppressed when needed.
     controller.alertManager.reduceMotion =
         MediaQuery.disableAnimationsOf(context) ||
         MediaQuery.accessibleNavigationOf(context);
@@ -247,8 +223,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
           icon: const Icon(Icons.settings),
           tooltip: l10n.settings,
           onPressed: () {
-            // Import kept in controller for dialog, but we show from page
-            // since it needs context.
             showDialog<void>(
               context: context,
               builder: (_) => const SettingsDialog(),
@@ -336,7 +310,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                 children: [
                   const SizedBox(height: 4),
 
-                  // Waveform card
                   Semantics(
                     label: l10n.monitoringWaveformSemantic,
                     child: Card(
@@ -363,7 +336,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 
                   const SizedBox(height: 8),
 
-                  // Risk level card
                   Card(
                     elevation: 4,
                     child: Semantics(
@@ -501,7 +473,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                       onDismiss: controller.dismissMonitoringError,
                     ),
 
-                  // STT unavailable (fatal) — highest priority
                   if (state.isSttUnavailable)
                     MonitoringStatusBanner(
                       icon: Icons.mic_off,
@@ -517,7 +488,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                       onDismiss: controller.dismissSttUnavailableBanner,
                     ),
 
-                  // Degraded without notification permission
                   if (state.isDegradedNoNotification)
                     MonitoringStatusBanner(
                       icon: Icons.notifications_off_outlined,
@@ -527,7 +497,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                       onDismiss: controller.dismissDegradedNotificationBanner,
                     ),
 
-                  // Watchdog restart failed
                   if (state.isWatchdogRestartFailed)
                     MonitoringStatusBanner(
                       icon: Icons.restart_alt,
@@ -537,7 +506,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
                       onDismiss: controller.dismissWatchdogBanner,
                     ),
 
-                  // STT fallback banner
                   if (state.isSttFallback)
                     MonitoringSttFallbackBanner(
                       reason: state.sttFallbackReason,
@@ -555,7 +523,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
 
           const SizedBox(height: 8),
 
-          // Live conversation card
           Expanded(
             child: Card(
               child: Padding(
@@ -634,8 +601,6 @@ class _MonitoringPageState extends ConsumerState<MonitoringPage>
   }
 }
 
-/// Adapter that exposes elapsed seconds as a ValueListenable
-/// for the AudioWaveform widget, which expects one.
 class _ElapsedNotifier extends ValueNotifier<int> {
   _ElapsedNotifier() : super(0);
 }

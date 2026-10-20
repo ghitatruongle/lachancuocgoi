@@ -1,7 +1,3 @@
-// Bug Hunt Phase C.1 — Transcript fuzz test (500 L1 + 50 L3)
-//
-// Reference: docs/superpowers/specs/.../Phase C — Fuzz + scenario injection.
-
 import 'dart:convert';
 import 'dart:math';
 
@@ -86,7 +82,7 @@ void main() {
           bigramCorrectionsProvider: () => '{"corrections":[]}',
         );
         await l1.initialize();
-        // 10 iterations of long text — no OOM.
+
         for (var i = 0; i < 10; i++) {
           try {
             await l1.analyzeStream(randomText(5000));

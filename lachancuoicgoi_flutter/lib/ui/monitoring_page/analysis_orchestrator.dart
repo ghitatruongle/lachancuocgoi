@@ -7,13 +7,6 @@ import '../../analysis/analysis_result.dart';
 import '../../core/risk_level.dart';
 import '../../core/system_logger.dart';
 
-/// Manages analysis debouncing, execution, and re-analysis queue.
-///
-/// Encapsulates:
-/// - Debounce timer for real-time analysis
-/// - Generation counter to discard stale results
-/// - Pending re-analysis tracking when analysis is already in-flight
-/// - Completer pattern for end-of-call analysis deduplication
 class AnalysisOrchestrator {
   AnalysisOrchestrator({
     required this.coordinator,
@@ -38,13 +31,10 @@ class AnalysisOrchestrator {
   int _analysisGeneration = 0;
   bool _disposed = false;
 
-  /// Whether an analysis is currently in-flight.
   bool _isAnalyzing = false;
   bool get isAnalyzing => _isAnalyzing;
   bool get disposed => _disposed;
 
-  /// Runs a single full analysis of the current transcript.
-  /// Uses Completer to deduplicate concurrent calls.
   Future<void> ensureAnalysisComplete() async {
     if (_disposed) return;
     final text = _getTranscript();
@@ -56,15 +46,9 @@ class AnalysisOrchestrator {
       try {
         await existing.future;
       } on Exception {
-        // Swallow — we still want to attempt a fresh analysis below with
-        // the latest transcript.
+        assert(true);
       }
-      // BUG FIX (Bug #2): Previously this method returned immediately
-      // after waiting for the existing analysis, which meant the final
-      // transcript text (which may have changed since the in-flight
-      // analysis started) was never analyzed before persisting to history.
-      // Now we fall through to run a fresh analysis on the latest text
-      // when the existing analysis was for an older snapshot.
+
       if (_disposed) return;
     }
     final completer = Completer<void>();
@@ -81,7 +65,6 @@ class AnalysisOrchestrator {
     }
   }
 
-  /// Schedules debounced real-time incremental analysis.
   void scheduleRealTimeAnalysis(String text) {
     if (_disposed) return;
     _analysisDebounce?.cancel();
@@ -102,15 +85,12 @@ class AnalysisOrchestrator {
         final result = await coordinator.analyzeIncremental(
           textForRun,
           effectiveMode,
-          // speechRate is kept on the coordinator via setSpeechRate from
-          // MonitoringController transcript updates.
         );
 
         if (_disposed || myGeneration != _analysisGeneration) return;
 
         _onResult(result, effectiveMode);
 
-        // Process pending reanalysis
         final pendingText = _pendingReanalysisText;
         _pendingReanalysisText = null;
         if (pendingText != null) {
@@ -123,7 +103,7 @@ class AnalysisOrchestrator {
           'AnalysisOrchestrator._runRealTimeAnalysis failed: $e',
           level: LogLevel.error,
         );
-        // Propagate fallback result on error
+
         _onError(
           const AnalysisResult(
             overallRiskLevel: RiskLevel.green,
@@ -178,13 +158,11 @@ class AnalysisOrchestrator {
     }
   }
 
-  /// Cancels any pending debounced analysis.
   void cancelDebounce() {
     _analysisDebounce?.cancel();
     _analysisDebounce = null;
   }
 
-  /// Resets the generation counter (e.g. on session reset).
   void resetGeneration() {
     _analysisGeneration = 0;
     _pendingReanalysisText = null;
@@ -192,7 +170,6 @@ class AnalysisOrchestrator {
     _isAnalyzing = false;
   }
 
-  /// Disposes resources and cancels callbacks.
   void dispose() {
     _disposed = true;
     _analysisDebounce?.cancel();

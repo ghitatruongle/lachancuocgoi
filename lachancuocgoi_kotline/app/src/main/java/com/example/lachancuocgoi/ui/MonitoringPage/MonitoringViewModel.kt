@@ -58,9 +58,6 @@ private const val NETWORK_RECOVERY_DEBOUNCE_MS = 1_500L
 
 data class AlertInfo(val level: RiskLevel, val reason: String)
 
-/**
- * Đại diện cho một cảnh báo trong hàng đợi với metadata.
- */
 data class QueuedAlert(
     val info: AlertInfo,
     val analysisLevel: AnalysisLevel,
@@ -79,51 +76,37 @@ class MonitoringViewModel(private val application: Application, private val call
     private var isStopping = false
     private var originalVoiceCallVolume: Int = -1
 
-    // ── Creator Mode (Developer Only) ────────────────────────────────────────
-    // MediaProjection token được set từ bên ngoài bởi MonitoringPage
-    // khi người dùng chấp nhận system dialog "Bắt đầu ghi màn hình?"
     @Volatile private var creatorMediaProjection: MediaProjection? = null
-    
-    // ======= PHẦN MỚI CHO BACKGROUND CREATOR MODE =======
+
     private var creatorAmplitudeJob: Job? = null
     private var creatorTextJob: Job? = null
 
-    // Simulation
     private var isSimulationMode = false
     private var simulationJob: Job? = null
-    
-    // Lưu settings gốc khi vào simulation mode để khôi phục sau
+
     private var originalSettingsBeforeSimulation: SettingsState? = null
-    
-    // Lưu settings gốc khi L3 mất mạng để khôi phục sau cuộc gọi
+
     private var originalSettingsBeforeFallback: SettingsState? = null
     private var hasShownFallbackAlertForCurrentOutage = false
     private var lastL3RecoveryAttemptAt = 0L
 
-    // ===== HỆ THỐNG BATCH PROCESSING CẢNH BÁO =====
-    // Hàng đợi riêng cho L1 và L2 (batch processing) - Thread-safe
     private val l1AlertQueue = java.util.Collections.synchronizedList(mutableListOf<QueuedAlert>())
     private val l2AlertQueue = java.util.Collections.synchronizedList(mutableListOf<QueuedAlert>())
-    
-    // Theo dõi xem đã gửi cảnh báo đầu tiên chưa
+
     @Volatile
     private var hasShownFirstL1Alert = false
-    
+
     @Volatile
     private var hasShownFirstL2Alert = false
 
-    // Timer jobs cho batch processing
     private var l1BatchJob: Job? = null
     private var l2BatchJob: Job? = null
-    
-    // Timestamp của lần thêm vào queue gần nhất (để tính thời gian batch)
+
     private var l1LastQueueTime = 0L
     private var l2LastQueueTime = 0L
-    
-    // SupervisorJob để quản lý coroutines - tránh memory leak
+
     private val supervisorJob = SupervisorJob()
-    
-    // Lưu trữ alert history cho cuộc gọi hiện tại
+
     private val currentAlertHistory = mutableListOf<AlertHistoryEntry>()
 
     private val _currentSettings = MutableStateFlow<SettingsState?>(null)
@@ -166,7 +149,6 @@ class MonitoringViewModel(private val application: Application, private val call
     init {
         connectivityMonitor.start()
 
-        // Preload Vosk model để sẵn sàng fallback khi mất mạng
         speechToTextManager.preloadVoskFallback()
 
         combine(
@@ -199,7 +181,6 @@ class MonitoringViewModel(private val application: Application, private val call
             }
         }
 
-        // Creator Mode: collect amplitude cho waveform + set listening state
         viewModelScope.launch {
             CreatorAudioCaptureManager.amplitudeFlow.collect { amp ->
                 if (DeveloperModeManager.isDevModeActive()) {
@@ -283,7 +264,7 @@ class MonitoringViewModel(private val application: Application, private val call
         }
 
         if (!previousState && isAvailable) {
-            // Thông báo cho STT engine: mạng đã trở lại → chuyển về Google nếu đang dùng Vosk fallback
+
             speechToTextManager.onNetworkRestored()
             delay(NETWORK_RECOVERY_DEBOUNCE_MS)
             if (_networkAvailable.value && _selectedMode.value == AnalysisMode.GEMINI_API) {
@@ -452,11 +433,11 @@ class MonitoringViewModel(private val application: Application, private val call
 
     private fun updateAlert(result: AnalysisResult) {
         if (!result.alertEnabled) return
-        
+
         val newLevel = result.overallRiskLevel
         val newReason = result.reason ?: return
         val analysisLevel = result.analysisLevel
-        
+
         Log.d(TAG, "updateAlert: analysisLevel=$analysisLevel, riskLevel=$newLevel, reason=$newReason")
 
         if (newLevel < RiskLevel.ORANGE) return
@@ -472,7 +453,7 @@ class MonitoringViewModel(private val application: Application, private val call
                 val l1Reason = newReason
                 val isDuplicate = synchronized(l1AlertQueue) { l1AlertQueue.any { it.info.reason == l1Reason } }
                     || currentAlertHistory.any { it.analysisLevel == "L1" && it.displayedReason == l1Reason }
-                
+
                 if (isDuplicate) {
                     Log.d(TAG, "⊘ Skipping duplicate L1 alert: $l1Reason")
                     return
@@ -482,7 +463,7 @@ class MonitoringViewModel(private val application: Application, private val call
                     hasShownFirstL1Alert = true
                     _currentAlert.value = queuedAlert.info
                     Log.i(TAG, "✓ L1 FIRST ALERT sent immediately: $newReason")
-                    
+
                     val entry = AlertHistoryEntry(
                         timestamp = System.currentTimeMillis(),
                         analysisLevel = AnalysisLevel.L1.toString(),
@@ -498,7 +479,7 @@ class MonitoringViewModel(private val application: Application, private val call
                         l1LastQueueTime = System.currentTimeMillis()
                         val queueSize = l1AlertQueue.size
                         Log.d(TAG, "Added to L1 queue. Total: $queueSize")
-                        
+
                         if (queueSize >= 5) {
                             Log.i(TAG, "⚡ L1 batch triggered by COUNT (>= 5 warnings)")
                             viewModelScope.launch {
@@ -520,7 +501,7 @@ class MonitoringViewModel(private val application: Application, private val call
 
                     Log.i(TAG, "🤖 [L2-AI] Luồng 1 phân tích thành công. Đẩy kết quả trực tiếp ra màn hình!")
                     _currentAlert.value = queuedAlert.info
-                    
+
                     val entry = AlertHistoryEntry(
                         timestamp = System.currentTimeMillis(),
                         analysisLevel = AnalysisLevel.L2AI.toString(),
@@ -534,11 +515,11 @@ class MonitoringViewModel(private val application: Application, private val call
                 }
 
                 val reasonCategory = extractCategory(newReason)
-                
+
                 val isDuplicate = synchronized(l2AlertQueue) {
                     l2AlertQueue.any { extractCategory(it.info.reason) == reasonCategory }
                 } || currentAlertHistory.any { it.analysisLevel.startsWith("L2") && extractCategory(it.displayedReason) == reasonCategory }
-                
+
                 if (isDuplicate) {
                     Log.d(TAG, "⊘ Skipping duplicate L2 alert: $reasonCategory")
                     return
@@ -548,7 +529,7 @@ class MonitoringViewModel(private val application: Application, private val call
                      hasShownFirstL2Alert = true
                      _currentAlert.value = queuedAlert.info
                      Log.i(TAG, "✓ L2 FIRST ALERT sent immediately: $newReason")
-                     
+
                      val entry = AlertHistoryEntry(
                          timestamp = System.currentTimeMillis(),
                          analysisLevel = analysisLevel.toString(),
@@ -560,13 +541,13 @@ class MonitoringViewModel(private val application: Application, private val call
                      currentAlertHistory.add(entry)
                      return
                 }
-                
+
                 synchronized(l2AlertQueue) {
                     l2AlertQueue.add(queuedAlert)
                     l2LastQueueTime = System.currentTimeMillis()
                     val queueSize = l2AlertQueue.size
                     Log.d(TAG, "Added to L2 queue. Total: $queueSize")
-                    
+
                     if (queueSize >= 5) {
                         Log.i(TAG, "⚡ L2 batch triggered by COUNT (>= 5 warnings)")
                         viewModelScope.launch {
@@ -578,7 +559,7 @@ class MonitoringViewModel(private val application: Application, private val call
             is AnalysisLevel.L3 -> {
                 _currentAlert.value = queuedAlert.info
                 Log.i(TAG, "✓ L3 alert displayed immediately: $newReason")
-                
+
                 val entry = AlertHistoryEntry(
                     timestamp = System.currentTimeMillis(),
                     analysisLevel = AnalysisLevel.L3.toString(),
@@ -623,18 +604,18 @@ class MonitoringViewModel(private val application: Application, private val call
             val topAlert = synchronized(l1AlertQueue) {
                 l1AlertQueue.maxByOrNull { it.info.level }
             }
-            
+
             topAlert?.let { alert ->
                 val queueSnapshot = synchronized(l1AlertQueue) { l1AlertQueue.toList() }
                 val summary = buildBatchSummary("L1", queueSnapshot)
                 Log.i(TAG, "⏰ Processing L1 batch (TIME trigger): $summary")
-                
+
                 try {
                     val queueSize = synchronized(l1AlertQueue) { l1AlertQueue.size }
                     val allReasons = synchronized(l1AlertQueue) {
                         l1AlertQueue.map { it.info.reason }.distinct()
                     }
-                    
+
                     val entry = AlertHistoryEntry(
                         timestamp = System.currentTimeMillis(),
                         analysisLevel = AnalysisLevel.L1.toString(),
@@ -647,7 +628,7 @@ class MonitoringViewModel(private val application: Application, private val call
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to save L1 alert to history", e)
                 }
-                
+
                 withContext(Dispatchers.Main) {
                     _currentAlert.value = alert.info
                     delay(3000)
@@ -675,18 +656,18 @@ class MonitoringViewModel(private val application: Application, private val call
             val topAlert = synchronized(l2AlertQueue) {
                 l2AlertQueue.maxByOrNull { it.info.level }
             }
-            
+
             topAlert?.let { alert ->
                 val queueSnapshot = synchronized(l2AlertQueue) { l2AlertQueue.toList() }
                 val summary = buildBatchSummary("L2", queueSnapshot)
                 Log.i(TAG, "⏰ Processing L2 batch (TIME trigger): $summary")
-                
+
                 try {
                     val queueSize = synchronized(l2AlertQueue) { l2AlertQueue.size }
                     val allReasons = synchronized(l2AlertQueue) {
                         l2AlertQueue.map { it.info.reason }.distinct()
                     }
-                    
+
                     val entry = AlertHistoryEntry(
                         timestamp = System.currentTimeMillis(),
                         analysisLevel = AnalysisLevel.L2.toString(),
@@ -699,7 +680,7 @@ class MonitoringViewModel(private val application: Application, private val call
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to save L2 alert to history", e)
                 }
-                
+
                 withContext(Dispatchers.Main) {
                     _currentAlert.value = alert.info
                     delay(3000)
@@ -723,7 +704,7 @@ class MonitoringViewModel(private val application: Application, private val call
         val highestLevel = batch.maxByOrNull { it.info.level }?.info?.level
         val reasons = batch.map { it.info.reason }.distinct().take(3)
         val keywords = reasons.joinToString(" | ")
-        
+
         return "[$level] Count: $count, Highest: $highestLevel, Top reasons: $keywords"
     }
 
@@ -739,7 +720,7 @@ class MonitoringViewModel(private val application: Application, private val call
                 val isCreatorMode = DeveloperModeManager.isDevModeActive() &&
                     CreatorAudioCaptureManager.state.value == CreatorAudioCaptureManager.CaptureState.CAPTURING
                 val db = if (isSimulationMode) (30..60).random().toFloat()
-                         else if (isCreatorMode) speechToTextManager.rmsDbFlow.value // Creator dùng amplitude riêng
+                         else if (isCreatorMode) speechToTextManager.rmsDbFlow.value
                          else speechToTextManager.rmsDbFlow.value
                 val normalized = (db / 15f + 0.1f).coerceIn(0f, 1f)
                 _amplitudes.add(normalized)
@@ -749,7 +730,6 @@ class MonitoringViewModel(private val application: Application, private val call
         }
     }
 
-    /** Cập nhật waveform từ Creator amplitude (được gọi từ amplitudeFlow collector) */
     private fun updateAmplitudes(amp: Float) {
         val normalized = (amp / 15f + 0.1f).coerceIn(0f, 1f)
         _amplitudes.add(normalized)
@@ -767,7 +747,7 @@ class MonitoringViewModel(private val application: Application, private val call
             _selectedMode.value = settings.analysisMode
             refreshRuntimeState(settings.analysisMode)
         }
-        
+
         _currentSettings.value?.let { settings ->
             if (_effectiveMode.value == AnalysisMode.GEMINI_API) {
                 analysisCoordinator.createL3Session()
@@ -811,21 +791,21 @@ class MonitoringViewModel(private val application: Application, private val call
         resetState()
         isSimulationMode = true
         _isListeningInternal.value = true
-        
+
         _currentSettings.value?.let { currentSettings ->
             Log.d(TAG, "✓ Simulation started with mode: ${currentSettings.analysisMode}")
         }
-        
+
         startL1BatchTimer()
         startL2BatchTimer()
-        
+
         _currentSettings.value?.let { settings ->
             if (_effectiveMode.value == AnalysisMode.GEMINI_API) {
                 analysisCoordinator.createL3Session()
                 Log.d(TAG, "✓ Created L3 chat session for simulation")
             }
         }
-        
+
         startTimer()
         startWaveformCollection()
 
@@ -834,15 +814,15 @@ class MonitoringViewModel(private val application: Application, private val call
             scenario.script.forEach { step ->
                 val waitTime = step.timestamp - lastTime
                 if (waitTime > 0) delay(waitTime)
-                
+
                 val newLine = "[${step.speaker}]: ${step.line}"
                 _transcript.value = if (_transcript.value.isBlank()) newLine else "${_transcript.value}\n$newLine"
-                
+
                 lastTime = step.timestamp
             }
-            
+
             delay(6000)
-            
+
             stopListeningAndSave(application)
         }
     }
@@ -851,26 +831,26 @@ class MonitoringViewModel(private val application: Application, private val call
         isStopping = false
         speechToTextManager.clearTranscript()
         analysisCoordinator.reset()
-        
+
         l1BatchJob?.cancel()
         l2BatchJob?.cancel()
-        
+
         hasShownFirstL1Alert = false
         hasShownFirstL2Alert = false
         l1LastQueueTime = 0L
         l2LastQueueTime = 0L
-        
+
         synchronized(l1AlertQueue) { l1AlertQueue.clear() }
         synchronized(l2AlertQueue) { l2AlertQueue.clear() }
         currentAlertHistory.clear()
-        
+
         _transcript.value = ""
         _analysisResult.value = AnalysisResult(RiskLevel.GREEN, emptyList())
         _elapsedTime.value = 0L
         _currentAlert.value = null
         _isListeningInternal.value = false
         simulationJob?.cancel()
-        
+
         originalSettingsBeforeSimulation = null
         originalSettingsBeforeFallback = null
         hasShownFallbackAlertForCurrentOutage = false
@@ -894,7 +874,7 @@ class MonitoringViewModel(private val application: Application, private val call
 
         if (isSimulationMode) {
             simulationJob?.cancel()
-            
+
             originalSettingsBeforeSimulation?.let { originalSettings ->
                 _currentSettings.value = originalSettings
                 Log.d(TAG, "✓ Simulation ended: Restored original settings (${originalSettings.analysisMode})")
@@ -903,18 +883,18 @@ class MonitoringViewModel(private val application: Application, private val call
         } else {
             stopCreatorCapture()
             speechToTextManager.stopListening()
-            
+
             originalSettingsBeforeFallback?.let { originalSettings ->
                 _currentSettings.value = originalSettings
                 Log.d(TAG, "✓ Fallback ended: Restored original settings (${originalSettings.analysisMode})")
             }
             originalSettingsBeforeFallback = null
         }
-        
+
         _isListeningInternal.value = false
         timerJob?.cancel()
         waveformJob?.cancel()
-        
+
         analysisCoordinator.closeL3Session(resetProgress = true)
         Log.d(TAG, "Closed L3 session")
 
@@ -931,9 +911,9 @@ class MonitoringViewModel(private val application: Application, private val call
                 withContext(Dispatchers.IO) {
                     val finalTranscript = _transcript.value
                     val storedTranscript = TranscriptSaver.prepareTranscriptForLocalStorage(finalTranscript)
-                    
+
                     val existingResult = _analysisResult.value
-                    
+
                     val audioPath = TranscriptSaver.saveTranscript(context, storedTranscript)
                     val analysisType = when (settings.analysisMode) {
                         AnalysisMode.NORMAL -> application.getString(R.string.analysis_mode_fast)
@@ -957,44 +937,44 @@ class MonitoringViewModel(private val application: Application, private val call
                     Log.d(TAG, "Saving call history with ${currentAlertHistory.size} alert entries")
                     historyId = callHistoryDao.insert(newHistory)
                 }
-                
+
                 _navigationEvent.emit(historyId)
-                
+
                 withContext(Dispatchers.IO) {
                     val finalTranscript = _transcript.value
                     val processedLen = analysisCoordinator.getProcessedTextLength(activeModeAtStop)
                     val segmentToAnalyze = if (finalTranscript.length > processedLen) {
                         finalTranscript.substring(processedLen)
                     } else ""
-                    
+
                     if (segmentToAnalyze.isNotBlank()) {
                         try {
                             val finalResult = analysisCoordinator.analyze(segmentToAnalyze, activeModeAtStop)
                             val existingResult = _analysisResult.value
-                            
+
                             val combinedResult = AnalysisResult(
                                 overallRiskLevel = maxOf(existingResult.overallRiskLevel, finalResult.overallRiskLevel),
                                 matches = (existingResult.matches + finalResult.matches).distinct(),
-                                reason = if (finalResult.overallRiskLevel >= existingResult.overallRiskLevel) 
+                                reason = if (finalResult.overallRiskLevel >= existingResult.overallRiskLevel)
                                     finalResult.reason else existingResult.reason,
                                 analysisLevel = finalResult.analysisLevel,
                                 alertEnabled = finalResult.alertEnabled
                             )
-                            
+
                             val updated = callHistoryDao.getByIdSync(historyId)?.copy(
                                 riskLevel = combinedResult.overallRiskLevel.name,
                                 summary = combinedResult.reason ?: "",
                                 flagCount = combinedResult.matches.size
                             )
                             updated?.let { callHistoryDao.update(it) }
-                            
+
                             Log.d("MonitoringViewModel", "Background analysis completed and updated")
                         } catch (e: Exception) {
                             Log.w("MonitoringViewModel", "Background analysis failed, using preliminary result", e)
                         }
                     }
                 }
-                
+
             } catch (e: Exception) {
                 Log.e("MonitoringViewModel", "Failed to save history", e)
                 _navigationEvent.emit(-1L)
@@ -1008,9 +988,9 @@ class MonitoringViewModel(private val application: Application, private val call
         supervisorJob.cancel()
         l1BatchJob?.cancel()
         l2BatchJob?.cancel()
-        
+
         analysisCoordinator.closeL3Session(resetProgress = true)
-        
+
         if (originalVoiceCallVolume != -1) {
             (application.getSystemService(Context.AUDIO_SERVICE) as AudioManager).setStreamVolume(AudioManager.STREAM_VOICE_CALL, originalVoiceCallVolume, 0)
         }

@@ -1,8 +1,3 @@
-// Bug Hunt Phase B.2 — Audit 4 analysis modes (Mục 2)
-//
-// Tests mode switching state boundary + parallel mode timeout + L3 readiness
-// fallback. Reference: docs/superpowers/specs/.../Mục 2 — 4 chế độ phân tích.
-
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -54,7 +49,7 @@ void main() {
           AnalysisMode.normal,
         );
         expect(l1Length, 200);
-        // Switching to L2 mode must start from 0 (independent state).
+
         final l2Length = coordinator.getProcessedTextLength(
           AnalysisMode.gDetection,
         );
@@ -66,7 +61,7 @@ void main() {
       final coordinator = AnalysisCoordinator(
         l3Analyzer: makeL3Slow(
           keys: const <String>['AIza_test'],
-          delayMs: 3000, // 3s, exceeds 800ms timeout
+          delayMs: 3000,
         ),
       );
       final sw = Stopwatch()..start();
@@ -103,7 +98,7 @@ void main() {
         'x' * 200,
         AnalysisMode.parallel,
       );
-      // Should not throw — must produce a valid result.
+
       expect(
         result.overallRiskLevel,
         anyOf(RiskLevel.green, RiskLevel.orange, RiskLevel.red),
@@ -116,13 +111,13 @@ void main() {
         final coordinator = AnalysisCoordinator(
           l3Analyzer: makeL3Slow(keys: const <String>['AIza_test']),
         );
-        // Prime the cache with first call.
+
         final first = await coordinator.analyzeIncremental(
           'x' * 200,
           AnalysisMode.parallel,
         );
         expect(first.analysisLevel.name, anyOf('l1', 'l2', 'l3'));
-        // After reset, second call must NOT reuse old processedTextLength.
+
         coordinator.resetMode(AnalysisMode.parallel);
         final after = coordinator.getProcessedTextLength(AnalysisMode.parallel);
         expect(

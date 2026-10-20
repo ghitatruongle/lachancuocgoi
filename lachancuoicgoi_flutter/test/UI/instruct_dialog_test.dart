@@ -45,7 +45,6 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Use textContaining with broader substrings for robustness
       expect(find.textContaining('loa ngoài'), findsWidgets);
       expect(find.textContaining('lắng nghe'), findsWidgets);
       expect(find.textContaining('phát hiện'), findsWidgets);
@@ -60,7 +59,6 @@ void main() {
       await tester.tap(find.text('Đã hiểu'));
       await tester.pumpAndSettle();
 
-      // Dialog should be dismissed
       expect(find.text('Hướng dẫn sử dụng'), findsNothing);
     });
 

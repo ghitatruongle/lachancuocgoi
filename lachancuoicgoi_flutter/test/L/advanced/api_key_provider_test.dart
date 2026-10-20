@@ -120,14 +120,10 @@ void main() {
     });
 
     test('filters out obfuscated keys that decode to invalid format', () {
-      // Create a key that after obfuscation+decode doesn't start with AIza
       final provider = EnvironmentApiKeyProvider(
         commaSeparatedKeys: 'not-valid-base64!!!, AIzaValidKey',
       );
-      // 'not-valid-base64!!!' will be decoded by _validateAndDecode
-      // It won't start with 'AIza', so ApiKeyObfuscator.decode is called
-      // But not-valid-base64!!! is not valid base64, decode returns null
-      // So it gets filtered out
+
       expect(provider.getApiKeys(), ['AIzaValidKey']);
     });
   });
@@ -219,11 +215,8 @@ void main() {
     });
   });
 
-  // Edge-case: key obfuscated that produces 'AIza' in wrong position
-  // This is already handled by the implementation which checks startsWith
   group('EnvironmentApiKeyProvider — validation edge cases', () {
     test('key that starts with AIza after decoding is accepted', () {
-      // Encode a valid-looking key to ensure round-trip works
       final obfuscated = ApiKeyObfuscator.encode('AIzaEdgeCaseKey999');
       final provider = EnvironmentApiKeyProvider(
         commaSeparatedKeys: obfuscated,

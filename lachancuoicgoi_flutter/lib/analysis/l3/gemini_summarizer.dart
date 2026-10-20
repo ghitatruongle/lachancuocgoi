@@ -22,7 +22,7 @@ class GeminiSummarizer {
   final KeyHealthTracker? _keyHealthTracker;
   final GeminiClient? _geminiClient;
   final CloudAnalysisConsentStore? _cloudConsentStore;
-  GeminiClient? _cachedClient; // Cache client để preserve circuit breaker state
+  GeminiClient? _cachedClient;
 
   GeminiClient get _client {
     if (_geminiClient != null) return _geminiClient;

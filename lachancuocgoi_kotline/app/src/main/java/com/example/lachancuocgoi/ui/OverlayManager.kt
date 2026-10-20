@@ -43,12 +43,10 @@ import kotlinx.coroutines.delay
 object OverlayManager {
     private var windowManager: WindowManager? = null
 
-    // Compose Views
     private var alertOverlayView: ComposeView? = null
     private var monitoringOverlayView: ComposeView? = null
     private var incomingCallOverlayView: ComposeView? = null
 
-    // State holders mapped to Compose
     var rmsValue by mutableFloatStateOf(0f)
     var rmsTick by mutableIntStateOf(0)
     var monitoringStartTime by mutableLongStateOf(0L)
@@ -64,13 +62,13 @@ object OverlayManager {
         val wm = getWindowManager(context)
         val composeView = ComposeView(context).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            
+
             val lifecycleOwner = ComposeOverlayLifecycleOwner()
             lifecycleOwner.performRestore(null)
             lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
             lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_START)
             lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
-            
+
             this.setViewTreeLifecycleOwner(lifecycleOwner)
             this.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
             this.setViewTreeViewModelStoreOwner(lifecycleOwner)
@@ -249,7 +247,7 @@ object OverlayManager {
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            (90 * context.resources.displayMetrics.density).toInt(), // 90dp height mapping
+            (90 * context.resources.displayMetrics.density).toInt(),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
@@ -260,7 +258,7 @@ object OverlayManager {
         ).apply { gravity = Gravity.TOP }
 
         monitoringOverlayView = createComposeOverlay(context, params) {
-            // Live Timer Logic
+
             var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
             LaunchedEffect(Unit) {
                 while (true) {
@@ -290,7 +288,7 @@ object OverlayManager {
                             modifier = Modifier.padding(end = 12.dp)
                         ) {
                             Text(
-                                "AI", 
+                                "AI",
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 fontWeight = FontWeight.Bold,
@@ -302,8 +300,7 @@ object OverlayManager {
                             Text(timeString, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    
-                    // Waveform View injected purely via Compose
+
                     Box(modifier = Modifier.weight(1f).height(40.dp).padding(horizontal = 16.dp)) {
                         WaveformVisualizer(
                             rmsDb = rmsValue,
@@ -313,7 +310,6 @@ object OverlayManager {
                         )
                     }
 
-                    // Stop Button
                     IconButton(
                         onClick = { stopMonitoring(context) },
                         modifier = Modifier.background(MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(12.dp))

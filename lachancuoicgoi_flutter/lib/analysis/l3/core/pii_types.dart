@@ -1,5 +1,3 @@
-/// Result of PII redaction containing the redacted text and a mapping
-/// from tokens back to original values for restoration.
 class PiiRedactionResult {
   const PiiRedactionResult({
     required this.redactedText,
@@ -10,7 +8,6 @@ class PiiRedactionResult {
   final Map<String, String> tokensMap;
 }
 
-/// Types of personally identifiable information detected and redacted.
 enum PiiType {
   personName('TEN_NGUOI'),
   phoneNumber('SO_DIEN_THOAI'),
@@ -29,7 +26,6 @@ enum PiiType {
   final String tokenPrefix;
 }
 
-/// Internal: tracks a single replacement span in the original text.
 class Replacement {
   const Replacement({
     required this.start,

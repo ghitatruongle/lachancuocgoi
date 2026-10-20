@@ -11,8 +11,6 @@ import 'call_history_dao.dart';
 import 'call_history_repository.dart';
 import 'local_call_history_repository.dart';
 
-/// Lazy database provider — opens the database on first read, not at app startup.
-/// This avoids blocking runApp() with the SQLite open + schema creation.
 final appDatabaseFutureProvider = FutureProvider<AppDatabase>((ref) async {
   if (kIsWeb) {
     return InMemoryAppDatabase();
@@ -49,15 +47,9 @@ class AppDatabase {
       options: OpenDatabaseOptions(
         version: schemaVersion,
         onCreate: (db, version) async {
-          // Schema creation is multi-statement (table + 3 indexes); wrap it in
-          // a transaction so a mid-way failure rolls the whole schema back
-          // instead of leaving a half-built table (Sprint 4.4).
           await db.transaction((txn) => _createSchema(txn));
         },
         onUpgrade: (db, oldVersion, newVersion) async {
-          // Migration runs several ALTER TABLE + index creations that must be
-          // atomic — a crash mid-migration must not leave the DB between
-          // versions (Sprint 4.4).
           await db.transaction(
             (txn) => _upgradeSchema(txn, oldVersion, newVersion),
           );
@@ -80,8 +72,6 @@ class AppDatabase {
     try {
       return databaseFactory;
     } on Object catch (_) {
-      // Global databaseFactory not set — on mobile the plugin always sets
-      // it, so this only happens on desktop/FFI. Re-throw with context.
       throw StateError(
         'databaseFactory is null. On desktop, call sqfliteFfiInit() before '
         'opening the database.',
@@ -127,13 +117,6 @@ CREATE TABLE IF NOT EXISTS call_history (
       return;
     }
 
-    // Bring the table up to the full current column set regardless of which
-    // pre-5 version we're upgrading from. The original Android→Flutter
-    // migration only added columns in branches for versions >=5/6, which left
-    // installs on schema v1–v4 (e.g. early internal builds) missing core
-    // columns like audioPath/analysisResult/analysisType — inserts would then
-    // throw "no such column". _addColumnIfMissing is idempotent, so listing
-    // every column here is safe even if the column already exists.
     if (oldVersion < 5) {
       await _addColumnIfMissing(db, 'call_history', 'audioPath', 'TEXT');
       await _addColumnIfMissing(db, 'call_history', 'analysisResult', 'TEXT');
@@ -150,8 +133,6 @@ CREATE TABLE IF NOT EXISTS call_history (
   }
 
   static Future<void> _createIndexesIfNotExist(DatabaseExecutor db) async {
-    // IF NOT EXISTS makes these idempotent — failures here signal real
-    // I/O problems (disk full, permission) and must surface to the caller.
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_call_history_dateTime ON call_history(dateTime)',
     );
@@ -186,7 +167,6 @@ CREATE TABLE IF NOT EXISTS call_history (
     String column,
     String type,
   ) async {
-    // Whitelist validation to prevent SQL injection
     if (!_allowedTables.contains(table) ||
         !_allowedColumns.contains(column) ||
         !_allowedTypes.contains(type)) {
@@ -221,7 +201,6 @@ CREATE TABLE IF NOT EXISTS call_history (
 
   Stream<List<CallHistory>> watchAll() => callHistoryRepository.watchAll();
 
-  /// Emits whenever call_history changes (insert/delete/update).
   Stream<void> get changes => callHistoryRepository.changes;
 
   Future<CallHistory?> getById(int id) => callHistoryRepository.getById(id);
@@ -233,17 +212,13 @@ CREATE TABLE IF NOT EXISTS call_history (
   Future<int> deleteOlderThan(DateTime cutoff) =>
       callHistoryRepository.deleteOlderThan(cutoff);
 
-  /// Deletes call history records older than [retentionDays] and runs SQLite VACUUM
-  /// to reclaim unused disk space and optimize storage footprint.
   Future<int> pruneOldHistoryAndVacuum({int retentionDays = 30}) async {
     final cutoff = DateTime.now().subtract(Duration(days: retentionDays));
     final count = await deleteOlderThan(cutoff);
     if (count > 0 && database.isOpen) {
       try {
         await database.execute('VACUUM');
-      } on Object catch (_) {
-        // Ignore vacuum errors if database is busy or in-memory
-      }
+      } on Object catch (_) {}
     }
     return count;
   }
@@ -253,8 +228,6 @@ CREATE TABLE IF NOT EXISTS call_history (
     await database.close();
   }
 
-  /// Creates an [AppDatabase] wrapping an existing [Database] instance.
-  /// Used in tests to inject a fake/mock database without sqflite FFI.
   @visibleForTesting
   AppDatabase.withDatabase(Database db) : this._(db, CallHistoryDao(db));
 }
@@ -282,7 +255,7 @@ class InMemoryAppDatabase implements AppDatabase, CallHistoryRepository {
         ? 1
         : (_history.map((e) => e.id).reduce(max) + 1);
     final historyWithId = callHistory.copyWith(id: newId);
-    _history.insert(0, historyWithId); // Newest first
+    _history.insert(0, historyWithId);
     _streamController.add(List.unmodifiable(_history));
     return newId;
   }

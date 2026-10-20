@@ -2,9 +2,6 @@ package com.example.lachancuocgoi.Analysis.L2.Intent
 
 import com.example.lachancuocgoi.RiskLevel
 
-/**
- * Tiện ích hỗ trợ ánh xạ từ nhãn AI (ScamIntent) sang ngôn ngữ hiển thị và mức độ rủi ro.
- */
 fun ScamIntent.getDisplayName(): String {
     return when (this) {
         ScamIntent.AUTH_POLICE_LAWSUIT -> "Giả danh Công an/Tòa án"
@@ -64,12 +61,12 @@ fun ScamIntent.getDescription(): String {
 fun ScamIntent.getRiskLevel(): RiskLevel {
     return when (this) {
         ScamIntent.SAFE -> RiskLevel.GREEN
-        // YELLOW: Các loại lừa đảo có dấu hiệu nhẹ, khó xác nhận ngay
+
         ScamIntent.CHARITY_DONATION -> RiskLevel.YELLOW
         ScamIntent.GIFT_LOTTERY -> RiskLevel.YELLOW
         ScamIntent.FAKE_SUBSCRIPTION -> RiskLevel.YELLOW
         ScamIntent.GENERIC_SCAM -> RiskLevel.YELLOW
-        // ORANGE: Các loại lừa đảo có nguy cơ rõ ràng nhưng cần thêm ngữ cảnh
+
         ScamIntent.INVESTMENT_SCAM -> RiskLevel.ORANGE
         ScamIntent.JOB_TASK_SCAM -> RiskLevel.ORANGE
         ScamIntent.ROMANCE_SCAM -> RiskLevel.ORANGE
@@ -79,7 +76,7 @@ fun ScamIntent.getRiskLevel(): RiskLevel {
         ScamIntent.GAMBLING_PREDICTION -> RiskLevel.ORANGE
         ScamIntent.CEO_FRAUD_B2B -> RiskLevel.ORANGE
         ScamIntent.SOCIAL_DEEPFAKE_LOAN -> RiskLevel.ORANGE
-        // RED: Các loại lừa đảo nghiêm trọng, đe dọa trực tiếp
+
         ScamIntent.AUTH_POLICE_LAWSUIT -> RiskLevel.RED
         ScamIntent.TAX_GOV_APP -> RiskLevel.RED
         ScamIntent.TELECOM_LOCK -> RiskLevel.RED

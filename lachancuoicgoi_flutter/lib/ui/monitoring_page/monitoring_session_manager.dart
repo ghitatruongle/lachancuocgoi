@@ -36,21 +36,12 @@ class MonitoringSessionManager {
       return;
     }
     if (controller.currentState.isSimulationMode) return;
-    // Bug #40 fix: if there is no transcript AND no elapsed time, skip —
-    // nothing meaningful to recover. The previous code skipped only when
-    // transcript-empty AND elapsed < 5s, so after 5s of silence it would
-    // save an empty snapshot every 5s. The recovery code then sees
-    // transcript="" and saves a CallHistory with that empty transcript,
-    // which the UI displays as a blank row in History.
+
     final state = controller.currentState;
     if (state.transcript.trim().isEmpty && state.elapsedSeconds < 10) {
       return;
     }
-    // Also skip if the user just hasn't spoken yet but monitoring is
-    // genuinely running — we still want the snapshot, but only if there
-    // is SOME signal (RMS, partial). Without any signal there's nothing
-    // useful to recover. Use audioHandler.hasReceivedAnyAudio instead of
-    // state.peakAmplitude (which doesn't exist on MonitoringPageState).
+
     if (state.transcript.trim().isEmpty &&
         !controller.audioHandler.hasReceivedAnyAudio) {
       return;
@@ -59,8 +50,6 @@ class MonitoringSessionManager {
     unawaited(
       SessionRecoveryStore.save(
         SessionSnapshot(
-          // Keep the legacy snapshot key for backwards compatibility, but its
-          // value is always the privacy-safe masked number from native.
           phoneNumber: controller.maskedNumber ?? '',
           transcript: state.transcript,
           elapsedSeconds: state.elapsedSeconds,
@@ -98,7 +87,7 @@ class MonitoringSessionManager {
         return;
       }
     } on Exception {
-      // Fall through on error
+      assert(true);
     }
 
     try {

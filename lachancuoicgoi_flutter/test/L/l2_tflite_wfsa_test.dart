@@ -74,7 +74,7 @@ void main() {
 
       expect(predictions.first.intent, ScamIntent.bankCardFraud);
       expect(predictions.first.confidence, greaterThan(0.60));
-      // Very short tensor: graceful mismatch fills remaining with 0.
+
       expect(
         IntentOutputMapper.decodeFlatOutput(<num>[1, 2, 3]).length,
         intentLabels.length,
@@ -116,8 +116,8 @@ void main() {
           scale: 0.5,
           zeroPoint: 10,
         );
-        expect(decodedInt8[0], (50 - 10) * 0.5); // 20.0
-        expect(decodedInt8[1], (-10 - 10) * 0.5); // -10.0
+        expect(decodedInt8[0], (50 - 10) * 0.5);
+        expect(decodedInt8[1], (-10 - 10) * 0.5);
       },
     );
   });

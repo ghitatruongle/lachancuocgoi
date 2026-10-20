@@ -27,18 +27,6 @@ class AndroidCallShieldBridge
   );
   static const _logsChannel = EventChannel('com.lachancuocgoi/logs');
 
-  // Bug #22 fix: timeout wrapper. If the MainActivity is busy (e.g. still
-  // showing a permission dialog) and the platform-thread is blocked, the
-  // MethodChannel.invokeMethod call could otherwise hang indefinitely and
-  // freeze the Flutter UI. Default 5s is generous enough for any realistic
-  // call (the slowest operation is startCreatorMonitoring which prompts
-  // MediaProjection — that completes in <1s on a healthy device).
-  //
-  // Bug fix (review): `null as T` crashes when T is non-nullable (e.g.
-  // `bool`). All callers use `Future<bool>`, so we MUST return `false`
-  // on timeout/error instead of null. Changed to return a typed default.
-  //
-  // BUG-BASELINE-3 fix: inject timeout via constructor for testability.
   final Duration _defaultTimeout;
 
   Future<bool> _invokeWithTimeout(
@@ -319,7 +307,6 @@ class AndroidCallShieldBridge
     }
   }
 
-  // Phase 2 (P2-4): Call screening opt-in bridge methods.
   @override
   Future<void> setCallScreeningBlockEnabled(bool enabled) async {
     try {

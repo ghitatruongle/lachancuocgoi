@@ -4,33 +4,6 @@ library;
 // ignore_for_file: invalid_annotation_target
 import 'package:flutter_test/flutter_test.dart';
 
-/// Tests the parsing of transcript events received from the native
-/// side via `transcriptStream`. The native side can send events in
-/// two shapes:
-///
-/// 1. **Old style** — a bare `String`. Pre-Sprint 1 native builds
-///    emitted raw transcript text. The Dart side has to wrap it as
-///    `TranscriptUpdate(text: <string>, isPartial: false)`.
-/// 2. **New style** — a `Map` with `{'text': '...', 'isPartial': <bool>}`.
-///    `isPartial` is optional and defaults to `false`.
-///
-/// Additionally:
-/// - Events with empty `text` are dropped (filtered by `.where(...)`).
-/// - `null` events become `TranscriptUpdate(text: '', isPartial: false)`
-///   and are then dropped.
-///
-/// ─────────────────────────────────────────────────────────────────────
-/// We pin our own `TranscriptUpdate` and `parseTranscriptEvent` here
-/// because the production class is part of the upcoming Sprint 1+2
-/// refactor (`lib/services/native_call_shield_bridge.dart`) and
-/// doesn't exist yet. Once the production class lands, this file
-/// should be updated to import it.
-///
-/// The `parseTranscriptEvent` rule captured here:
-/// - `Map` → `TranscriptUpdate(text, isPartial)`; missing `text` → '',
-///   missing `isPartial` → false.
-/// - `String` → `TranscriptUpdate(text, isPartial: false)`.
-/// - everything else (including `null`) → `TranscriptUpdate('', false)`.
 void main() {
   group('parseTranscriptEvent — payload shape tolerance', () {
     test('old-style event: a bare String → isPartial=false', () {
@@ -142,8 +115,6 @@ void main() {
     });
   });
 }
-
-// ── Pinned test fixtures ──────────────────────────────────────────────
 
 class TranscriptUpdate {
   const TranscriptUpdate({required this.text, required this.isPartial});

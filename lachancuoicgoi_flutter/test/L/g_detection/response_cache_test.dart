@@ -60,9 +60,9 @@ void main() {
 
     test('sweepExpired removes expired entries', () async {
       final cache = ResponseCache<String>();
-      // Default TTL is 5 minutes for green
+
       cache.put('key1', 'value1', riskLevel: RiskLevel.green);
-      // Cannot easily wait 5 minutes, so test sweep with no expired
+
       final removed = cache.sweepExpired();
       expect(removed, 0);
       expect(cache.getStats().size, 1);

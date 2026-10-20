@@ -1,9 +1,5 @@
 package com.lachancuocgoi.lachancuocgoi_flutter.services
 
-/**
- * Pure lifecycle state for [BackgroundMonitoringService].
- * Extracted so transitions can be unit-tested without Robolectric.
- */
 enum class MonitoringLifecyclePhase {
     CREATED,
     FOREGROUND_READY,
@@ -57,3 +53,4 @@ class MonitoringLifecycleState {
             phase == MonitoringLifecyclePhase.CREATED ||
             phase == MonitoringLifecyclePhase.MONITORING_ACTIVE
 }
+

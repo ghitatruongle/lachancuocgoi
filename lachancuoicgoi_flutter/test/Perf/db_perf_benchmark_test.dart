@@ -9,16 +9,6 @@ import 'package:lachancuocgoi_flutter/data/app_database.dart';
 import 'package:lachancuocgoi_flutter/data/call_history.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-/// Slow benchmark tests. Tagged so the default CI invocation
-/// (`flutter test --exclude-tags perf`) skips them. Run them with
-/// `flutter test --tags perf` to keep the baseline numbers in the
-/// sprint-4 handoff document up to date.
-///
-/// Performance budget (Windows + sqflite_common_ffi):
-///   - 1000-row insert          : < 5s
-///   - 1000-row getAll()         : < 200ms
-///   - 1000-row substring search : < 500ms
-///   - watchAll re-emit latency  : < 100ms
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -157,9 +147,6 @@ void main() {
   });
 
   test('all 5 allowed recordingError values survive insertion', () async {
-    // Note: copyWith can't set recordingError to null (it uses `??`
-    // semantics). We test the non-null values via copyWith and the
-    // null value via a fresh construction.
     for (final v in const ['noAudio', 'sttFailed', 'partial', 'killed']) {
       final id = await db.callHistoryDao.insert(
         makeRow(0).copyWith(recordingError: v),
@@ -168,7 +155,7 @@ void main() {
       expect(restored, isNotNull);
       expect(restored!.recordingError, v);
     }
-    // null case: construct fresh (no copyWith).
+
     final idNull = await db.callHistoryDao.insert(
       const CallHistory(
         dateTime: '00:00:00 01/06/2026',

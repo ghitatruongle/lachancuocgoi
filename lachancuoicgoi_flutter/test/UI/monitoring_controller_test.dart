@@ -9,7 +9,6 @@ import 'package:lachancuocgoi_flutter/ui/monitoring_page/monitoring_controller.d
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // ─── MonitoringState ─────────────────────────────────────────────────
   group('MonitoringState', () {
     test('default state has expected values', () {
       const state = MonitoringPageState();
@@ -44,7 +43,7 @@ void main() {
       expect(updated.transcript, 'Hello');
       expect(updated.elapsedSeconds, 42);
       expect(updated.isAnalyzing, true);
-      // Original unchanged
+
       expect(original.riskLevel, RiskLevel.green);
       expect(original.transcript, '');
     });
@@ -93,7 +92,6 @@ void main() {
     });
   });
 
-  // ─── NavigationIntent ────────────────────────────────────────────────
   group('NavigationIntent', () {
     test('NavigateToResult holds historyId', () {
       const intent = NavigateToResult(42);
@@ -112,7 +110,6 @@ void main() {
     });
   });
 
-  // ─── modeLabel ───────────────────────────────────────────────────────
   group('MonitoringController.modeLabel', () {
     test('returns L1 for normal mode', () {
       expect(MonitoringController.modeLabel(AnalysisMode.normal), 'L1');
@@ -127,7 +124,6 @@ void main() {
     });
   });
 
-  // ─── formatElapsedTime ───────────────────────────────────────────────
   group('MonitoringController.formatElapsedTime', () {
     test('formats zero seconds', () {
       expect(MonitoringController.formatElapsedTime(0), '00:00');
@@ -150,11 +146,10 @@ void main() {
     });
   });
 
-  // ─── formatSessionDateTime ───────────────────────────────────────────
   group('MonitoringController.formatSessionDateTime', () {
     test('returns non-empty string with expected format', () {
       final result = MonitoringController().formatSessionDateTime();
-      // Should match pattern HH:MM:SS DD/MM/YYYY
+
       expect(result, matches(RegExp(r'\d{2}:\d{2}:\d{2} \d{2}/\d{2}/\d{4}')));
     });
   });

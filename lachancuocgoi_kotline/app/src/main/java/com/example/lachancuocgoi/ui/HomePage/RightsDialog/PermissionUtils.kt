@@ -47,14 +47,14 @@ object PermissionUtils {
             true
         }
     }
-    
+
     fun isRecordAudioGranted(context: Context): Boolean {
         return ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     }
 
     @Suppress("UNUSED_PARAMETER")
     fun isStoragePermissionGranted(context: Context): Boolean {
-        return true // Android 10+ không cần
+        return true
     }
 
     fun isForegroundServiceGranted(context: Context): Boolean {
@@ -64,7 +64,7 @@ object PermissionUtils {
             true
         }
     }
-    
+
     fun isCallDetectionEnabled(context: Context): Boolean {
         return isSpecificAccessibilityServiceEnabled(context, UnifiedAccessibilityService::class.java.name)
     }
@@ -78,10 +78,10 @@ object PermissionUtils {
     }
 
     private fun isSpecificAccessibilityServiceEnabled(context: Context, serviceName: String): Boolean {
-        // 1. Check using AccessibilityManager (Standard way - checks if actually running)
+
         val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
         val enabledServices = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_GENERIC)
-        
+
         if (enabledServices != null) {
             for (service in enabledServices) {
                 val enabledServiceInfo = service.resolveInfo.serviceInfo
@@ -91,8 +91,6 @@ object PermissionUtils {
             }
         }
 
-        // 2. Fallback: Check Settings.Secure (Robust way - checks if enabled in settings, even if not currently running/crashed)
-        // This fixes the loop issue where the service is enabled but not yet "active" in the manager list.
         try {
             val componentName = "${context.packageName}/$serviceName"
             val enabledServicesSetting = Settings.Secure.getString(

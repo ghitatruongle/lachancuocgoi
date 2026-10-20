@@ -5,19 +5,12 @@ enum NoiseMode { remove, space }
 class TextNormalizer {
   TextNormalizer._();
 
-  // ── Slang replacement via Aho-Corasick ──────────────────────────────
   static _SlangAutomaton? _slangAutomaton;
 
-  // ── Number word normalization (Wave 3 refactor) ──────────────────────
-  /// Wave 3: delegated to VietnameseNumberNormalizer.
   static String _normalizeNumberWords(String text) {
     return VietnameseNumberNormalizer.normalize(text);
   }
 
-  // ── ASR (speech-to-text) common error patterns ────────────────────────
-  /// Common ASR (speech-to-text) word confusions in Vietnamese.
-  /// Keys are the misrecognized form (with diacritics — normalized at use).
-  /// Values are the corrected form (also normalized at use).
   static const Map<String, String> _asrCorrectionsRaw = {
     'luyện đạo': 'lừa đảo',
     'luân đảo': 'lừa đảo',
@@ -32,16 +25,7 @@ class TextNormalizer {
     'căn cươc': 'căn cước',
   };
 
-  // ── Telex/VNI common typing error corrections ─────────────────────
-  /// Common Telex typing errors: transposed diacritics, duplicated marks.
-  /// Applied BEFORE normalization (on original text) so that corrected
-  /// Vietnamese words (e.g. "chuyeene"→"chuyển") flow through the full
-  /// normalization pipeline correctly.
   static const List<MapEntry<String, String>> _telexCorrectionsRaw = [
-    // Common transposed compound words (5+ chars, high specificity).
-    // NOTE: Generic vowel cluster rules (iee→iê, uoo→uô, etc.) were removed
-    // because they match inside correctly-formed Vietnamese words (e.g.
-    // "chuyển" contains "iee"), corrupting them.
     MapEntry('chuyeene', 'chuyển'),
     MapEntry('chuyeenr', 'chuyển'),
     MapEntry('nguwowif', 'người'),
@@ -57,8 +41,6 @@ class TextNormalizer {
     MapEntry('tieenf', 'tiền'),
   ];
 
-  /// Lazily built normalized ASR corrections (keys+values run through
-  /// phonetic + noise stripping so they match the already-normalized text).
   static Map<String, String>? _asrCorrectionsNormalized;
 
   static Map<String, String> get _asrCorrections {
@@ -77,8 +59,6 @@ class TextNormalizer {
     return map;
   }
 
-  /// Lightweight phonetic strip (lowercase + diacritics removal only).
-  /// Mirrors the first 3 steps of normalize() but without slang/numbers.
   static String _phoneticStrip(String text) {
     var result = text.toLowerCase();
     result = _mapPhoneticCharacters(result);
@@ -87,7 +67,6 @@ class TextNormalizer {
     return result.trim().replaceAll(RegExp(r'\s+'), ' ');
   }
 
-  /// Applies common ASR error corrections using word-boundary matching.
   static String _correctAsrErrors(String text) {
     var result = text;
     for (final entry in _asrCorrections.entries) {
@@ -98,8 +77,6 @@ class TextNormalizer {
     return result;
   }
 
-  /// Applies common Telex/VNI typing error corrections.
-  /// Uses substring matching (same approach as ASR corrections).
   static String _correctTelexErrors(String text) {
     var result = text;
     for (final entry in _telexCorrectionsRaw) {
@@ -205,8 +182,7 @@ class TextNormalizer {
             )
             .toList()
           ..sort((a, b) => b.key.length.compareTo(a.key.length));
-    // Build Aho-Corasick automaton for O(n+m) multi-pattern slang replacement.
-    // Replaces the old O(n*m) sequential loop over _slangEntries.
+
     _slangAutomaton = entries.isEmpty ? null : _SlangAutomaton.build(entries);
   }
 
@@ -215,10 +191,6 @@ class TextNormalizer {
     bool applySlang = true,
     NoiseMode noiseMode = NoiseMode.remove,
   }) {
-    // Phase 0: Telex/VNI typing error correction on ORIGINAL text
-    // (before normalization strips diacritics). This fixes transposed
-    // characters like "chuyeene"→"chuyển", "tienf"→"tiền" so that
-    // subsequent normalization produces correct token forms.
     var result = _correctTelexErrors(text);
 
     result = result.toLowerCase();
@@ -233,16 +205,12 @@ class TextNormalizer {
 
     result = result.trim().replaceAll(RegExp(r'\s+'), ' ');
 
-    // Phase 3: ASR error correction (before slang, so corrected words
-    // can still be processed by slang replacement).
     result = _correctAsrErrors(result);
 
     if (applySlang && _slangAutomaton != null) {
       result = _slangAutomaton!.replaceAll(result);
     }
 
-    // Phase 3: Number word normalization (after slang so "k"→"nghin" etc.
-    // are already resolved). Converts "nam tram nghin" → "500000".
     result = _normalizeNumberWords(result);
 
     return result;
@@ -294,31 +262,16 @@ class TextNormalizer {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Slang Aho-Corasick Automaton
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// Aho-Corasick automaton for O(n+m) multi-pattern slang replacement.
-///
-/// Built once from slang entries (via [loadSlangConfig]), then reused for
-/// every [normalize] call. Finds all non-overlapping matches in a single
-/// pass over whitespace-delimited tokens, then applies replacements
-/// atomically from end-to-start to avoid position shifting.
-///
-/// Semantics match the old `' $text '.replaceAll(' $key ', ' $value ')` loop:
-/// each slang key is matched at word boundaries (token-level).
 class _SlangAutomaton {
   _SlangAutomaton._();
 
-  // Flat trie arrays — each node is an int index.
   final List<Map<String, int>> _children = [{}];
   final List<int> _failure = [0];
   final List<int> _dictionary = [0];
-  final List<String?> _output = [null]; // replacement value
-  final List<int> _depth = [0]; // pattern token count at this node
+  final List<String?> _output = [null];
+  final List<int> _depth = [0];
   int _size = 1;
 
-  /// Build automaton from pre-sorted (longest-first) slang entries.
   factory _SlangAutomaton.build(List<MapEntry<String, String>> entries) {
     final auto = _SlangAutomaton._();
     for (final entry in entries) {
@@ -350,20 +303,12 @@ class _SlangAutomaton {
     _output[current] = replacement;
   }
 
-  /// Find all non-overlapping matches and replace atomically.
-  ///
-  /// Algorithm:
-  /// 1. Tokenize text by whitespace.
-  /// 2. Walk the Aho-Corasick automaton token-by-token.
-  /// 3. Collect all matches with (startTokenIdx, endTokenIdx, replacement).
-  /// 4. Sort by position, greedily select non-overlapping (earliest + longest).
-  /// 5. Reconstruct text from tokens, substituting matched spans.
   String replaceAll(String text) {
     if (text.isEmpty) return text;
     final tokens = text.split(' ').where((t) => t.isNotEmpty).toList();
     if (tokens.isEmpty) return text;
 
-    final matches = <(int, int, String)>[]; // (startIdx, endIdx, replacement)
+    final matches = <(int, int, String)>[];
     var state = 0;
 
     for (var i = 0; i < tokens.length; i++) {
@@ -373,7 +318,6 @@ class _SlangAutomaton {
       }
       state = _children[state][token] ?? 0;
 
-      // Collect output via dictionary chain (longest match first).
       var temp = state;
       while (temp != 0) {
         final out = _output[temp];
@@ -391,23 +335,19 @@ class _SlangAutomaton {
 
     if (matches.isEmpty) return text;
 
-    // Sort by start position, then by length descending (prefer longest).
     matches.sort((a, b) {
       final cmp = a.$1.compareTo(b.$1);
       if (cmp != 0) return cmp;
       return (b.$2 - b.$1).compareTo(a.$2 - a.$1);
     });
 
-    // Greedily select non-overlapping matches.
     final result = <String>[];
     var lastEnd = -1;
     var matchIdx = 0;
 
     for (var i = 0; i < tokens.length; i++) {
-      // Skip past the last consumed match end.
       if (i <= lastEnd) continue;
 
-      // Find next match starting at or after i.
       while (matchIdx < matches.length && matches[matchIdx].$1 < i) {
         matchIdx++;
       }

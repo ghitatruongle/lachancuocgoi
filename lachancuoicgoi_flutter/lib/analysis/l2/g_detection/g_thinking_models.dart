@@ -1,7 +1,6 @@
 import '../../../core/risk_level.dart';
 import '../../analysis_result.dart';
 
-/// Kết quả phân loại tier — value object bất biến.
 class TierClassification {
   const TierClassification({
     required this.tier1Matches,
@@ -27,16 +26,13 @@ class TierClassification {
   final int tier1Count;
   final int tier2Count;
 
-  /// Continuous tier scores (0.0–1.0) based on match count.
   final double tier1Score;
   final double tier2Score;
   final double tier3Score;
 
-  /// Whether tier keywords appear in a tight cluster (within 5 tokens).
   final bool hasCluster;
 }
 
-/// Kết quả aggregation tier + scenario + pattern — value object bất biến.
 class AggregatedRisk {
   const AggregatedRisk({
     required this.finalLevel,

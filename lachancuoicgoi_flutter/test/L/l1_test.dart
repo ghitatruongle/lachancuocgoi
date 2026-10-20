@@ -174,10 +174,7 @@ void main() {
       expect(result2.overallRiskLevel, RiskLevel.yellow);
 
       final result3 = await analyzer.analyze('yêu cầu nhập mã otp');
-      expect(
-        result3.overallRiskLevel,
-        RiskLevel.red,
-      ); // critical OTP keyword forces RED
+      expect(result3.overallRiskLevel, RiskLevel.red);
     });
 
     test(

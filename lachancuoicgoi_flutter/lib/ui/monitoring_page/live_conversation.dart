@@ -16,10 +16,7 @@ class LiveConversation extends StatefulWidget {
 
 class _LiveConversationState extends State<LiveConversation> {
   List<String> _lines = [];
-  // The transcript prefix that has already been folded into _lines. When the
-  // new transcript starts with this prefix we only need to split the suffix —
-  // O(new text) instead of re-splitting the whole cumulative transcript on
-  // every update (which was O(n²) over the lifetime of a long call).
+
   String _processedTranscript = '';
   final ScrollController _scrollController = ScrollController();
 
@@ -35,7 +32,6 @@ class _LiveConversationState extends State<LiveConversation> {
     if (widget.transcript != oldWidget.transcript) {
       _processTranscript(widget.transcript);
 
-      // Auto scroll to bottom when new content is appended
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (_scrollController.hasClients) {
@@ -50,10 +46,6 @@ class _LiveConversationState extends State<LiveConversation> {
   }
 
   void _processTranscript(String newTranscript) {
-    // Fast path: if the new transcript extends the previously processed one
-    // (the common case — transcript only grows), fold in just the new suffix.
-    // This avoids re-splitting + re-regex-ing the whole transcript on every
-    // incremental update (was O(n²) for long calls).
     if (_processedTranscript.isNotEmpty &&
         newTranscript.startsWith(_processedTranscript)) {
       final suffix = newTranscript.substring(_processedTranscript.length);
@@ -67,8 +59,6 @@ class _LiveConversationState extends State<LiveConversation> {
       return;
     }
 
-    // Slow path: transcript changed in a non-append way (e.g. partial result
-    // replaced). Reprocess from scratch.
     final allLines = _splitIntoChunks(newTranscript);
     setState(() {
       _lines = allLines;
@@ -76,9 +66,6 @@ class _LiveConversationState extends State<LiveConversation> {
     });
   }
 
-  /// Splits an arbitrary chunk of transcript text into display lines:
-  /// newline-separated, with very long lines additionally broken on
-  /// sentence-ending punctuation. Empty lines are dropped.
   static List<String> _splitIntoChunks(String text) {
     final rawLines = text.split('\n');
     return rawLines

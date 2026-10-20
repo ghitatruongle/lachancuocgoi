@@ -120,11 +120,6 @@ class ScenarioMatcher {
           ? bestContext.score / contextPhraseSize
           : 0.0;
 
-      // A scenario is strong evidence and must not be inferred from a couple
-      // of generic words spread across an ordinary conversation. Require a
-      // near-complete trigger phrase plus corroborating context. Previously,
-      // any non-zero context and ~35% phrase overlap could elevate harmless
-      // sentences directly to ORANGE/RED.
       if (triggerCoverage < 0.85) continue;
       if (info.hasRequiredContext && contextCoverage < 0.75) continue;
       if (triggerPhraseSize + contextPhraseSize < 3) continue;

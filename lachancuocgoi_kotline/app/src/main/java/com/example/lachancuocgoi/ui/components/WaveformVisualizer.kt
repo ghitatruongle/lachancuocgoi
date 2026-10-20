@@ -16,14 +16,13 @@ fun WaveformVisualizer(
     modifier: Modifier = Modifier
 ) {
     val barCount = 40
-    // Keep history of magnitudes
+
     val magnitudes = remember { mutableStateListOf(*Array(barCount) { 0.1f }) }
 
-    // Update history when tick changes
     LaunchedEffect(tick) {
         val targetNormalized = ((rmsDb + 10f).coerceAtLeast(0f) / 50f).coerceIn(0.1f, 1.0f)
         magnitudes.removeAt(0)
-        // Add some random organic variance to end bar
+
         magnitudes.add(targetNormalized * (0.8f + Random.nextFloat() * 0.4f))
     }
 
@@ -41,10 +40,10 @@ fun WaveformVisualizer(
 
         for (i in 0 until barCount) {
             val x = i * totalBarWidth + totalBarWidth / 2f
-            
+
             var safeAmplitude = magnitudes.getOrNull(i) ?: 0.1f
             if (safeAmplitude < 0.1f) safeAmplitude = 0.1f
-            
+
             val barHeight = safeAmplitude * maxAmplitude
 
             drawLine(

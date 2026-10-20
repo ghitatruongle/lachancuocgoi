@@ -16,21 +16,9 @@ import androidx.core.app.NotificationCompat
 import com.example.lachancuocgoi.MainActivity
 import com.example.lachancuocgoi.R
 
-/**
- * Unified Accessibility Service handles:
- * 1. Call Detection (OTT apps like Zalo, Messenger and System Dialer).
- * 2. Call Captioning (Reading Live Caption content).
- * 3. Auto Answer & Monitor (nhấc máy và bắt đầu giám sát — FIX BUG 1).
- * 4. End Call (kết thúc cuộc gọi).
- *
- * (SỬA BUG 1) Đã merge logic từ CallDetectionService.kt (file đã bị "chết" vì không
- * đăng ký trong AndroidManifest) vào đây. Giờ đây tất cả tính năng Accessibility
- * nằm trong một service duy nhất đã được đăng ký đúng cách.
- */
 @Suppress("DEPRECATION")
 class UnifiedAccessibilityService : AccessibilityService() {
 
-    // Khai báo các biến trạng thái bị thiếu để theo dõi cuộc gọi
     private var lastCheckTime: Long = 0L
     private var isCallActive: Boolean = false
     private var lastServiceStartTime: Long = 0L
@@ -39,7 +27,7 @@ class UnifiedAccessibilityService : AccessibilityService() {
     companion object {
         private const val TAG = "UnifiedAccesService"
         private const val CALL_ANSWER_DELAY_MS = 2500L
-        private const val CALL_DETECTION_THROTTLE_MS = 5000L // Tăng từ 1s lên 5s để tránh trigger lặp
+        private const val CALL_DETECTION_THROTTLE_MS = 5000L
         const val ACTION_ANSWER_AND_MONITOR = "ACTION_ANSWER_AND_MONITOR"
         const val ACTION_END_CALL = "ACTION_END_CALL"
     }
@@ -67,9 +55,9 @@ class UnifiedAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || 
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
             event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            
+
             handleCallDetection()
 
             val rootNode = rootInActiveWindow
@@ -78,10 +66,6 @@ class UnifiedAccessibilityService : AccessibilityService() {
             }
         }
     }
-
-    // =========================================================================
-    // CALL DETECTION
-    // =========================================================================
 
     private fun handleCallDetection() {
         if (System.currentTimeMillis() - lastCheckTime < CALL_DETECTION_THROTTLE_MS) return
@@ -101,8 +85,7 @@ class UnifiedAccessibilityService : AccessibilityService() {
                         if (!isCallActive) {
                             isCallActive = true
                             Log.d(TAG, "Incoming call detected from $detectedApp")
-                            
-                            // Chỉ start notification service nếu chưa chạy và đủ thời gian giữa các lần
+
                             if (!isNotificationShown && System.currentTimeMillis() - lastServiceStartTime > CALL_DETECTION_THROTTLE_MS) {
                                 lastServiceStartTime = System.currentTimeMillis()
                                 isNotificationShown = true
@@ -128,10 +111,10 @@ class UnifiedAccessibilityService : AccessibilityService() {
 
     private fun getIncomingCallAppName(rootNode: AccessibilityNodeInfo): String? {
         val packageName = rootNode.packageName?.toString() ?: return null
-        
+
         val isDialer = listOf("com.google.android.dialer", "com.android.dialer", "com.samsung.android.dialer", "com.android.server.telecom")
             .any { packageName.contains(it) }
-        
+
         val incomingKeywords = listOf("Cuộc gọi đến", "Incoming call", "Trả lời", "Answer", "đang gọi")
 
         if (isDialer) {
@@ -139,7 +122,7 @@ class UnifiedAccessibilityService : AccessibilityService() {
                 if (rootNode.findAccessibilityNodeInfosByText(keyword).isNotEmpty()) return "Điện thoại"
             }
         }
-        
+
         if (packageName.contains("com.zing.zalo")) {
             for (keyword in incomingKeywords) {
                 if (rootNode.findAccessibilityNodeInfosByText(keyword).isNotEmpty()) return "Zalo"
@@ -155,15 +138,8 @@ class UnifiedAccessibilityService : AccessibilityService() {
         return null
     }
 
-    // =========================================================================
-    // AUTO-ANSWER & MONITOR (Merged từ CallDetectionService — FIX BUG 1)
-    // =========================================================================
-
-    /**
-     * Tự động nhấc máy, sau đó khởi động BackgroundMonitoringService.
-     */
     private fun answerCallAndStartMonitoring() {
-        // Tắt notification nhắc giám sát (nếu có)
+
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(1001)
 
@@ -172,7 +148,7 @@ class UnifiedAccessibilityService : AccessibilityService() {
         val answered = findAndClick(answerText, answerDescriptions)
 
         if (answered) {
-            // Delay 2.5s để phone app kịp ổn định audio routing
+
             Handler(Looper.getMainLooper()).postDelayed({
                 val monitoringIntent = Intent(this, BackgroundMonitoringService::class.java).apply {
                     action = BackgroundMonitoringService.ACTION_START
@@ -189,34 +165,23 @@ class UnifiedAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Tìm và nhấn nút kết thúc cuộc gọi.
-     */
     private fun endCall() {
         val endText = listOf("Kết thúc", "End", "End call")
         val endDescriptions = listOf("Kết thúc", "Kết thúc cuộc gọi", "End call", "Hang up")
         val ended = findAndClick(endText, endDescriptions)
 
         if (!ended) {
-            // Fallback: dùng global action BACK
+
             performGlobalAction(GLOBAL_ACTION_BACK)
             Log.w(TAG, "Could not find end call button, used GLOBAL_ACTION_BACK fallback.")
         }
     }
 
-    // =========================================================================
-    // CLICK HELPERS (Merged từ CallDetectionService)
-    // =========================================================================
-
-    /**
-     * Tìm và nhấn node clickable theo text hoặc content description.
-     */
     private fun findAndClick(textKeywords: List<String>, descriptionKeywords: List<String>): Boolean {
         try {
             for (window: AccessibilityWindowInfo in windows) {
                 val rootNode = window.root ?: continue
 
-                // 1. Tìm bằng text
                 for (keyword in textKeywords) {
                     val textNodes = rootNode.findAccessibilityNodeInfosByText(keyword)
                     for (textNode in textNodes) {
@@ -233,7 +198,6 @@ class UnifiedAccessibilityService : AccessibilityService() {
                     textNodes?.forEach { it.recycle() }
                 }
 
-                // 2. Tìm bằng content description (cho nút icon)
                 val foundIcon = findClickableNodeByDescription(rootNode, descriptionKeywords)
                 if (foundIcon != null) {
                     Log.d(TAG, "Found clickable node via description '${foundIcon.contentDescription}', performing click.")
@@ -288,10 +252,6 @@ class UnifiedAccessibilityService : AccessibilityService() {
         return null
     }
 
-    // =========================================================================
-    // CAPTION READING
-    // =========================================================================
-
     private fun traverseNodeForCaptions(node: AccessibilityNodeInfo?) {
         if (node == null) return
         if (node.text != null && node.text.isNotBlank()) {
@@ -312,10 +272,6 @@ class UnifiedAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {
         isCallActive = false
     }
-
-    // =========================================================================
-    // INCOMING CALL NOTIFICATION
-    // =========================================================================
 
     private fun showIncomingCallNotification(callerInfo: String) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

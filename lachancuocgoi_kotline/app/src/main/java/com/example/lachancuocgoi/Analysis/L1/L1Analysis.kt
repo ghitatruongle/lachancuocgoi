@@ -18,27 +18,18 @@ import kotlinx.coroutines.withContext
 import java.io.InputStreamReader
 import java.util.*
 
-// --- GĐ1, GĐ2, GĐ3: Cấu trúc dữ liệu tối ưu & Bitmasking ---
-
-/**
- * Lớp quản lý bộ nhớ tập trung cho Trie (GĐ1, GĐ2, GĐ3 Optimization)
- */
 internal class FlatTrie(initialCapacity: Int = 2000) {
     var childrenMaps = arrayOfNulls<MutableMap<String, Int>>(initialCapacity)
-    
-    // GĐ3: Sử dụng mảng nguyên thủy và Bitmasking thay cho Object
-    // Bit layout: [31: flag_is_match] [23-16: category_id] [7-0: risk_level]
+
     var nodeMetadata = IntArray(initialCapacity) { 0 }
     var nodeOriginalKeywords = arrayOfNulls<String>(initialCapacity)
-    
-    // Dictionary để map Category String sang ID (1 byte)
+
     private val categoryToId = mutableMapOf<String, Int>()
     private val idToCategory = mutableListOf<String>()
 
-    // GĐ2: Failure Links & Dictionary Links cho Aho-Corasick
     var failureLinks = IntArray(initialCapacity) { rootId }
     var dictionaryLinks = IntArray(initialCapacity) { rootId }
-    
+
     var nodesCount = 1
 
     init {
@@ -47,8 +38,7 @@ internal class FlatTrie(initialCapacity: Int = 2000) {
 
     companion object {
         const val rootId = 0
-        
-        // Bitmask Constants
+
         const val MASK_RISK_LEVEL = 0xFF
         const val SHIFT_CATEGORY = 8
         const val MASK_CATEGORY = 0xFF shl SHIFT_CATEGORY
@@ -76,7 +66,7 @@ internal class FlatTrie(initialCapacity: Int = 2000) {
         dictionaryLinks[id] = rootId
         return id
     }
-    
+
     fun getChildId(parentId: Int, token: String): Int? {
         return childrenMaps[parentId]?.get(token)
     }
@@ -85,7 +75,6 @@ internal class FlatTrie(initialCapacity: Int = 2000) {
         childrenMaps[parentId]?.put(token, childId)
     }
 
-    // GĐ3: Logic Bitmasking
     fun packMetadata(level: Int, category: String, keyword: String, nodeId: Int) {
         val catId = categoryToId.getOrPut(category) {
             val id = idToCategory.size
@@ -95,7 +84,7 @@ internal class FlatTrie(initialCapacity: Int = 2000) {
         var meta = FLAG_IS_MATCH
         meta = meta or (catId shl SHIFT_CATEGORY)
         meta = meta or (level and MASK_RISK_LEVEL)
-        
+
         nodeMetadata[nodeId] = meta
         nodeOriginalKeywords[nodeId] = keyword
     }
@@ -106,7 +95,6 @@ internal class FlatTrie(initialCapacity: Int = 2000) {
     fun isMatchNode(nodeId: Int): Boolean = (nodeMetadata[nodeId] and FLAG_IS_MATCH) != 0
 }
 
-// --- Cấu trúc dữ liệu để phân tích JSON từ vựng ---
 private data class RiskModelVocabulary(@SerializedName("riskLevels") val riskLevels: List<RiskLevelData>?)
 private data class RiskLevelData(
     val level: Int,
@@ -114,7 +102,6 @@ private data class RiskLevelData(
     val threats: Map<String, List<String>>?
 )
 
-// --- Cấu trúc dữ liệu cho bigram corrections JSON ---
 private data class BigramCorrectionsConfig(
     val corrections: List<BigramCorrectionEntry>
 )
@@ -124,30 +111,19 @@ private data class BigramCorrectionEntry(
     val note: String = ""
 )
 
-/**
- * (Bitmasking).
- */
 class L1Analyzer(private val context: Context) : Analyzer {
 
     private val TAG = "L1Analyzer"
     override val level = AnalysisLevel.L1
     private val trie = FlatTrie()
 
-    // Sử dụng TextNormalizer chung thay vì private normalize
-
-    // Danh sách từ khóa đơn (1 token) cho fuzzy matching
     private val singleTokenKeywords = mutableListOf<String>()
     private val fuzzyEnabled = true
-    private val fuzzyMaxDistance = 1  // Chỉ cho phép sai 1 ký tự (STT errors nhẹ)
-    private val fuzzyMinLength = 5    // P1: Không fuzzy nếu token < 5 chars (tránh false positive ngắn)
+    private val fuzzyMaxDistance = 1
+    private val fuzzyMinLength = 5
 
-    // GĐ6: Bi-gram Correction cho lỗi STT — load từ JSON thay vì hard-code
     private var bigramCorrections: Map<List<String>, List<String>> = emptyMap()
 
-    /**
-     * Áp dụng bi-gram correction cho danh sách token.
-     * Chỉ sửa khi 2 token liền nhau khớp pattern, KHÔNG sửa từ đơn lẻ.
-     */
     private fun applyBigramCorrections(tokens: List<String>): List<String> {
         if (tokens.size < 2) return tokens
         val result = mutableListOf<String>()
@@ -241,7 +217,6 @@ class L1Analyzer(private val context: Context) : Analyzer {
         val tokens = tokenize(keyword)
         if (tokens.isEmpty()) return
 
-        // Lưu từ khóa đơn (1 token) cho fuzzy matching
         if (tokens.size == 1) {
             singleTokenKeywords.add(tokens[0])
         }
@@ -257,7 +232,7 @@ class L1Analyzer(private val context: Context) : Analyzer {
                 currentNodeId = nextNodeId
             }
         }
-        // GĐ3: Pack dữ liệu vào Bitmask
+
         trie.packMetadata(levelValue, category, keyword, currentNodeId)
     }
 
@@ -276,7 +251,7 @@ class L1Analyzer(private val context: Context) : Analyzer {
                     fId = trie.failureLinks[fId]
                 }
                 trie.failureLinks[vId] = trie.getChildId(fId, token) ?: FlatTrie.rootId
-                
+
                 val fvId = trie.failureLinks[vId]
                 trie.dictionaryLinks[vId] = if (trie.isMatchNode(fvId)) {
                     fvId
@@ -288,7 +263,6 @@ class L1Analyzer(private val context: Context) : Analyzer {
         }
     }
 
-    // --- GĐ5: Stateful Streaming Analysis ---
     private var currentSessionStateId = FlatTrie.rootId
     private var processedWordCount = 0
     private var lastFullTranscript: String = ""
@@ -296,9 +270,6 @@ class L1Analyzer(private val context: Context) : Analyzer {
     private var processedTextLength = 0
     private var lastResult: AnalysisResult = AnalysisResult(RiskLevel.GREEN, emptyList(), analysisLevel = AnalysisLevel.L1)
 
-    /**
-     * Khởi tạo lại phiên làm việc (Ví dụ: Khi bắt đầu cuộc gọi mới)
-     */
     override fun resetSession() {
         synchronized(sessionLock) {
             currentSessionStateId = FlatTrie.rootId
@@ -320,7 +291,7 @@ class L1Analyzer(private val context: Context) : Analyzer {
 
     override fun healthCheck(): HealthReport {
         val trieNodes = trie.nodesCount
-        val hasKeywords = trieNodes > 1  // rootId = 0, nodesCount khởi đầu = 1, nên >1 nghĩa là có data
+        val hasKeywords = trieNodes > 1
         val hasBigramCorrections = bigramCorrections.isNotEmpty()
 
         return when {
@@ -342,22 +313,17 @@ class L1Analyzer(private val context: Context) : Analyzer {
         }
     }
 
-    /**
-     * Phân tích luồng văn bản (Stream). Chỉ quét phần mới thêm vào.
-     * @param fullTranscript Toàn bộ văn bản hiện tại nhận được từ STT.
-     */
     suspend fun analyzeStream(fullTranscript: String): AnalysisResult = withContext(Dispatchers.IO) {
         initializeIfNeeded()
-        
+
         synchronized(sessionLock) {
-            // Nếu văn bản mới ngắn hơn văn bản cũ, có thể STT đã thực hiện "Correction"
-            // Hoặc nếu văn bản thay đổi nhưng không phải là phần tail
+
             if (fullTranscript.length < lastFullTranscript.length || !fullTranscript.startsWith(lastFullTranscript)) {
                 Log.d(TAG, "STT Correction detected. Resetting session state.")
                 currentSessionStateId = FlatTrie.rootId
                 processedWordCount = 0
             }
-            
+
             val rawTokens = tokenize(fullTranscript)
             val allTokens = applyBigramCorrections(rawTokens)
             if (allTokens.size <= processedWordCount) {
@@ -365,30 +331,28 @@ class L1Analyzer(private val context: Context) : Analyzer {
                 return@withContext L1ResultParser.parse(emptySet(), allTokens.size)
             }
 
-            // Tính vị trí token trong text gốc (word index)
             val newTokens = allTokens.subList(processedWordCount, allTokens.size)
             val matches = mutableSetOf<KeywordMatch>()
-            val unmatchedTokens = mutableListOf<Pair<String, Int>>() // token + wordIndex
+            val unmatchedTokens = mutableListOf<Pair<String, Int>>()
 
             newTokens.forEachIndexed { idx, token ->
                 val wordIndex = processedWordCount + idx
-                // Men theo failure links nếu không có đường đi trực tiếp
+
                 while (currentSessionStateId != FlatTrie.rootId && trie.getChildId(currentSessionStateId, token) == null) {
                     currentSessionStateId = trie.failureLinks[currentSessionStateId]
                 }
                 currentSessionStateId = trie.getChildId(currentSessionStateId, token) ?: FlatTrie.rootId
-                
-                // Tìm tất cả các từ khóa kết thúc tại trạng thái này (bao gồm cả các từ là suffix)
+
                 var found = false
                 var tempStateId = currentSessionStateId
-                // BUG FIX: Thêm visited set để tránh vòng lặp vô hạn nếu dictionaryLinks tự trỏ vào chính nó
+
                 val visitedDictNodes = mutableSetOf<Int>()
                 while (tempStateId != FlatTrie.rootId && visitedDictNodes.add(tempStateId)) {
                     if (trie.isMatchNode(tempStateId)) {
                         val level = RiskLevel.fromInt(trie.getRiskLevel(tempStateId))
                         val category = trie.getCategoryName(tempStateId)
                         val keyword = trie.nodeOriginalKeywords[tempStateId] ?: ""
-                        // Ước lượng số token trong keyword gốc
+
                         val keywordTokenCount = tokenize(keyword).size.coerceAtLeast(1)
                         matches.add(KeywordMatch(
                             keyword, level, category,
@@ -402,10 +366,9 @@ class L1Analyzer(private val context: Context) : Analyzer {
                 if (!found) unmatchedTokens.add(token to wordIndex)
             }
 
-            // Fuzzy matching cho các token không khớp chính xác
             if (fuzzyEnabled && unmatchedTokens.isNotEmpty() && singleTokenKeywords.isNotEmpty()) {
                 for ((token, wordIndex) in unmatchedTokens) {
-                    // P1: Bỏ qua token ngắn < fuzzyMinLength để tránh false positive
+
                     if (token.length < fuzzyMinLength) continue
                     val fuzzyMatch = FuzzyMatcher.findClosest(token, singleTokenKeywords, fuzzyMaxDistance)
                     if (fuzzyMatch != null) {
@@ -430,9 +393,6 @@ class L1Analyzer(private val context: Context) : Analyzer {
         }
     }
 
-    /**
-     * Phân tích một đoạn văn bản độc lập (Không lưu trạng thái).
-     */
     suspend fun analyze(text: String): AnalysisResult = withContext(Dispatchers.IO) {
         initializeIfNeeded()
         val rawTokens = tokenize(text)
@@ -453,10 +413,10 @@ class L1Analyzer(private val context: Context) : Analyzer {
                 currentStateId = trie.failureLinks[currentStateId]
             }
             currentStateId = trie.getChildId(currentStateId, token) ?: FlatTrie.rootId
-            
+
             var found = false
             var tempStateId = currentStateId
-            // BUG FIX: Thêm visited set để tránh vòng lặp vô hạn nếu dictionaryLinks tự trỏ vào chính nó
+
             val visitedDictNodes = mutableSetOf<Int>()
             while (tempStateId != FlatTrie.rootId && visitedDictNodes.add(tempStateId)) {
                 if (trie.isMatchNode(tempStateId)) {
@@ -471,7 +431,6 @@ class L1Analyzer(private val context: Context) : Analyzer {
             if (!found) unmatchedTokens.add(token)
         }
 
-        // Fuzzy matching cho các token không khớp chính xác
         if (fuzzyEnabled && unmatchedTokens.isNotEmpty() && singleTokenKeywords.isNotEmpty()) {
             for (token in unmatchedTokens) {
                 val fuzzyMatch = FuzzyMatcher.findClosest(token, singleTokenKeywords, fuzzyMaxDistance)
@@ -491,9 +450,6 @@ class L1Analyzer(private val context: Context) : Analyzer {
         return matches
     }
 
-    /**
-     * Tìm node trong Trie cho một token đơn (exact match từ root).
-     */
     private fun findExactMatchNode(token: String): Int? {
         val childId = trie.getChildId(FlatTrie.rootId, token) ?: return null
         return if (trie.isMatchNode(childId)) childId else null

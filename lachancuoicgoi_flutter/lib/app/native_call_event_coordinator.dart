@@ -5,13 +5,6 @@ import '../services/bridge_models.dart';
 typedef NativeCallNavigation = void Function(NativeCallEvent event);
 typedef NativeCallLifecycle = void Function(NativeCallEvent event);
 
-/// Keeps native call navigation events alive while application settings and
-/// the router are still starting.
-///
-/// Native already buffers events until an EventChannel listener connects. This
-/// coordinator adds the application-level half of that contract: it subscribes
-/// before the first route is built, de-duplicates replayed events and only
-/// dispatches navigation after onboarding/settings are ready.
 class NativeCallEventCoordinator {
   NativeCallEventCoordinator({
     required Stream<NativeCallEvent> events,

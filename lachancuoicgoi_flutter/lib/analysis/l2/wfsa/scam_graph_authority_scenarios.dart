@@ -1,7 +1,5 @@
 part of 'scam_graph_builder.dart';
 
-/// Authority-impersonation scenarios: police, VNeID, telecom, tech support,
-/// hospital emergency (5 scenarios).
 List<ScenarioGraph> _authorityScenarios() {
   return <ScenarioGraph>[
     ScamGraphBuilder._build(

@@ -39,10 +39,10 @@ fun SettingsTab(settings: SettingsState, onSettingsChange: (SettingsState) -> Un
     Column(
         modifier = Modifier
             .padding(top = 16.dp)
-            .verticalScroll(rememberScrollState()), // Thêm khả năng cuộn
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Cài đặt Giao diện
+
         val isDarkTheme = settings.isDarkTheme
         val themeIcon = if (isDarkTheme) Icons.Default.DarkMode else Icons.Default.LightMode
         val themeTitle = if (isDarkTheme) "Giao diện tối" else "Giao diện sáng"
@@ -57,7 +57,6 @@ fun SettingsTab(settings: SettingsState, onSettingsChange: (SettingsState) -> Un
             onCheckedChange = { onSettingsChange(settings.copy(isDarkTheme = it)) }
         )
 
-        // Cài đặt Chế độ Phân tích - Bọc trong Card
         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             AnalysisSensitivitySetting(
                 selectedMode = settings.analysisMode,
@@ -65,7 +64,6 @@ fun SettingsTab(settings: SettingsState, onSettingsChange: (SettingsState) -> Un
             )
         }
 
-        // Cài đặt Khuếch đại âm thanh
         SettingToggleCard(
             modifier = Modifier.fillMaxWidth(),
             title = "Khuếch đại âm thanh",
@@ -75,9 +73,6 @@ fun SettingsTab(settings: SettingsState, onSettingsChange: (SettingsState) -> Un
             onCheckedChange = { onSettingsChange(settings.copy(audioBoost = it)) }
         )
 
-        // ── CREATOR MODE SECTION ─────────────────────────────────────────────
-        // Hoàn toàn ẩn với người dùng phổ thông.
-        // Chỉ hiện khi Developer Mode đang active (tap title "Cài đặt" × 10 + mật mã).
         val isDevActive by DeveloperModeManager.isActive
         AnimatedVisibility(
             visible = isDevActive,
@@ -94,7 +89,6 @@ fun SettingsTab(settings: SettingsState, onSettingsChange: (SettingsState) -> Un
                     modifier = Modifier.padding(top = 4.dp)
                 )
 
-                // Toggle: Capture audio màn hình
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -150,10 +144,9 @@ fun SettingsTab(settings: SettingsState, onSettingsChange: (SettingsState) -> Un
                 }
             }
         }
-        // ── END CREATOR MODE SECTION ─────────────────────────────────────────
+
     }
 }
-
 
 @Composable
 fun SettingToggleCard(

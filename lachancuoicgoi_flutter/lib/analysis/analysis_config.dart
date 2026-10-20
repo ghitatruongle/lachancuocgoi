@@ -48,12 +48,8 @@ class L1Config {
       'gia su',
     ],
 
-    /// Context window size (in tokens) on each side of the match for
-    /// negative-lookahead filtering. Upgraded from 4 → 8 for wider context.
     this.contextWindowSize = 8,
 
-    /// Patterns that indicate the speaker is asking a question rather than
-    /// issuing a command or describing a scam event.
     this.questionContextPatterns = const [
       r'\bcho hoi\b',
       r'\blam the nao\b',
@@ -73,9 +69,6 @@ class L1Config {
       r'\bcho minh hoi\b',
     ],
 
-    /// Family / known-person references for broader safe-beneficiary matching.
-    /// Unlike [safeBeneficiaries] (which are 2-word phrases), these are
-    /// single-token family terms that can appear anywhere in the suffix.
     this.familyTerms = const [
       'me',
       'bo',

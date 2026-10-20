@@ -55,7 +55,7 @@ class VoskSttManager(private val context: Context) {
         StorageService.unpack(context, "model-vn", "model",
             { model ->
                 this.model = model
-                // Khởi tạo recognizer với tần số 16kHz (Khớp với chuẩn lấy mẫu của AudioPlaybackCapture)
+
                 this.recognizer = Recognizer(model, 16000.0f)
                 this._isReady.value = true
                 this.retryCount = 0
@@ -80,7 +80,6 @@ class VoskSttManager(private val context: Context) {
         )
     }
 
-    /** User có thể thử lại từ UI sau khi model load fail */
     fun retryLoad() {
         retryCount = 0
         initModel()
@@ -92,9 +91,9 @@ class VoskSttManager(private val context: Context) {
         try {
             _isProcessing.value = true
             val isFinal = recognizer!!.acceptWaveForm(buffer, bytesRead)
-            
+
             if (isFinal) {
-                // Nhận dạng xong khối âm thanh (Final result chốt câu)
+
                 val resultJson = recognizer!!.result
                 val recognizedText = extractText(resultJson, "text")
                 if (recognizedText.isNotBlank()) {
@@ -102,7 +101,7 @@ class VoskSttManager(private val context: Context) {
                     _creatorTranscriptFlow.value = cumulativeTranscript
                 }
             } else {
-                // Nhận dạng luồng trực tiếp liên tục (Partial result)
+
                 val partialJson = recognizer!!.partialResult
                 val partialText = extractText(partialJson, "partial")
                 if (partialText.isNotBlank()) {

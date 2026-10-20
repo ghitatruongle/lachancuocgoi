@@ -99,10 +99,6 @@ class TrieNode {
   final Map<String, TrieNode> children = <String, TrieNode>{};
   KeywordTrieData? keywordData;
 
-  // Aho-Corasick links — built once after trie construction (Phase 7).
-  // failureLink: longest proper suffix that is a prefix of some keyword.
-  // dictionaryLink: next keyword node along failure chain (for emitting
-  // overlapping/contained keyword matches without re-walking).
   TrieNode? failureLink;
   TrieNode? dictionaryLink;
 }

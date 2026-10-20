@@ -1,9 +1,5 @@
 import 'dart:developer' as developer;
 
-/// Domain-level risk classification, intentionally free of any Flutter
-/// dependency (no `dart:ui`/`package:flutter`). The palette is exposed as
-/// plain ARGB ints ([colorValue]) so the UI layer is the single place that
-/// bridges it into a `Color` — see `lib/ui/theme/risk_level_colors.dart`.
 enum RiskLevel {
   green('An toàn', 0xFF4CAF50),
   yellow('Chú ý', 0xFFFFEB3B),
@@ -14,8 +10,6 @@ enum RiskLevel {
 
   final String vietnameseName;
 
-  /// Canonical ARGB palette for this level (single source of truth).
-  /// Convert to a Flutter `Color` via the `RiskLevelColorX` extension.
   final int colorValue;
 
   int get level => index;
@@ -64,11 +58,7 @@ enum RiskLevel {
     };
   }
 
-  /// Conservative fallback for unrecognized risk level strings.
-  /// Logs a warning and returns [RiskLevel.orange] to be safe in a
-  /// security-focused app (better to over-warn than silently pass).
   static RiskLevel _unknownRiskLevel(String? original) {
-    // Plain log (no Flutter dependency) — this is the domain layer.
     developer.log(
       'RiskLevel.fromString: unknown value "$original", defaulting to orange',
     );

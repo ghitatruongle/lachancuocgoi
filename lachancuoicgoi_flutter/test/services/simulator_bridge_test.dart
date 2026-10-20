@@ -36,7 +36,6 @@ void main() {
 
     test('emits transcript updates according to script using FakeAsync', () {
       fakeAsync((async) {
-        // Use a custom script so the test is independent of the default catalog.
         const script = SimulatorScript(
           id: 'test_police',
           title: 'Test police script',
@@ -53,13 +52,10 @@ void main() {
           transcripts.add(update);
         });
 
-        // Start monitoring (which starts the 100ms periodic timer)
         bridge.startMonitoring();
 
-        // The script emits full sentences every 100 ticks (10 seconds)
         async.elapse(const Duration(seconds: 10));
 
-        // It should have emitted the first sentence
         expect(transcripts.isNotEmpty, isTrue);
         expect(
           transcripts.last.text,
@@ -67,11 +63,9 @@ void main() {
         );
         expect(transcripts.last.isPartial, isFalse);
 
-        // Advance by another 10 seconds for the second sentence
         async.elapse(const Duration(seconds: 10));
         expect(transcripts.last.text, contains('rửa tiền và buôn bán ma túy'));
 
-        // Advance by enough time to cycle through all 3 sentences
         async.elapse(const Duration(seconds: 10));
         expect(transcripts.last.text, contains('mở hồ sơ bảo lãnh tư pháp'));
 
@@ -92,7 +86,6 @@ void main() {
 
         bridge.startMonitoring();
 
-        // Advance by 1 second (10 ticks)
         async.elapse(const Duration(seconds: 1));
 
         expect(rmsValues.length, 10);
@@ -116,7 +109,6 @@ void main() {
         bridge.startMonitoring();
         async.elapse(const Duration(seconds: 10));
 
-        // Default is bankFraud — should contain 'nhân viên ngân hàng'
         expect(transcripts.last.text, contains('nhân viên ngân hàng'));
 
         bridge.stopMonitoring();

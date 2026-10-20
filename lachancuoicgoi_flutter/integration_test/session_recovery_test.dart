@@ -49,7 +49,6 @@ void main() {
       }
       expect(find.byType(MonitoringPage), findsOneWidget);
 
-      // Pump enough for the recovery to complete.
       for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 200));
       }

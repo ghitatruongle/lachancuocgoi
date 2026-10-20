@@ -35,14 +35,12 @@ void main() {
       final analyzer = _createL2Analyzer(gResult: _greenGResult());
       await analyzer.initialize();
 
-      // GDetection will still run, but with minimal tokens
       final result = await analyzer.analyze('x', 'x');
       expect(result.overallRiskLevel, isA<RiskLevel>());
       expect(result.analysisLevel, AnalysisLevel.l2);
     });
 
     test('_applySafetyDiscount with orange risk level preserves it', () async {
-      // The safety discount logic does not downgrade orange or red
       final gResult = GResult(
         riskLevel: RiskLevel.orange,
         reason: 'Cảnh báo phát hiện',
@@ -58,11 +56,9 @@ void main() {
       final analyzer = _createL2Analyzer(gResult: gResult);
       await analyzer.initialize();
 
-      // Full text with casual opening to trigger safety discount
       final casualText = '${'ăn cơm chưa ' * 10} co dau hieu lua dao';
       final result = await analyzer.analyze(casualText, casualText);
 
-      // Orange should not be downgraded by safety discount
       expect(
         result.overallRiskLevel.index,
         greaterThanOrEqualTo(RiskLevel.orange.index),
@@ -73,7 +69,6 @@ void main() {
       final analyzer = _createL2Analyzer(gResult: _greenGResult());
       await analyzer.initialize();
 
-      // Run an analysis to set state
       await analyzer.analyze('some text', 'some text');
       expect(analyzer.processedTextLength, greaterThan(0));
 
@@ -106,7 +101,7 @@ void main() {
         gReady: false,
         intentReady: false,
       );
-      // Do NOT initialize — engine won't be ready
+
       final report = analyzer.healthCheck();
       expect(report.status, HealthStatus.down);
       expect(report.component, 'L2');
@@ -120,10 +115,9 @@ void main() {
           gReady: true,
           intentReady: false,
         );
-        // We need the gDetectionEngine to report ready
+
         final report = analyzer.healthCheck();
-        // Since intentClassifier is DisabledIntentClassifier (isReady = false),
-        // and gDetectionEngine is overridden to report ready
+
         expect(report.status, HealthStatus.degraded);
         expect(report.component, 'L2');
       },

@@ -18,7 +18,6 @@ import 'helpers/bigram_corrections_loader.dart';
 import 'l1_result.dart';
 import 'l1_safety_filter.dart';
 
-/// Top-level JSON decode for [Isolate.run] — isolates can't capture closures.
 Object? _jsonDecode(String text) => jsonDecode(text);
 
 class L1Analyzer implements Analyzer {
@@ -41,7 +40,6 @@ class L1Analyzer implements Analyzer {
   FutureOr<String> Function()? _bigramCorrectionsProvider;
   final FutureOr<String> Function()? _criticalKeywordsProvider;
 
-  /// Critical keywords loaded from JSON asset (or fallback defaults).
   Set<String> _criticalKeywords = const {};
 
   @override
@@ -265,7 +263,7 @@ class L1Analyzer implements Analyzer {
   Future<void> _doInitialize() async {
     _trie = FlatTrie();
     await _buildTrie();
-    // Yield to event loop — prevents 48 skipped frames during first analysis.
+
     await Future<void>.delayed(Duration.zero);
     await _loadBigramCorrections();
     await Future<void>.delayed(Duration.zero);
@@ -289,9 +287,7 @@ class L1Analyzer implements Analyzer {
         'assets/risk_model_vocabulary.json',
         _vocabularyProvider,
       );
-      // Offload JSON decode to a background isolate — risk_model_vocabulary.json
-      // is ~68KB and parsing it synchronously causes jank on low-end devices.
-      // Isolate.run keeps the analysis layer free of package:flutter.
+
       final decoded = await Isolate.run(() => _jsonDecode(jsonText));
       if (decoded is! Map<String, dynamic>) {
         _buildFallbackTrie();
@@ -343,24 +339,20 @@ class L1Analyzer implements Analyzer {
   }
 
   Future<void> _loadBigramCorrections() async {
-    // BUG-L1-FUZZY-CACHE-LEAK fix: Clear existing corrections before loading.
     _corrections.clear();
     try {
       final jsonText = await _loadString(
         'assets/bigram_corrections.json',
         _bigramCorrectionsProvider,
       );
-      // Wave 3 refactor: delegated to BigramCorrectionsLoader.
+
       BigramCorrectionsLoader.loadFromJson(jsonText, _corrections, _logger);
     } on Object catch (e) {
       FallbackTracker.instance.increment('l1_bigram');
       _logger?.warning('Failed to load bigram corrections: $e');
-      // Already cleared at start, so _corrections remains empty on failure.
     }
   }
 
-  /// Load critical keywords from JSON asset (config-driven).
-  /// Falls back to [L1ResultParser.defaultCriticalKeywords] on failure.
   Future<void> _loadCriticalKeywords() async {
     try {
       final jsonText = await _loadString(
@@ -428,7 +420,7 @@ class L1Analyzer implements Analyzer {
 
     var head = 0;
     var processed = 0;
-    const yieldInterval = 200; // yield every 200 nodes
+    const yieldInterval = 200;
 
     while (head < queue.length) {
       final currentId = queue[head++];
@@ -451,7 +443,7 @@ class L1Analyzer implements Analyzer {
 
       processed++;
       if (processed % yieldInterval == 0) {
-        await Future<void>.delayed(Duration.zero); // yield to event loop
+        await Future<void>.delayed(Duration.zero);
       }
     }
   }
@@ -481,10 +473,7 @@ class L1Analyzer implements Analyzer {
       );
       if (!found) unmatchedTokens.add(_UnmatchedToken(token, wordIndex));
 
-      // Yield every N tokens to avoid blocking the UI on long transcripts.
       if (wordIndex > 0 && wordIndex % yieldInterval == 0) {
-        // Await a micro-task yield to unblock the event loop for
-        // UI frames and stream events while scanning a long transcript.
         await Future<void>.delayed(Duration.zero);
       }
     }
@@ -580,9 +569,6 @@ class L1Analyzer implements Analyzer {
     FutureOr<String> Function()? provider,
   ) async {
     if (provider != null) {
-      // Must await — provider returns FutureOr<String>, and wrapping a
-      // Future in Future.value() creates a nested future, causing
-      // jsonDecode to receive a Future object instead of a String.
       final result = await provider();
       return result;
     }
@@ -596,12 +582,8 @@ class L1Analyzer implements Analyzer {
 
   @override
   void dispose() {
-    // Release session-scoped state first (token history, Aho-Corasick state).
     resetSession();
-    // Release the large static structures so they can be GC'd when the
-    // analyzer is torn down. Previously dispose() only cleared _fuzzyCache,
-    // leaving the trie (potentially thousands of nodes) + bigram corrections
-    // map + initialization future reachable.
+
     _corrections.clear();
     _singleTokenFuzzyCandidates.clear();
     _trie = FlatTrie();
@@ -610,7 +592,6 @@ class L1Analyzer implements Analyzer {
     _initializingFuture = null;
   }
 
-  // ── Cached compiled question patterns (built once per config) ────────
   List<RegExp>? _questionPatterns;
 
   List<RegExp> _getQuestionPatterns() {

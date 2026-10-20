@@ -33,7 +33,6 @@ class _SystemLogViewState extends State<SystemLogView> {
       });
     });
 
-    // Auto-scroll on initial load
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
@@ -95,13 +94,11 @@ class _SystemLogViewState extends State<SystemLogView> {
 
     return Column(
       children: [
-        // Filter Toolbar (Does not rebuild on new log entries to prevent focus issues)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Search input
               TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
@@ -126,7 +123,7 @@ class _SystemLogViewState extends State<SystemLogView> {
                 ),
               ),
               const SizedBox(height: 6),
-              // Category chips row
+
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -161,7 +158,7 @@ class _SystemLogViewState extends State<SystemLogView> {
           ),
         ),
         const Divider(height: 1),
-        // Log entries list (Rebuilds reactively when a new log entry arrives)
+
         Expanded(
           child: ListenableBuilder(
             listenable: SystemLogger.instance,
@@ -234,7 +231,6 @@ class _SystemLogViewState extends State<SystemLogView> {
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Timestamp
                                   Text(
                                     log.formattedTime,
                                     style: tt.bodySmall?.copyWith(
@@ -244,14 +240,14 @@ class _SystemLogViewState extends State<SystemLogView> {
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  // Category badge/icon
+
                                   Icon(
                                     _getCategoryIcon(log.category),
                                     size: 14,
                                     color: categoryColor,
                                   ),
                                   const SizedBox(width: 6),
-                                  // Message
+
                                   Expanded(
                                     child: Text(
                                       log.message,

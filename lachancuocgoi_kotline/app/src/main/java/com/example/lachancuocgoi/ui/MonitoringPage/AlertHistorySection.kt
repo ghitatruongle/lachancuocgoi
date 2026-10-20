@@ -13,10 +13,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lachancuocgoi.data.AlertHistoryEntry
 
-/**
- * Component hiển thị lịch sử cảnh báo của một cuộc gọi.
- * Hiển thị danh sách các lần cảnh báo đã được hiển thị (L1 batch, L2 batch, L3 immediate).
- */
 @Composable
 fun AlertHistorySection(
     alertHistory: List<AlertHistoryEntry>,
@@ -25,9 +21,9 @@ fun AlertHistorySection(
     if (alertHistory.isEmpty()) {
         return
     }
-    
+
     Column(modifier = modifier.fillMaxWidth()) {
-        // Header
+
         Text(
             text = "⚠️ LỊCH SỬ CẢNH BÁO",
             style = MaterialTheme.typography.titleMedium,
@@ -35,13 +31,12 @@ fun AlertHistorySection(
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(bottom = 12.dp)
         )
-        
+
         HorizontalDivider(
             modifier = Modifier.padding(bottom = 12.dp),
             color = MaterialTheme.colorScheme.outlineVariant
         )
-        
-        // Hiển thị theo thứ tự ngược (mới nhất lên đầu)
+
         alertHistory.reversed().forEachIndexed { index, entry ->
             AlertHistoryCard(entry)
             if (index < alertHistory.size - 1) {
@@ -51,9 +46,6 @@ fun AlertHistorySection(
     }
 }
 
-/**
- * Card hiển thị một entry trong lịch sử cảnh báo.
- */
 @Composable
 fun AlertHistoryCard(entry: AlertHistoryEntry) {
     Card(
@@ -69,7 +61,7 @@ fun AlertHistoryCard(entry: AlertHistoryEntry) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon + Time
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = entry.getRiskLevelIcon(),
@@ -83,14 +75,11 @@ fun AlertHistoryCard(entry: AlertHistoryEntry) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                
-                // Level badge
 
             }
-            
+
             Spacer(modifier = Modifier.height(6.dp))
-            
-            // Alert count (nếu là batch)
+
             if (entry.alertCount > 1) {
                 Text(
                     text = "${entry.alertCount} cảnh báo • Mức cao nhất: ${entry.riskLevel}",
@@ -100,16 +89,14 @@ fun AlertHistoryCard(entry: AlertHistoryEntry) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
             }
-            
-            // Main reason
+
             Text(
                 text = entry.displayedReason,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Normal
             )
-            
-            // All reasons (if batch và có nhiều lý do)
+
             entry.allReasons?.let { reasons ->
                 if (reasons.size > 1) {
                     Spacer(modifier = Modifier.height(6.dp))

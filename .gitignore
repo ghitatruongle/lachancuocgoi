@@ -42,6 +42,7 @@ build/
 *.so
 *.a
 *.obj
+*.h5
 
 # Coverage
 coverage/
@@ -103,3 +104,6 @@ thuyet_trinh.html
 
 # Editor/tool local metadata
 .freebuff/
+
+# Offline training model weights
+model_ghitav*/*.tflite

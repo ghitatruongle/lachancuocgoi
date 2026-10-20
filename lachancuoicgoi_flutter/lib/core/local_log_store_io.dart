@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-/// Best-effort app-private persistence for scrubbed diagnostic logs.
 class LocalLogStore {
   LocalLogStore._();
 

@@ -50,14 +50,9 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // First few items are visible in the viewport
       expect(find.text('Ghi âm'), findsOneWidget);
       expect(find.text('Trạng thái cuộc gọi'), findsOneWidget);
       expect(find.text('Lịch sử cuộc gọi'), findsOneWidget);
-
-      // ListView in dialog may be lazy. Check that at least 3 items are visible.
-      // Remaining items (overlay, notifications, call screening, accessibility)
-      // may need scrolling which is fragile in dialog context.
     });
 
     testWidgets('close button works', (tester) async {
@@ -69,11 +64,9 @@ void main() {
 
       expect(find.text('Quyền ứng dụng'), findsOneWidget);
 
-      // Tap the close button (icon button)
       await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
 
-      // Dialog should be dismissed
       expect(find.text('Quyền ứng dụng'), findsNothing);
     });
 
@@ -94,7 +87,6 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // With all permissions denied, shows 0/8
       expect(find.textContaining('/8 quyền đã cấp'), findsOneWidget);
     });
 
@@ -161,7 +153,6 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Granted permission shows check_circle icon
       expect(find.byIcon(Icons.check_circle), findsWidgets);
     });
 

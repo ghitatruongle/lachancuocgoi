@@ -11,7 +11,6 @@ enum class RiskLevel(val vietnameseName: String, val color: Color) {
     val level: Int
         get() = ordinal
 
-    /** Giảm 1 bậc risk level an toàn. GREEN không giảm được thêm. */
     fun deescalate(): RiskLevel = when (this) {
         RED -> ORANGE
         ORANGE -> YELLOW
@@ -29,7 +28,6 @@ enum class RiskLevel(val vietnameseName: String, val color: Color) {
             }
         }
 
-        // (SỬA LỖI) Thêm hàm fromInt bị thiếu
         fun fromInt(value: Int): RiskLevel {
             return when (value) {
                 3 -> RED

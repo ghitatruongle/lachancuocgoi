@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/data/vocabulary_repository.dart';
 
-/// A fake AssetBundle that returns pre-configured responses.
 class FakeAssetBundle extends AssetBundle {
   final Map<String, String> _assets;
 
@@ -53,7 +52,6 @@ void main() {
     });
 
     test('handles Map (not Map<String, dynamic>) via cast', () async {
-      // jsonDecode returns Map<String, dynamic> normally, but test the cast path
       final bundle = FakeAssetBundle({
         'test.json': '{"nested": {"inner": true}}',
       });
@@ -163,7 +161,7 @@ void main() {
     });
 
     test('returns empty on asset load failure', () async {
-      final bundle = FakeAssetBundle({}); // No assets configured
+      final bundle = FakeAssetBundle({});
       final repo = VocabularyRepository(assetBundle: bundle);
       expect(await repo.getSituationSentences(), isEmpty);
     });

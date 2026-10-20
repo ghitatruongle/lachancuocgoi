@@ -1,7 +1,3 @@
-// Bug Hunt Phase B.6 — UI state rebuild + churn audit
-//
-// Reference: docs/superpowers/specs/.../Mục 6 — Tốc độ
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_mode.dart';
 import 'package:lachancuocgoi_flutter/ui/monitoring_page/monitoring_state.dart';

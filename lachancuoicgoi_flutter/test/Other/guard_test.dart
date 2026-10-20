@@ -14,7 +14,6 @@ void main() {
       expect(guard.tryLock(), isTrue);
       expect(guard.isLocked, isTrue);
 
-      // Subsequent attempt fails
       expect(guard.tryLock(), isFalse);
       expect(guard.isLocked, isTrue);
     });
@@ -26,7 +25,6 @@ void main() {
       guard.unlock();
       expect(guard.isLocked, isFalse);
 
-      // Can lock again
       expect(guard.tryLock(), isTrue);
     });
 

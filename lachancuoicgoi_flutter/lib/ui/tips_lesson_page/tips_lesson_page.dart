@@ -108,7 +108,6 @@ class TipsLessonPage extends StatelessWidget {
   }
 }
 
-// ─── Data ──────────────────────────────────────────────────────────────
 enum _TipSeverity { high, medium }
 
 class _TipData {
@@ -126,7 +125,6 @@ class _TipData {
   final _TipSeverity severity;
 }
 
-// ─── Tip Card ──────────────────────────────────────────────────────────
 class _TipCard extends StatelessWidget {
   const _TipCard({required this.tip});
   final _TipData tip;
@@ -153,7 +151,6 @@ class _TipCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Number circle
               Container(
                 width: 36,
                 height: 36,
@@ -173,7 +170,6 @@ class _TipCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
 
-              // Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -6,10 +6,6 @@ abstract class AssetLoader {
   Future<ByteData> load(String key);
 }
 
-/// Caches bundled text assets in memory after their first read.
-///
-/// Binary models are intentionally not duplicated in this cache because the
-/// platform asset bundle already returns memory-backed [ByteData].
 class CachingAssetLoader implements AssetLoader {
   CachingAssetLoader(this._delegate);
 

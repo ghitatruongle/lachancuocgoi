@@ -41,8 +41,6 @@ class L3Analyzer implements Analyzer {
         EnvironmentApiKeyProvider(assetLoader: assetLoader, logger: logger);
     final tracker = keyHealthTracker ?? KeyHealthTracker(provider);
 
-    // Direct Gemini is the only L3 production path. The release build obtains
-    // its rotating keys from the bundled env.json through the shared provider.
     final client =
         geminiClient ??
         _createDefaultClient(provider, tracker, cloudConsentStore);
@@ -59,10 +57,6 @@ class L3Analyzer implements Analyzer {
     );
   }
 
-  /// Creates the direct Gemini client used by every production L3 request.
-  ///
-  /// Keys come from the bundled `env.json`. This intentional on-device design
-  /// means a motivated party can extract them from a release artifact.
   static GeminiClient _createDefaultClient(
     ApiKeyProvider provider,
     KeyHealthTracker tracker,
@@ -107,7 +101,6 @@ class L3Analyzer implements Analyzer {
   final CloudAnalysisConsentStore? _cloudConsentStore;
   final ResponseCache<AnalysisResult> _cache;
 
-  // Extracted sub-components
   final CircuitBreaker _circuitBreaker;
   final L3ResponseParser _responseParser;
   final RiskDeescalationMachine _deescalation;
@@ -115,11 +108,7 @@ class L3Analyzer implements Analyzer {
   GeminiChatSession? _activeSession;
   bool _isAnalyzing = false;
   int _processedTextLength = 0;
-  // BUG-L3-INFLIGHT-CIRCUIT-BLOCK fix: Generation counter to prevent stale
-  // in-flight results from writing to _lastResult after closeSession() is called.
-  // Previously: user exits monitoring mid-Gemini-call (up to 25s) → closeSession
-  // sets _activeSession=null but _isAnalyzing=true stays. When in-flight resolves,
-  // it writes _lastResult from OLD session, leaking PII into new session.
+
   int _sessionGeneration = 0;
   AnalysisResult _lastResult = const AnalysisResult(
     overallRiskLevel: RiskLevel.green,
@@ -144,14 +133,6 @@ class L3Analyzer implements Analyzer {
         _keyHealthTracker.hasActiveKeys();
   }
 
-  /// Whether a Gemini chat session is currently active.
-  ///
-  /// BUG FIX (Bug #1): Previously the coordinator decided whether to create
-  /// a new session by checking [_processedTextLength] == 0. But short-text
-  /// incremental analysis returns early WITHOUT updating
-  /// `_processedTextLength`, so the next call would see length=0 again and
-  /// recreate the session — discarding all chat history. Now callers should
-  /// check [hasActiveSession] instead.
   bool get hasActiveSession => _activeSession != null;
 
   @override
@@ -257,13 +238,11 @@ class L3Analyzer implements Analyzer {
       );
     }
 
-    // BUG-L3-INFLIGHT-CIRCUIT-BLOCK fix: Capture generation at call start.
     final myGeneration = _sessionGeneration;
     _isAnalyzing = true;
     try {
       final validationError = _validateInput(text);
       if (validationError != null) {
-        // Only write if generation hasn't changed (session not closed mid-flight).
         if (myGeneration == _sessionGeneration) {
           _lastResult = validationError;
         }
@@ -299,20 +278,13 @@ class L3Analyzer implements Analyzer {
             riskLevel: analysisResult.overallRiskLevel,
           );
           _circuitBreaker.recordSuccess();
-          // Only write if generation hasn't changed.
+
           if (myGeneration == _sessionGeneration) {
             _lastResult = analysisResult;
           }
           return analysisResult;
         },
         onFailure: (error, _) {
-          // BUG-L3-CIRCUIT-RACE fix: Do NOT record failure in L3Analyzer's
-          // circuit breaker if the error is "Circuit breaker open" from
-          // GeminiClient's own circuit breaker. GeminiClient already tracks
-          // failures and opens its circuit after 5 consecutive fails (30s cooldown).
-          // Recording this as an L3Analyzer failure causes double-tripping:
-          // L3 would trip for 2 minutes AFTER GeminiClient's 30s cooldown ends,
-          // resulting in ~2.5 minutes total unavailability instead of the intended 30s.
           final errorString = error.toString();
           if (!errorString.contains('Circuit breaker open')) {
             _circuitBreaker.recordFailure();
@@ -324,7 +296,7 @@ class L3Analyzer implements Analyzer {
             analysisLevel: AnalysisLevel.l3,
             isError: true,
           );
-          // Only write if generation hasn't changed.
+
           if (myGeneration == _sessionGeneration) {
             _lastResult = analysisResult;
           }
@@ -361,7 +333,6 @@ class L3Analyzer implements Analyzer {
       return null;
     }
 
-    // BUG-L3-INFLIGHT-CIRCUIT-BLOCK fix: Capture generation at call start.
     final myGeneration = _sessionGeneration;
     _isAnalyzing = true;
     try {
@@ -396,7 +367,6 @@ class L3Analyzer implements Analyzer {
         ),
       );
 
-      // Local retry once for transient network or timeout errors
       bool isTransient = false;
       result.fold(
         onSuccess: (_) {},
@@ -414,12 +384,6 @@ class L3Analyzer implements Analyzer {
       );
 
       if (isTransient) {
-        // BUG-L3-RETRY-DELAY-OVERFLOW fix: Exponential Backoff with Jitter
-        // Previously: baseDelay could reach (1 << 5) * 1000 = 32000ms (32s),
-        // but AnalysisCoordinator._analyzeParallel times out L3 after 800ms.
-        // A 32s delay means the retry is guaranteed to be cut by the timeout,
-        // wasting Gemini quota and leaving _isAnalyzing=true for 32s (blocking
-        // all subsequent calls). Cap at 1500ms to stay under coordinator timeout.
         final random = DateTime.now().microsecond % 1000;
         final baseDelay =
             (1 << _circuitBreaker.consecutiveErrors.clamp(0, 5)) * 1000;
@@ -437,7 +401,6 @@ class L3Analyzer implements Analyzer {
 
       return result.fold(
         onSuccess: (analysisResult) {
-          // Only write if generation hasn't changed (session not closed mid-flight).
           if (myGeneration == _sessionGeneration) {
             _processedTextLength = fullText.length;
             _lastResult = analysisResult;
@@ -446,8 +409,6 @@ class L3Analyzer implements Analyzer {
           return analysisResult;
         },
         onFailure: (error, _) {
-          // BUG-L3-CIRCUIT-RACE fix: Same logic as in analyze() — skip
-          // recording failure if error comes from GeminiClient's circuit breaker.
           final errorString = error.toString();
           if (!errorString.contains('Circuit breaker open')) {
             _circuitBreaker.recordFailure();
@@ -459,7 +420,7 @@ class L3Analyzer implements Analyzer {
             analysisLevel: AnalysisLevel.l3,
             isError: true,
           );
-          // Only write if generation hasn't changed.
+
           if (myGeneration == _sessionGeneration) {
             _lastResult = analysisResult;
           }
@@ -488,10 +449,6 @@ class L3Analyzer implements Analyzer {
   }
 
   void closeSession({bool resetProgress = true}) {
-    // BUG-L3-INFLIGHT-CIRCUIT-BLOCK fix: Increment generation to invalidate
-    // any in-flight analyze() calls. When user exits monitoring mid-Gemini-call,
-    // the call may still complete after 25s and try to write _lastResult.
-    // Incrementing generation here ensures those stale writes are ignored.
     _sessionGeneration++;
     _activeSession?.close();
     _activeSession = null;
@@ -503,10 +460,6 @@ class L3Analyzer implements Analyzer {
 
   MetricsSnapshot getMetrics() => GeminiMetrics.instance.getSnapshot();
 
-  /// Parses the raw LLM response text into an [AnalysisResult].
-  ///
-  /// Delegates to [L3ResponseParser] for JSON extraction and risk level
-  /// parsing, and to [RiskDeescalationMachine] for de-escalation logic.
   AnalysisResult parseResponse(
     String responseText,
     String modelName, [
@@ -568,10 +521,6 @@ class L3Analyzer implements Analyzer {
   }
 
   String _normalizeForCache(String text) {
-    // BUG-L2-CACHE-NORMALIZED-KEY fix: Use Unicode-aware regex to preserve
-    // Vietnamese diacritics. Previously \w (ASCII [A-Za-z0-9_]) stripped
-    // all accents: "công an" → "cng an", "cộng án" → "cng n" → collision.
-    // Now \p{L} matches any Unicode letter, \p{N} matches any number.
     return text
         .toLowerCase()
         .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), '')
@@ -579,7 +528,6 @@ class L3Analyzer implements Analyzer {
         .trim();
   }
 
-  // Backward-compatible accessors for tests that inspect internal state.
   int get consecutiveErrors => _circuitBreaker.consecutiveErrors;
 
   String get errorRateString => _circuitBreaker.getErrorRateString();

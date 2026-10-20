@@ -158,7 +158,6 @@ fun TipsLessonPage(navController: NavController) {
 private fun TipCard(index: Int, tip: ScamTip) {
     val context = LocalContext.current
 
-    // Auto color scaling for Light/Dark Mode based on Material Theme
     val containerColor = if (tip.severity == TipSeverity.HIGH) {
         MaterialTheme.colorScheme.errorContainer
     } else {
@@ -219,7 +218,6 @@ private fun TipCard(index: Int, tip: ScamTip) {
 
             Spacer(Modifier.height(8.dp))
 
-            // Share Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End

@@ -56,12 +56,11 @@ void main() {
 
     testWidgets('page renders without crash', (tester) async {
       await tester.pumpWidget(buildPage());
-      // Wait for addPostFrameCallback + async loadData
+
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
 
-      // Page should render without crashing
       expect(find.byType(SimulationPage), findsOneWidget);
     });
   });

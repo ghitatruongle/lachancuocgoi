@@ -7,21 +7,6 @@ part 'scam_graph_financial_scenarios.dart';
 part 'scam_graph_investment_scenarios.dart';
 part 'scam_graph_romance_scenarios.dart';
 
-/// Builds the default set of [ScenarioGraph] definitions used by the WFSA
-/// engine.
-///
-/// The 24+ scam scenarios are split across five part-files by category:
-/// - [scam_graph_authority_scenarios.dart] — police, VNeID, telecom, tech
-///   support, hospital (5 scenarios).
-/// - [scam_graph_social_scenarios.dart] — kidnap, CEO, deepfake, romance,
-///   sextortion, charity, investment, job, lottery, gambling, visa
-///   (11 scenarios).
-/// - [scam_graph_financial_scenarios.dart] — bank, shipper, subscription,
-///   black credit, recovery, generic, ecommerce, crypto (8 scenarios).
-/// - [scam_graph_investment_scenarios.dart] — Wave 6: forex, crypto,
-///   MLM, job scam, stock, ICO, skincare MLM, Ponzi (8 scenarios).
-/// - [scam_graph_romance_scenarios.dart] — Wave 6: dating, gift card,
-///   investment together, emergency, passport, customs (6 scenarios).
 class ScamGraphBuilder {
   ScamGraphBuilder._();
 

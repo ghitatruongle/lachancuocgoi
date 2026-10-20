@@ -1,14 +1,7 @@
 import 'pii_regex.dart' as regex;
 import 'pii_types.dart';
 
-/// Collector functions that scan text for PII patterns and produce
-/// [Replacement] entries.
-///
-/// Each collector targets a specific [PiiType] and uses a specific regex
-/// strategy: contextual number (keyword + number group), contextual text
-/// (keyword + text group), direct (full match), or compact label.
 class PiiCollectors {
-  /// Collect OTP codes with contextual number pattern.
   static void collectOtp(
     String text,
     List<Replacement> replacements,
@@ -26,7 +19,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect bank account numbers with contextual number pattern.
   static void collectBankAccount(
     String text,
     List<Replacement> replacements,
@@ -44,7 +36,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect national ID numbers with contextual number pattern.
   static void collectNationalId(
     String text,
     List<Replacement> replacements,
@@ -62,7 +53,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect card numbers with contextual number pattern.
   static void collectCardNumber(
     String text,
     List<Replacement> replacements,
@@ -80,7 +70,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect email addresses (direct match).
   static void collectEmails(
     String text,
     List<Replacement> replacements,
@@ -98,7 +87,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect URLs (direct match).
   static void collectUrls(
     String text,
     List<Replacement> replacements,
@@ -116,7 +104,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect social media handles (contextual text).
   static void collectSocialMedia(
     String text,
     List<Replacement> replacements,
@@ -134,7 +121,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect dates of birth (contextual text).
   static void collectDateOfBirth(
     String text,
     List<Replacement> replacements,
@@ -152,7 +138,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect partial PII disclosures (contextual text, categorized as bankAccount).
   static void collectPartialPii(
     String text,
     List<Replacement> replacements,
@@ -170,7 +155,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect phone numbers with compact labels.
   static void collectCompactPhoneLabels(
     String text,
     List<Replacement> replacements,
@@ -195,7 +179,6 @@ class PiiCollectors {
     }
   }
 
-  /// Collect raw phone numbers (direct match).
   static void collectPhoneNumbers(
     String text,
     List<Replacement> replacements,
@@ -213,7 +196,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect person names with context clues.
   static void collectContextualPersonNames(
     String text,
     List<Replacement> replacements,
@@ -231,7 +213,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect generic Vietnamese names (no context clue required).
   static void collectGenericNames(
     String text,
     List<Replacement> replacements,
@@ -249,7 +230,6 @@ class PiiCollectors {
     );
   }
 
-  /// Collect addresses (contextual text).
   static void collectAddresses(
     String text,
     List<Replacement> replacements,
@@ -266,8 +246,6 @@ class PiiCollectors {
       validator: (candidate) => candidate.trim().length >= 6,
     );
   }
-
-  // ─── Internal collector strategies ──────────────────────────────────
 
   static void _collectContextualNumber({
     required String text,

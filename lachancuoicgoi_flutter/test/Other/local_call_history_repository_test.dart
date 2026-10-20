@@ -5,7 +5,6 @@ import 'package:lachancuocgoi_flutter/data/call_history.dart';
 import 'package:lachancuocgoi_flutter/data/call_history_dao.dart';
 import 'package:lachancuocgoi_flutter/data/local_call_history_repository.dart';
 
-/// A spy DAO that records method calls for verification.
 class SpyCallHistoryDao implements CallHistoryDao {
   final List<String> calls = [];
   final List<CallHistory> insertedItems = [];

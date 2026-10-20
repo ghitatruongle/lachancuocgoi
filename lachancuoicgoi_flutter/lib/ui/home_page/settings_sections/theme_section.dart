@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../app/settings_controller.dart';
 import '../../theme/app_theme.dart';
 
-/// Theme settings: "follow system" toggle + manual dark/light mode toggle.
 class ThemeSection extends StatelessWidget {
   const ThemeSection({super.key, required this.state, required this.onChanged});
 
@@ -40,7 +39,6 @@ class ThemeSection extends StatelessWidget {
   }
 }
 
-/// Toggle card widget shared across settings sections.
 class SettingToggleCard extends StatelessWidget {
   const SettingToggleCard({
     super.key,

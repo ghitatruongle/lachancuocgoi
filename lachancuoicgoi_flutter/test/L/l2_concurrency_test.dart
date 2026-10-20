@@ -32,7 +32,7 @@ class ManualMockGDetectionEngine implements GDetectionEngine {
     if (activeAnalyses > maxConcurrentAnalyses) {
       maxConcurrentAnalyses = activeAnalyses;
     }
-    // Simulate some work that takes time
+
     await Future<void>.delayed(const Duration(milliseconds: 100));
     activeAnalyses--;
     return const GResult(riskLevel: RiskLevel.green, reason: 'OK');
@@ -54,21 +54,18 @@ void main() {
       final mockEngine = ManualMockGDetectionEngine();
       final analyzer = L2Analyzer(gDetectionEngine: mockEngine);
 
-      // Fire 3 analyses concurrently
       final futures = [
         analyzer.analyze('text 1', 'full text 1'),
         analyzer.analyze('text 2', 'full text 2'),
         analyzer.analyze('text 3', 'full text 3'),
       ];
 
-      // Pump sequentially to let each analysis's delay complete
       for (int i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 200));
       }
 
       await Future.wait(futures);
 
-      // If the lock works perfectly, maxConcurrentAnalyses should be 1.
       expect(
         mockEngine.maxConcurrentAnalyses,
         1,

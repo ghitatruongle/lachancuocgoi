@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Shared large-text permission step used by stepwise onboarding (v1.6.5).
 class PermissionRationaleStep {
   const PermissionRationaleStep({
     required this.title,
@@ -15,7 +14,6 @@ class PermissionRationaleStep {
   final bool isOptional;
 }
 
-/// Ordered rationales: mic → overlay → screening → a11y (optional) → cloud.
 List<PermissionRationaleStep> defaultPermissionRationaleSteps() {
   return const <PermissionRationaleStep>[
     PermissionRationaleStep(

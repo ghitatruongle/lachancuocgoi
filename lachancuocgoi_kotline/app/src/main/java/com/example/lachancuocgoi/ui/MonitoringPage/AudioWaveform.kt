@@ -90,7 +90,7 @@ fun AudioWaveform(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(100.dp)
-        ) { 
+        ) {
             val barWidth = size.width / (2 * amplitudes.size - 1)
             val maxAmplitude = size.height / 2
 

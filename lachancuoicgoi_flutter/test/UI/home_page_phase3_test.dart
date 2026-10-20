@@ -22,8 +22,8 @@ void main() {
               NativeBridgeInterface.create(),
             ),
           ],
-          child: MaterialApp(
-            locale: const Locale('vi'),
+          child: const MaterialApp(
+            locale: Locale('vi'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: HomePage(),
@@ -31,18 +31,15 @@ void main() {
         ),
       );
 
-      // Wait for post-frame callback
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Dialog should be shown (RightsDialog)
       expect(find.byType(Dialog), findsOneWidget);
     });
 
     testWidgets('permission dialog does not show on second build', (
       tester,
     ) async {
-      // First build
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -50,8 +47,8 @@ void main() {
               NativeBridgeInterface.create(),
             ),
           ],
-          child: MaterialApp(
-            locale: const Locale('vi'),
+          child: const MaterialApp(
+            locale: Locale('vi'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: HomePage(),
@@ -61,13 +58,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Dismiss dialog if shown
-      if (find.byType(Dialog).evaluate().isNotEmpty) {
-        // Dialog is barrierDismissible: false, so we can't tap outside
-        // But we can verify it was shown
-      }
+      if (find.byType(Dialog).evaluate().isNotEmpty) {}
 
-      // Rebuild the widget tree (simulating navigation back)
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -75,8 +67,8 @@ void main() {
               NativeBridgeInterface.create(),
             ),
           ],
-          child: MaterialApp(
-            locale: const Locale('vi'),
+          child: const MaterialApp(
+            locale: Locale('vi'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: HomePage(),
@@ -85,10 +77,6 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-
-      // Dialog should NOT show again (static flag prevents it)
-      // Note: This test verifies the static _hasCheckedPermissions flag
-      // prevents repeated dialog shows within the same test session.
     });
   });
 }

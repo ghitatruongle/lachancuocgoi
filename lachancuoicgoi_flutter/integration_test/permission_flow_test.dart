@@ -52,23 +52,18 @@ void main() {
         await tester.pumpWidget(harness.widget);
         await tester.pumpAndSettle(const Duration(milliseconds: 500));
 
-        // Home page should be rendered.
         expect(
           find.byType(HomePage),
           findsOneWidget,
           reason: 'Home page should be visible',
         );
 
-        // The home page should show the brand title.
         expect(
           find.text('Lá chắn cuộc gọi'),
           findsWidgets,
           reason: 'Home page should show the app title',
         );
 
-        // The "Bắt đầu giám sát" button should be enabled
-        // (recordAudio == true) — find the ElevatedButton and
-        // verify onPressed is not null.
         final startButton = find.widgetWithText(
           ElevatedButton,
           'Bắt đầu giám sát',
@@ -108,35 +103,27 @@ void main() {
 
       try {
         await tester.pumpWidget(harness.widget);
-        // Home page is mounted first, then the addPostFrameCallback
-        // shows the RightsDialog as a modal.
+
         await tester.pumpAndSettle(const Duration(milliseconds: 500));
 
-        // Home page is in the tree behind the dialog.
         expect(
           find.byType(HomePage),
           findsOneWidget,
           reason: 'Home page should still be mounted',
         );
 
-        // A permission dialog (RightsDialog) should be visible —
-        // Dialog/AlertDialog should be in the tree.
         expect(
           find.byType(Dialog),
           findsWidgets,
           reason: 'A permission dialog should be shown',
         );
 
-        // The dialog text should reference the missing permission.
-        // RightsDialog shows a "Cấp quyền để ứng dụng hoạt động đúng chức năng."
-        // header.
         expect(
           find.text('Quyền ứng dụng'),
           findsOneWidget,
           reason: 'Permission dialog header should be visible',
         );
 
-        // The start button should be DISABLED (recordAudio == false).
         final startButton = find.widgetWithText(
           ElevatedButton,
           'Bắt đầu giám sát',

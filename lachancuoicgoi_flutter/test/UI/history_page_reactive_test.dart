@@ -10,13 +10,6 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../helpers/fake_native_bridge.dart' as helpers;
 
-/// Sprint 1 (A5): tests the reactive `_HistoryController` in `HistoryPage`.
-///
-/// Behaviour under test:
-/// - The controller subscribes to `dao.watchAll()` so it re-emits on
-///   every insert/delete.
-/// - The UI re-renders without a remount when new rows are inserted.
-/// - The pull-to-refresh re-reads from the database.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -50,8 +43,6 @@ void main() {
     transcript: 'transcript-$i',
   );
 
-  /// Pump the HistoryPage inside a ProviderScope with an in-memory DB.
-  /// Returns the provider container so the test can read state directly.
   Future<ProviderContainer> pumpPage(WidgetTester tester) async {
     final container = ProviderContainer(
       overrides: [
@@ -67,7 +58,7 @@ void main() {
         child: const MaterialApp(home: HistoryPage()),
       ),
     );
-    // Wait for the async controller build to complete and UI to transition out of loading state.
+
     await tester.runAsync(() async {
       for (int i = 0; i < 50; i++) {
         if (!tester.any(find.byType(CircularProgressIndicator))) {
@@ -81,20 +72,16 @@ void main() {
     return container;
   }
 
-  // ─── Initial empty state ────────────────────────────────────────────
   testWidgets('renders empty state on first load', (tester) async {
     await pumpPage(tester);
     expect(find.text('Lịch sử trống.'), findsOneWidget);
   });
 
-  // ─── Reactive: a new row appears without remount ───────────────────
   testWidgets('inserting a row updates the list without remounting', (
     tester,
   ) async {
     await pumpPage(tester);
 
-    // Insert one row. The reactive stream in _HistoryController picks
-    // it up automatically.
     await tester.runAsync(() async {
       await db.callHistoryDao.insert(makeRow(1));
     });
@@ -111,11 +98,9 @@ void main() {
     expect(find.text('Row 1'), findsOneWidget);
   });
 
-  // ─── Reactive: 5 more rows appear ───────────────────────────────────
   testWidgets('inserting 5 more rows updates the list', (tester) async {
     await pumpPage(tester);
 
-    // Insert all 6 rows.
     await tester.runAsync(() async {
       for (var i = 1; i <= 6; i++) {
         await db.callHistoryDao.insert(makeRow(i));
@@ -130,17 +115,14 @@ void main() {
     });
     await tester.pump();
 
-    // ListView lazy-builds children: only those in the viewport are
-    // in the widget tree. Verify the data is correct via the DAO.
     final all = await tester.runAsync<List<dynamic>>(
       () => db.callHistoryDao.getAll(),
     );
     expect(all, hasLength(6));
-    // At least the empty-state should be gone.
+
     expect(find.text('Lịch sử trống.'), findsNothing);
   });
 
-  // ─── Reactive: deleteAll is reflected ──────────────────────────────
   testWidgets('deleteAll is reflected in the list', (tester) async {
     await pumpPage(tester);
 
@@ -179,7 +161,6 @@ void main() {
     expect(find.text('Row 2'), findsNothing);
   });
 
-  // ─── Search filter: changes the displayed items ────────────────────
   testWidgets('search filters the list', (tester) async {
     await pumpPage(tester);
 
@@ -206,7 +187,6 @@ void main() {
     expect(find.text('unique-marker-xyz'), findsOneWidget);
     expect(find.text('ordinary row'), findsOneWidget);
 
-    // Type a query.
     await tester.enterText(find.byType(TextField), 'unique');
     await tester.pump(const Duration(milliseconds: 300));
     await tester.runAsync(() async {
@@ -218,12 +198,10 @@ void main() {
     });
     await tester.pump();
 
-    // Search filters: only the unique-marker row is shown.
     expect(find.text('unique-marker-xyz'), findsOneWidget);
     expect(find.text('ordinary row'), findsNothing);
   });
 
-  // ─── Delete-all button is hidden when empty ─────────────────────────
   testWidgets('delete-all button is hidden when list is empty', (tester) async {
     await pumpPage(tester);
     expect(find.text('Xóa tất cả'), findsNothing);

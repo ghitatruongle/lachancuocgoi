@@ -1,13 +1,5 @@
 package com.example.lachancuocgoi.Analysis.L3.core
 
-/**
- * PIIStripper dùng riêng cho luồng outbound lên Cloud AI.
- *
- * Mục tiêu:
- * - Chỉ thay thế đúng phần dữ liệu định danh/nhạy cảm.
- * - Giữ nguyên cấu trúc câu để AI vẫn hiểu đúng ngữ cảnh lừa đảo.
- * - Không đụng vào transcript local/history; local engines dùng text gốc.
- */
 object PIIStripper {
 
     private enum class PiiType(val tokenPrefix: String) {

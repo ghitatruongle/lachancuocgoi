@@ -1,15 +1,11 @@
 class PromptBuilder {
-  /// Giới hạn số ký tự tối đa của transcript để tránh vượt quá context window (khoảng 4K tokens ~ 16K chars)
   static const int _maxTranscriptLength = 12000;
 
-  /// Cắt bớt transcript nếu quá dài, giữ lại phần đầu (greeting) và phần cuối (hiện tại)
   static String buildContextWindow(String text) {
     if (text.length <= _maxTranscriptLength) return text;
 
-    // Giữ lại 2000 ký tự đầu và phần còn lại ở cuối
     const int keepStart = 2000;
-    const int keepEnd =
-        _maxTranscriptLength - keepStart - 50; // Trừ hao chuỗi nối
+    const int keepEnd = _maxTranscriptLength - keepStart - 50;
 
     final start = text.substring(0, keepStart);
     final end = text.substring(text.length - keepEnd);

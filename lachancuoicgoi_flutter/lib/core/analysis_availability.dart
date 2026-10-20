@@ -1,10 +1,3 @@
-/// Whether a monitoring session has enough trustworthy data to present a
-/// risk assessment.
-///
-/// This is deliberately separate from `RiskLevel`: green means that an
-/// analysis found no concerning signal, while [pending], [noAudio],
-/// [sttUnavailable], and [interrupted] mean that no reliable conclusion can
-/// be drawn yet.
 enum AnalysisAvailability {
   pending,
   sufficient,
@@ -12,10 +5,6 @@ enum AnalysisAvailability {
   sttUnavailable,
   interrupted;
 
-  /// Builds the availability shown for a persisted call-history record.
-  ///
-  /// [recordingError] uses the existing database wire values. Unknown error
-  /// values are treated conservatively as interrupted results.
   static AnalysisAvailability fromStoredSession({
     required String? recordingError,
     required bool hasTranscript,

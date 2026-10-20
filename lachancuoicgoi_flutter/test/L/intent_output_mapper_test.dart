@@ -14,8 +14,7 @@ void main() {
     test('tensor shorter than intentLabels fills remaining with zeros', () {
       final shortTensor = List<num>.filled(intentLabels.length - 1, 1.0);
       final result = IntentOutputMapper.decodeFlatOutput(shortTensor);
-      // Graceful mismatch: uses min(rawOutput, intentLabels) classes.
-      // Remaining slots filled with 0.
+
       expect(result.length, intentLabels.length);
       expect(result.last, 0.0);
     });
@@ -106,13 +105,13 @@ void main() {
         scale: 0.5,
         zeroPoint: 128,
       );
-      // (200 & 0xFF - 128) * 0.5 = (200 - 128) * 0.5 = 36.0
+
       expect(result[0], closeTo(36.0, 0.0001));
     });
 
     test('uint8 masks to 0xFF for values > 255', () {
       final raw = List<num>.filled(intentLabels.length, 0);
-      raw[0] = 300; // 300 & 0xFF = 44
+      raw[0] = 300;
       final result = IntentOutputMapper.decodeFlatOutput(
         raw,
         outputType: IntentOutputType.uint8,
@@ -132,9 +131,9 @@ void main() {
         scale: 0.25,
         zeroPoint: 10,
       );
-      // (50 - 10) * 0.25 = 10.0
+
       expect(result[0], closeTo(10.0, 0.0001));
-      // (-30 - 10) * 0.25 = -10.0
+
       expect(result[1], closeTo(-10.0, 0.0001));
     });
 
@@ -161,7 +160,7 @@ void main() {
         1.0,
         2.0,
       ]);
-      // Graceful mismatch: returns predictions for available logits.
+
       expect(result.length, 2);
     });
 
@@ -279,8 +278,6 @@ void main() {
     });
 
     test('all-positive infinity values return all zeros (NaN fallback)', () {
-      // When all values are inf, maxLogit = inf, diff = inf - inf = NaN
-      // exp(NaN) = NaN, sum = NaN, code returns all zeros
       final result = IntentOutputMapper.softmax(<double>[
         double.infinity,
         double.infinity,
@@ -291,8 +288,6 @@ void main() {
     });
 
     test('negative infinity values return all zeros (NaN fallback)', () {
-      // When all values are -inf, maxLogit = -inf, diff = NaN, sum = NaN
-      // Code returns all zeros when sum is NaN
       final result = IntentOutputMapper.softmax(<double>[
         double.negativeInfinity,
         double.negativeInfinity,
@@ -304,37 +299,35 @@ void main() {
   });
 
   group('IntentOutputMapper - name-based labelOrder (model 23-class)', () {
-    /// The real model order from accuracy_per_label.md + stage34 CSV.
-    /// 23 classes — fakeEcommerce/cryptoDrain are NOT in the model.
     final modelLabelOrder = <ScamIntent>[
-      ScamIntent.authPoliceLawsuit, // 0
-      ScamIntent.taxGovApp, // 1
-      ScamIntent.telecomLock, // 2
-      ScamIntent.techSupportHijack, // 3
-      ScamIntent.hospitalEmergency, // 4
-      ScamIntent.virtualKidnapping, // 5
-      ScamIntent.ceoFraudB2b, // 6
-      ScamIntent.socialDeepfakeLoan, // 7
-      ScamIntent.romanceScam, // 8
-      ScamIntent.sextortionBlackmail, // 9
-      ScamIntent.charityDonation, // 10
-      ScamIntent.investmentScam, // 11
-      ScamIntent.jobTaskScam, // 12
-      ScamIntent.giftLottery, // 13
-      ScamIntent.gamblingPrediction, // 14
-      ScamIntent.immigrationVisaScam, // 15
-      ScamIntent.bankCardFraud, // 16
-      ScamIntent.deliveryCod, // 17
-      ScamIntent.fakeSubscription, // 18
-      ScamIntent.blackCreditTerror, // 19
-      ScamIntent.recoveryScam, // 20
-      ScamIntent.genericScam, // 21 ← NOT fakeEcommerce
-      ScamIntent.safe, // 22 ← NOT cryptoDrain
+      ScamIntent.authPoliceLawsuit,
+      ScamIntent.taxGovApp,
+      ScamIntent.telecomLock,
+      ScamIntent.techSupportHijack,
+      ScamIntent.hospitalEmergency,
+      ScamIntent.virtualKidnapping,
+      ScamIntent.ceoFraudB2b,
+      ScamIntent.socialDeepfakeLoan,
+      ScamIntent.romanceScam,
+      ScamIntent.sextortionBlackmail,
+      ScamIntent.charityDonation,
+      ScamIntent.investmentScam,
+      ScamIntent.jobTaskScam,
+      ScamIntent.giftLottery,
+      ScamIntent.gamblingPrediction,
+      ScamIntent.immigrationVisaScam,
+      ScamIntent.bankCardFraud,
+      ScamIntent.deliveryCod,
+      ScamIntent.fakeSubscription,
+      ScamIntent.blackCreditTerror,
+      ScamIntent.recoveryScam,
+      ScamIntent.genericScam,
+      ScamIntent.safe,
     ];
 
     test('predictionsFromLogits with labelOrder: index 16 → bankCardFraud', () {
       final logits = List<double>.filled(modelLabelOrder.length, 0.0);
-      logits[16] = 10.0; // Model says BANK_CARD_FRAUD
+      logits[16] = 10.0;
 
       final predictions = IntentOutputMapper.predictionsFromLogits(
         logits,
@@ -349,7 +342,7 @@ void main() {
       'predictionsFromLogits with labelOrder: index 21 → genericScam (not fakeEcommerce)',
       () {
         final logits = List<double>.filled(modelLabelOrder.length, 0.0);
-        logits[21] = 10.0; // Model says GENERIC_SCAM
+        logits[21] = 10.0;
 
         final predictions = IntentOutputMapper.predictionsFromLogits(
           logits,
@@ -365,7 +358,7 @@ void main() {
       'predictionsFromLogits with labelOrder: index 22 → safe (not cryptoDrain)',
       () {
         final logits = List<double>.filled(modelLabelOrder.length, 0.0);
-        logits[22] = 10.0; // Model says SAFE
+        logits[22] = 10.0;
 
         final predictions = IntentOutputMapper.predictionsFromLogits(
           logits,
@@ -383,13 +376,13 @@ void main() {
 
       final predictions = IntentOutputMapper.predictionsFromLogits(logits);
 
-      expect(predictions.length, intentLabels.length); // 25, not 23
+      expect(predictions.length, intentLabels.length);
       expect(predictions.first.intent, intentLabels[0]);
     });
 
     test('calibratedPredictions with labelOrder: index 16 → bankCardFraud', () {
       final raw = List<num>.filled(modelLabelOrder.length, 0);
-      raw[16] = 200; // uint8 for BANK_CARD_FRAUD
+      raw[16] = 200;
 
       final predictions = IntentOutputMapper.calibratedPredictions(
         raw,
@@ -408,7 +401,7 @@ void main() {
         shortTensor,
         labelOrder: modelLabelOrder,
       );
-      // When labelOrder is provided, output length = labelOrder.length (23)
+
       expect(result.length, modelLabelOrder.length);
     });
   });
@@ -432,7 +425,6 @@ void main() {
         expect(predictions.first.intent, ScamIntent.romanceScam);
         expect(predictions.length, intentLabels.length);
 
-        // Verify descending order
         for (var i = 0; i < predictions.length - 1; i++) {
           expect(
             predictions[i].confidence,

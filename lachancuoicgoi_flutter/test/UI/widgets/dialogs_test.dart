@@ -168,11 +168,9 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // The confirm button should have error foreground color.
       final buttons = find.byType(TextButton);
       expect(buttons, findsNWidgets(2));
 
-      // The destructive one (last button) should have error color.
       final confirmButton = tester.widget<TextButton>(buttons.last);
       expect(confirmButton.style?.foregroundColor?.resolve({}), isNotNull);
     });
@@ -232,7 +230,6 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Dismiss by tapping outside (barrier dismiss)
       await tester.tapAt(Offset.zero);
       await tester.pumpAndSettle();
 

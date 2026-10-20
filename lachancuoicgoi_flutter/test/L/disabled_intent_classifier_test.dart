@@ -35,13 +35,13 @@ void main() {
 
     test('initialize is a no-op (completes without error)', () async {
       const classifier = DisabledIntentClassifier();
-      // Should complete without throwing
+
       await classifier.initialize();
     });
 
     test('close is a no-op (completes without error)', () {
       const classifier = DisabledIntentClassifier();
-      // Should complete without throwing
+
       classifier.close();
     });
 

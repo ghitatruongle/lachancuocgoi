@@ -17,7 +17,7 @@ import com.example.lachancuocgoi.services.UnifiedAccessibilityService
 
 class CallReceiver : BroadcastReceiver() {
     private val TAG = "CallReceiver"
-    
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == "ACTION_DISMISS_NOTIFICATION") {
             Log.d(TAG, "Dismissing incoming call notification")
@@ -30,9 +30,9 @@ class CallReceiver : BroadcastReceiver() {
             val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
             @Suppress("DEPRECATION")
             val phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
-            
+
             Log.d(TAG, "Phone state changed: $state, number: $phoneNumber")
-            
+
             if (state == TelephonyManager.EXTRA_STATE_RINGING) {
                 Log.d(TAG, "Incoming call detected! Showing Notification")
                 try {

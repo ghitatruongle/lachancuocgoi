@@ -35,7 +35,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
     companion object {
         private const val TAG = "SpeechToTextManager"
         private const val DEBUG_LOGS = false
-        private const val NETWORK_ERROR_FALLBACK_THRESHOLD = 3 // Switch sang Vosk sau 3 network errors liên tiếp
+        private const val NETWORK_ERROR_FALLBACK_THRESHOLD = 3
         private const val VOSK_SAMPLE_RATE = 16000
         private const val VOSK_CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
         private const val VOSK_AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
@@ -43,7 +43,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
 
     override val name = "Google"
 
-    // ── Vosk Fallback Engine ────────────────────────────────────────────────
     private var voskFallback: VoskSttManager? = null
     private var voskMicRecord: AudioRecord? = null
     private var voskMicJob: Job? = null
@@ -51,10 +50,8 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
     private var isVoskFallbackActive = false
     private var consecutiveNetworkErrors = 0
 
-    /** Callback khi engine switch xảy ra. ViewModel có thể observe. */
     var onEngineSwitched: ((isVosk: Boolean) -> Unit)? = null
 
-    /** Preload Vosk model ở background để sẵn sàng khi cần fallback */
     fun preloadVoskFallback() {
         if (voskFallback == null) {
             voskFallback = VoskSttManager(context)
@@ -62,7 +59,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         }
     }
 
-    /** Mạng đã trở lại — chuyển về Google nếu đang dùng Vosk fallback */
     fun onNetworkRestored() {
         if (isVoskFallbackActive) {
             Log.i(TAG, "Mạng trở lại — chuyển từ Vosk fallback về Google")
@@ -83,7 +79,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
     private val _sttState = MutableStateFlow<SttState>(SttState.Idle)
     val sttState = _sttState.asStateFlow()
 
-    // Add RMS flow for waveform
     private val _rmsDbFlow = MutableStateFlow(0f)
     override val rmsDbFlow = _rmsDbFlow.asStateFlow()
 
@@ -92,12 +87,11 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
     private var speechRecognizer: SpeechRecognizer? = null
     private val handler = Handler(Looper.getMainLooper())
 
-    // Track consecutive error 12 occurrences to stop retry loop during VoIP calls
     private var consecutiveError12Count = 0
     private val MAX_CONSECUTIVE_ERROR12 = 20
 
     override val isReady: Boolean
-        get() = !isVoskFallbackActive // Google luôn ready (trừ khi đang fallback)
+        get() = !isVoskFallbackActive
 
     private val recognitionListener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {
@@ -126,13 +120,12 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
                 else -> "Unknown error ($error)"
             }
-            // Log error only if it's not a common retry-able error or if DEBUG is on
+
             if (DEBUG_LOGS || (error != SpeechRecognizer.ERROR_AUDIO && error != SpeechRecognizer.ERROR_RECOGNIZER_BUSY && error != 12)) {
                 Log.e(TAG, "onError: $errorMessage")
             }
             _isListening.value = false
 
-            // Map error to SttState
             val isRecoverable = when (error) {
                 SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT,
                 SpeechRecognizer.ERROR_AUDIO, SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
@@ -142,7 +135,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             }
             _sttState.value = SttState.Error(errorMessage, isRecoverable)
 
-            // ── Network error fallback logic ──────────────────────────────────
             if (error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT) {
                 consecutiveNetworkErrors++
                 if (consecutiveNetworkErrors >= NETWORK_ERROR_FALLBACK_THRESHOLD && !isVoskFallbackActive) {
@@ -151,11 +143,9 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                     return
                 }
             } else {
-                consecutiveNetworkErrors = 0 // Reset on non-network errors
+                consecutiveNetworkErrors = 0
             }
 
-            // For audio errors during calls, this is expected - don't spam restart
-            // Error 12 is often a manufacturer-specific code for "Client Busy" or "Insufficient Permissions" during calls
             if (error == SpeechRecognizer.ERROR_AUDIO || error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == 12) {
                 if (error == 12) {
                     handleError12()
@@ -167,8 +157,8 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                     handler.postDelayed({ startListening() }, 2000)
                 }
             } else if (shouldBeListening && error != SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS && error != SpeechRecognizer.ERROR_CLIENT) {
-                // Auto-restart on other errors (except permission/client error)
-                consecutiveError12Count = 0 // Reset counter on non-12 errors
+
+                consecutiveError12Count = 0
                 handler.postDelayed({ startListening() }, 1000)
             }
         }
@@ -179,8 +169,8 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 cumulativeTranscript = appendWithOverlapDetection(cumulativeTranscript, result)
                 _fullTranscriptFlow.value = cumulativeTranscript
                 _textResults.value = result
-                consecutiveError12Count = 0 // Reset on successful recognition
-                consecutiveNetworkErrors = 0 // Reset network errors on success
+                consecutiveError12Count = 0
+                consecutiveNetworkErrors = 0
             }
             _isListening.value = false
             if (shouldBeListening) {
@@ -194,11 +184,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 val combined = if (cumulativeTranscript.isBlank()) partialResult else "$cumulativeTranscript\n$partialResult"
                 _fullTranscriptFlow.value = combined
                 _textResults.value = partialResult
-                // (SỬA BUG 8) KHÔNG gọi TranscriptionHub.postTranscript() ở đây nữa.
-                // Partial results là lũy tiến ("xin chào" → "xin chào anh" → "xin chào anh tôi")
-                // Nếu gửi tất cả vào TranscriptionHub, overlap detection có thể fail khi STT
-                // thay đổi correction giữa chừng → transcript bị lặp nội dung.
-                // Chỉ gửi final result (đã xác nhận) từ onResults() là đủ.
+
             }
         }
 
@@ -206,7 +192,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
     }
 
     fun startListening() {
-        // Check if RECORD_AUDIO permission is granted
+
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Log.e("SpeechToTextManager", "RECORD_AUDIO permission not granted. Cannot start speech recognition.")
             shouldBeListening = false
@@ -221,10 +207,9 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             return
         }
         shouldBeListening = true
-        
-        // Cancel tất cả pending restart/retry để tránh tạo 2 recognizer cùng lúc
+
         handler.removeCallbacksAndMessages(null)
-        
+
         handler.post {
             if (isRestarting) {
                 if (DEBUG_LOGS) Log.d(TAG, "Restart already in progress, skipping.")
@@ -240,12 +225,10 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi-VN")
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                    // Keep listening longer even if silence occurs
-                    putExtra("android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 10000L) // Increased to 10s
+
+                    putExtra("android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 10000L)
                     putExtra("android.speech.extra.SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS", 10000L)
-                    
-                    // REMOVED EXTRA_PREFER_OFFLINE: This often causes Error 12 if offline pack is not installed/working
-                    // putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true) 
+
                 }
                 try {
                     startListening(intent)
@@ -254,7 +237,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 } catch (e: Exception) {
                     isRestarting = false
                     Log.e(TAG, "Error starting speech recognition", e)
-                    // If start fails immediately, count it towards error limit
+
                     handleError12()
                 }
             }
@@ -266,19 +249,18 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         shouldBeListening = false
         _isListening.value = false
         _sttState.value = SttState.Stopped
-        
-        // Reset error count when explicitly stopped by user/system
+
         consecutiveError12Count = 0
-        
+
         handler.post {
             try {
                 speechRecognizer?.cancel()
             } catch (e: Exception) { Log.e("SpeechToTextManager", "Error cancelling", e) }
-            
+
             try {
                 speechRecognizer?.destroy()
             } catch (e: Exception) { Log.e("SpeechToTextManager", "Error destroying", e) }
-            
+
             speechRecognizer = null
             if (DEBUG_LOGS) Log.d(TAG, "Speech recognition stopped")
         }
@@ -308,11 +290,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         }
     }
 
-    /**
-     * Ghép utterance mới vào transcript cũ, loại bỏ overlap.
-     * Google STT thường lặp 2-3 từ cuối utterance trước ở đầu utterance mới.
-     * VD: cũ="xin chào anh" → mới="anh tôi là" → kết quả="xin chào anh tôi là"
-     */
     private fun appendWithOverlapDetection(existing: String, newSegment: String): String {
         if (existing.isBlank()) return newSegment
 
@@ -323,9 +300,8 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             return if (existing.isBlank()) newSegment else "$existing\n$newSegment"
         }
 
-        // Tìm overlap dài nhất: so sánh N từ cuối của existing với N từ đầu của new
         var bestOverlap = 0
-        val maxCheck = minOf(existingWords.size, newWords.size, 6) // tối đa 6 từ overlap
+        val maxCheck = minOf(existingWords.size, newWords.size, 6)
         for (len in 1..maxCheck) {
             val tailExisting = existingWords.takeLast(len).joinToString(" ").lowercase()
             val headNew = newWords.take(len).joinToString(" ").lowercase()
@@ -361,8 +337,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         voskFallback = null
     }
 
-    // ── Vosk Fallback: Mic-based offline STT ────────────────────────────────
-
     private fun switchToVoskFallback() {
         val vosk = voskFallback
         if (vosk == null || !vosk.isModelReady) {
@@ -375,14 +349,12 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         _sttState.value = SttState.Error("Mất mạng — chuyển sang nhận diện offline", true)
         onEngineSwitched?.invoke(true)
 
-        // Dừng Google
         handler.post {
             try { speechRecognizer?.cancel() } catch (_: Exception) {}
             try { speechRecognizer?.destroy() } catch (_: Exception) {}
             speechRecognizer = null
         }
 
-        // Bắt đầu đọc mic cho Vosk
         startVoskMicReading(vosk)
     }
 
@@ -391,10 +363,8 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         consecutiveNetworkErrors = 0
         onEngineSwitched?.invoke(false)
 
-        // Dừng Vosk mic reading
         stopVoskMicReading()
 
-        // Khởi động lại Google
         if (shouldBeListening) {
             startListening()
         }
@@ -447,7 +417,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                     if (read > 0) {
                         vosk.processAudioBuffer(buffer, read)
 
-                        // Tính RMS cho waveform
                         val amplitude = buffer.take(read)
                             .chunked(2)
                             .mapNotNull { bytes ->
@@ -467,17 +436,15 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             }
         }
 
-        // Collect Vosk transcript và đưa vào flow chung
         voskMicJob?.invokeOnCompletion {
             record.stop()
             record.release()
         }
 
-        // Observe Vosk transcript flow
         voskScope.launch {
             vosk.creatorTranscriptFlow.collect { text ->
                 if (text.isNotBlank() && isVoskFallbackActive) {
-                    // Vosk đã tự overlap-detect trong cumulativeTranscript của nó
+
                     cumulativeTranscript = text
                     _fullTranscriptFlow.value = text
                 }

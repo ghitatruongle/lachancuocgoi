@@ -12,8 +12,6 @@ void main() {
   Future<Widget> buildPage({String initialRoute = '/history'}) async {
     return ProviderScope(
       overrides: [
-        // Provide a never-resolving future so the page stays in loading/error
-        // state without needing sqflite FFI.
         appDatabaseFutureProvider.overrideWith(
           (ref) => Future<AppDatabase>.error(
             UnsupportedError('Database not available in tests'),
@@ -59,7 +57,7 @@ void main() {
 
     testWidgets('back button navigates to home', (tester) async {
       await tester.pumpWidget(await buildPage());
-      // Let the router render but don't wait for DB
+
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -83,7 +81,6 @@ void main() {
       await tester.pumpWidget(await buildPage());
       await tester.pumpAndSettle();
 
-      // The history provider should show error because the DB future threw
       expect(find.textContaining('Lỗi'), findsOneWidget);
     });
   });

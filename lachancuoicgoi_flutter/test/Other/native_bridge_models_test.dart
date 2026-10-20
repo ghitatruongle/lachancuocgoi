@@ -62,8 +62,6 @@ void main() {
 
   group('MonitoringState — parsing', () {
     test('STOPPED without colon falls back to idle (exact match)', () {
-      // 'STOPPED' without colon does NOT startsWith 'STOPPED:'
-      // and the switch case does not have 'STOPPED' => it falls to _
       final (state, duration, transcript) = MonitoringState.parse('STOPPED');
       expect(state, MonitoringState.idle);
       expect(duration, isNull);

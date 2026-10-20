@@ -110,23 +110,23 @@ fun ResultPage(
 
             historyItem?.let { item ->
                 val riskLevel = try { RiskLevel.valueOf(item.riskLevel) } catch (e: Exception) { RiskLevel.GREEN }
-                
+
                 AnalysisSummaryCard(riskLevel = riskLevel, summary = item.summary)
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 RecordingCard(
                     isSaving = isSaving,
                     transcript = item.transcript,
                     dateTime = item.dateTime,
-                    onDownloadRequest = { trans, date -> 
+                    onDownloadRequest = { trans, date ->
                         viewModel.saveTranscript(context, trans, date)
                     }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 TranscriptCard(transcript = item.transcript)
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 AlertHistorySection(
                     alertHistory = alertHistory,
                     modifier = Modifier.fillMaxWidth()
@@ -248,7 +248,7 @@ fun TranscriptCard(transcript: String) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Nội dung cuộc gọi (Bản lưu cục bộ)", 
+                    text = "Nội dung cuộc gọi (Bản lưu cục bộ)",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -268,7 +268,7 @@ fun TranscriptCard(transcript: String) {
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

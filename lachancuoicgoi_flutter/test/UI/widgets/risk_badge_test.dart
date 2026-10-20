@@ -42,7 +42,6 @@ void main() {
     testWidgets('has Semantics label with risk level name', (tester) async {
       await tester.pumpWidget(wrap(const RiskBadge(level: RiskLevel.red)));
 
-      // Find the Semantics widget that is our RiskBadge's wrapper.
       final semanticsWidgets = tester.widgetList<Semantics>(
         find.byType(Semantics),
       );

@@ -24,7 +24,6 @@ import com.lachancuocgoi.lachancuocgoi_flutter.diagnostics.MonitoringPerfProbe
 import java.lang.ref.WeakReference
 import java.util.Locale
 
-/** Activity-backed monitoring surface used when the keyguard hides app overlays. */
 class MonitoringOverlayActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
     private var startedAtMs = 0L
@@ -160,3 +159,4 @@ class MonitoringOverlayActivity : Activity() {
         }
     }
 }
+

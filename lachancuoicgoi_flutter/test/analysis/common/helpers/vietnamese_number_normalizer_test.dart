@@ -1,5 +1,3 @@
-// Unit tests for VietnameseNumberNormalizer (Wave 3 refactor).
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/common/helpers/vietnamese_number_normalizer.dart';
 

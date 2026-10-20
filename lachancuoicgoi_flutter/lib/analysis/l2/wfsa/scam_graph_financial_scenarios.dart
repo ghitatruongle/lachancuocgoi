@@ -1,7 +1,5 @@
 part of 'scam_graph_builder.dart';
 
-/// Financial and miscellaneous scenarios: bank, shipper, subscription, black
-/// credit, recovery, generic, ecommerce, crypto (8 scenarios).
 List<ScenarioGraph> _financialScenarios() {
   return <ScenarioGraph>[
     ScamGraphBuilder._linear(

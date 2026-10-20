@@ -1,7 +1,3 @@
-/// Local-only detection metrics counters for field validation (v1.6.5).
-///
-/// No network upload — developer/export use only. Protocol notes:
-/// `docs/eval_field_protocol.md` (optional).
 class DetectionMetrics {
   int l1Calls = 0;
   int l2Calls = 0;

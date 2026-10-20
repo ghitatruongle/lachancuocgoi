@@ -1,7 +1,3 @@
-// Wave 3 refactor: Extract Vietnamese number word normalization from TextNormalizer.
-//
-// Pure helper for converting Vietnamese number words ("năm trăm nghìn") to digits.
-
 class VietnameseNumberNormalizer {
   VietnameseNumberNormalizer._();
 
@@ -31,8 +27,6 @@ class VietnameseNumberNormalizer {
     caseSensitive: false,
   );
 
-  /// Converts Vietnamese number words to digits.
-  /// E.g. "nam tram nghin" → "500000", "hai trieu" → "2000000".
   static String normalize(String text) {
     return text.replaceAllMapped(_numberWordPattern, (match) {
       final words = match.group(0)!.trim().split(RegExp(r'\s+'));

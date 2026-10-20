@@ -2,16 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/data/alert_history_entry.dart';
 import 'package:lachancuocgoi_flutter/data/call_history.dart';
 
-/// Per-field round-trip test for every `CallHistory` column. Useful
-/// when a new field is added or the encoding rule changes (e.g. when
-/// `alert_history` was added in an earlier sprint).
-///
-/// Each test:
-/// 1. Constructs a `CallHistory` with a unique sentinel value for one
-///    field (and reasonable defaults for the rest).
-/// 2. Calls `toMap(includeId: true)`.
-/// 3. Calls `CallHistory.fromMap(map)`.
-/// 4. Asserts that the field round-trips correctly.
 void main() {
   CallHistory makeBaseline({
     int id = 1,
@@ -191,8 +181,7 @@ void main() {
       test('recordingError=$value round-trips through toMap/fromMap', () {
         final history = makeBaseline(recordingError: value);
         final map = history.toMap();
-        // Sanity: the column must be present (even if null) because the
-        // schema v6 contract is "this column always exists".
+
         expect(map.containsKey('recordingError'), isTrue);
         expect(map['recordingError'], value);
 
@@ -233,9 +222,7 @@ void main() {
 
     test('alert_history column key (snake_case) is used, not alertHistory', () {
       final map = makeBaseline().toMap();
-      // The column name in the SQL DDL is `alert_history` (snake_case),
-      // not the Dart field name `alertHistory` (camelCase). This
-      // protects against a future refactor that renames the SQL column.
+
       expect(map.containsKey('alert_history'), isTrue);
       expect(map.containsKey('alertHistory'), isFalse);
     });
@@ -290,7 +277,7 @@ void main() {
       );
       final b = a.copyWith(recordingError: 'killed');
       expect(b.recordingError, 'killed');
-      // Every other field preserved.
+
       expect(b.dateTime, 'd');
       expect(b.riskLevel, 'GREEN');
       expect(b.summary, 's');

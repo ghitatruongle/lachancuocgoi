@@ -29,7 +29,6 @@ import java.util.Locale
 
 private const val TAG = "MonitoringOverlayManager"
 
-/** Compact, app-independent version of the monitoring page. */
 object MonitoringOverlayManager {
     private val overlayWindow = OverlayWindow()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -271,3 +270,4 @@ object MonitoringOverlayManager {
 
     private const val OVERLAY_HEIGHT_DP = 128
 }
+

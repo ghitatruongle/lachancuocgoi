@@ -1,7 +1,6 @@
 class GeminiMetrics {
   GeminiMetrics._();
 
-  /// Singleton instance used throughout the app.
   static final GeminiMetrics instance = GeminiMetrics._();
 
   int _totalCalls = 0;
@@ -77,8 +76,6 @@ class GeminiMetrics {
     );
   }
 
-  /// Create a fresh instance for testing isolation.
-  /// Tests should call this in setUp() instead of reset().
   static void resetForTesting() {
     instance._totalCalls = 0;
     instance._successCalls = 0;

@@ -204,6 +204,6 @@ class _WaveformPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WaveformPainter old) {
-    return true; // Animator triggers this natively, always repaint when called.
+    return true;
   }
 }

@@ -1,8 +1,3 @@
-/// Catalog kịch bản giả lập cho simulator bridge (iOS/Desktop/Web).
-///
-/// Mỗi kịch bản là một chuỗi câu thoại để feed vào analysis pipeline,
-/// thay thế cho STT thật (không có trên non-Android). Các kịch bản được
-/// mô phỏng theo các dạng lừa đảo phổ biến tại Việt Nam.
 class SimulatorScript {
   const SimulatorScript({
     required this.id,
@@ -10,13 +5,10 @@ class SimulatorScript {
     required this.lines,
   });
 
-  /// Unique identifier for this scenario.
   final String id;
 
-  /// Human-readable title (Vietnamese) for UI display.
   final String title;
 
-  /// Ordered list of scam dialogue lines fed to the analysis engine.
   final List<String> lines;
 }
 
@@ -56,10 +48,8 @@ class SimulatorScriptCatalog {
     ],
   );
 
-  /// All available scenarios in display order.
   static const List<SimulatorScript> all = [taxAuthority, bankFraud, prize];
 
-  /// Look up a script by [id]. Returns `null` if not found.
   static SimulatorScript? byId(String id) {
     for (final s in all) {
       if (s.id == id) return s;

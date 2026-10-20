@@ -11,10 +11,6 @@ object TranscriptSaver {
 
     private const val TRANSCRIPT_DIRECTORY = "transcripts"
 
-    /**
-     * Local history phải giữ nguyên văn để người dùng xem lại đầy đủ.
-     * Redaction chỉ áp dụng ở outbound Cloud AI, không áp dụng ở lưu cục bộ.
-     */
     fun prepareTranscriptForLocalStorage(transcript: String): String {
         return transcript.trim()
     }

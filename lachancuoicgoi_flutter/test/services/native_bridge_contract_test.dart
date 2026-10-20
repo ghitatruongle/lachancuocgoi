@@ -28,7 +28,7 @@ void main() {
               );
             }
             if (methodCall.method == 'badType') {
-              return 'NOT_A_BOOL'; // Return String when bool expected
+              return 'NOT_A_BOOL';
             }
             return null;
           },

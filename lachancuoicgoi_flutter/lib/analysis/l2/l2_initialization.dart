@@ -4,10 +4,6 @@ import 'g_detection/g_detection_engine.dart';
 import 'intent/intent_classifier.dart';
 import 'safety/safety_filter.dart';
 
-/// Shared concurrent-init guard for L2 components (v1.6.5 extract).
-///
-/// Multiple [initialize] callers share one in-flight Future; failed init
-/// clears the cache so the next call can retry.
 class L2Initialization {
   L2Initialization({
     required GDetectionEngine gDetectionEngine,
@@ -48,7 +44,6 @@ class L2Initialization {
     ]);
   }
 
-  /// Clears cached init so the next [initialize] reloads components.
   void invalidate() {
     _initFuture = null;
   }

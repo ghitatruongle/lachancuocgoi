@@ -4,9 +4,6 @@ import 'package:lachancuocgoi_flutter/analysis/common/text_normalizer.dart';
 void main() {
   group('TextNormalizer.normalizeForCache', () {
     test('preserves Vietnamese diacritics ( Regression B3)', () {
-      // Before the fix, `[^\w\s]` stripped diacritics because `\w` is
-      // ASCII-only. "đã" and "đang" both collapsed to "d", and "Chuyển"
-      // became "Chuy n" — breaking cache hits and creating collisions.
       expect(
         TextNormalizer.normalizeForCache('Chuyển tiền'),
         equals('chuyển tiền'),
@@ -42,7 +39,6 @@ void main() {
     });
 
     test('distinct diacritic-only words produce distinct keys', () {
-      // Regression: the old regex collapsed all of these to empty or "d".
       final keys = <String>{
         TextNormalizer.normalizeForCache('đã'),
         TextNormalizer.normalizeForCache('đang'),
@@ -50,7 +46,7 @@ void main() {
         TextNormalizer.normalizeForCache('đó'),
         TextNormalizer.normalizeForCache('được'),
       };
-      // All five should be unique cache keys.
+
       expect(keys.length, equals(5));
     });
   });

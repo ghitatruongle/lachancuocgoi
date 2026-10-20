@@ -34,8 +34,6 @@ void main() {
         ),
       );
 
-      // The accent bar is a Container with width 4 and color = level.color.
-      // Find it by looking for Containers inside the Card's Row.
       final row = tester.widget<Row>(
         find.descendant(
           of: find.byType(IntrinsicHeight),
@@ -43,12 +41,9 @@ void main() {
         ),
       );
 
-      // First child is the accent bar Container (plain Container, not ConstrainedBox).
       final firstChild = row.children.first;
       expect(firstChild, isA<Container>());
 
-      // Check that somewhere inside the Row there is an orange-colored container.
-      // The accent bar uses Container(color: ...) not BoxDecoration.
       final containers = tester.widgetList<Container>(
         find.descendant(of: find.byType(Row), matching: find.byType(Container)),
       );
@@ -69,11 +64,10 @@ void main() {
         ),
       );
 
-      // Find the Padding that wraps the child (not the card-level).
       final paddingWidgets = tester.widgetList<Padding>(
         find.descendant(of: find.byType(Card), matching: find.byType(Padding)),
       );
-      // At least one padding should be EdgeInsets.all(8).
+
       expect(
         paddingWidgets.any((p) => p.padding == const EdgeInsets.all(8)),
         isTrue,

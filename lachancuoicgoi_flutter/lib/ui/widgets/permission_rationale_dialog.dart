@@ -49,7 +49,6 @@ class PermissionRationaleDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Icon & Title ──
             Row(
               children: [
                 Container(
@@ -74,7 +73,6 @@ class PermissionRationaleDialog extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
 
-            // ── Content ──
             Container(
               padding: const EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
@@ -118,7 +116,6 @@ class PermissionRationaleDialog extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── Actions ──
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

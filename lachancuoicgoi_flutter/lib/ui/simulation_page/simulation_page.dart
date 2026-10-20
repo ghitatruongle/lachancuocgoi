@@ -21,7 +21,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
   @override
   void initState() {
     super.initState();
-    // Schedule load after first frame to avoid provider mutation during build.
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(simulationControllerProvider.notifier).loadData();
     });
@@ -63,7 +63,6 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
       ),
       body: Column(
         children: [
-          // ── Search bar ──
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
@@ -100,7 +99,6 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
             ),
           ),
 
-          // ── Category chips ──
           if (uiState.categories.isNotEmpty)
             SizedBox(
               height: 48,
@@ -134,7 +132,6 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
 
           const SizedBox(height: 8),
 
-          // ── Scenarios list ──
           Expanded(child: _buildBody(uiState, cs, tt)),
         ],
       ),
@@ -142,7 +139,6 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
   }
 
   Widget _buildBody(SimulationUiState uiState, ColorScheme cs, TextTheme tt) {
-    // Loading
     if (uiState.scenarios == null) {
       return ListView.builder(
         padding: const EdgeInsets.all(AppSpacing.sm),
@@ -151,7 +147,6 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
       );
     }
 
-    // Empty
     if (uiState.scenarios!.isEmpty) {
       return Center(
         child: Column(
@@ -165,7 +160,6 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
       );
     }
 
-    // No results
     if (uiState.filteredScenarios.isEmpty) {
       return Center(
         child: Column(
@@ -211,7 +205,6 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
   }
 }
 
-// ─── Scenario Card ─────────────────────────────────────────────────────
 class _ScenarioCard extends StatefulWidget {
   const _ScenarioCard({required this.scenario, required this.onStart});
 
@@ -263,9 +256,7 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              // BUG-UI-A11Y-2 fix: Wrap ellipsis text in Semantics so
-                              // screen readers announce the full description even when
-                              // visually truncated to 2 lines.
+
                               Semantics(
                                 label: widget.scenario.description,
                                 child: Text(
@@ -285,7 +276,6 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                       ],
                     ),
 
-                    // Script preview (expanded)
                     if (_expanded && widget.scenario.script.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Container(
@@ -349,7 +339,6 @@ class _ScenarioCardState extends State<_ScenarioCard> {
   }
 }
 
-// ─── Skeleton ──────────────────────────────────────────────────────────
 class _SkeletonCard extends StatelessWidget {
   const _SkeletonCard({required this.cs});
   final ColorScheme cs;

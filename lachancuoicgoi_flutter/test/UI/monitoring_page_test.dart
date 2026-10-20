@@ -23,18 +23,13 @@ void main() {
     fakeBridge.dispose();
   });
 
-  /// Build the MonitoringPage widget tree.
-  ///
-  /// Uses [tester.runAsync] for L1Analyzer.initialize() because it calls
-  /// Future.delayed(Duration.zero) internally, which hangs in the fake
-  /// async zone that testWidgets uses.
   Future<void> pumpPage({
     required WidgetTester tester,
     String? scenarioTitle,
     String? transcript,
   }) async {
     final analyzer = _emptyL1Analyzer();
-    // runAsync escapes the fake async zone so Future.delayed fires.
+
     await tester.runAsync(() => analyzer.initialize());
 
     await tester.pumpWidget(
@@ -52,13 +47,11 @@ void main() {
         ),
       ),
     );
-    // Let addPostFrameCallback (init + initAfterFrame) fire and state
-    // changes rebuild.
+
     await tester.pump();
     await tester.pump();
   }
 
-  // ─── Basic rendering ─────────────────────────────────────────────────
   group('MonitoringPage — rendering', () {
     testWidgets('shows app bar with title', (tester) async {
       await pumpPage(tester: tester);
@@ -96,7 +89,6 @@ void main() {
     });
   });
 
-  // ─── Simulation mode ─────────────────────────────────────────────────
   group('MonitoringPage — simulation mode', () {
     testWidgets('shows simulation title when provided', (tester) async {
       await pumpPage(tester: tester, scenarioTitle: 'Test Scenario');
@@ -110,7 +102,6 @@ void main() {
     });
   });
 
-  // ─── Risk level display ──────────────────────────────────────────────
   group('MonitoringPage — risk level', () {
     testWidgets('does not show green risk before enough data exists', (
       tester,
@@ -121,7 +112,6 @@ void main() {
     });
   });
 
-  // ─── End call button ─────────────────────────────────────────────────
   group('MonitoringPage — end call', () {
     testWidgets('end call button is tappable', (tester) async {
       await pumpPage(tester: tester);
@@ -132,7 +122,6 @@ void main() {
     });
   });
 
-  // ─── Status chips ────────────────────────────────────────────────────
   group('MonitoringPage — status chips', () {
     testWidgets('shows analysis mode chips', (tester) async {
       await pumpPage(tester: tester);
@@ -142,7 +131,6 @@ void main() {
     });
   });
 
-  // ─── Transcript display ──────────────────────────────────────────────
   group('MonitoringPage — transcript', () {
     testWidgets('shows simulated transcript in live conversation', (
       tester,
@@ -155,7 +143,6 @@ void main() {
     });
   });
 
-  // ─── Risk level from test analyzer override ──────────────────────────
   group('MonitoringPage — test analyzer override', () {
     testWidgets('shows red risk when test analyzer with transcript', (
       tester,
@@ -164,8 +151,7 @@ void main() {
         tester: tester,
         transcript: 'Nhân viên ngân hàng yêu cầu OTP',
       );
-      // With l1AnalyzerOverride + non-empty transcript, controller sets
-      // hardcoded red result.
+
       expect(find.text('Nguy hiểm'), findsOneWidget);
     });
   });

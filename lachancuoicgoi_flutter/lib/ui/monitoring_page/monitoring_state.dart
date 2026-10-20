@@ -4,13 +4,8 @@ import '../../core/analysis_availability.dart';
 import '../../core/risk_level.dart';
 import '../../data/alert_history_entry.dart';
 
-/// Single source of truth for the monitoring-session lifecycle.
 enum MonitoringPhase { idle, starting, active, stopping, saved, failed }
 
-/// Immutable state for MonitoringController.
-///
-/// Named MonitoringPageState to avoid conflict with the
-/// [MonitoringState] enum in native_call_shield_bridge.dart.
 class MonitoringPageState {
   const MonitoringPageState({
     MonitoringPhase phase = MonitoringPhase.idle,
@@ -52,8 +47,6 @@ class MonitoringPageState {
   final AnalysisResult? analysisResult;
   final bool isAnalyzing;
 
-  /// Compatibility getter for existing widgets and tests. New code should use
-  /// [phase] directly.
   bool get isEndingSession => phase == MonitoringPhase.stopping;
 
   bool get isStarting => phase == MonitoringPhase.starting;
@@ -65,19 +58,15 @@ class MonitoringPageState {
   final NavigationIntent? navigationIntent;
   final List<AlertHistoryEntry> alertHistory;
 
-  /// STT fell back to Vosk offline.
   final bool isSttFallback;
   final String? sttFallbackReason;
   final int sttFallbackBannerId;
 
-  /// Both STT engines failed — monitoring is blind.
   final bool isSttUnavailable;
   final String? sttUnavailableReason;
 
-  /// Missing POST_NOTIFICATIONS on Android 13+.
   final bool isDegradedNoNotification;
 
-  /// Watchdog could not restart the foreground service.
   final bool isWatchdogRestartFailed;
 
   MonitoringPageState copyWith({
@@ -224,18 +213,15 @@ class MonitoringPageState {
   }
 }
 
-/// Sealed class for navigation intents — replaces direct context.go() calls.
 sealed class NavigationIntent {
   const NavigationIntent();
 }
 
-/// Navigate to the result page with a specific history ID.
 class NavigateToResult extends NavigationIntent {
   const NavigateToResult(this.historyId);
   final int historyId;
 }
 
-/// Navigate to the home page.
 class NavigateToHome extends NavigationIntent {
   const NavigateToHome();
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../data/alert_history_entry.dart';
 
-/// Alert history section used in both MonitoringPage and ResultPage.
 class AlertHistorySection extends StatelessWidget {
   const AlertHistorySection({super.key, required this.alertHistory});
 

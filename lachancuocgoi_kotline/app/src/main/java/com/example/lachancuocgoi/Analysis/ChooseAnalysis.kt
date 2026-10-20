@@ -4,10 +4,6 @@ import com.example.lachancuocgoi.Analysis.L1.L1Analyzer
 import com.example.lachancuocgoi.Analysis.L2.L2Analyzer
 import com.example.lachancuocgoi.Analysis.L3.L3Analyzer
 
-/**
- * Chịu trách nhiệm chọn bộ phân tích phù hợp dựa trên chế độ đã chọn.
- * Mỗi overload chỉ nhận 1 analyzer tương ứng với mode → đảm bảo runtime độc lập.
- */
 object ChooseAnalysis {
 
     suspend fun analyzeL1(

@@ -4,9 +4,6 @@ import 'dart:typed_data';
 import 'api_key_format.dart';
 
 class ApiKeyObfuscator {
-  /// Multi-byte XOR key (16 bytes) thay vì single byte 0x42 trước đây.
-  /// Mỗi byte của key được XOR với vị trí tương ứng (quay vòng).
-  /// Điều này khiến việc dò tìm key qua frequency analysis khó hơn nhiều.
   static const List<int> _xorKey = <int>[
     0x42,
     0x9A,
@@ -26,7 +23,6 @@ class ApiKeyObfuscator {
     0xB0,
   ];
 
-  /// Legacy single-byte XOR salt (tương thích ngược với keys cũ).
   static const int _legacySalt = 0x42;
 
   static String? decode(String obfuscated) {
@@ -37,7 +33,6 @@ class ApiKeyObfuscator {
       return null;
     }
 
-    // Thử multi-byte XOR key trước
     final primary = Uint8List(decodedBytes.length);
     for (var i = 0; i < decodedBytes.length; i++) {
       primary[i] = decodedBytes[i] ^ _xorKey[i % _xorKey.length];
@@ -45,11 +40,8 @@ class ApiKeyObfuscator {
     try {
       final primaryResult = utf8.decode(primary);
       if (isSupportedGeminiKey(primaryResult)) return primaryResult;
-    } on Object catch (_) {
-      // Invalid UTF-8 from multi-byte — fall through to legacy
-    }
+    } on Object catch (_) {}
 
-    // Fallback: thử legacy single-byte XOR (cho key cũ)
     final legacy = Uint8List(decodedBytes.length);
     for (var i = 0; i < decodedBytes.length; i++) {
       legacy[i] = decodedBytes[i] ^ _legacySalt;
@@ -57,11 +49,8 @@ class ApiKeyObfuscator {
     try {
       final legacyResult = utf8.decode(legacy);
       if (isSupportedGeminiKey(legacyResult)) return legacyResult;
-    } on Object catch (_) {
-      // Invalid UTF-8 from legacy — not a valid key
-    }
+    } on Object catch (_) {}
 
-    // Cả 2 phương pháp đều không decode ra 'AIza' — key bị corrupt
     return null;
   }
 

@@ -17,7 +17,6 @@ class GDetectionEngineTest {
 
     private lateinit var gDetectionEngine: GDetectionEngine
 
-    // FIX: JSON format khớp đúng với data models thực tế
     private val vocabularyJson = """
         {
           "riskLevels": [
@@ -71,7 +70,6 @@ class GDetectionEngineTest {
         }
     """.trimIndent()
 
-    // FIX: Dùng đúng field names của RiskScenariosMaster/MasterScenario model
     private val masterScenariosJson = """
         {
           "title": "Test Scenarios",
@@ -92,7 +90,6 @@ class GDetectionEngineTest {
         }
     """.trimIndent()
 
-    // FIX: Dùng đúng format RiskModelSentences (riskLevels, not sentences)
     private val sentencesJson = """
         {
           "riskLevels": []
@@ -108,11 +105,20 @@ class GDetectionEngineTest {
         }
     """.trimIndent()
 
+    private val tierConfigJson = """
+        {
+          "version": "1.0",
+          "tier1_topics": ["cong an", "vien kiem sat", "toa an"],
+          "tier2_urgency": ["chuyen ngay", "khan cap", "gap"],
+          "tier3_pii": ["chuyen tien", "tai khoan ngan hang", "ma otp"]
+        }
+    """.trimIndent()
+
     @Before
     fun setup() {
         MockitoAnnotations.openMocks(this)
         gDetectionEngine = GDetectionEngine(mockContext)
-        
+
         gDetectionEngine.setInputStreamProvider { fileName ->
             val content = when (fileName) {
                 "risk_model_vocabulary.json" -> vocabularyJson
@@ -121,12 +127,12 @@ class GDetectionEngineTest {
                 "risk_scenarios_master.json" -> masterScenariosJson
                 "risk_model_sentences.json" -> sentencesJson
                 "slang_config.json" -> slangJson
+                "tier_config.json" -> tierConfigJson
                 else -> "{}"
             }
             ByteArrayInputStream(content.toByteArray())
         }
-        
-        // Initialize synchronously for testing
+
         runBlocking {
             gDetectionEngine.initialize()
         }
@@ -134,19 +140,17 @@ class GDetectionEngineTest {
 
     @Test
     fun testPerformFullAnalysis_BasicMatch() = runBlocking {
-        // Wait for initialize to complete (async via engineScope.launch + Mutex)
         var retries = 0
         while (!gDetectionEngine.isEngineReady() && retries < 20) {
             kotlinx.coroutines.delay(100)
             retries++
         }
-        
+
         assertTrue("Engine should be ready", gDetectionEngine.isEngineReady())
 
         val text = "Yêu cầu chuyển tiền vào tài khoản."
         val result = gDetectionEngine.performFullAnalysis(text)
-        
-        // With RED level keywords ("chuyển tiền", "tài khoản ngân hàng"), should trigger risk
+
         assertNotEquals(RiskLevel.GREEN, result.riskLevel)
     }
 
@@ -160,8 +164,7 @@ class GDetectionEngineTest {
 
         val text = "Anh phải chuyển tiền gấp để xử lý vụ việc."
         val result = gDetectionEngine.performFullAnalysis(text)
-        
-        // Pattern "chuyen tien gap" is RED
+
         assertEquals(RiskLevel.RED, result.riskLevel)
     }
 
@@ -175,8 +178,7 @@ class GDetectionEngineTest {
 
         val text = "Tôi là công an đây, chúng tôi đang điều tra lệnh bắt."
         val result = gDetectionEngine.performFullAnalysis(text)
-        
-        // Scenario "Gia danh cong an" is RED
+
         assertEquals(RiskLevel.RED, result.riskLevel)
     }
 
@@ -190,8 +192,7 @@ class GDetectionEngineTest {
 
         val text = "Hôm nay trời đẹp quá, mình đi ăn cơm nhé."
         val result = gDetectionEngine.performFullAnalysis(text)
-        
-        // Safe text should be GREEN
+
         assertEquals(RiskLevel.GREEN, result.riskLevel)
     }
 }

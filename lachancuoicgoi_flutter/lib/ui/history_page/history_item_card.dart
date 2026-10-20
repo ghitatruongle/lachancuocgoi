@@ -8,7 +8,6 @@ import '../../core/risk_level.dart';
 import '../../data/call_history.dart';
 import '../theme/risk_level_colors.dart';
 
-/// History item card matching Kotlin HistoryItemCard.kt
 class HistoryItemCard extends StatelessWidget {
   const HistoryItemCard({super.key, required this.item, required this.onTap});
 
@@ -27,9 +26,7 @@ class HistoryItemCard extends StatelessWidget {
     );
     final riskColor = availability.canShowRisk ? riskLevel.color : cs.outline;
     final statusLabel = _statusLabel(item.recordingErrorEnum, availability);
-    // Keep the saved summary visible for legacy/corrupt analysis JSON. Risk is
-    // still hidden when availability is insufficient, but replacing the
-    // summary would discard the only useful content older records contain.
+
     final savedSummary = item.summary.trim();
     final summaryClaimsSafe =
         !availability.canShowRisk &&
@@ -48,17 +45,14 @@ class HistoryItemCard extends StatelessWidget {
         child: IntrinsicHeight(
           child: Row(
             children: [
-              // Risk color bar
               Container(width: 4, color: riskColor),
 
-              // Content
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Date + risk badge
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -110,8 +104,6 @@ class HistoryItemCard extends StatelessWidget {
                         const SizedBox(height: 4),
                       ],
 
-                      // Summary — wrap in Semantics so screen reader reads
-                      // the full text even when visually truncated.
                       Semantics(
                         label: displayedSummary,
                         child: Text(
@@ -125,7 +117,6 @@ class HistoryItemCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
 
-                      // Duration + flag count
                       Text(
                         '${item.duration} • ${item.flagCount} dấu hiệu',
                         style: tt.bodySmall?.copyWith(
@@ -134,7 +125,6 @@ class HistoryItemCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
 
-                      // Analysis type static label
                       Container(
                         margin: const EdgeInsets.only(top: 8),
                         padding: const EdgeInsets.symmetric(

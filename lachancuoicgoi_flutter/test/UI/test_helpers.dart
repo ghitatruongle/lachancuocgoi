@@ -7,7 +7,6 @@ import 'package:lachancuocgoi_flutter/app/settings_controller.dart';
 import 'package:lachancuocgoi_flutter/services/developer_mode_manager.dart';
 import 'package:lachancuocgoi_flutter/services/native_call_shield_bridge.dart';
 
-/// Wraps a widget in MaterialApp + ProviderScope for testing.
 Widget testWrap(Widget child, {List<Override> overrides = const []}) {
   return ProviderScope(
     overrides: overrides,
@@ -20,7 +19,6 @@ Widget testWrap(Widget child, {List<Override> overrides = const []}) {
   );
 }
 
-/// Wraps a dialog widget for testing (shows it via a button tap).
 Widget dialogWrap(Widget dialog) {
   return MaterialApp(
     locale: const Locale('vi'),
@@ -41,7 +39,6 @@ Widget dialogWrap(Widget dialog) {
   );
 }
 
-/// Minimal NativeBridgeInterface mock for permission tests.
 class FakeNativeBridge implements NativeBridgeInterface {
   PermissionSnapshot _snapshot;
 
@@ -91,7 +88,6 @@ class FakeNativeBridge implements NativeBridgeInterface {
   @override
   Future<void> dismissIncomingCallOverlay() async {}
 
-  // Phase 2 (P2-4): Call screening opt-in stubs.
   @override
   Future<void> setCallScreeningBlockEnabled(bool enabled) async {}
   @override
@@ -110,12 +106,10 @@ class FakeNativeBridge implements NativeBridgeInterface {
   Stream<String> get logsStream => const Stream.empty();
 }
 
-/// Override for nativeBridgeProvider.
 Override bridgeOverride([FakeNativeBridge? bridge]) {
   return nativeBridgeProvider.overrideWithValue(bridge ?? FakeNativeBridge());
 }
 
-/// Override for settingsControllerProvider with default test state.
 Override settingsOverride() {
   return settingsControllerProvider.overrideWith(
     () => _FakeSettingsController(),
@@ -147,7 +141,6 @@ class _FakeSettingsController extends Notifier<SettingsState>
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// Override for developerModeProvider with inactive state.
 Override devModeOverride() {
   return developerModeProvider.overrideWith(() => _FakeDevModeController());
 }

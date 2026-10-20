@@ -1,16 +1,9 @@
 import '../core/risk_level.dart';
 import 'analysis_result.dart';
 
-/// Fusion logic for combining analysis results from L1, L2, and L3 tiers.
-///
-/// Soft fusion reduces false positives from L1-only keyword flashes while
-/// preserving hard-critical L1 red and single-tier L2/L3 high-confidence
-/// verdicts.
 class AnalysisFusion {
-  /// Minimum confidence for a single non-L1 tier to drive orange+ alone.
   static const double highConfidenceThreshold = 0.75;
 
-  /// Fuses results from all three analysis tiers into a single result.
   static AnalysisResult fuse(
     AnalysisResult l1,
     AnalysisResult l2,
@@ -35,7 +28,7 @@ class AnalysisFusion {
       matches: combinedMatches,
       reason: selected.reason,
       analysisLevel: selected.analysisLevel,
-      // Only orange+ should fire native/full-screen alerts (soft yellow does not).
+
       alertEnabled: fusedRisk.shouldAlert,
       confidence: confidence,
       modelName: selected.modelName,
@@ -44,12 +37,6 @@ class AnalysisFusion {
     );
   }
 
-  /// Soft risk resolution:
-  /// - Green if all green.
-  /// - L1 red alone always wins (critical keywords / OTP path).
-  /// - Orange+ requires 2-tier agreement OR a high-confidence L2/L3 alone
-  ///   OR L2/L3 at highest risk (L2 alone orange still alerts).
-  /// - L1-only orange with L2+L3 green → yellow (delayed confirm).
   static RiskLevel _resolveFusedRisk(
     AnalysisResult l1,
     AnalysisResult l2,
@@ -62,7 +49,6 @@ class AnalysisFusion {
 
     if (highest == RiskLevel.green) return RiskLevel.green;
 
-    // Hard path: L1 critical red is never soft-fused down.
     if (l1.overallRiskLevel == RiskLevel.red) {
       return RiskLevel.red;
     }
@@ -71,10 +57,8 @@ class AnalysisFusion {
         .where((t) => t.overallRiskLevel.index >= RiskLevel.orange.index)
         .length;
 
-    // Two or more tiers agree on elevated risk → trust highest.
     if (orangePlusCount >= 2) return highest;
 
-    // Single-tier L2 or L3 at highest (incl. high confidence) → trust them.
     if (l2.overallRiskLevel == highest || l3.overallRiskLevel == highest) {
       final driver = l3.overallRiskLevel == highest ? l3 : l2;
       if (driver.confidence >= highConfidenceThreshold ||
@@ -83,20 +67,17 @@ class AnalysisFusion {
       }
     }
 
-    // L1-only orange flash without L2/L3 support → soft yellow.
     if (l1.overallRiskLevel.index >= RiskLevel.orange.index &&
         l2.overallRiskLevel.index < RiskLevel.orange.index &&
         l3.overallRiskLevel.index < RiskLevel.orange.index) {
       return RiskLevel.yellow;
     }
 
-    // Yellow-only signals: take max of yellows.
     return highest.index >= RiskLevel.yellow.index
         ? (highest.index > RiskLevel.yellow.index ? RiskLevel.yellow : highest)
         : highest;
   }
 
-  /// Selects the source whose reason/level metadata should be shown.
   static AnalysisResult _selectSource(
     AnalysisResult l1,
     AnalysisResult l2,
@@ -106,7 +87,6 @@ class AnalysisFusion {
 
     if (fusedRisk == RiskLevel.green) return l1;
 
-    // Prefer the tier that actually carries the fused risk.
     if (l1.overallRiskLevel == RiskLevel.red) return l1;
     if (l3.overallRiskLevel.index >= fusedRisk.index &&
         l3.overallRiskLevel.index >= RiskLevel.orange.index) {

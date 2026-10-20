@@ -5,16 +5,6 @@ import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.generationConfig
 import kotlinx.coroutines.withTimeout
 
-/**
- * Unified Gemini API client.
- * Thay thế logic duplicate trong L3Analyzer và GeminiSummarizer.
- * 
- * Features:
- * - Automatic API key rotation khi gặp lỗi
- * - Key health tracking với cooldown đến 00:00 (quota reset)
- * - Timeout protection
- * - Generic typing để reuse cho nhiều use cases
- */
 class GeminiClient(
     private val apiKeyProvider: ApiKeyProvider,
     private val config: GeminiConfig,
@@ -72,14 +62,7 @@ class GeminiClient(
             Log.w(TAG, "Circuit Breaker: OPENED (pausing for ${CIRCUIT_BREAKER_TIMEOUT_MS}ms)")
         }
     }
-    
-    /**
-     * Query Gemini API với automatic retry qua nhiều keys.
-     * 
-     * @param prompt Text prompt gửi cho AI
-     * @param parser Function để parse response text thành kết quả mong muốn
-     * @return Result<T> chứa parsed value hoặc error
-     */
+
     suspend fun <T> query(
         prompt: String,
         parser: (String, String) -> T
@@ -89,7 +72,6 @@ class GeminiClient(
             return Result.failure(Exception("Circuit breaker open. Retry after ${CIRCUIT_BREAKER_TIMEOUT_MS}ms"))
         }
 
-        // Rate limiting: Đợi nếu gọi API quá nhanh
         val now = System.currentTimeMillis()
         val elapsed = now - lastCallTimestamp
         if (elapsed < MIN_INTERVAL_MS) {
@@ -98,24 +80,23 @@ class GeminiClient(
             kotlinx.coroutines.delay(waitMs)
         }
         lastCallTimestamp = System.currentTimeMillis()
-        
+
         val startTime = System.currentTimeMillis()
         val keys = apiKeyProvider.getApiKeys()
-        
+
         if (keys.isEmpty()) {
             return Result.failure(Exception("No API keys available"))
         }
-        
-        // Lấy danh sách key ACTIVE từ KeyHealthTracker (nếu có)
+
         val activeIndices: List<Int> = keyHealthTracker?.getActiveKeyIndices() ?: keys.indices.toList()
-        
+
         if (activeIndices.isEmpty()) {
             notifyAllKeysExhausted()
             return Result.failure(Exception("All API keys are in COOLDOWN/EXHAUSTED. Quota resets at 00:00."))
         }
-        
+
         var lastException: Exception? = null
-        hasNotifiedAllExhausted = false  // Reset flag cho lần gọi mới
+        hasNotifiedAllExhausted = false
 
         val fallbackModels = listOf(
             "gemini-3.1-flash-lite",
@@ -123,19 +104,17 @@ class GeminiClient(
             "gemini-3-flash",
             "gemini-2.5-flash"
         )
-        
-        // Thử các key ACTIVE theo thứ tự từ KeyHealthTracker
+
         for (keyIndex in activeIndices) {
             val apiKey = keys[keyIndex]
             var keySuccess = false
-            
+
             for (modelName in fallbackModels) {
                 try {
                     val model = createModel(apiKey, modelName)
                     val responseText = queryWithTimeout(model, prompt)
                     val parsed = parser(responseText, modelName)
 
-                    // Success
                     keyHealthTracker?.markSuccess(keyIndex)
                     recordSuccess()
                     val latency = System.currentTimeMillis() - startTime
@@ -145,63 +124,57 @@ class GeminiClient(
 
                 } catch (e: Exception) {
                     recordFailure()
-                    // Xử lý chuẩn System Cancellation
+
                     if (e is kotlinx.coroutines.CancellationException) {
                         if (e is kotlinx.coroutines.TimeoutCancellationException) {
                             Log.w(TAG, "Timeout Exception with key $keyIndex model $modelName - Network issues")
                             keyHealthTracker?.markError(keyIndex, e.message)
                             lastException = e
-                            break // Đứt mạng/timeout thì huỷ model loop để sang key kế tiếp (chắc cũng vẫn tạch) hoặc throw
+                            break
                         }
-                        throw e // Propagate real OS cancellations
+                        throw e
                     }
 
                     Log.e(TAG, "Error with key $keyIndex model $modelName: ${e.message}")
                     lastException = e
-                    
-                    // Phân cực lỗi
+
                     val msg = e.message?.lowercase() ?: ""
                     val isQuotaError = msg.contains("429") || msg.contains("quota")
                     val isAuthError = msg.contains("403") || msg.contains("api key") || msg.contains("api_key")
                     val isModelNotFound = msg.contains("404") || msg.contains("not found")
-                    
+
                     if (isAuthError) {
-                        // Key invalid/revoked → EXHAUSTED vĩnh viễn
+
                         keyHealthTracker?.markInvalid(keyIndex, e.message)
-                        break // Dừng model loop, sang key tiếp theo
+                        break
                     } else if (isQuotaError || isModelNotFound) {
-                        // Hết quota hoặc model không tồn tại trên tier này -> tiếp tục thử model khác
+
                         Log.w(TAG, "Quota limit or not found on model $modelName, falling back to next model...")
                         continue
                     } else {
-                        // Lỗi mạng/server → mark error nhưng thử model / key khác
+
                         keyHealthTracker?.markError(keyIndex, e.message)
                         Log.w(TAG, "Lỗi mạng hoặc server. Dừng thử model tiếp theo trên key này.")
-                        break // Dừng model loop
+                        break
                     }
                 }
-            } // Kết thúc model loop cho key
-            
-            // Nếu đã thử xong tất cả model cho key này mà vẫn tạch, và lỗi cuối là liên quan đến Quota
+            }
+
             val finalMsg = lastException?.message?.lowercase() ?: ""
             if (finalMsg.contains("429") || finalMsg.contains("quota")) {
                 keyHealthTracker?.markQuotaExceeded(keyIndex)
             }
         }
-        
-        // Kiểm tra xem tất cả keys có đều down không
+
         if (keyHealthTracker?.areAllKeysDown() == true) {
             notifyAllKeysExhausted()
         }
-        
+
         val latency = System.currentTimeMillis() - startTime
         GeminiMetrics.recordCall(success = false, latencyMs = latency)
         return Result.failure(lastException ?: Exception("All API keys failed"))
     }
-    
-    /**
-     * Tạo GenerativeModel instance với config.
-     */
+
     private fun notifyAllKeysExhausted() {
         if (!hasNotifiedAllExhausted) {
             hasNotifiedAllExhausted = true
@@ -209,7 +182,7 @@ class GeminiClient(
             onAllKeysExhausted?.invoke()
         }
     }
-    
+
     private fun createModel(apiKey: String, modelName: String): GenerativeModel {
         val genConfig = generationConfig {
             temperature = config.temperature
@@ -217,17 +190,14 @@ class GeminiClient(
             topP = config.topP
             config.responseMimeType?.let { responseMimeType = it }
         }
-        
+
         return GenerativeModel(
             modelName = modelName,
             apiKey = apiKey,
             generationConfig = genConfig
         )
     }
-    
-    /**
-     * Query model với timeout protection.
-     */
+
     private suspend fun queryWithTimeout(
         model: GenerativeModel,
         prompt: String
@@ -235,7 +205,7 @@ class GeminiClient(
         val response = withTimeout(config.timeoutMs) {
             model.generateContent(prompt)
         }
-        
+
         return response.text ?: throw Exception("Empty response from Gemini")
     }
 }

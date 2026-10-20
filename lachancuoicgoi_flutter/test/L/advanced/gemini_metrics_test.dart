@@ -188,7 +188,7 @@ void main() {
     test('computes average latency as integer division', () {
       GeminiMetrics.instance.recordCall(success: true, latencyMs: 100);
       GeminiMetrics.instance.recordCall(success: true, latencyMs: 200);
-      // (100 + 200) ~/ 2 = 150
+
       final snap = GeminiMetrics.instance.getSnapshot();
       expect(snap.averageLatencyMs, 150);
     });
@@ -202,7 +202,7 @@ void main() {
       GeminiMetrics.instance.recordCall(success: true, latencyMs: 50);
       GeminiMetrics.instance.recordCall(success: false, latencyMs: 150);
       GeminiMetrics.instance.recordCall(success: true, latencyMs: 100);
-      // (50 + 150 + 100) ~/ 3 = 100
+
       final snap = GeminiMetrics.instance.getSnapshot();
       expect(snap.averageLatencyMs, 100);
     });
@@ -290,7 +290,6 @@ void main() {
     });
 
     test('negative keyIndex is excluded from per-key metrics', () {
-      // keyIndex defaults to -1, which means "no key"
       GeminiMetrics.instance.recordCall(success: true, latencyMs: 100);
 
       final snap = GeminiMetrics.instance.getSnapshot();
@@ -312,20 +311,16 @@ void main() {
 
   group('resetForTesting', () {
     test('clears all counters to zero', () {
-      // Record some data first.
       GeminiMetrics.instance.recordCall(success: true, latencyMs: 100);
       GeminiMetrics.instance.recordCall(success: false, latencyMs: 50);
       GeminiMetrics.instance.recordCacheHit();
       GeminiMetrics.instance.recordCacheMiss();
 
-      // Verify data is present.
       var snap = GeminiMetrics.instance.getSnapshot();
       expect(snap.totalApiCalls, greaterThan(0));
 
-      // Reset.
       GeminiMetrics.resetForTesting();
 
-      // Verify everything is cleared.
       snap = GeminiMetrics.instance.getSnapshot();
       expect(snap.totalApiCalls, 0);
       expect(snap.successCalls, 0);

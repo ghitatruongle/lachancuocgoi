@@ -25,7 +25,7 @@ void main() {
       final year = PIIStripper.redactPII(
         'Sinh năm 1998 và tốt nghiệp năm 2024',
       );
-      // Year alone should not force empty tokens requirement; just ensure no crash
+
       expect(year.redactedText, isNotEmpty);
     });
 

@@ -95,9 +95,6 @@ class ManualMockAppDatabase implements AppDatabase {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// No-op retention service so the post-save cleanup hook in the controller
-/// runs against a stub instead of the real service (whose deleteOlderThan
-/// call would fail on [ManualMockAppDatabase] and log a warning every run).
 class _NoopRetentionService extends CallHistoryRetentionService {
   @override
   Future<int> cleanup(
@@ -123,7 +120,7 @@ class ManualMockNativeBridge implements NativeBridgeInterface {
   Future<bool> isMonitoringActive() async => false;
   @override
   Future<bool> stopMonitoring() async => true;
-  // Phase 2 (P2-4): Call screening opt-in stubs.
+
   @override
   Future<void> setCallScreeningBlockEnabled(bool enabled) async {}
   @override
@@ -168,7 +165,6 @@ void main() {
 
       notifier.init();
 
-      // Manually set state to simulate analysis results and alert history
       notifier.state = notifier.state.copyWith(
         analysisResult: result,
         riskLevel: RiskLevel.red,

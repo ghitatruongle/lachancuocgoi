@@ -5,7 +5,6 @@ import 'package:lachancuocgoi_flutter/ui/theme/app_theme.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // ─── AppSpacing ─────────────────────────────────────────────────────────
   group('AppSpacing', () {
     test('spacing constants are defined in ascending order', () {
       expect(AppSpacing.xxxs, 4);
@@ -37,7 +36,6 @@ void main() {
     });
   });
 
-  // ─── ShapeBorderTheme ───────────────────────────────────────────────────
   group('ShapeBorderTheme', () {
     test('all shapes are RoundedRectangleBorder with correct radii', () {
       expect(
@@ -100,7 +98,6 @@ void main() {
     });
   });
 
-  // ─── AppTheme — Light ───────────────────────────────────────────────────
   group('AppTheme — Light', () {
     late ThemeData theme;
 
@@ -165,7 +162,6 @@ void main() {
     });
   });
 
-  // ─── AppTheme — Dark ────────────────────────────────────────────────────
   group('AppTheme — Dark', () {
     late ThemeData theme;
 
@@ -213,7 +209,6 @@ void main() {
     });
   });
 
-  // ─── Theme Contrast Checks ─────────────────────────────────────────────
   group('Theme Contrast', () {
     test('light and dark use different scaffold backgrounds', () {
       expect(
@@ -230,12 +225,11 @@ void main() {
     });
 
     test('onSurface is significantly different between themes', () {
-      // Light: very dark; Dark: very light
       final lightOnSurface = AppTheme.light.colorScheme.onSurface;
       final darkOnSurface = AppTheme.dark.colorScheme.onSurface;
       final lightLuminance = lightOnSurface.computeLuminance();
       final darkLuminance = darkOnSurface.computeLuminance();
-      // On light bg, text is dark (low luminance). On dark bg, text is light (high luminance).
+
       expect(lightLuminance, lessThan(0.1));
       expect(darkLuminance, greaterThan(0.5));
     });
@@ -247,7 +241,6 @@ void main() {
         final bg = theme.scaffoldBackgroundColor;
         final onBg = theme.colorScheme.onSurface;
 
-        // Verify we have decent contrast between background and text
         final bgContrast = _contrastRatio(bg, onBg);
         expect(
           bgContrast,
@@ -256,7 +249,6 @@ void main() {
               'Background/onSurface contrast in ${theme.brightness} mode should be ≥ 4.5:1',
         );
 
-        // Primary/onPrimary should be readable
         final primaryContrast = _contrastRatio(primary, onPrimary);
         expect(
           primaryContrast,
@@ -269,7 +261,6 @@ void main() {
   });
 }
 
-/// Extract the uniform border radius from a ShapeBorder.
 double _radiusOf(ShapeBorder shape) {
   if (shape is RoundedRectangleBorder) {
     return shape.borderRadius.resolve(TextDirection.ltr).topLeft.x;
@@ -277,7 +268,6 @@ double _radiusOf(ShapeBorder shape) {
   return 0;
 }
 
-/// Calculate WCAG contrast ratio between two colors.
 double _contrastRatio(Color a, Color b) {
   final l1 = a.computeLuminance();
   final l2 = b.computeLuminance();

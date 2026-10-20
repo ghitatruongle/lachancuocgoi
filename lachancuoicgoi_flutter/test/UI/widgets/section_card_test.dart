@@ -34,7 +34,6 @@ void main() {
     ) async {
       await tester.pumpWidget(wrap(const SectionCard(child: Text('Body'))));
 
-      // No header row — just child Column, no Row in direct children.
       expect(
         find.descendant(of: find.byType(Card), matching: find.byType(Row)),
         findsNothing,
@@ -45,9 +44,6 @@ void main() {
     testWidgets('uses default padding (16)', (tester) async {
       await tester.pumpWidget(wrap(const SectionCard(child: SizedBox())));
 
-      // Card itself wraps content in a Padding; there may be multiple Padding
-      // widgets (Card internal margin + our content padding). At least one should
-      // use the default EdgeInsets.all(16) from AppSpacing.sm.
       final paddingWidgets = tester.widgetList<Padding>(
         find.descendant(of: find.byType(Card), matching: find.byType(Padding)),
       );
@@ -62,7 +58,6 @@ void main() {
         wrap(const SectionCard(padding: EdgeInsets.all(8), child: SizedBox())),
       );
 
-      // Find the Padding with EdgeInsets.all(8) inside the Card.
       final paddingWidgets = tester.widgetList<Padding>(
         find.descendant(of: find.byType(Card), matching: find.byType(Padding)),
       );
@@ -91,15 +86,13 @@ void main() {
         wrap(const SectionCard(title: Text('Header'), child: Text('Body'))),
       );
 
-      // The header Row and child are inside a Column; between them a SizedBox
-      // of height 12 (AppSpacing.xs) separates them.
       final column = tester.widget<Column>(
         find.descendant(
           of: find.byType(Padding),
           matching: find.byType(Column),
         ),
       );
-      expect(column.children.length, 3); // Row + SizedBox + child
+      expect(column.children.length, 3);
     });
   });
 }

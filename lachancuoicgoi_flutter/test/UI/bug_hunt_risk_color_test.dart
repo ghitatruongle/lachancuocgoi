@@ -1,7 +1,3 @@
-// Bug Hunt Phase B.4 — UI RiskLevel color consistency
-//
-// Reference: docs/superpowers/specs/.../Mục 5 — UI/UX
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/core/risk_level.dart';
@@ -12,7 +8,7 @@ void main() {
     test('BUG-UI-1: every RiskLevel resolves to non-transparent Color', () {
       for (final level in RiskLevel.values) {
         final c = level.color;
-        // Color.value is deprecated in newer Flutter; use toARGB32().
+
         final alpha = (c.a * 255.0).round().clamp(0, 255);
         expect(
           alpha,

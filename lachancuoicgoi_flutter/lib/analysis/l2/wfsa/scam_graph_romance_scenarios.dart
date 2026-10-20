@@ -1,10 +1,5 @@
 part of 'scam_graph_builder.dart';
 
-/// Romance scam scenarios: dating app, gift card, "đầu tư cùng nhau",
-/// "khẩn cấp gửi tiền", "passport bị giữ", hải quan (6 scenarios).
-///
-/// Wave 6 addition: 2026-06-30. Feature-flagged in analysis_config.
-/// Conservative threshold: ≥3 keyword + WFSA terminal required.
 List<ScenarioGraph> _romanceScenarios() {
   return <ScenarioGraph>[
     ScamGraphBuilder._linear(

@@ -18,7 +18,6 @@ void main() {
   }) async {
     return ProviderScope(
       overrides: [
-        // Provide a failing database future so tests don't need sqflite FFI.
         appDatabaseFutureProvider.overrideWith(
           (ref) => Future<AppDatabase>.error(
             UnsupportedError('Database not available in tests'),
@@ -104,7 +103,6 @@ void main() {
         ),
       );
 
-      // First frame should show loading
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
       container.dispose();
@@ -114,7 +112,6 @@ void main() {
       await tester.pumpWidget(await buildPage(historyId: 1));
       await tester.pumpAndSettle();
 
-      // Should show an error message because the DB future threw
       expect(find.textContaining('Lỗi'), findsOneWidget);
     });
 

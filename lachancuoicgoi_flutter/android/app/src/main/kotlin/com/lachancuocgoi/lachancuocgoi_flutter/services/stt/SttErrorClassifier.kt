@@ -2,13 +2,8 @@ package com.lachancuocgoi.lachancuocgoi_flutter.services.stt
 
 import android.speech.SpeechRecognizer
 
-/**
- * Pure classification of [SpeechRecognizer] error codes.
- * Extracted from [com.lachancuocgoi.lachancuocgoi_flutter.services.SpeechToTextManager]
- * for unit testing without Android instrumentation.
- */
 object SttErrorClassifier {
-    /** Wire value for ERROR_LANGUAGE_UNAVAILABLE on older compile SDKs. */
+
     const val ERROR_LANGUAGE_UNAVAILABLE_COMPAT = 12
 
     fun isRetryable(errorCode: Int): Boolean {
@@ -60,10 +55,6 @@ object SttErrorClassifier {
         }
 }
 
-/**
- * Tracks consecutive STT failures and decides when to promote Vosk fallback.
- * Thresholds mirror production SpeechToTextManager defaults.
- */
 class SttRestartPolicy(
     private val networkFallbackThreshold: Int = 3,
     private val clientFallbackThreshold: Int = 3,
@@ -106,7 +97,6 @@ class SttRestartPolicy(
             consecutiveBusyErrors = 0
         }
 
-        // When Vosk is already active, do not schedule Google-side retries here.
         if (voskAlreadyActive) {
             if (SttErrorClassifier.isNetworkError(errorCode)) {
                 consecutiveNetworkErrors++
@@ -176,3 +166,4 @@ class SttRestartPolicy(
 
     fun reset() = onSuccess()
 }
+

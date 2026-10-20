@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// ─── Spacing ───────────────────────────────────────────────────────────
 class AppSpacing {
   AppSpacing._();
   static const double xxxs = 4;
@@ -13,7 +12,6 @@ class AppSpacing {
   static const double xl = 32;
 }
 
-// ─── BorderRadius ──────────────────────────────────────────────────────
 class AppBorderRadius {
   AppBorderRadius._();
   static const double xs = 4;
@@ -23,7 +21,6 @@ class AppBorderRadius {
   static const double xl = 24;
 }
 
-// ─── Light Colors ──────────────────────────────────────────────────────
 const _lightPrimary = Color(0xFF1257C0);
 const _lightOnPrimary = Color(0xFFFFFFFF);
 const _lightPrimaryContainer = Color(0xFFD9E2FF);
@@ -47,7 +44,6 @@ const _lightOnErrorContainer = Color(0xFF410002);
 const _lightWarningContainer = Color(0xFFFFE8C4);
 const _lightOnWarningContainer = Color(0xFF513A00);
 
-// ─── Dark Colors ───────────────────────────────────────────────────────
 const _darkPrimary = Color(0xFFADC6FF);
 const _darkOnPrimary = Color(0xFF002C71);
 const _darkPrimaryContainer = Color(0xFF00419F);
@@ -71,7 +67,6 @@ const _darkOnErrorContainer = Color(0xFFFFDAD6);
 const _darkWarningContainer = Color(0xFF5D4300);
 const _darkOnWarningContainer = Color(0xFFFFDEA0);
 
-// ─── Color Schemes ─────────────────────────────────────────────────────
 const _lightColorScheme = ColorScheme(
   brightness: Brightness.light,
   primary: _lightPrimary,
@@ -122,7 +117,6 @@ const _darkColorScheme = ColorScheme(
   outline: _darkOutline,
 );
 
-// ─── Typography ────────────────────────────────────────────────────────
 const _appTypography = TextTheme(
   headlineSmall: TextStyle(
     fontWeight: FontWeight.bold,
@@ -180,7 +174,6 @@ const _appTypography = TextTheme(
   ),
 );
 
-// ─── Shapes ────────────────────────────────────────────────────────────
 const _appShapes = ShapeBorderTheme(
   extraSmall: RoundedRectangleBorder(
     borderRadius: BorderRadius.all(Radius.circular(10)),
@@ -199,7 +192,6 @@ const _appShapes = ShapeBorderTheme(
   ),
 );
 
-/// Custom shape holder since Flutter doesn't expose all shape slots directly.
 class ShapeBorderTheme {
   const ShapeBorderTheme({
     required this.extraSmall,
@@ -215,7 +207,6 @@ class ShapeBorderTheme {
   final ShapeBorder extraLarge;
 }
 
-// ─── Theme Data ────────────────────────────────────────────────────────
 class AppTheme {
   AppTheme._();
 
@@ -289,6 +280,5 @@ class AppTheme {
     );
   }
 
-  /// Access shape definitions outside of ThemeData.
   static const ShapeBorderTheme shapes = _appShapes;
 }

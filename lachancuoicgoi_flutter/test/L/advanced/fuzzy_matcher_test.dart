@@ -33,13 +33,11 @@ void main() {
 
   group('FuzzyMatcher — levenshtein early termination', () {
     test('short circuits when length diff > maxDistance', () {
-      // Length diff = 4 > maxDistance = 2
       final result = FuzzyMatcher.levenshtein('ab', 'abcdef', maxDistance: 2);
       expect(result, greaterThan(2));
     });
 
     test('early termination on row minimum check', () {
-      // Very different long strings should terminate early when rowMin > maxDistance
       final result = FuzzyMatcher.levenshtein(
         'aaaaaaaaaa',
         'bbbbbbbbbb',
@@ -70,19 +68,15 @@ void main() {
     });
 
     test('levenshtein counts transposition as 2, damerau as 1', () {
-      // 'ab' -> 'ba': Levenshtein counts 2 (delete b, insert b)
-      // Damerau-Levenshtein counts 1 (transposition)
       expect(FuzzyMatcher.levenshtein('ab', 'ba'), 2);
       expect(FuzzyMatcher.damerauLevenshtein('ab', 'ba'), 1);
     });
 
     test('non-adjacent swap is not a transposition', () {
-      // 'abc' -> 'cba': not a simple adjacent transposition
       expect(FuzzyMatcher.damerauLevenshtein('abc', 'cba'), 2);
     });
 
     test('transposition with other edits', () {
-      // 'abcd' -> 'acbd' (transpose bc) + delete? No, just transposition
       expect(FuzzyMatcher.damerauLevenshtein('abcd', 'acbd'), 1);
     });
   });
@@ -118,12 +112,10 @@ void main() {
     });
 
     test('Unicode characters work correctly', () {
-      // Vietnamese characters
       expect(FuzzyMatcher.damerauLevenshtein('điện', 'điện'), 0);
     });
 
     test('mixed ASCII and Unicode', () {
-      // Single character diff
       expect(FuzzyMatcher.damerauLevenshtein('công an', 'cong an'), 1);
     });
   });
@@ -184,7 +176,6 @@ void main() {
 
   group('FuzzyMatcher — edge cases and stress', () {
     test('very long strings within maxDistance', () {
-      // 100 chars that differ by 1
       final a = 'a' * 50 + 'b' * 50;
       final b = 'a' * 50 + 'c' * 50;
       final dist = FuzzyMatcher.damerauLevenshtein(a, b, maxDistance: 50);
@@ -204,8 +195,8 @@ void main() {
         'bb',
         'ccc',
       }, maxDistance: 2);
-      // Empty string has distance = candidate.length
-      expect(result, 'a'); // distance 1 from 'a'
+
+      expect(result, 'a');
     });
 
     test('findClosest with single character token', () {
@@ -214,7 +205,7 @@ void main() {
         'z',
         'xy',
       }, maxDistance: 1);
-      expect(result, 'y'); // distance 1
+      expect(result, 'y');
     });
 
     test('maxDistance=0 only allows exact matches', () {

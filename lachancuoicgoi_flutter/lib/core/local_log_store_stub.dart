@@ -1,4 +1,3 @@
-/// No-op store used by Web, where app-support filesystem APIs are unavailable.
 class LocalLogStore {
   LocalLogStore._();
 

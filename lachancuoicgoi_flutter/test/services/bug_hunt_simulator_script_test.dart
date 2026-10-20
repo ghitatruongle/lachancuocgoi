@@ -1,7 +1,3 @@
-// Bug Hunt Phase B.8 — Simulator Mode edge cases + API parity
-//
-// Reference: docs/superpowers/specs/.../Mục 9 — Simulator Mode
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/services/simulator/simulator_scripts.dart';
 import 'package:lachancuocgoi_flutter/services/simulator_call_shield_bridge.dart';
@@ -11,7 +7,6 @@ import '../helpers/test_helpers.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // BUG-TEST-INFRA-1: use shared helper instead of inline mock.
   setUp(() => setupPermissionHandlerMock());
 
   group('BUG-HUNT-SIM — Simulator edge cases', () {
@@ -19,9 +14,8 @@ void main() {
       'BUG-SIM-1: stopMonitoring() with no startMonitoring does not throw',
       () async {
         final bridge = SimulatorCallShieldBridge();
-        // No startMonitoring call before.
+
         await bridge.stopMonitoring();
-        // No assertion needed — absence of throw is the contract.
       },
     );
 

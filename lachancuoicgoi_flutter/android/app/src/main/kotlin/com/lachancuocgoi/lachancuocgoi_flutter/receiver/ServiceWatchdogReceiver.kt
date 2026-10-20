@@ -12,13 +12,6 @@ import com.lachancuocgoi.lachancuocgoi_flutter.services.BackgroundMonitoringServ
 import com.lachancuocgoi.lachancuocgoi_flutter.services.ForegroundServiceLauncher
 import com.lachancuocgoi.lachancuocgoi_flutter.services.NativeBridgeEventSink
 
-/**
- * Watchdog receiver that periodically checks if [BackgroundMonitoringService]
- * is still running. If the service was killed by the system (e.g., memory pressure,
- * Android 12+ foreground service restrictions), this receiver will auto-restart it.
- *
- * Scheduled via AlarmManager from [BackgroundMonitoringService.scheduleWatchdogAlarm].
- */
 class ServiceWatchdogReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent?) {
@@ -26,22 +19,16 @@ class ServiceWatchdogReceiver : BroadcastReceiver() {
 
         Log.d(TAG, "Watchdog check triggered.")
 
-        // Check persisted state: was monitoring active before potential kill?
         if (!BackgroundMonitoringService.wasMonitoringActive(context)) {
             Log.d(TAG, "Monitoring was not active — no restart needed.")
             return
         }
 
-        // Is the service already running? Use @Volatile static flag instead of
-        // deprecated getRunningServices() which is unreliable on Android 13+.
         if (BackgroundMonitoringService.isRunning) {
             Log.d(TAG, "Service is alive, nothing to do.")
             return
         }
 
-        // Sprint 2 (B1): throttle restart attempts. Without this, a
-        // foreground-service-restriction kill → restart → kill loop will
-        // hammer AlarmManager and the system within a second.
         val prefs = context.getSharedPreferences(
             BackgroundMonitoringService.WATCHDOG_PREFS,
             Context.MODE_PRIVATE,
@@ -54,21 +41,16 @@ class ServiceWatchdogReceiver : BroadcastReceiver() {
         }
         prefs.edit().putLong(KEY_LAST_RESTART_AT_MS, now).apply()
 
-        // Service was active but is now dead → auto-restart
         Log.w(TAG, "Service was killed! Auto-restarting...")
         val restarted = restartMonitoringService(context)
 
-        // Notify Flutter that monitoring was restored.
-        // Only send STARTED — do NOT send STOPPED which would trigger
-        // endSession() in MonitoringController and kill the service again.
         if (restarted) {
             NativeBridgeEventSink.sendMonitoringState("STARTED")
         }
     }
 
     private fun restartMonitoringService(context: Context): Boolean {
-        // Re-attach only the non-sensitive speakerphone setting. Phone
-        // numbers are deliberately never persisted by the watchdog.
+
         val (_, enableSpeakerphone) = BackgroundMonitoringService.lastStartParams(context)
         val intent = Intent(context, BackgroundMonitoringService::class.java).apply {
             action = BackgroundMonitoringService.ACTION_START
@@ -95,14 +77,9 @@ class ServiceWatchdogReceiver : BroadcastReceiver() {
         private const val TAG = "ServiceWatchdogRcvr"
         const val ACTION_CHECK_SERVICE =
             "com.lachancuocgoi.ACTION_CHECK_MONITORING_SERVICE"
-        // Bug #25 fix: bumped from 60s → 4 minutes. The 60s cooldown was
-        // shorter than the 5min alarm interval, so if the system fired
-        // multiple watchdog alarms in quick succession (AlarmManager can
-        // batch inexact alarms), the second/third were incorrectly
-        // throttled and the service didn't restart when it should have.
-        // 4 minutes (still under the 5min interval) preserves the
-        // "throttle, don't kill" intent without losing real restarts.
+
         private const val RESTART_COOLDOWN_MS = 4 * 60_000L
         private const val KEY_LAST_RESTART_AT_MS = "watchdog_last_restart_at_ms"
     }
 }
+

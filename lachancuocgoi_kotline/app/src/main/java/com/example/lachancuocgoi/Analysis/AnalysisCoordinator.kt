@@ -16,7 +16,6 @@ class AnalysisCoordinator(private val context: Context) {
     private val l2Analyzer = L2Analyzer(GDetectionEngine(context), TFLiteIntentClassifier(context))
     private val l3Analyzer = L3Analyzer(context)
 
-    /** Lấy Analyzer cho mode tương ứng — dùng interface chung */
     private fun analyzerFor(mode: AnalysisMode): Analyzer = when (mode) {
         AnalysisMode.NORMAL -> l1Analyzer
         AnalysisMode.GDetection -> l2Analyzer
@@ -64,7 +63,6 @@ class AnalysisCoordinator(private val context: Context) {
         val deltaLength = fullText.length - processedTextLength
         val lastResult = getLastResult(mode)
 
-        // Adaptive buffering cho L3: buffer ngắn hơn khi risk cao
         if (mode == AnalysisMode.GEMINI_API) {
             val minDelta = adaptiveMinDelta(lastResult.overallRiskLevel)
             if (deltaLength < minDelta) {
@@ -80,12 +78,6 @@ class AnalysisCoordinator(private val context: Context) {
         return analyze(textToAnalyze, fullText, mode)
     }
 
-    /**
-     * Adaptive buffer: risk càng cao → buffer càng ngắn → phản hồi nhanh hơn.
-     * GREEN/YELLOW: 50 chars (tiết kiệm API)
-     * ORANGE: 30 chars (phản hồi nhanh hơn)
-     * RED: 20 chars (gần như real-time)
-     */
     private fun adaptiveMinDelta(currentRiskLevel: RiskLevel): Int = when (currentRiskLevel) {
         RiskLevel.RED -> MIN_DELTA_RED
         RiskLevel.ORANGE -> MIN_DELTA_ORANGE
@@ -111,7 +103,7 @@ class AnalysisCoordinator(private val context: Context) {
     fun getProcessedTextLength(mode: AnalysisMode): Int = analyzerFor(mode).getProcessedTextLength()
 
     fun getLastResult(mode: AnalysisMode): AnalysisResult {
-        val result = analyzerFor(mode).getLastResult()
+        val result = analyzerFor(mode).getLastResult() ?: defaultResultFor(mode)
         return if (result.overallRiskLevel == RiskLevel.GREEN && result.matches.isEmpty() && mode == AnalysisMode.GEMINI_API) {
             defaultResultFor(mode)
         } else {
@@ -146,10 +138,6 @@ class AnalysisCoordinator(private val context: Context) {
         l3Analyzer.closeSession()
     }
 
-    /**
-     * Chạy health check cho tất cả engines.
-     * Trả về map engine → HealthReport.
-     */
     fun runAllHealthChecks(): Map<String, HealthReport> {
         val analyzers: List<Analyzer> = listOf(l1Analyzer, l2Analyzer, l3Analyzer)
         return analyzers.associate { it.level.toString() to it.healthCheck() }
@@ -169,8 +157,8 @@ class AnalysisCoordinator(private val context: Context) {
     }
 
     companion object {
-        private const val MIN_DELTA_DEFAULT = 50  // GREEN/YELLOW: tiết kiệm API
-        private const val MIN_DELTA_ORANGE = 30   // Phản hồi nhanh hơn khi nguy cơ lừa đảo
-        private const val MIN_DELTA_RED = 20      // Gần real-time khi đã xác nhận lừa đảo
+        private const val MIN_DELTA_DEFAULT = 50
+        private const val MIN_DELTA_ORANGE = 30
+        private const val MIN_DELTA_RED = 20
     }
 }

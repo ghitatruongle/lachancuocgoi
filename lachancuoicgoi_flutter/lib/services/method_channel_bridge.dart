@@ -5,19 +5,7 @@ import 'package:flutter/services.dart';
 import '../core/system_logger.dart';
 import 'native_bridge_interface.dart';
 
-/// Shared MethodChannel and EventChannel setup for Android bridges.
-///
-/// Both [AndroidCallShieldBridge] and the legacy [NativeCallShieldBridge]
-/// communicate with the same native channels, so this mixin eliminates
-/// ~400 lines of duplicated channel declarations, timeout wrappers, and
-/// stream caching logic.
-///
-/// The mixin is intentionally small and focused: it provides the
-/// infrastructure; concrete classes implement the interface methods that
-/// need platform-specific behavior (if any).
 mixin MethodChannelBridge {
-  // ─── Channel declarations ────────────────────────────────────────────────
-
   static const _methodChannel = MethodChannel(
     'com.lachancuocgoi/native_bridge',
   );
@@ -33,15 +21,7 @@ mixin MethodChannelBridge {
   );
   static const _logsChannel = EventChannel('com.lachancuocgoi/logs');
 
-  /// Default MethodChannel timeout.
-  ///
-  /// If the MainActivity is busy (e.g. still showing a permission dialog)
-  /// and the platform thread is blocked, [MethodChannel.invokeMethod] could
-  /// otherwise hang indefinitely and freeze the Flutter UI. Default 5s is
-  /// generous enough for any realistic call operation.
   Duration get defaultTimeout;
-
-  // ─── Timeout wrapper ─────────────────────────────────────────────────────
 
   Future<bool> invokeBool(
     String method, [
@@ -100,8 +80,6 @@ mixin MethodChannelBridge {
       return null;
     }
   }
-
-  // ─── EventChannel streams ────────────────────────────────────────────────
 
   late final Stream<TranscriptUpdate> cachedTranscriptStream =
       _transcriptChannel

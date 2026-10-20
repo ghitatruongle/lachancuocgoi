@@ -53,14 +53,12 @@ void main() {
 
     group('Migration edge cases', () {
       test('migration from version 0 to latest creates schema', () async {
-        // Open a fresh database (version 0 -> latest)
         final freshDb = await AppDatabase.open(
           databaseFactory: databaseFactoryFfi,
           inMemory: true,
         );
         addTearDown(() => freshDb.close());
 
-        // Should be able to insert after fresh creation
         final id = await freshDb.callHistoryDao.insert(
           makeEntry(transcript: 'Fresh DB entry'),
         );
@@ -71,15 +69,12 @@ void main() {
       });
 
       test('adding already-existing column does not crash', () async {
-        // The schema already has all columns up to version 5.
-        // Opening again simulates idempotent column creation.
         final db2 = await AppDatabase.open(
           databaseFactory: databaseFactoryFfi,
           inMemory: true,
         );
         addTearDown(() => db2.close());
 
-        // Insert with all fields including alert_history
         final id = await db2.callHistoryDao.insert(
           makeEntry(alertHistory: '[{"ts":1}]'),
         );
@@ -91,14 +86,6 @@ void main() {
 
       test('regression: upgrade from a v1 schema (missing core columns) '
           'adds all current columns so inserts do not throw', () async {
-        // Simulate a v1-era install: only the original columns exist. This
-        // is the case the old migration code mishandled (it had no branch
-        // for oldVersion < 5 to add audioPath/analysisResult/analysisType).
-        //
-        // We use a real temp file (not inMemoryDatabasePath) so the same
-        // database file is reopened and the onUpgrade path actually runs —
-        // in-memory databases are per-connection, so a second open would
-        // start from scratch and never exercise the migration.
         final rawFactory = databaseFactoryFfi;
         final tempDir = await Directory.systemTemp.createTemp(
           'lachan_migration_test_',
@@ -127,14 +114,12 @@ CREATE TABLE call_history (
         );
         await seedDb.close();
 
-        // Reopen through AppDatabase — this runs _upgradeSchema(1 -> 6).
         final upgraded = await AppDatabase.open(
           databaseFactory: rawFactory,
           databasePath: dbPath,
         );
         addTearDown(() => upgraded.close());
 
-        // Inserting a row that uses post-v1 columns must succeed.
         final id = await upgraded.callHistoryDao.insert(
           makeEntry(
             audioPath: '/tmp/x.m4a',
@@ -154,10 +139,6 @@ CREATE TABLE call_history (
 
       test('Sprint 4.4: a failing migration rolls back so the schema is not '
           'left half-migrated', () async {
-        // Schema migration is wrapped in db.transaction (Sprint 4.4). If a
-        // statement inside the migration throws, the whole migration must
-        // roll back — the on-disk schema must be unchanged (still at the
-        // pre-migration column set), not stuck between versions.
         final rawFactory = databaseFactoryFfi;
         final tempDir = await Directory.systemTemp.createTemp(
           'lachan_rollback_test_',
@@ -165,7 +146,6 @@ CREATE TABLE call_history (
         addTearDown(() => tempDir.delete(recursive: true));
         final dbPath = p.join(tempDir.path, 'rollback.db');
 
-        // Seed a v1 schema and capture the initial column set.
         final seedDb = await rawFactory.openDatabase(
           dbPath,
           options: OpenDatabaseOptions(
@@ -187,9 +167,6 @@ CREATE TABLE call_history (
         );
         await seedDb.close();
 
-        // Force the migration to fail: register an onUpgrade callback that
-        // adds a column then throws. With the transaction in place, the
-        // added column must be rolled back, leaving the v1 column set intact.
         await expectLater(
           () => rawFactory.openDatabase(
             dbPath,
@@ -200,8 +177,7 @@ CREATE TABLE call_history (
                   await txn.execute(
                     'ALTER TABLE call_history ADD COLUMN tmp_col TEXT',
                   );
-                  // Simulate a mid-migration failure (e.g. disk error on a
-                  // later statement).
+
                   throw StateError('simulated migration failure');
                 });
               },
@@ -210,8 +186,6 @@ CREATE TABLE call_history (
           throwsA(isA<StateError>()),
         );
 
-        // Reopen read-only and verify the schema was rolled back: tmp_col
-        // must NOT exist (transaction atomicity).
         final verifyDb = await rawFactory.openDatabase(dbPath);
         addTearDown(() => verifyDb.close());
         final columns = await verifyDb.rawQuery(
@@ -219,7 +193,7 @@ CREATE TABLE call_history (
         );
         final columnNames = columns.map((r) => r['name'] as String).toSet();
         expect(columnNames, isNot(contains('tmp_col')));
-        // The original v1 columns survive.
+
         expect(columnNames, containsAll(<String>['transcript', 'riskLevel']));
       });
     });
@@ -245,7 +219,7 @@ CREATE TABLE call_history (
       });
 
       test('insert with maximum-length strings', () async {
-        final longString = 'A' * 100000; // 100k characters
+        final longString = 'A' * 100000;
         final id = await db.callHistoryDao.insert(
           makeEntry(
             transcript: longString,
@@ -287,7 +261,6 @@ CREATE TABLE call_history (
       });
 
       test('search with SQL injection attempt does not crash', () async {
-        // These should be safely parameterized via whereArgs
         final results = await db.callHistoryDao.search("'; DROP TABLE --");
         expect(results, isEmpty);
 
@@ -296,15 +269,12 @@ CREATE TABLE call_history (
       });
 
       test('search with SQL wildcard characters', () async {
-        // % is a wildcard in LIKE, but since it's in whereArgs it's literal
         final results = await db.callHistoryDao.search('%');
-        // '%' as a literal search term should not match everything
-        // It matches if the actual data contains '%'
+
         expect(results, isA<List<CallHistory>>());
       });
 
       test('search with underscore wildcard', () async {
-        // _ matches single char in LIKE, but whereArgs makes it literal
         final results = await db.callHistoryDao.search('_');
         expect(results, isA<List<CallHistory>>());
       });
@@ -383,10 +353,9 @@ CREATE TABLE call_history (
     group('Delete edge cases', () {
       test('delete non-existent ID returns 0 (no error)', () async {
         await db.callHistoryDao.insert(makeEntry());
-        // Delete an ID that doesn't exist
+
         await db.callHistoryDao.deleteById(99999);
 
-        // Original record should still be there
         final all = await db.callHistoryDao.getAll();
         expect(all, hasLength(1));
       });
@@ -408,15 +377,13 @@ CREATE TABLE call_history (
 
     group('Update edge cases', () {
       test('updateRiskLevel for non-existent ID does not crash', () async {
-        // Should not throw even if ID doesn't exist
         await db.callHistoryDao.updateRiskLevel(99999, 'RED');
-        // No rows should exist — the missing ID must not silently create one.
+
         expect(await db.callHistoryDao.count(), 0);
         expect(await db.callHistoryDao.getById(99999), isNull);
       });
 
       test('update non-existent record does not crash', () async {
-        // Update a record with ID that doesn't exist
         const ghost = CallHistory(
           id: 99999,
           dateTime: 'now',
@@ -427,7 +394,7 @@ CREATE TABLE call_history (
           transcript: 'ghost',
         );
         await db.callHistoryDao.update(ghost);
-        // No crash, and no phantom row should have been created.
+
         expect(await db.callHistoryDao.count(), 0);
         expect(await db.callHistoryDao.getById(99999), isNull);
       });

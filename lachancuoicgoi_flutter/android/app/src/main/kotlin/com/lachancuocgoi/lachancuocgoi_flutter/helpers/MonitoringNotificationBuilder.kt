@@ -9,21 +9,6 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.lachancuocgoi.lachancuocgoi_flutter.R
 
-/**
- * Notification builder extracted from `BackgroundMonitoringService.kt` (Wave 3 refactor).
- *
- * Owns the foreground notification shown while call monitoring is active:
- * channel creation, the ongoing notification (with a Stop action), and re-posting
- * an updated body text. Stateless beyond the [Context] — all per-session state
- * (the running notification id, channel id, ...) lives in the companion object
- * of [BackgroundMonitoringService], which is the single source of truth for these
- * constants so the watchdog receiver reads them from one place.
- *
- * @param context a [Context] used to reach [NotificationManager]; typically the
- *                owning [android.app.Service].
- * @param serviceClass the concrete service class used to build the self-targeted
- *                     Stop [PendingIntent].
- */
 class MonitoringNotificationBuilder(
     private val context: Context,
     private val serviceClass: Class<*>,
@@ -32,14 +17,10 @@ class MonitoringNotificationBuilder(
         private const val TAG = "MonitoringNotificationBuilder"
     }
 
-    /**
-     * Create the low-importance notification channel exactly once. Safe to call
-     * on every notification update — channel creation is idempotent.
-     */
     fun ensureChannel(channelId: String, channelName: String) {
         val manager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        // NotificationManager handles duplicate channel creation internally.
+
         manager.createNotificationChannel(
             NotificationChannel(
                 channelId,
@@ -49,9 +30,6 @@ class MonitoringNotificationBuilder(
         )
     }
 
-    /**
-     * Build the ongoing monitoring notification with a Stop action.
-     */
     fun build(channelId: String, actionStop: String, text: String): android.app.Notification {
         val stopIntent = Intent(context, serviceClass).apply { action = actionStop }
         val stopPendingIntent =
@@ -65,10 +43,6 @@ class MonitoringNotificationBuilder(
             .build()
     }
 
-    /**
-     * Re-post the notification with an updated body text. Silently logs failures
-     * so a transient notification-manager issue can never crash the service loop.
-     */
     fun update(channelId: String, actionStop: String, notificationId: Int, text: String) {
         try {
             val manager =
@@ -79,3 +53,4 @@ class MonitoringNotificationBuilder(
         }
     }
 }
+

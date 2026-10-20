@@ -57,7 +57,6 @@ class ScenarioGraph {
   final String initialStateId;
 }
 
-/// Records a single state transition for timeline analysis.
 class TransitionRecord {
   const TransitionRecord({
     required this.graphId,
@@ -81,8 +80,6 @@ class WfsaEngine {
     resetSession();
   }
 
-  /// Maximum number of transition records kept in history before trimming.
-  /// Prevents unbounded memory growth during long monitoring sessions.
   static const int maxTransitionHistory = 500;
 
   final List<ScenarioGraph> graphs;
@@ -90,29 +87,20 @@ class WfsaEngine {
   final Map<String, String> _currentSessionStates = <String, String>{};
   final Map<String, int> _segmentsSinceLastTrigger = <String, int>{};
 
-  /// Session timeline: ordered list of all transitions across all graphs.
   final List<TransitionRecord> _transitionHistory = [];
 
-  /// Read-only access to the transition timeline for analysis.
   List<TransitionRecord> get transitionHistory =>
       List<TransitionRecord>.unmodifiable(_transitionHistory);
 
-  /// Monotonically increasing segment counter for timeline tracking.
   int _segmentIndex = 0;
 
-  /// Tracks how many characters of the transcript have been analyzed.
   int _analyzedTextLength = 0;
 
   String? activeScenarioName;
   int? activeScenarioStage;
 
-  /// Graph ID of the active (highest-scoring) scenario, tracked alongside
-  /// [activeScenarioName] for intent lookup via [_graphIdToIntent].
   String? activeScenarioGraphId;
 
-  /// Maps graph ID prefixes to their primary [ScamIntent].
-  /// Used by [activeScenarioIntent] for context-priority fusion in L2.
-  /// Keyed by prefix so that e.g. 'G_BANK_01' matches 'G_BANK'.
   static const Map<String, ScamIntent> _graphPrefixToIntent = {
     'G_POLICE': ScamIntent.authPoliceLawsuit,
     'G_VNEID': ScamIntent.taxGovApp,
@@ -154,12 +142,10 @@ class WfsaEngine {
     'ROM_CUSTOMS': ScamIntent.romanceScam,
   };
 
-  /// Returns the primary [ScamIntent] of the active scenario, or null if no
-  /// scenario is active or its graph ID has no known intent mapping.
   ScamIntent? get activeScenarioIntent {
     final graphId = activeScenarioGraphId;
     if (graphId == null) return null;
-    // Try exact match first (handles full graph IDs like 'G_BANK_01').
+
     for (final entry in _graphPrefixToIntent.entries) {
       if (graphId.startsWith(entry.key)) {
         return entry.value;
@@ -184,24 +170,16 @@ class WfsaEngine {
     activeScenarioStage = null;
   }
 
-  /// Called on system memory pressure — keeps session state but trims
-  /// non-critical history.
   void onMemoryPressure() {
     if (_transitionHistory.length > 100) {
       _transitionHistory.removeRange(0, _transitionHistory.length - 100);
     }
   }
 
-  /// Incremental analysis: only tokenize the delta portion of [fullText]
-  /// that hasn't been analyzed yet.
   double analyzeIncremental(
     String fullText,
     List<IntentPrediction> intentPredictions,
   ) {
-    // BUG-FIX: Khi text mới ngắn hơn text đã phân tích (phiên mới/cuộc gọi
-    // mới), phải reset toàn bộ state WFSA — không chỉ _analyzedTextLength.
-    // Nếu chỉ reset length, _graphScores từ session trước (VD: score 100 từ
-    // kịch bản lừa đảo ngân hàng) bị leak sang session mới → false positive.
     if (fullText.length < _analyzedTextLength) {
       resetSession();
     }
@@ -232,7 +210,6 @@ class WfsaEngine {
       final currentScore = _graphScores[graphId] ?? 0;
       final segmentsSinceLast = _segmentsSinceLastTrigger[graphId] ?? 0;
 
-      // --- Adaptive decay: slower at higher stages (scammer deep in scenario) ---
       if (currentScore > 0) {
         final currentStateId =
             _currentSessionStates[graphId] ?? graph.initialStateId;
@@ -267,7 +244,6 @@ class WfsaEngine {
           if (targetState != null) {
             var scoreIncrease = 10.0 * targetState.stage.weightMultiplier;
 
-            // --- Intent-boost: double score when TFLite intent confirms ---
             if (hasIntentMatch && hasPhraseMatch) {
               scoreIncrease *= _intentBoostFactor;
             }
@@ -278,7 +254,6 @@ class WfsaEngine {
                     .toDouble();
             _segmentsSinceLastTrigger[graphId] = 0;
 
-            // --- Session timeline tracking ---
             _transitionHistory.add(
               TransitionRecord(
                 graphId: graphId,
@@ -289,7 +264,7 @@ class WfsaEngine {
                 segmentIndex: _segmentIndex,
               ),
             );
-            // Prevent unbounded history growth: trim oldest 20% when over cap.
+
             if (_transitionHistory.length > maxTransitionHistory) {
               _transitionHistory.removeRange(
                 0,
@@ -297,14 +272,10 @@ class WfsaEngine {
               );
             }
           }
-          // Don't break — allow multiple transitions per segment so a single
-          // analyze() call with the full transcript can advance through
-          // multiple stages (stage1→stage2→stage3→stage4).
         }
       }
     }
 
-    // --- Cross-graph correlation bonus ---
     _applyCrossGraphBonus();
 
     _updateActiveScenario();
@@ -319,37 +290,30 @@ class WfsaEngine {
     return maxScore;
   }
 
-  /// Minimum score floor: once decay brings score below this, it resets to 0.
   static const double _minScoreFloor = 2.0;
 
-  /// Intent boost multiplier when both phrase + intent match a transition.
   static const double _intentBoostFactor = 1.5;
 
-  /// Cross-graph bonus per additional active graph (2+ graphs = compound scam).
   static const double _crossGraphBonusPerGraph = 5.0;
 
-  /// Minimum score to count a graph as "active" for cross-graph correlation.
   static const double _crossGraphActiveThreshold = 10.0;
 
-  /// Adaptive decay: at higher stages (3-4), decay is slower to preserve
-  /// strong scam signals. At stage 1, decay is faster to reduce stale signals.
   double _adaptiveDecay(double baseDecay, ScamStage stage) {
     return switch (stage) {
-      ScamStage.stage1Introduction => baseDecay * 0.98, // faster decay
-      ScamStage.stage2BaitingThreat => baseDecay, // normal decay
-      ScamStage.stage3Urgency => baseDecay * 1.003, // slower decay
-      ScamStage.stage4Command => baseDecay * 1.005, // very slow decay
+      ScamStage.stage1Introduction => baseDecay * 0.98,
+      ScamStage.stage2BaitingThreat => baseDecay,
+      ScamStage.stage3Urgency => baseDecay * 1.003,
+      ScamStage.stage4Command => baseDecay * 1.005,
     };
   }
 
-  /// If 2+ graphs are active (score > threshold), apply compound scam bonus.
   void _applyCrossGraphBonus() {
     final activeCount = _graphScores.values
         .where((s) => s >= _crossGraphActiveThreshold)
         .length;
     if (activeCount >= 2) {
       final bonus = (activeCount - 1) * _crossGraphBonusPerGraph;
-      // Apply bonus to the graph with the highest score
+
       MapEntry<String, double>? best;
       for (final entry in _graphScores.entries) {
         if (best == null || entry.value > best.value) {
@@ -365,14 +329,13 @@ class WfsaEngine {
   }
 
   double _decayForGraph(String graphId) {
-    // High-danger scenarios: very slow decay
     if (graphId.startsWith('G_POLICE') ||
         graphId.startsWith('G_KIDNAP') ||
         graphId.startsWith('G_SEXTORT') ||
         graphId.startsWith('G_BANK')) {
       return 0.995;
     }
-    // Medium-danger scenarios
+
     if (graphId.startsWith('G_TECH') ||
         graphId.startsWith('G_HOSPITAL') ||
         graphId.startsWith('G_VNEID') ||
@@ -383,7 +346,7 @@ class WfsaEngine {
         graphId.startsWith('G_CRYPTO')) {
       return 0.99;
     }
-    // Low-danger / generic scenarios
+
     if (graphId.startsWith('G_CHARITY') ||
         graphId.startsWith('G_GENERIC') ||
         graphId.startsWith('G_GAMBLE') ||

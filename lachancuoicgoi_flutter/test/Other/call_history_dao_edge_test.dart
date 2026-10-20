@@ -53,22 +53,17 @@ void main() {
           transcript: 'ghost',
         );
 
-        // Should not throw — SQLite UPDATE affects 0 rows silently
         await db.callHistoryDao.update(ghost);
 
-        // Verify no records were affected
         final all = await db.callHistoryDao.getAll();
         expect(all, isEmpty);
       });
 
       test('updateRiskLevel for non-existent ID does not throw', () async {
-        // Insert one record to ensure the table is not empty
         await db.callHistoryDao.insert(makeEntry());
 
-        // Update non-existent ID
         await db.callHistoryDao.updateRiskLevel(99999, 'ORANGE');
 
-        // Original record should be unchanged
         final all = await db.callHistoryDao.getAll();
         expect(all, hasLength(1));
         expect(all[0].riskLevel, 'RED');
@@ -79,10 +74,8 @@ void main() {
       test('deleteById with non-existent ID does not throw', () async {
         await db.callHistoryDao.insert(makeEntry(transcript: 'Keep me'));
 
-        // Delete non-existent
         await db.callHistoryDao.deleteById(99999);
 
-        // Original record survives
         final all = await db.callHistoryDao.getAll();
         expect(all, hasLength(1));
         expect(all[0].transcript, 'Keep me');
@@ -114,9 +107,8 @@ void main() {
       });
 
       test('search with SQL wildcard % does not break query', () async {
-        // % is LIKE wildcard but should be treated as literal in parameterized query
         final results = await db.callHistoryDao.search('%');
-        // Should not crash; results depend on actual data containing '%'
+
         expect(results, isA<List<CallHistory>>());
       });
 
@@ -131,7 +123,6 @@ void main() {
         );
         expect(results, isEmpty);
 
-        // Table should still exist and work
         final count = await db.callHistoryDao.count();
         expect(count, 3);
       });
@@ -198,7 +189,6 @@ void main() {
       });
 
       test('getAllPaginated default parameters return first 20', () async {
-        // Insert 25 items
         for (var i = 10; i < 25; i++) {
           await db.callHistoryDao.insert(makeEntry(transcript: 'Extra $i'));
         }
@@ -209,7 +199,6 @@ void main() {
 
     group('watchAll stream edge cases', () {
       test('watchAll emits on delete', () async {
-        // Insert a record first
         final id = await db.callHistoryDao.insert(
           makeEntry(transcript: 'To be deleted'),
         );
@@ -229,14 +218,11 @@ void main() {
         });
         addTearDown(subscription.cancel);
 
-        // Wait for initial emission
         await firstEmission.future.timeout(const Duration(seconds: 2));
         expect(emissions.last, hasLength(1));
 
-        // Delete the record
         await db.callHistoryDao.deleteById(id);
 
-        // Wait for delete emission
         await deleteEmission.future.timeout(const Duration(seconds: 2));
         expect(emissions.last, isEmpty);
       });
@@ -301,21 +287,17 @@ void main() {
       test('dispose closes stream controller', () async {
         final dao = db.callHistoryDao;
 
-        // Start listening
         final emissions = <List<CallHistory>>[];
         final sub = dao.watchAll().listen((items) {
           emissions.add(items);
         });
         addTearDown(sub.cancel);
 
-        // Wait for initial emission
         await Future<void>.delayed(const Duration(milliseconds: 100));
         expect(emissions, isNotEmpty);
 
-        // Dispose should close the controller
         await dao.dispose();
 
-        // Subscription should be done
         await sub.asFuture<void>();
       });
     });
@@ -344,18 +326,15 @@ void main() {
 
     group('Multiple operations in sequence', () {
       test('insert-update-delete cycle works correctly', () async {
-        // Insert
         final id = await db.callHistoryDao.insert(
           makeEntry(transcript: 'original', risk: 'GREEN'),
         );
         expect(await db.callHistoryDao.count(), 1);
 
-        // Update
         await db.callHistoryDao.updateRiskLevel(id, 'RED');
         final updated = await db.callHistoryDao.getById(id);
         expect(updated!.riskLevel, 'RED');
 
-        // Delete
         await db.callHistoryDao.deleteById(id);
         expect(await db.callHistoryDao.count(), 0);
         expect(await db.callHistoryDao.getById(id), isNull);
@@ -369,7 +348,6 @@ void main() {
         final all = await db.callHistoryDao.getAll();
         expect(all, hasLength(50));
 
-        // DESC order: highest ID first
         expect(all.first.transcript, 'Rapid 49');
         expect(all.last.transcript, 'Rapid 0');
       });

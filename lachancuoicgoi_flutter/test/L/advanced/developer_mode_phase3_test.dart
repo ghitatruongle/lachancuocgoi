@@ -12,7 +12,6 @@ void main() {
 
       await tester.pump();
 
-      // Activate developer mode via tap + password + activate
       final controller = container.read(developerModeProvider.notifier);
       for (var i = 0; i < 10; i++) {
         controller.onTitleTap();
@@ -24,16 +23,14 @@ void main() {
       expect(state1.isActive, isTrue);
       final remaining1 = state1.remainingSeconds;
 
-      // Wait 2 seconds — with 10s interval, state should NOT update
       await tester.pump(const Duration(seconds: 2));
       final state2 = container.read(developerModeProvider);
-      // remainingSeconds should be the same (timer hasn't fired yet)
+
       expect(state2.remainingSeconds, remaining1);
 
-      // Wait for timer to fire (10s total)
       await tester.pump(const Duration(seconds: 9));
       final state3 = container.read(developerModeProvider);
-      // Now remainingSeconds should have decreased
+
       expect(state3.remainingSeconds, lessThan(remaining1));
 
       await controller.deactivate();
@@ -46,7 +43,6 @@ void main() {
 
       await tester.pump();
 
-      // Activate
       final controller = container.read(developerModeProvider.notifier);
       for (var i = 0; i < 10; i++) {
         controller.onTitleTap();
@@ -56,7 +52,6 @@ void main() {
 
       expect(container.read(developerModeProvider).isActive, isTrue);
 
-      // Deactivate with 3 taps
       for (var i = 0; i < 3; i++) {
         controller.onTitleTap();
       }
@@ -71,7 +66,6 @@ void main() {
 
       await tester.pump();
 
-      // Activate
       final controller = container.read(developerModeProvider.notifier);
       for (var i = 0; i < 10; i++) {
         controller.onTitleTap();
@@ -83,14 +77,12 @@ void main() {
           .read(developerModeProvider)
           .remainingSeconds;
 
-      // Wait for one timer tick (10s)
       await tester.pump(const Duration(seconds: 11));
 
       final newRemaining = container
           .read(developerModeProvider)
           .remainingSeconds;
 
-      // Should decrease by approximately 10 seconds
       final diff = initialRemaining - newRemaining;
       expect(diff, greaterThanOrEqualTo(8));
       expect(diff, lessThanOrEqualTo(12));
@@ -117,7 +109,6 @@ void main() {
 
       await tester.pump();
 
-      // Activate via container
       final controller = container.read(developerModeProvider.notifier);
       for (var i = 0; i < 10; i++) {
         controller.onTitleTap();
@@ -125,7 +116,6 @@ void main() {
       expect(controller.verifyPassword('110210'), isTrue);
       await controller.activate();
 
-      // Deactivate with 3 taps
       DeveloperTapResult? lastResult;
       for (var i = 0; i < 3; i++) {
         lastResult = controller.onTitleTap();

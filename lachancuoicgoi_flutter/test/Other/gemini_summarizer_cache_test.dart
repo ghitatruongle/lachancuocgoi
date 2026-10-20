@@ -66,7 +66,6 @@ void main() {
         geminiClient: client,
       );
 
-      // 5 failures → circuit breaker trips
       for (var i = 0; i < 5; i++) {
         try {
           await summarizer.summarize(
@@ -75,7 +74,6 @@ void main() {
         } on Object catch (_) {}
       }
 
-      // 6th call blocked by circuit breaker
       executorCallCount = 0;
       try {
         await summarizer.summarize(

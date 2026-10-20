@@ -17,7 +17,6 @@ android {
     namespace = "com.example.lachancuocgoi"
     compileSdk = 34
 
-    // Bắt buộc: không nén file .tflite và thư mục model Vosk để load trực tiếp từ assets
     androidResources {
         noCompress += "tflite"
         noCompress += "model-vn"
@@ -63,14 +62,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    // NOTE: kotlinOptions deprecated từ AGP 9.x nhưng vẫn hoạt động cho đến AGP 10.0
-    // Không thể dùng top-level kotlin{} vì conflict với org.jetbrains.kotlin.android plugin
+
     @Suppress("DEPRECATION")
     kotlinOptions {
         jvmTarget = "17"
@@ -122,13 +121,11 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
 
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
-    
-    // ML Kit cho PII Redaction (L3 GĐ1)
+
     implementation("com.google.mlkit:entity-extraction:16.0.0-beta5")
-    
-    // Thay thế TensorFlow Lite độc lập bằng Google Play Services TFLite để tránh xung đột thư viện C++ (NdK)
+
     implementation("com.google.android.gms:play-services-tflite-java:16.1.0")
-    
+
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
@@ -146,7 +143,6 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // Thư viện Vosk hỗ trợ Offline STT phân tích âm thanh trực tiếp (VoIP/Creator Mode)
     implementation("com.alphacephei:vosk-android:0.3.38") {
         exclude(group = "net.java.dev.jna", module = "jna")
     }

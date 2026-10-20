@@ -2,11 +2,6 @@ package com.example.lachancuocgoi.Analysis.L2.GDetection
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * NEW Data models for risk_scenarios_master.json (v2.2, 250 scenarios)
- */
-
-// Root model
 data class RiskScenariosMaster(
     val title: String?,
     val version: String?,
@@ -15,7 +10,6 @@ data class RiskScenariosMaster(
     val scenarios: List<MasterScenario>?
 )
 
-// Individual scenario
 data class MasterScenario(
     val id: String,
     val source: String?,

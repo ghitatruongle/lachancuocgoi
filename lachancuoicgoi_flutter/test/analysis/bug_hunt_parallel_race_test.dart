@@ -1,7 +1,3 @@
-// Bug Hunt Phase B.2 + C.3 — Parallel mode concurrent + race condition tests
-//
-// Reference: docs/superpowers/specs/.../Mục 2 + Phase C parallel stress.
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_coordinator.dart';
 import 'package:lachancuocgoi_flutter/analysis/analysis_mode.dart';
@@ -29,8 +25,7 @@ void main() {
       );
       final results = await Future.wait([f1, f2]);
       expect(results.length, 2);
-      // processedTextLength must end consistent (0 if both fell back, 300
-      // if both ran through the same analyzer).
+
       expect(
         coordinator.getProcessedTextLength(AnalysisMode.parallel),
         anyOf(0, 300),

@@ -6,13 +6,6 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import java.io.InputStreamReader
 
-/**
- * Giai đoạn 4: Bộ lọc an toàn v2 (Position-aware).
- * CHỈ giảm điểm rủi ro nếu dấu hiệu an toàn nằm ở PHẦN MỞ ĐẦU cuộc gọi.
- * Ngăn kẻ lừa đảo chèn "ăn cơm chưa" vào giữa/cuối để bypass hệ thống.
- *
- * Config được load từ safety_keywords.json thay vì hard-code.
- */
 object SafetyFilter {
     private const val TAG = "SafetyFilter"
 
@@ -43,9 +36,6 @@ object SafetyFilter {
         val minMultiplier: Double = 0.4
     )
 
-    /**
-     * Nạp config từ safety_keywords.json. Fallback sang default nếu lỗi.
-     */
     fun loadConfig(context: Context) {
         try {
             val inputStream = context.assets.open("safety_keywords.json")
@@ -65,27 +55,20 @@ object SafetyFilter {
         }
     }
 
-    /**
-     * Đánh giá mức độ "an toàn" theo vị trí - v2.
-     * @param fullTranscript Toàn bộ đoạn hội thoại hiện hành.
-     * @return Hệ số nhân (Multiplier). < 1.0 nghĩa là giảm rủi ro (an toàn hơn).
-     */
     fun calculateSafetyDiscount(fullTranscript: String): Double {
         val text = fullTranscript.lowercase()
-        
-        // 0. Kiểm tra phần chính (sau opening) có từ khóa nguy hiểm không
+
         val mainSection = if (text.length > openingSectionLength) {
             text.substring(openingSectionLength)
         } else ""
-        
+
         val hasDangerInMain = dangerOverrides.any { mainSection.contains(it) }
         if (hasDangerInMain) {
-            // Có từ khóa nguy hiểm ở phần chính → KHÔNG giảm rủi ro dù opening thân mật
+
             Log.d(TAG, "Danger keywords found in main section. Safety discount DISABLED.")
             return 1.0
         }
 
-        // 1. Chỉ kiểm tra tính thân mật ở PHẦN MỞ ĐẦU
         val openingSection = text.take(openingSectionLength)
         var discountMultiplier = 1.0
 
@@ -95,14 +78,12 @@ object SafetyFilter {
             discountMultiplier -= reduction
         }
 
-        // 2. Kiểm tra giao dịch chuẩn (toàn bộ text — vì giao dịch chuẩn có thể ở bất kỳ đâu)
         val safeTransactionMatchCount = standardTransactions.count { text.contains(it) }
         if (safeTransactionMatchCount > 0) {
             val reduction = transactionReductionPerMatch * safeTransactionMatchCount
             discountMultiplier -= reduction
         }
 
-        // Giới hạn giảm tối đa
         val finalMultiplier = discountMultiplier.coerceAtLeast(minMultiplier)
 
         if (finalMultiplier < 1.0) {

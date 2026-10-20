@@ -24,10 +24,8 @@ void main() {
       await l1.initialize();
       final coordinator = AnalysisCoordinator(l1Analyzer: l1);
 
-      // L1 green minDelta = 50 * 0.6 = 30
-      // Text with delta = 35 should trigger L1 analysis
       coordinator.syncProcessedTextLength(0, AnalysisMode.normal);
-      const text = 'Vui lòng gửi mã OTP để xác minh ngay.'; // ~40 chars
+      const text = 'Vui lòng gửi mã OTP để xác minh ngay.';
       final result = await coordinator.analyzeIncremental(
         text,
         AnalysisMode.normal,
@@ -59,15 +57,12 @@ void main() {
       await l2.initialize();
       final coordinator = AnalysisCoordinator(l2Analyzer: l2);
 
-      // L2 green minDelta = 50 * 0.8 = 40
-      // delta = 30 should NOT trigger L2
       coordinator.syncProcessedTextLength(100, AnalysisMode.gDetection);
       final result = await coordinator.analyzeIncremental(
-        'x' * 130, // delta = 30 < 40
+        'x' * 130,
         AnalysisMode.gDetection,
       );
 
-      // Should return default result (skipped)
       expect(result.analysisLevel, AnalysisLevel.l2);
     });
   });
@@ -77,7 +72,7 @@ void main() {
       final l3 = L3Analyzer(
         apiKeyProvider: StaticApiKeyProvider(const <String>['AIza_test']),
       );
-      // L2 not initialized → not ready
+
       final l2 = L2Analyzer(
         gDetectionEngine: _FakeNotReadyGDetectionEngine(),
         intentClassifier: const DisabledIntentClassifier(),
@@ -93,7 +88,7 @@ void main() {
 
       expect(result.isError, isTrue);
       expect(result.overallRiskLevel, RiskLevel.green);
-      // Returns l2 level so MonitoringPage can detect the fallback.
+
       expect(result.analysisLevel, AnalysisLevel.l2);
     });
   });
@@ -102,7 +97,6 @@ void main() {
     test(
       'returns "L2 initializing" result when L2 fails to initialize twice',
       () async {
-        // L2 with engine that never becomes ready
         final l2 = L2Analyzer(
           gDetectionEngine: _FakeNotReadyGDetectionEngine(),
           intentClassifier: const DisabledIntentClassifier(),
@@ -147,15 +141,12 @@ void main() {
       await l2.initialize();
       final coordinator = AnalysisCoordinator(l2Analyzer: l2);
 
-      // First analysis to set risk level to red
       coordinator.syncProcessedTextLength(0, AnalysisMode.gDetection);
       await coordinator.analyze(
         'Tôi là công an, anh phải chuyển tiền ngay lập tức.',
         AnalysisMode.gDetection,
       );
 
-      // Now with red risk, L2 minDelta = 20 * 0.8 = 16
-      // Add 20 chars — should trigger re-analysis
       const extendedText =
           'Tôi là công an, anh phải chuyển tiền ngay lập tức. Ma OTP la gi?';
       final result = await coordinator.analyzeIncremental(
@@ -190,20 +181,17 @@ void main() {
         await l2.initialize();
         final coordinator = AnalysisCoordinator(l2Analyzer: l2);
 
-        // First analysis
         coordinator.syncProcessedTextLength(0, AnalysisMode.gDetection);
         await coordinator.analyze(
           'Anh phải chuyển tiền vào tài khoản ngay.',
           AnalysisMode.gDetection,
         );
 
-        // Small delta — should skip
         final result = await coordinator.analyzeIncremental(
-          'Anh phải chuyển tiền vào tài khoản ngay. xy', // +3 chars
+          'Anh phải chuyển tiền vào tài khoản ngay. xy',
           AnalysisMode.gDetection,
         );
 
-        // Orange result should have alertEnabled=false when skipped
         if (result.overallRiskLevel.index >= RiskLevel.orange.index) {
           expect(result.alertEnabled, isFalse);
         }
@@ -217,7 +205,6 @@ void main() {
       await l1.initialize();
       final coordinator = AnalysisCoordinator(l1Analyzer: l1);
 
-      // Use analyzeIncremental to set processedTextLength
       coordinator.syncProcessedTextLength(42, AnalysisMode.normal);
       expect(coordinator.getProcessedTextLength(AnalysisMode.normal), 42);
 
@@ -231,7 +218,7 @@ void main() {
       final coordinator = AnalysisCoordinator(l1Analyzer: l1);
 
       coordinator.syncProcessedTextLength(42, AnalysisMode.normal);
-      // Reset L2 instead — should not affect L1
+
       coordinator.resetMode(AnalysisMode.gDetection);
       expect(coordinator.getProcessedTextLength(AnalysisMode.normal), 42);
     });

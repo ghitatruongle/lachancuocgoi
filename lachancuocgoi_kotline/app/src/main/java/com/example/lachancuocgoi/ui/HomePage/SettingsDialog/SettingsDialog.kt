@@ -32,7 +32,6 @@ fun SettingsDialog(
 ) {
     var showDevPasswordDialog by remember { mutableStateOf(false) }
 
-    // Đọc trực tiếp observable state — Compose tự recompose khi thay đổi
     val isDevActive by DeveloperModeManager.isActive
 
     if (showDevPasswordDialog) {
@@ -56,7 +55,7 @@ fun SettingsDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // ── Tap 10 lần → kích hoạt | Tap 3 lần khi active → tắt ──
+
                     Text(
                         text = if (isDevActive)
                             "Cài đặt  🛠️ ${DeveloperModeManager.remainingSeconds()}s"
@@ -74,9 +73,9 @@ fun SettingsDialog(
                                         showDevPasswordDialog = true
                                     }
                                     is DeveloperModeManager.TapResult.Deactivated -> {
-                                        // isActive.value đã được set trong deactivateDevMode()
+
                                     }
-                                    is DeveloperModeManager.TapResult.Nothing -> { /* chờ thêm */ }
+                                    is DeveloperModeManager.TapResult.Nothing -> {  }
                                 }
                             }
                     )

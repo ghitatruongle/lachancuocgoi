@@ -20,7 +20,7 @@ void main() {
 
     test('analyzeIncremental with null session returns null', () async {
       final analyzer = _createL3AnalyzerWithSession();
-      // Do NOT call createSession — _activeSession is null
+
       final result = await analyzer.analyzeIncremental('some text');
       expect(result, isNull);
     });
@@ -28,11 +28,11 @@ void main() {
     test('analyzeIncremental with zero new text returns last result', () async {
       final analyzer = _createL3AnalyzerWithSession();
       analyzer.createSession();
-      // Set processedTextLength to equal the text length
+
       analyzer.syncProcessedTextLength(10);
 
       final result = await analyzer.analyzeIncremental('0123456789');
-      // newTextLength = 10 - 10 = 0, should return _lastResult
+
       expect(result, isNotNull);
       expect(result!.overallRiskLevel, RiskLevel.green);
     });
@@ -43,7 +43,6 @@ void main() {
         final analyzer = _createL3AnalyzerWithSession();
         analyzer.createSession();
 
-        // Less than 40 chars of new text
         final result = await analyzer.analyzeIncremental('xin chao cac ban');
         expect(result, isNull);
       },
@@ -52,14 +51,12 @@ void main() {
     test('risk decay: 3 consecutive greens de-escalate from red', () async {
       final analyzer = _createL3AnalyzerWithSession();
 
-      // First parse sets max risk to red
       final red = analyzer.parseResponse(
         '{"level":"red","label":"Scam","reason":"Lừa đảo","recommendation":"Ngắt"}',
         'gemini',
       );
       expect(red.overallRiskLevel, RiskLevel.red);
 
-      // Green 1, 2: max stays red
       final g1 = analyzer.parseResponse(
         '{"level":"green","label":"","reason":"An toàn","recommendation":""}',
         'gemini',
@@ -72,7 +69,6 @@ void main() {
       );
       expect(g2.overallRiskLevel, RiskLevel.red);
 
-      // Green 3: RED should NOT de-escalate (only YELLOW can for safety)
       final g3 = analyzer.parseResponse(
         '{"level":"green","label":"","reason":"An toàn","recommendation":""}',
         'gemini',
@@ -83,46 +79,37 @@ void main() {
     test('risk decay: green interrupted by orange resets counter', () async {
       final analyzer = _createL3AnalyzerWithSession();
 
-      // Set red
       analyzer.parseResponse(
         '{"level":"red","label":"Scam","reason":"Lừa đảo","recommendation":""}',
         'gemini',
       );
 
-      // Green 1
       analyzer.parseResponse(
         '{"level":"green","label":"","reason":"An toàn","recommendation":""}',
         'gemini',
       );
 
-      // Green 2
       analyzer.parseResponse(
         '{"level":"green","label":"","reason":"An toàn","recommendation":""}',
         'gemini',
       );
 
-      // Orange interrupts green streak
       final orange = analyzer.parseResponse(
         '{"level":"orange","label":"Cảnh báo","reason":"Tài khoản","recommendation":""}',
         'gemini',
       );
-      expect(
-        orange.overallRiskLevel,
-        RiskLevel.orange,
-      ); // returns parsed level, not max
+      expect(orange.overallRiskLevel, RiskLevel.orange);
 
-      // Now we need 3 more greens, but RED still won't de-escalate
-      // Green 1 (after reset)
       analyzer.parseResponse(
         '{"level":"green","label":"","reason":"An toàn","recommendation":""}',
         'gemini',
       );
-      // Green 2 (after reset)
+
       analyzer.parseResponse(
         '{"level":"green","label":"","reason":"An toàn","recommendation":""}',
         'gemini',
       );
-      // Green 3 should NOT de-escalate from RED (safety constraint)
+
       final deescalated = analyzer.parseResponse(
         '{"level":"green","label":"","reason":"An toàn","recommendation":""}',
         'gemini',
@@ -150,9 +137,8 @@ void main() {
       expect(requestCount, 1);
       expect(first.overallRiskLevel, RiskLevel.orange);
 
-      // Second call with same text should hit cache
       final second = await analyzer.analyze(text);
-      expect(requestCount, 1); // No additional API call
+      expect(requestCount, 1);
       expect(second.overallRiskLevel, RiskLevel.orange);
 
       final metrics = analyzer.getMetrics();
@@ -190,7 +176,6 @@ void main() {
 
       analyzer.closeSession();
 
-      // After closeSession, analyzeIncremental should return null
       final result = await analyzer.analyzeIncremental('some text');
       expect(result, isNull);
     });
@@ -204,7 +189,6 @@ void main() {
 
         analyzer.closeSession(resetProgress: false);
 
-        // processedTextLength should be preserved
         expect(analyzer.processedTextLength, 100);
       },
     );
@@ -258,7 +242,6 @@ void main() {
             },
       );
 
-      // Only 2 words — minimum is 3
       final result = await analyzer.analyze('hello world');
       expect(result.overallRiskLevel, RiskLevel.green);
       expect(result.reason, contains('ngắn'));
@@ -286,7 +269,6 @@ void main() {
       analyzer.createSession();
       analyzer.syncProcessedTextLength(50);
 
-      // Creating new session should reset
       analyzer.createSession();
       expect(analyzer.processedTextLength, 0);
     });
@@ -305,9 +287,6 @@ void main() {
       () async {
         final analyzer = _createL3AnalyzerWithSession();
 
-        // No valid JSON, so _extractJson returns the full text
-        // jsonDecode will fail, but the method should handle it
-        // Actually the method expects valid JSON. Let me test with embedded JSON.
         final result = analyzer.parseResponse(
           'Analysis: {"level":"green","label":"OK","reason":"An toàn","recommendation":"Tiếp tục"}',
           'gemini',
@@ -319,7 +298,6 @@ void main() {
     test('parseResponse with null/unknown level infers from reason', () async {
       final analyzer = _createL3AnalyzerWithSession();
 
-      // Level is null — should infer from reason containing "lừa đảo"
       final result = analyzer.parseResponse(
         '{"level":null,"label":"Test","reason":"Có dấu hiệu lừa đảo","recommendation":""}',
         'gemini',
@@ -397,7 +375,6 @@ void main() {
             },
       );
 
-      // Trigger 3 errors
       await analyzer.analyze('Toi la cong an can chuyen tien gap.');
       await analyzer.analyze('Noi dung khac de vuot qua cache.');
       await analyzer.analyze('Them mot doan nua de chac chan.');

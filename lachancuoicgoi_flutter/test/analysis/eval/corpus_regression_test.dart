@@ -114,8 +114,6 @@ void main() {
     // ignore: avoid_print
     print(report.toMarkdownTable());
 
-    // Soft gates for adversarial set: precision/recall still high on risky
-    // cases; false-red measured only on pure red mislabels of benign.
     expect(report.precision, greaterThanOrEqualTo(0.80));
     expect(report.recall, greaterThanOrEqualTo(0.80));
     expect(report.falseRedRate, lessThanOrEqualTo(0.02));

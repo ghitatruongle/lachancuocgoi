@@ -14,8 +14,6 @@ class SensitiveDataResetResult {
   final int deletedTranscriptCount;
 }
 
-/// Deletes user-generated content while leaving non-sensitive preferences
-/// such as theme and accessibility choices intact.
 class SensitiveDataResetService {
   const SensitiveDataResetService();
 

@@ -24,9 +24,6 @@ final _callHistoryFutureProvider = FutureProvider.family<CallHistory?, int>((
   return db.getById(historyId);
 });
 
-/// Parses an analysis payload written by older or current app versions.
-/// Malformed/partially migrated JSON is treated as unavailable, never as a
-/// green assessment.
 AnalysisResult? parseStoredAnalysisResult(String? raw) {
   if (raw == null || raw.trim().isEmpty) return null;
   try {
@@ -64,8 +61,6 @@ String historyStatusLabel(
   };
 }
 
-/// Creates privacy-safe text for the normal share action. Full transcript is
-/// appended only after the caller has obtained explicit confirmation.
 String buildHistoryShareText(
   CallHistory item, {
   required String statusLabel,
@@ -196,7 +191,6 @@ class ResultPage extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
 
-                // ── Analysis Summary Card ──
                 Card(
                   clipBehavior: Clip.antiAlias,
                   child: IntrinsicHeight(
@@ -273,7 +267,6 @@ class ResultPage extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.sm),
                 ],
 
-                // ── Recording Card ──
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.sm),
@@ -300,7 +293,6 @@ class ResultPage extends ConsumerWidget {
 
                 const SizedBox(height: AppSpacing.sm),
 
-                // ── Transcript Card ──
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.sm),
@@ -356,12 +348,10 @@ class ResultPage extends ConsumerWidget {
 
                 const SizedBox(height: AppSpacing.sm),
 
-                // ── Alert history ──
                 AlertHistorySection(alertHistory: item.getAlertHistoryList()),
 
                 const SizedBox(height: AppSpacing.lg),
 
-                // ── Bottom buttons ──
                 Row(
                   children: [
                     Expanded(

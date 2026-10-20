@@ -10,7 +10,7 @@ void main() {
       await mode.play(tickIntervalMs: 1, sentenceIntervalTicks: 1);
       await Future<void>.delayed(const Duration(milliseconds: 50));
       await sub.cancel();
-      // Each commit appends the next line cumulatively.
+
       expect(emitted, containsAll(['A.', 'A. B.', 'A. B. C.']));
     });
 

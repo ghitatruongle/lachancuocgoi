@@ -2,10 +2,6 @@ package com.lachancuocgoi.lachancuocgoi_flutter.ui
 
 import android.content.Context
 
-/**
- * Facade OverlayManager for backward compatibility.
- * Delegates calls to specific overlay managers.
- */
 object OverlayManager {
 
     fun showRedAlert(context: Context, reason: String) {
@@ -36,3 +32,4 @@ object OverlayManager {
         hideMonitoringOverlay(context)
     }
 }
+

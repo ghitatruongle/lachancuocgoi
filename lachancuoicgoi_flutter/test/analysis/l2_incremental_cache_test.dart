@@ -21,8 +21,6 @@ void main() {
         expect(first.overallRiskLevel, RiskLevel.green);
         expect(engine.callCount, 1);
 
-        // Full text is extended; GDetection always re-runs on the full text
-        // to avoid false negatives from skipping keywords in the delta.
         const secondText = '$firstText ừ ạ';
         final second = await analyzer.analyze(' ừ ạ', secondText);
         expect(second.overallRiskLevel, RiskLevel.green);

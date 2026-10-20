@@ -7,7 +7,6 @@ import android.graphics.Paint
 import android.view.View
 import kotlin.math.abs
 
-/** Lightweight native waveform used by the compact monitoring overlay. */
 class MonitoringWaveformView(context: Context) : View(context) {
     private val samples = FloatArray(SAMPLE_COUNT) { MIN_AMPLITUDE }
     private var writeIndex = 0
@@ -18,8 +17,7 @@ class MonitoringWaveformView(context: Context) : View(context) {
     }
 
     fun addRms(rms: Float) {
-        // Android SpeechRecognizer normally reports roughly -60..0 dB. Some
-        // OEM engines report a positive magnitude, so support both shapes.
+
         val normalized = if (rms <= 0f) {
             ((rms + 60f) / 60f).coerceIn(MIN_AMPLITUDE, 1f)
         } else {
@@ -48,3 +46,4 @@ class MonitoringWaveformView(context: Context) : View(context) {
         const val MIN_AMPLITUDE = 0.08f
     }
 }
+

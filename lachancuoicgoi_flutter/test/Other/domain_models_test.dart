@@ -138,10 +138,9 @@ void main() {
     });
 
     test('handles null, empty and unknown values', () {
-      // null/empty = no data yet → green (safe default)
       expect(RiskLevel.fromString(null), RiskLevel.green);
       expect(RiskLevel.fromString(''), RiskLevel.green);
-      // Unknown non-empty string = corrupted data → orange (conservative)
+
       expect(RiskLevel.fromString('UNKNOWN'), RiskLevel.orange);
       expect(RiskLevel.fromString('GARBAGE'), RiskLevel.orange);
     });
@@ -264,7 +263,7 @@ void main() {
       expect(modified.alertEnabled, isTrue);
       expect(modified.reason, 'Updated reason');
       expect(modified.isError, isTrue);
-      // Unchanged fields
+
       expect(modified.matches, isEmpty);
       expect(modified.confidence, -1);
     });
@@ -287,7 +286,7 @@ void main() {
       expect(modified.keyword, 'modified');
       expect(modified.level, RiskLevel.red);
       expect(modified.isFuzzy, isTrue);
-      expect(modified.category, 'Safe'); // unchanged
+      expect(modified.category, 'Safe');
     });
   });
 

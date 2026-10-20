@@ -17,7 +17,6 @@ void main() {
     return container;
   }
 
-  // ─── Initial state ───────────────────────────────────────────────────
   group('SimulationController — initial state', () {
     test('has null scenarios before loadData', () {
       final container = createContainer();
@@ -35,7 +34,6 @@ void main() {
       final container = createContainer();
       final notifier = container.read(simulationControllerProvider.notifier);
 
-      // Before loadData, _allScenarios is null, so _recompute resets state
       notifier.updateSearchQuery('OTP');
       final state = container.read(simulationControllerProvider);
 
@@ -54,7 +52,6 @@ void main() {
     });
   });
 
-  // ─── Scenario data models ────────────────────────────────────────────
   group('SimulationScenarioData', () {
     test('fromJson parses correctly', () {
       final json = {

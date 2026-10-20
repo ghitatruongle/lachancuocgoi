@@ -63,7 +63,7 @@ fun OrangeWarning(
                 .fillMaxSize()
                 .background(orangeColor.copy(alpha = 0.95f))
         ) {
-            // 1. NỘI DUNG PHẢI VIẾT TRƯỚC (NẰM DƯỚI)
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -104,7 +104,6 @@ fun OrangeWarning(
                 Spacer(modifier = Modifier.height(40.dp))
             }
 
-            // 2. NÚT X VIẾT SAU CÙNG (NẰM TRÊN CÙNG) ĐỂ LUÔN BẤM ĐƯỢC
             Surface(
                 onClick = onDismiss,
                 shape = CircleShape,

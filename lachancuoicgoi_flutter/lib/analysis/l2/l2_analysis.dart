@@ -69,23 +69,14 @@ class L2Analyzer implements Analyzer {
   double get aiAssistConfidence => config.aiAssistConfidence;
   double get aiAssistMargin => config.aiAssistMargin;
 
-  // Ensemble weights cho _tryFuseWithContext
   double get _ensembleHighConfCutoff => config.ensembleHighConfCutoff;
   double get _ensembleHighConfAiWeight => config.ensembleHighConfAiWeight;
   double get _ensembleDefaultAiWeight => config.ensembleDefaultAiWeight;
 
-  /// Marker category do L2ResultParser set khi GResult có confirmedSituation.
-  /// Dùng cho Cross-validation Override detection (xem _tryCrossValidationOverride).
   static const String _confirmedScamTopicMarker = 'Chủ đề Lừa đảo';
 
-  // Phase 2.3: Concurrency limiter — only one analyze() runs at a time.
-  // Prevents CPU thrash from concurrent TFLite + GDetection + WFSA.
   Future<void> _analysisMutex = Future.value();
 
-  // Generation counter: incremented at the start of each analyze() call.
-  // When a mutex timeout forces a new analysis to start while the previous
-  // one is still in-flight, the stale analysis will see a mismatched
-  // generation and skip writing to _lastResult / _processedTextLength.
   int _analysisGeneration = 0;
 
   final GDetectionEngine _gDetectionEngine;
@@ -143,13 +134,11 @@ class L2Analyzer implements Analyzer {
 
   @override
   void resetSession() {
-    // Bug fix: increment generation to invalidate in-flight analyzes
-    // (previously, in-flight analyze() could overwrite _lastResult after reset)
     _analysisGeneration++;
 
     _gDetectionEngine.reset();
     _wfsaEngine.resetSession();
-    // Cache is maintained across sessions intentionally to avoid redundant compute
+
     _processedTextLength = 0;
     _lastResult = const AnalysisResult(
       overallRiskLevel: RiskLevel.green,
@@ -169,10 +158,6 @@ class L2Analyzer implements Analyzer {
   @override
   AnalysisResult get lastResult => _lastResult;
 
-  /// Release native resources: TFLite isolate (nặng nhất — giữ thread sống)
-  /// và GDetection internal state. Trước đây L2Analyzer không có dispose()
-  /// → TFLiteIntentClassifier.close() không bao giờ được gọi → isolate leak
-  /// (singleton che giấu leak này, nhưng contract leak). Idempotent.
   @override
   void dispose() {
     _intentClassifier.close();
@@ -194,27 +179,13 @@ class L2Analyzer implements Analyzer {
       return emptyResult;
     }
 
-    // Use fullText for all analysis paths (GDetection, WFSA, intent trigger).
-    // GDetection needs full context for keyword matching and scenario detection.
-    // The previous optimization using incrementalText broke keyword matching
-    // (only scanned the latest chunk, missing scam keywords in earlier text)
-    // and caused the intent flow to be skipped for short incremental text.
-    // TFLiteIntentClassifier already has internal caching (skips if <20% growth).
     final textToAnalyze = fullText;
 
-    // Phase 2.3: Wait for any in-flight analysis to finish before starting.
     final prevMutex = _analysisMutex;
     final completer = Completer<void>();
     _analysisMutex = completer.future;
 
-    // BUG-L2-MUTEX-COMPLETER-DOUBLE fix: Wrap entire mutex + analyze logic
-    // in try-finally to guarantee completer.complete() is called even if
-    // prevMutex.timeout() throws (not TimeoutException). Previously, if
-    // timeout() threw (e.g., prevMutex was a Future.error), completer would
-    // never complete, causing ALL subsequent analyze() calls to hang for 5s.
     try {
-      // Capture the generation BEFORE incrementing — used to detect if a
-      // newer analyze() call has superseded this one after a mutex timeout.
       final myGeneration = ++_analysisGeneration;
 
       await prevMutex.timeout(
@@ -226,10 +197,6 @@ class L2Analyzer implements Analyzer {
         },
       );
 
-      // Early bail-out: if a newer analyze() superseded us while we were waiting
-      // on the mutex (or its timeout), don't bother running the expensive
-      // TFLite + trie work — its result would be discarded by the generation
-      // guard below anyway. This avoids doubling CPU load when calls overlap.
       if (myGeneration != _analysisGeneration) {
         return _lastResult;
       }
@@ -263,9 +230,7 @@ class L2Analyzer implements Analyzer {
         textToAnalyze,
         intentForWfsa,
       );
-      // PERF-2: Truyền text ĐÃ normalize xuống SafetyFilter để tránh normalize
-      // 2 lần (GDetection/L2 path cũng normalize cùng text). Normalize 1 lần ở
-      // đây, dùng cho cả safety discount.
+
       final normalizedForSafety = TextNormalizer.normalize(
         fullText,
         applySlang: true,
@@ -298,9 +263,6 @@ class L2Analyzer implements Analyzer {
         _Luong1Fallback() => _fallbackResult(result2, fullText),
       };
 
-      // Guard: only write results if this generation is still the latest.
-      // A newer analyze() call may have force-continued via mutex timeout,
-      // in which case this stale result must not overwrite the fresher one.
       if (myGeneration == _analysisGeneration) {
         _processedTextLength = fullText.length;
         _lastResult = result;
@@ -308,7 +270,6 @@ class L2Analyzer implements Analyzer {
       }
       return result;
     } finally {
-      // BUG-L2-MUTEX-COMPLETER-DOUBLE fix: Always complete, even on exception.
       if (!completer.isCompleted) {
         completer.complete();
       }
@@ -323,12 +284,10 @@ class L2Analyzer implements Analyzer {
       var intentPredictions = await _intentClassifier.predictIntent(fullText);
       if (intentPredictions.isEmpty) return const _Luong1Fallback();
 
-      // Platt scaling (sigmoid calibration) replaces old temperature scaling.
-      // Converts softmax confidences to logits, applies sigmoid, re-normalises.
       final rawConfidences = intentPredictions
           .map((p) => p.confidence)
           .toList();
-      // Invert softmax to approximate logits: logit = ln(p / (1 - p))
+
       final approxLogits = rawConfidences.map((p) {
         final clamped = p.clamp(1e-7, 1.0 - 1e-7);
         return math.log(clamped / (1.0 - clamped));
@@ -355,9 +314,6 @@ class L2Analyzer implements Analyzer {
       }
       return const _Luong1Fallback();
     } on Object catch (e, st) {
-      // Trước đây `catch (_)` nuốt exception không log → khó debug production.
-      // Giờ log đầy đủ để intent-flow failure có thể truy vết (key TFLite
-      // isolate, lỗi vocab, v.v.) mà vẫn fallback an toàn.
       _logger?.warning('Intent flow failed, falling back: $e', e, st);
       return const _Luong1Fallback();
     }
@@ -386,20 +342,17 @@ class L2Analyzer implements Analyzer {
     }
 
     RiskLevel newRisk = originalRisk;
-    // Strong safety context (discount <= 0.3) can reduce orange to yellow
+
     if (safetyDiscount <= 0.3 && originalRisk == RiskLevel.orange) {
       newRisk = RiskLevel.yellow;
-    }
-    // Moderate safety context (discount <= 0.5) can reduce yellow to green
-    else if (safetyDiscount <= 0.5 && originalRisk == RiskLevel.yellow) {
+    } else if (safetyDiscount <= 0.5 && originalRisk == RiskLevel.yellow) {
       newRisk = RiskLevel.green;
     }
 
     if (isAiHighlyConfidentScam &&
         newRisk == RiskLevel.green &&
         originalRisk.index >= RiskLevel.yellow.index) {
-      return RiskLevel
-          .yellow; // Keep it at least yellow if AI is confident it's a scam
+      return RiskLevel.yellow;
     }
     return newRisk;
   }
@@ -432,11 +385,6 @@ class L2Analyzer implements Analyzer {
     );
   }
 
-  /// Fusion logic Luồng 1 (AI) + Luồng 2 (Context). Trước đây 4 outcome nằm
-  /// interleaved trong 1 function 112 dòng (CCN ~14). Refactor thành strategy
-  /// chain — mỗi outcome 1 method riêng, áp dụng theo priority cố định:
-  /// Cross-validation Override → AI High Confidence → AI Direct Winner
-  /// → Fuse with Context → fallback. Thứ tự ưu tiên KHÔNG đổi.
   AnalysisResult _fuseIntentSuccess(
     _Luong1Success luong1Result,
     AnalysisResult result2,
@@ -456,11 +404,6 @@ class L2Analyzer implements Analyzer {
         result2;
   }
 
-  /// #1 Priority — Cross-validation Override: AI nói an toàn nhưng GDetection
-  /// phát hiện rủi ro (RED hoặc có "Chủ đề Lừa đảo") → override để chống false
-  /// negative từ AI. Marker 'Chủ đề Lừa đảo' do L2ResultParser set khi có
-  /// confirmedSituation — giữ làm marker thay vì check structured field để
-  /// tránh phá contract AnalysisResult.
   AnalysisResult? _tryCrossValidationOverride(_IntentFusionContext ctx) {
     final isSafeIntent =
         ctx.prediction.intent == ScamIntent.safe ||
@@ -494,22 +437,14 @@ class L2Analyzer implements Analyzer {
     );
   }
 
-  /// #2 Priority — Context-Priority Override: WFSA đã match scenario cụ thể
-  /// (score >= 50) với intent khác AI, và AI không nói safe → dùng label của
-  /// WFSA scenario (context) thay vì AI label. Defense-in-depth: ngay cả khi
-  /// model misclassify (e.g. bank fraud → cryptoDrain), context đúng vẫn thắng
-  /// cho LABEL. Risk level = max(aiRisk, contextRisk).
   AnalysisResult? _tryContextPriorityOverride(_IntentFusionContext ctx) {
     final wfsaIntent = _wfsaEngine.activeScenarioIntent;
     if (wfsaIntent == null) return null;
 
-    // Only override when WFSA has a strong match (score >= 50 → RED).
     if (_wfsaEngine.currentRiskScore < 50.0) return null;
 
-    // Don't fire if AI agrees with context (no conflict to resolve).
     if (ctx.prediction.intent == wfsaIntent) return null;
 
-    // Don't fire if AI says safe — that's handled by Cross-validation Override.
     final isSafeIntent =
         ctx.prediction.intent == ScamIntent.safe ||
         ctx.intentRisk == RiskLevel.green;
@@ -541,8 +476,6 @@ class L2Analyzer implements Analyzer {
     );
   }
 
-  /// #3 Priority — AI High Confidence (≥ 80%): AI tự tin scam → trực tiếp
-  /// quyết định, merge keyword matches.
   AnalysisResult? _tryAiHighConfidence(_IntentFusionContext ctx) {
     final isSafeIntent =
         ctx.prediction.intent == ScamIntent.safe ||
@@ -570,8 +503,6 @@ class L2Analyzer implements Analyzer {
     );
   }
 
-  /// #3 Priority — AI Direct Winner: scam intent + confidence ≥ 0.62 + margin
-  /// ≥ 0.15 → AI thắng trực tiếp (không cần context).
   AnalysisResult? _tryAiDirectWinner(_IntentFusionContext ctx) {
     final isSafeIntent =
         ctx.prediction.intent == ScamIntent.safe ||
@@ -592,8 +523,6 @@ class L2Analyzer implements Analyzer {
     );
   }
 
-  /// #4 Priority — Fuse with Context: scam intent (confidence ≥ 0.50, margin
-  /// ≥ 0.08) + context đã có dấu hiệu (≥ yellow) → ensemble AI + context.
   AnalysisResult? _tryFuseWithContext(_IntentFusionContext ctx) {
     final isSafeIntent =
         ctx.prediction.intent == ScamIntent.safe ||
@@ -660,10 +589,6 @@ class L2Analyzer implements Analyzer {
   }
 
   String _normalizeForCache(String text) {
-    // BUG-L2-CACHE-NORMALIZED-KEY fix: Use Unicode-aware regex to preserve
-    // Vietnamese diacritics. Previously \w (ASCII [A-Za-z0-9_]) stripped
-    // all accents: "công an" → "cng an", "cộng án" → "cng n" → collision.
-    // Now \p{L} matches any Unicode letter, \p{N} matches any number.
     return text
         .toLowerCase()
         .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), '')
@@ -687,9 +612,6 @@ class _Luong1Fallback extends _Luong1Result {
   const _Luong1Fallback();
 }
 
-/// Pre-computed context cho 4 strategy outcome trong `_fuseIntentSuccess`.
-/// Tính 1 lần (intentRisk, intentLabel, intentMatch) rồi truyền cho cả 4
-/// strategy method — tránh tính lại trong mỗi method.
 class _IntentFusionContext {
   _IntentFusionContext({
     required this.prediction,

@@ -29,12 +29,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       SharedPreferences.setMockInitialValues({
         'onboarding_completed': true,
-        // Retention 'forever' so the app-start cleanup never removes the
-        // fixture row while the test runs (retention defaults to 30 days,
-        // which deletes stale fixtures before ResultPage loads).
+
         'CALL_HISTORY_RETENTION': CallHistoryRetention.forever.storageName,
       });
-      // Force Vietnamese UI for assertions against product copy.
+
       tester.platformDispatcher.localesTestValue = [const Locale('vi', 'VN')];
       tester.platformDispatcher.localeTestValue = const Locale('vi', 'VN');
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);

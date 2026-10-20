@@ -7,8 +7,6 @@ import '../../../services/developer_mode_manager.dart';
 import '../../../services/native_call_shield_bridge.dart';
 import '../../theme/app_theme.dart';
 
-/// Advanced settings. Developer Mode remains available in production through
-/// the existing title-tap/password flow.
 class AdvancedSection extends ConsumerWidget {
   const AdvancedSection({
     super.key,

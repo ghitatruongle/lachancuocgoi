@@ -27,13 +27,13 @@ data class SimulationUiState(
 
 class SimulationViewModel : ViewModel() {
     private val allScenarios = MutableStateFlow<List<SimulationScenarioData>?>(null)
-    
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
-    
+
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory = _selectedCategory.asStateFlow()
-    
+
     private val _isDevMode = MutableStateFlow(false)
 
     private val _uiState = MutableStateFlow(SimulationUiState())
@@ -43,15 +43,15 @@ class SimulationViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.Default) {
             combine(allScenarios, _searchQuery, _selectedCategory, _isDevMode) { scenarios, query, category, isDev ->
                 if (scenarios == null) return@combine SimulationUiState(null, emptyList(), emptyList(), query, category, isDev)
-                
+
                 val sourceList = if (isDev) {
                     scenarios
                 } else {
                     scenarios.filter { it.title in NORMAL_MODE_TITLES }
                 }
-                
+
                 val categories = sourceList.map { it.category }.distinct()
-                
+
                 val filtered = sourceList.filter { scenario ->
                     val matchesSearch = query.isEmpty() ||
                         scenario.title.contains(query, ignoreCase = true) ||
@@ -59,7 +59,7 @@ class SimulationViewModel : ViewModel() {
                     val matchesCategory = category == null || scenario.category == category
                     matchesSearch && matchesCategory
                 }
-                
+
                 SimulationUiState(
                     scenarios = sourceList,
                     categories = categories,
@@ -81,9 +81,8 @@ class SimulationViewModel : ViewModel() {
                 context.assets.open("situation_test.json").bufferedReader().use { reader ->
                     val type = object : TypeToken<List<SimulationScenarioData>>() {}.type
                     val loaded = Gson().fromJson<List<SimulationScenarioData>>(reader, type) ?: emptyList()
-                    
-                    // Xử lý lỗi Gson bỏ qua giá trị mặc định của Kotlin và gán null cho 'category'
-                    val safeLoaded = loaded.map { 
+
+                    val safeLoaded = loaded.map {
                         it.copy(category = (it.category as String?) ?: "Chung")
                     }
                     allScenarios.value = safeLoaded

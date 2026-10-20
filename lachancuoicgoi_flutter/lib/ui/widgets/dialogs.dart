@@ -1,11 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Shows a confirm/cancel dialog and returns `true` if the user confirmed.
-///
-/// Replaces the duplicated confirm-delete `AlertDialog` scaffolding in the
-/// history page (Sprint 5.2 — Pattern G). [confirmLabel] defaults to `'Xóa'`
-/// and [isDestructive] to `true`, matching the existing delete flows; callers
-/// can pass a non-destructive label (e.g. `'Xác nhận'`) for other confirmations.
 Future<bool> showConfirmDialog(
   BuildContext context, {
   required String title,

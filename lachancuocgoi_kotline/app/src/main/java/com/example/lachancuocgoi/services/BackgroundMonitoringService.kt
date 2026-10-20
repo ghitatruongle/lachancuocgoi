@@ -41,8 +41,6 @@ import java.util.Locale
 
 class BackgroundMonitoringService : Service() {
 
-    // (SỬA BUG 5) Tách riêng Job để cancel trong onDestroy().
-    // Trước đây Job() nằm inline → không thể cancel → memory leak.
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private val finalizationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -63,12 +61,10 @@ class BackgroundMonitoringService : Service() {
     private var pendingRiskResult: AnalysisResult? = null
     @Volatile private var isMonitoringActive = false
     @Volatile private var isStopping = false
-    
-    // Audio focus management
+
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hadAudioFocus = false
-    
-    // Speakerphone state
+
     private var wasSpeakerphoneOn = false
     private var shouldEnableSpeakerphone = false
     private var speakerphoneChangedByService = false
@@ -95,13 +91,12 @@ class BackgroundMonitoringService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         phoneNumber = intent?.getStringExtra("PHONE_NUMBER")
         shouldEnableSpeakerphone = intent?.getBooleanExtra("ENABLE_SPEAKERPHONE", false) ?: false
-        
-        // Also check from settings if not provided in intent
+
         if (!shouldEnableSpeakerphone) {
             val sharedPreferences = getSharedPreferences("settings", Context.MODE_PRIVATE)
             shouldEnableSpeakerphone = sharedPreferences.getBoolean("AUTO_ENABLE_SPEAKERPHONE", false)
         }
-        
+
         when (intent?.action) {
             ACTION_START -> {
                 if (isMonitoringActive || isStopping) {
@@ -160,15 +155,14 @@ class BackgroundMonitoringService : Service() {
                 handleConnectivityChanged(isAvailable)
             }
         }
-        
-        // Request audio focus before starting speech recognition
+
         hadAudioFocus = requestAudioFocus()
         if (hadAudioFocus) {
             Log.d(TAG, "Audio focus granted")
         } else {
             Log.w(TAG, "Could not obtain audio focus, speech recognition may be unreliable")
         }
-        
+
         wasSpeakerphoneOn = audioManager.isSpeakerphoneOn
         speakerphoneChangedByService = false
         if (shouldEnableSpeakerphone) {
@@ -179,10 +173,9 @@ class BackgroundMonitoringService : Service() {
         }
 
         monitoringJob = serviceScope.launch {
-            // Delay to allow phone app to settle audio routing
+
             delay(1000)
-            
-            // Show the floating monitoring overlay
+
             launch(Dispatchers.Main) {
                 OverlayManager.showMonitoringOverlay(applicationContext)
             }
@@ -192,28 +185,25 @@ class BackgroundMonitoringService : Service() {
                 Log.d(TAG, "Speakerphone initial enable")
             }
 
-            // Start Speakerphone Enforcement Loop
             launch {
                 while (isActive) {
                     if (shouldEnableSpeakerphone && !audioManager.isSpeakerphoneOn) {
                         Log.w(TAG, "Speakerphone was disabled! Re-enabling...")
                         enableSpeakerphone()
                     }
-                    delay(2000) // Check every 2 seconds
+                    delay(2000)
                 }
             }
 
-            // Bắt đầu lắng nghe từ Mic
             try {
                 speechToTextManager.startListening()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start listening", e)
             }
-            
+
             updateNotification("Đang giám sát cuộc gọi (Mic + Phụ đề)...")
             startAlertLoop()
 
-            // Observe RMS for waveform
             speechToTextManager.rmsDbFlow
                 .onEach { rms ->
                     launch(Dispatchers.Main) {
@@ -222,7 +212,6 @@ class BackgroundMonitoringService : Service() {
                 }
                 .launchIn(this)
 
-            // Tách biệt việc thu thập transcript
             transcriptCollectorJob = launch {
                 combine(
                     speechToTextManager.fullTranscriptFlow,
@@ -385,7 +374,6 @@ class BackgroundMonitoringService : Service() {
                     res
                 }
 
-                // NEW: Chỉ show alert nếu alertEnabled = true
                 if (resultToDisplay != null && resultToDisplay.alertEnabled) {
                     when (resultToDisplay.overallRiskLevel) {
                         RiskLevel.RED -> {
@@ -394,11 +382,11 @@ class BackgroundMonitoringService : Service() {
                         RiskLevel.ORANGE -> {
                             OverlayManager.showOrangeAlert(this@BackgroundMonitoringService, resultToDisplay.reason ?: "Rủi ro trung bình!")
                         }
-                        // Removed YELLOW case - only show ORANGE and RED warnings
+
                         else -> {}
                     }
                 }
-                // Nếu alertEnabled = false → CHỈ HIGHLIGHT từ khóa, KHÔNG show alert
+
             }
         }
     }
@@ -415,31 +403,27 @@ class BackgroundMonitoringService : Service() {
         monitoringJob?.cancel()
         analysisLoopJob?.cancel()
         alertLoopJob?.cancel()
-        // (SỬA BUG 9) Xóa pending result ngay khi stop.
-        // Trước đây nếu loop đang giữa chu kỳ delay 5s khi bị cancel,
-        // pendingRiskResult vẫn còn → có thể trigger phantom alert.
+
         synchronized(this) {
             pendingRiskResult = null
         }
         speechToTextManager.stopListening()
         connectivityMonitor.stop()
-        
-        // Restore speakerphone state
+
         if (speakerphoneChangedByService) {
             disableSpeakerphone()
             Log.d(TAG, "Speakerphone restored to previous state")
         }
-        
-        // Release audio focus
+
         if (hadAudioFocus) {
             releaseAudioFocus()
             Log.d(TAG, "Audio focus released")
         }
-        
+
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             OverlayManager.removeAll(this@BackgroundMonitoringService)
         }
-        
+
         val endTime = System.currentTimeMillis()
         val duration = (endTime - startTime) / 1000
 
@@ -527,15 +511,11 @@ class BackgroundMonitoringService : Service() {
         super.onDestroy()
         isMonitoringActive = false
         connectivityMonitor.stop()
-        
-        // (SỬA BUG 5) Cancel toàn bộ coroutine scope thay vì chỉ cancel từng job riêng lẻ.
-        // Trước đây chỉ cancel monitoringJob và alertLoopJob → các coroutine khác
-        // (speakerphone loop, debounce, L3 analyze) vẫn tiếp tục chạy sau destroy.
+
         serviceJob.cancel()
-        
+
         speechToTextManager.destroy()
-        
-        // Cleanup audio resources
+
         if (hadAudioFocus) {
             releaseAudioFocus()
         }
@@ -543,15 +523,7 @@ class BackgroundMonitoringService : Service() {
             disableSpeakerphone()
         }
     }
-    
-    /**
-     * Request audio focus to allow SpeechRecognizer to work during calls
-     * @return true if audio focus was granted
-     */
-    /**
-     * Request audio focus to allow SpeechRecognizer to work during calls
-     * @return true if audio focus was granted
-     */
+
     private fun requestAudioFocus(): Boolean {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -565,7 +537,7 @@ class BackgroundMonitoringService : Service() {
                     .setWillPauseWhenDucked(false)
                     .setAcceptsDelayedFocusGain(true)
                     .setOnAudioFocusChangeListener { focusChange ->
-                        // Handle focus change if needed
+
                         Log.d(TAG, "Audio focus changed: $focusChange")
                     }
                     .build()
@@ -584,10 +556,7 @@ class BackgroundMonitoringService : Service() {
             false
         }
     }
-    
-    /**
-     * Release audio focus
-     */
+
     private fun releaseAudioFocus() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -602,13 +571,7 @@ class BackgroundMonitoringService : Service() {
             Log.e(TAG, "Error releasing audio focus", e)
         }
     }
-    
-    /**
-     * Enable speakerphone mode
-     * Note: We do NOT set MODE_IN_COMMUNICATION here because for GSM calls, 
-     * the system already manages the mode (MODE_IN_CALL).
-     * Forcing MODE_IN_COMMUNICATION can break call audio.
-     */
+
     @Suppress("DEPRECATION")
     private fun enableSpeakerphone() {
         try {
@@ -620,10 +583,7 @@ class BackgroundMonitoringService : Service() {
             Log.e(TAG, "Error enabling speakerphone", e)
         }
     }
-    
-    /**
-     * Disable speakerphone and restore previous state
-     */
+
     @Suppress("DEPRECATION")
     private fun disableSpeakerphone() {
         try {

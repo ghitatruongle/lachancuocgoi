@@ -467,7 +467,7 @@ void main() {
         overlay: true,
         notification: true,
         accessibility: true,
-        callScreening: false, // different
+        callScreening: false,
       );
       expect(a, isNot(equals(b)));
     });

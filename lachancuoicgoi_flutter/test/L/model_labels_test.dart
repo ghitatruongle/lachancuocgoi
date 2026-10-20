@@ -1,33 +1,30 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/intent/scam_intent.dart';
 
-/// Mirrors the label order from assets/model_labels.txt (23 classes).
-/// Must match the file exactly — the model ghitav3.tflite was trained with
-/// this ordering (confirmed via accuracy_per_label.md + stage34_master_mix.csv).
 const modelLabelOrder = <ScamIntent>[
-  ScamIntent.authPoliceLawsuit, // 0
-  ScamIntent.taxGovApp, // 1
-  ScamIntent.telecomLock, // 2
-  ScamIntent.techSupportHijack, // 3
-  ScamIntent.hospitalEmergency, // 4
-  ScamIntent.virtualKidnapping, // 5
-  ScamIntent.ceoFraudB2b, // 6
-  ScamIntent.socialDeepfakeLoan, // 7
-  ScamIntent.romanceScam, // 8
-  ScamIntent.sextortionBlackmail, // 9
-  ScamIntent.charityDonation, // 10
-  ScamIntent.investmentScam, // 11
-  ScamIntent.jobTaskScam, // 12
-  ScamIntent.giftLottery, // 13
-  ScamIntent.gamblingPrediction, // 14
-  ScamIntent.immigrationVisaScam, // 15
-  ScamIntent.bankCardFraud, // 16
-  ScamIntent.deliveryCod, // 17
-  ScamIntent.fakeSubscription, // 18
-  ScamIntent.blackCreditTerror, // 19
-  ScamIntent.recoveryScam, // 20
-  ScamIntent.genericScam, // 21  ← NOT fakeEcommerce
-  ScamIntent.safe, // 22  ← NOT cryptoDrain
+  ScamIntent.authPoliceLawsuit,
+  ScamIntent.taxGovApp,
+  ScamIntent.telecomLock,
+  ScamIntent.techSupportHijack,
+  ScamIntent.hospitalEmergency,
+  ScamIntent.virtualKidnapping,
+  ScamIntent.ceoFraudB2b,
+  ScamIntent.socialDeepfakeLoan,
+  ScamIntent.romanceScam,
+  ScamIntent.sextortionBlackmail,
+  ScamIntent.charityDonation,
+  ScamIntent.investmentScam,
+  ScamIntent.jobTaskScam,
+  ScamIntent.giftLottery,
+  ScamIntent.gamblingPrediction,
+  ScamIntent.immigrationVisaScam,
+  ScamIntent.bankCardFraud,
+  ScamIntent.deliveryCod,
+  ScamIntent.fakeSubscription,
+  ScamIntent.blackCreditTerror,
+  ScamIntent.recoveryScam,
+  ScamIntent.genericScam,
+  ScamIntent.safe,
 ];
 
 void main() {
@@ -82,14 +79,10 @@ void main() {
     });
 
     test('diverges from intentLabels at index 21', () {
-      // intentLabels[21] = fakeEcommerce (wrong for model)
-      // modelLabelOrder[21] = genericScam (correct for model)
       expect(modelLabelOrder[21], isNot(intentLabels[21]));
     });
 
     test('diverges from intentLabels at index 22', () {
-      // intentLabels[22] = cryptoDrain (wrong for model)
-      // modelLabelOrder[22] = safe (correct for model)
       expect(modelLabelOrder[22], isNot(intentLabels[22]));
     });
   });

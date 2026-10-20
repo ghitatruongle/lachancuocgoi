@@ -34,9 +34,6 @@ void main() {
     testWidgets('renders correctly on Galaxy J6+ portrait screen', (
       tester,
     ) async {
-      // Configure target device dimensions for Samsung Galaxy J6+:
-      // Physical resolution: 720 x 1480 pixels
-      // Logical size: 360 x 740, Device Pixel Ratio: 2.0
       tester.view.physicalSize = const Size(720, 1480);
       tester.view.devicePixelRatio = 2.0;
 
@@ -62,15 +59,9 @@ void main() {
         ),
       );
 
-      // Use repeated pump with delay instead of pumpAndSettle,
-      // because waveform and timer animations run continuously.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      // Wait until the simulated transcript has been analyzed before taking
-      // the screenshot. The new availability state intentionally renders a
-      // neutral card while data is still pending, so capturing the first frame
-      // would make this golden timing-dependent.
       final container = ProviderScope.containerOf(
         tester.element(find.byType(MonitoringPage)),
       );
@@ -80,14 +71,11 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 1000));
 
-      // Verify the UI matching golden screenshot.
-      // Since this is in platform-dependent rendering, we match the Golden target.
       await expectLater(
         find.byType(MonitoringPage),
         matchesGoldenFile('goldens/monitoring_page_j6plus.png'),
       );
 
-      // Reset test view modifications
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });

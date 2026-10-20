@@ -1,6 +1,5 @@
 package com.lachancuocgoi.lachancuocgoi_flutter.services
 
-/** Wire statuses consumed by Flutter's typed MonitoringStartResult parser. */
 enum class MonitoringStartStatus(val wireValue: String) {
     STARTED("started"),
     ALREADY_RUNNING("alreadyRunning"),
@@ -18,3 +17,4 @@ data class MonitoringStartResponse(
         "message" to message,
     )
 }
+

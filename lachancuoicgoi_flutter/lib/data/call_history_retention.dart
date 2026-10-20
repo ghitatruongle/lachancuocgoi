@@ -1,6 +1,5 @@
 import 'app_database.dart';
 
-/// How long locally stored call history is kept on this device.
 enum CallHistoryRetention {
   sevenDays('7_days', 7, '7 ngày'),
   thirtyDays('30_days', 30, '30 ngày'),
@@ -21,7 +20,6 @@ enum CallHistoryRetention {
   }
 }
 
-/// Applies a retention policy without loading transcript bodies into memory.
 class CallHistoryRetentionService {
   const CallHistoryRetentionService();
 

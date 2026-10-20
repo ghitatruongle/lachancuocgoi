@@ -99,10 +99,6 @@ class BertIntentTokenizer {
     final unkId = vocab[unkToken] ?? 100;
     const maxTokens = maxSeqLen - 2;
 
-    // Chiến lược Sliding Truncation (đồng bộ với Kotlin gold standard):
-    // Giữ 50 token đầu tiên (chứa lời xưng danh: cảnh sát, công an, ngân hàng...)
-    // + phần còn lại ở cuối (chứa đỉnh điểm kịch bản: OTP, chuyển tiền, đe dọa).
-    // Không dùng tail-only vì bỏ mất thông tin xưng danh ở đầu cuộc gọi.
     const int headSize = 50;
     final truncatedTokens = tokens.length <= maxTokens
         ? tokens

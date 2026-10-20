@@ -44,13 +44,8 @@ class AlertHistoryEntry {
     return '${_pad(time.hour)}:${_pad(time.minute)}:${_pad(time.second)}';
   }
 
-  /// ARGB color int for this entry's risk level, sourced from
-  /// [RiskLevel.colorValue] (the canonical palette). The UI layer converts
-  /// this to a Flutter `Color` — this data model stays Flutter-free.
   int getRiskLevelColor() => RiskLevel.fromString(riskLevel).colorValue;
 
-  /// Stable icon key derived from the parsed [RiskLevel] level so the
-  /// mapping logic lives in a single place.
   String getRiskLevelIcon() {
     final level = RiskLevel.fromString(riskLevel);
     return switch (level) {

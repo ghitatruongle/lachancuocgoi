@@ -20,14 +20,6 @@ class MainApplication : Application() {
         const val INCOMING_CALL_CHANNEL_ID = "IncomingCallChannel"
         const val MEDIA_PROJECTION_CHANNEL_ID = "media_projection_channel"
 
-        /**
-         * Bug #27 fix: documented the magic constant. On API < 26
-         * (`Build.VERSION_CODES.O`) NotificationChannel has no
-         * `lockscreenVisibility` field, so the user-agent stores it as
-         * -1000 internally. The repair logic used to special-case -1000 →
-         * VISIBILITY_PUBLIC as "already correct, skip"; that magic number
-         * is now named and explained here.
-         */
         const val LOCKSCREEN_VISIBILITY_NO_OVERRIDE = -1000
     }
 
@@ -36,7 +28,6 @@ class MainApplication : Application() {
         createNotificationChannels()
     }
 
-    /** Starts the one shared Flutter engine used by UI and background analysis. */
     @Synchronized
     fun ensureFlutterEngine(): FlutterEngine {
         val totalToken = MonitoringPerfProbe.begin("flutter_engine_total")
@@ -91,7 +82,6 @@ class MainApplication : Application() {
         }
     }
 
-    /** Returns the shared engine without creating one during teardown. */
     fun existingFlutterEngine(): FlutterEngine? = monitoringFlutterEngine
 
     private fun createNotificationChannels() {
@@ -103,11 +93,7 @@ class MainApplication : Application() {
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
             description = "Thông báo khi đang giám sát cuộc gọi"
-            // Bug #18 fix: also set lockscreen visibility so the foreground
-            // monitoring notification is visible on the lockscreen (matching
-            // the INCOMING_CALL_CHANNEL_ID behavior). Previously the user
-            // couldn't see that monitoring was active without unlocking the
-            // device — confusing because the mic indicator is hidden too.
+
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         createOrRepairChannel(
@@ -194,3 +180,4 @@ class MainApplication : Application() {
         return false
     }
 }
+

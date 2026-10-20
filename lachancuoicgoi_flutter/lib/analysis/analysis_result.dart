@@ -96,10 +96,6 @@ class AnalysisResult {
   final String? modelName;
   final bool isError;
 
-  /// True when this result was produced by a fallback analyzer (e.g. L3→L2
-  /// when Gemini is unavailable). Surfaced to the UI so it can render a
-  /// "L3 fallback" notice without polluting [matches] with a synthetic
-  /// "L3 fallback" keyword.
   final bool isFallback;
 
   AnalysisResult copyWith({

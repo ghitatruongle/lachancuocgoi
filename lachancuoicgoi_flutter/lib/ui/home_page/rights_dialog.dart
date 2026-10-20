@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/permission_controller.dart';
 import '../theme/app_theme.dart';
 
-/// Live permission dialog with real-time status and grant actions.
 class RightsDialog extends ConsumerStatefulWidget {
   const RightsDialog({super.key});
 
@@ -14,11 +13,7 @@ class RightsDialog extends ConsumerStatefulWidget {
 
 class _RightsDialogState extends ConsumerState<RightsDialog> {
   bool _isRequestingAll = false;
-  // Track which permission requests are currently in flight so a fast
-  // double-tap on the same row can't spawn multiple concurrent
-  // permission dialogs. The old code only blocked "request all", which
-  // left individual buttons vulnerable to adb-style script replay or
-  // impatient fingers.
+
   final Set<String> _inFlightPermissions = <String>{};
 
   @override
@@ -39,7 +34,6 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
               0.90,
           child: Column(
             children: [
-              // ── Header ──
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
@@ -89,7 +83,6 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
 
               Divider(color: cs.surfaceContainerHighest, height: 1),
 
-              // ── Permission list ──
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () => controller.refresh(),
@@ -241,7 +234,6 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
 
               Divider(color: cs.surfaceContainerHighest, height: 1),
 
-              // ── Footer ──
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
@@ -298,11 +290,6 @@ class _RightsDialogState extends ConsumerState<RightsDialog> {
     }
   }
 
-  /// Wrap a permission-requestor so we can disable its button while the
-  /// underlying dialog / settings intent is in flight. Keys are stable
-  /// strings (`microphone`, `overlay`, …) — the controller already
-  /// knows how to handle concurrent calls, but the UI shouldn't be
-  /// firing the same channel twice within a few hundred milliseconds.
   Future<void> _requestPermission(
     String key,
     Future<void> Function() requestor,
@@ -334,8 +321,7 @@ class _PermissionItem extends StatelessWidget {
   final String description;
   final bool isGranted;
   final Future<void> Function()? onRequest;
-  // Disables the action button while a request for this row is in
-  // flight, preventing duplicate dialogs from rapid taps.
+
   final bool isInFlight;
 
   @override

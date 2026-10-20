@@ -2,41 +2,35 @@ package com.example.lachancuocgoi.Analysis.L2.WFSA
 
 import com.example.lachancuocgoi.Analysis.L2.Intent.ScamIntent
 
-/**
- * Xây dựng các đồ thị kịch bản lừa đảo (WFSA Scenario Graphs) cho 22 nhóm.
- * Mỗi graph mô hình hóa chuỗi sự kiện từ giới thiệu → mồi nhử → thúc ép → hành động.
- * WFSA Engine dùng các graph này để theo dõi tiến trình cuộc gọi theo thời gian thực.
- */
 object ScamGraphBuilder {
 
     fun buildDefaultGraphs(): List<ScenarioGraph> {
         return listOf(
-            buildPoliceImpersonationGraph(),       // 0. AUTH_POLICE_LAWSUIT
-            buildVNeidScamGraph(),                 // 1. TAX_GOV_APP
-            buildTelecomLockGraph(),               // 2. TELECOM_LOCK
-            buildTechSupportHijackGraph(),         // 3. TECH_SUPPORT_HIJACK
-            buildHospitalEmergencyGraph(),         // 4. HOSPITAL_EMERGENCY
-            buildVirtualKidnappingGraph(),         // 5. VIRTUAL_KIDNAPPING
-            buildCeoFraudGraph(),                  // 6. CEO_FRAUD_B2B
-            buildSocialDeepfakeLoanGraph(),        // 7. SOCIAL_DEEPFAKE_LOAN
-            buildRomanceScamGraph(),               // 8. ROMANCE_SCAM
-            buildSextortionBlackmailGraph(),       // 9. SEXTORTION_BLACKMAIL
-            buildCharityDonationGraph(),           // 10. CHARITY_DONATION
-            buildInvestmentScamGraph(),            // 11. INVESTMENT_SCAM
-            buildJobTaskScamGraph(),               // 12. JOB_TASK_SCAM
-            buildGiftLotteryGraph(),               // 13. GIFT_LOTTERY
-            buildGamblingPredictionGraph(),        // 14. GAMBLING_PREDICTION
-            buildImmigrationVisaScamGraph(),       // 15. IMMIGRATION_VISA_SCAM
-            buildBankCardFraudGraph(),             // 16. BANK_CARD_FRAUD
-            buildDeliveryCodGraph(),               // 17. DELIVERY_COD
-            buildFakeSubscriptionGraph(),          // 18. FAKE_SUBSCRIPTION
-            buildBlackCreditTerrorGraph(),         // 19. BLACK_CREDIT_TERROR
-            buildRecoveryScamGraph(),              // 20. RECOVERY_SCAM
-            buildGenericScamGraph()                // 21. GENERIC_SCAM
+            buildPoliceImpersonationGraph(),
+            buildVNeidScamGraph(),
+            buildTelecomLockGraph(),
+            buildTechSupportHijackGraph(),
+            buildHospitalEmergencyGraph(),
+            buildVirtualKidnappingGraph(),
+            buildCeoFraudGraph(),
+            buildSocialDeepfakeLoanGraph(),
+            buildRomanceScamGraph(),
+            buildSextortionBlackmailGraph(),
+            buildCharityDonationGraph(),
+            buildInvestmentScamGraph(),
+            buildJobTaskScamGraph(),
+            buildGiftLotteryGraph(),
+            buildGamblingPredictionGraph(),
+            buildImmigrationVisaScamGraph(),
+            buildBankCardFraudGraph(),
+            buildDeliveryCodGraph(),
+            buildFakeSubscriptionGraph(),
+            buildBlackCreditTerrorGraph(),
+            buildRecoveryScamGraph(),
+            buildGenericScamGraph()
         )
     }
 
-    // === 1. AUTH_POLICE_LAWSUIT ===
     private fun buildPoliceImpersonationGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("POLICE_INTRO", "Giả danh công an", ScamStage.STAGE_1_INTRODUCTION)
@@ -66,7 +60,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 2. TAX_GOV_APP ===
     private fun buildVNeidScamGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("VNEID_INTRO", "Cán bộ phường xử lý định danh", ScamStage.STAGE_1_INTRODUCTION)
@@ -96,7 +89,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 3. TELECOM_LOCK ===
     private fun buildTelecomLockGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("TELECOM_INTRO", "Tổng đài nhà mạng", ScamStage.STAGE_1_INTRODUCTION)
@@ -122,7 +114,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 4. TECH_SUPPORT_HIJACK ===
     private fun buildTechSupportHijackGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("TECH_INTRO", "Bộ phận kỹ thuật/bảo mật", ScamStage.STAGE_1_INTRODUCTION)
@@ -152,7 +143,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 6. VIRTUAL_KIDNAPPING ===
     private fun buildVirtualKidnappingGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("KIDNAP_CLAIM", "Tuyên bố bắt cóc", ScamStage.STAGE_2_BAITING_THREAT)
@@ -174,7 +164,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 8. SOCIAL_DEEPFAKE_LOAN ===
     private fun buildSocialDeepfakeLoanGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("FRIEND_INTRO", "Bạn bè/người quen gọi", ScamStage.STAGE_1_INTRODUCTION)
@@ -200,7 +189,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 12. INVESTMENT_SCAM ===
     private fun buildInvestmentScamGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("INVEST_INTRO", "Giới thiệu cơ hội đầu tư", ScamStage.STAGE_1_INTRODUCTION)
@@ -226,7 +214,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 13. JOB_TASK_SCAM ===
     private fun buildJobTaskScamGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("JOB_INTRO", "Tuyển cộng tác viên", ScamStage.STAGE_1_INTRODUCTION)
@@ -252,7 +239,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 17. BANK_CARD_FRAUD ===
     private fun buildBankCardFraudGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("BANK_INTRO", "Nhân viên ngân hàng", ScamStage.STAGE_1_INTRODUCTION)
@@ -278,7 +264,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 20. BLACK_CREDIT_TERROR ===
     private fun buildBlackCreditTerrorGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("DEBT_CLAIM", "Thông báo nợ", ScamStage.STAGE_2_BAITING_THREAT)
@@ -304,7 +289,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 10. SEXTORTION_BLACKMAIL ===
     private fun buildSextortionBlackmailGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("EVIDENCE_CLAIM", "Tuyên bố có bằng chứng", ScamStage.STAGE_2_BAITING_THREAT)
@@ -330,7 +314,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 4. HOSPITAL_EMERGENCY ===
     private fun buildHospitalEmergencyGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("HOSPITAL_INTRO", "Bệnh viện/bác sĩ gọi", ScamStage.STAGE_1_INTRODUCTION)
@@ -356,7 +339,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 6. CEO_FRAUD_B2B ===
     private fun buildCeoFraudGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("DIRECTOR_INTRO", "Giám đốc/Sếp gọi", ScamStage.STAGE_1_INTRODUCTION)
@@ -378,7 +360,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 8. ROMANCE_SCAM ===
     private fun buildRomanceScamGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("GIFT_CLAIM", "Gửi quà tặng đắt tiền", ScamStage.STAGE_2_BAITING_THREAT)
@@ -400,7 +381,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 10. CHARITY_DONATION === [C3 EXPANDED]
     private fun buildCharityDonationGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("CHARITY_INTRO", "Kêu gọi từ thiện", ScamStage.STAGE_1_INTRODUCTION)
@@ -426,7 +406,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 13. GIFT_LOTTERY ===
     private fun buildGiftLotteryGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("WINNER_INTRO", "Thông báo trúng thưởng", ScamStage.STAGE_2_BAITING_THREAT)
@@ -448,7 +427,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 14. GAMBLING_PREDICTION === [C3 EXPANDED]
     private fun buildGamblingPredictionGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("TIP_BAIT", "Cung cấp số chuẩn", ScamStage.STAGE_1_INTRODUCTION)
@@ -478,7 +456,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 15. IMMIGRATION_VISA_SCAM === [C3 EXPANDED]
     private fun buildImmigrationVisaScamGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("VISA_BAIT", "Bao đậu Visa/XKLĐ", ScamStage.STAGE_1_INTRODUCTION)
@@ -508,7 +485,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 17. DELIVERY_COD ===
     private fun buildDeliveryCodGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("SHIPPER_INTRO", "Giao hàng COD", ScamStage.STAGE_1_INTRODUCTION)
@@ -530,7 +506,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 18. FAKE_SUBSCRIPTION === [C3 EXPANDED]
     private fun buildFakeSubscriptionGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("SUB_THREAT", "Thông báo trừ phí dịch vụ", ScamStage.STAGE_1_INTRODUCTION)
@@ -560,7 +535,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 20. RECOVERY_SCAM === [C3 EXPANDED]
     private fun buildRecoveryScamGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("RECOVERY_BAIT", "Hứa lấy lại tiền", ScamStage.STAGE_1_INTRODUCTION)
@@ -590,7 +564,6 @@ object ScamGraphBuilder {
         )
     }
 
-    // === 21. GENERIC_SCAM === [C3 EXPANDED]
     private fun buildGenericScamGraph(): ScenarioGraph {
         val s0 = StateNode("START", "Initial State", ScamStage.STAGE_1_INTRODUCTION)
         val s1 = StateNode("SUSPICIOUS_BAIT", "Dấu hiệu nghi vấn", ScamStage.STAGE_1_INTRODUCTION)

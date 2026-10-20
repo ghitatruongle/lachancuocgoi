@@ -1,10 +1,6 @@
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 
-/// Declares which call-shield features the current platform can provide.
-///
-/// Android has the full native stack. Other platforms run in **demo mode**
-/// (scripted transcripts + local/cloud analysis only).
 class PlatformCapabilities {
   const PlatformCapabilities({
     required this.isAndroid,
@@ -35,13 +31,12 @@ class PlatformCapabilities {
       systemOverlays: android,
       callScreening: android,
       accessibilityCaptions: android,
-      // Web uses in-memory SQLite stub; desktop/mobile keep on-disk DB.
+
       persistentHistory: !kIsWeb,
       isDemoMode: !android,
     );
   }
 
-  /// Short feature rows for the Home matrix UI.
   List<({String label, bool supported})> get featureMatrix => [
     (label: 'Giám sát cuộc gọi thật', supported: realCallMonitoring),
     (label: 'STT offline (Vosk)', supported: offlineVosk),

@@ -177,8 +177,6 @@ void main() {
     });
 
     test('watchAll stream emits on insert', () async {
-      // The initial empty event was emitted in the constructor (setUp),
-      // so we start a fresh listener here to catch subsequent events.
       final emissions = <List<CallHistory>>[];
       final sub = db.watchAll().listen(emissions.add);
 

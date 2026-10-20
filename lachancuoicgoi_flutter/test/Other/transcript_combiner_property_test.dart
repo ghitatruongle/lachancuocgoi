@@ -6,21 +6,6 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Property-style tests for the `combineTranscriptSources` algorithm
-/// (Sprint 2 / C6). The production function lives in
-/// `lib/services/transcript_combiner.dart` but that file currently
-/// does not compile because the `TranscriptUpdate` class it depends on
-/// has not landed yet. We pin the algorithm here as a reference and
-/// run property tests against the pinned copy.
-///
-/// The captured rule:
-///   - pick the longer of `stt` / `accessibility` as the cumulative
-///     base. Ties go to `stt` (>= comparison).
-///   - if `partial` is non-blank AND cumulative is non-blank, append
-///     `partial` on a new line.
-///   - return `null` when the composed result is blank.
-///   - return `TranscriptUpdate(text: composed, isPartial: partial
-///     is non-blank)`.
 void main() {
   group('combineTranscriptSources — property-style sweep', () {
     test('100 random Vietnamese-like inputs respect the invariants', () {
@@ -66,8 +51,6 @@ void main() {
         }
 
         if (result != null) {
-          // The text must be one of: stt, accessibility, "<stt>\n<partial>",
-          // or "<accessibility>\n<partial>".
           final composed = result.text;
           final expected1 = stt;
           final expected2 = accessibility;
@@ -89,7 +72,6 @@ void main() {
         }
       }
 
-      // Sanity-check that the loop actually exercised both branches.
       expect(nonNullCount, greaterThan(50));
       expect(partialFlagCount, greaterThan(0));
     });
@@ -126,9 +108,6 @@ void main() {
     });
 
     test('partial only and cumulative blank → null (Kotlin parity)', () {
-      // The Kotlin combine in BackgroundMonitoringService only emits a
-      // partial when there is already a cumulative transcript. A
-      // refactor that changes this would break the parity contract.
       expect(
         combineTranscriptSources(stt: '', partial: 'wor', accessibility: ''),
         isNull,
@@ -173,8 +152,6 @@ void main() {
     });
   });
 }
-
-// ── Pinned test fixtures ──────────────────────────────────────────────
 
 class TranscriptUpdate {
   const TranscriptUpdate({required this.text, required this.isPartial});

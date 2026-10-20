@@ -1,15 +1,7 @@
 package com.example.lachancuocgoi.Analysis.L3
 
-/**
- * Prompt templates cho L3 Gemini analysis.
- * Sử dụng kỹ thuật Chain-of-Thought (CoT) để tối đa hoá khả năng suy luận của Gemini 2.5 Flash-Lite.
- */
 object PromptBuilder {
-    
-    /**
-     * Build analysis prompt với định dạng đơn giản.
-     * Đóng vai chuyên gia khách quan, trả về JSON ngắn gọn.
-     */
+
     fun buildAnalysisPrompt(text: String): String = """
         Bạn là người phân tích chuyên nghiệp, khách quan về cuộc gọi điện thoại.
         Hãy phân tích đoạn hội thoại dưới đây và xác định xem đây có phải là cuộc gọi lừa đảo không.
@@ -42,31 +34,24 @@ object PromptBuilder {
         - orange: Có nguy cơ lừa đảo
         - red: Nguy hiểm, rõ ràng là lừa đảo
     """.trimIndent()
-    
-    /**
-     * Build summarization prompt (Dùng cho tính năng tóm tắt nếu cần).
-     */
+
     fun buildSummarizationPrompt(text: String): String = """
         Tóm tắt cuộc gọi trong đúng 1-2 câu ngắn gọn, nêu cực kỳ rõ ai gọi và mục đích.
-        
+
         VÍ DỤ 1:
         Cuộc gọi: "Em là Tuấn bên ngân hàng Vietcombank, gọi xác nhận anh vừa đăng ký vay 100 triệu."
         Tóm tắt: "Nhân viên ngân hàng gọi xác nhận khoản vay 100 triệu."
-        
+
         VÍ DỤ 2:
         Cuộc gọi: "Tôi là đại úy công an Trần V, yêu cầu anh tới trụ sở giải quyết án ma túy."
         Tóm tắt: "Người xưng là công an yêu cầu đến trụ sở giải quyết án oan."
-        
+
         NỘI DUNG CUỘC GỌI:
         "$text"
-        
+
         Tóm tắt tiếng Việt:
     """.trimIndent()
-    
-    /**
-     * Build incremental prompt cho real-time analysis (Streaming).
-     * Yêu cầu AI giữ context và đánh giá liên tục khi cuộc gọi diễn ra.
-     */
+
     fun buildIncrementalPrompt(newText: String, isFirstMessage: Boolean): String {
         return if (isFirstMessage) {
             """

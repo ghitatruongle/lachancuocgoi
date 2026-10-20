@@ -253,7 +253,6 @@ class SimulatorCallShieldBridge
     );
   }
 
-  // Phase 2 (P2-4): Call screening opt-in — no-op on simulator platforms.
   @override
   Future<void> setCallScreeningBlockEnabled(bool enabled) async {}
 

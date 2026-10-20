@@ -87,7 +87,6 @@ void main() {
       await l1.initialize();
       final coordinator = AnalysisCoordinator(l1Analyzer: l1);
 
-      // Use syncProcessedTextLength to simulate processed text
       coordinator.syncProcessedTextLength(100, AnalysisMode.normal);
       expect(coordinator.getProcessedTextLength(AnalysisMode.normal), 100);
 
@@ -268,7 +267,6 @@ void main() {
         AnalysisMode.geminiApi,
       );
 
-      // Should preserve original L2 match and have isFallback = true
       expect(result.isFallback, isTrue);
       expect(result.matches.length, 2);
       expect(
@@ -298,7 +296,7 @@ void main() {
         final coordinator = AnalysisCoordinator(l1Analyzer: l1);
 
         coordinator.syncProcessedTextLength(100, AnalysisMode.normal);
-        // delta = 110 - 100 = 10 < 30 (green L1 minDelta = 50*0.6 = 30)
+
         final result = await coordinator.analyzeIncremental(
           'x' * 110,
           AnalysisMode.normal,
@@ -306,7 +304,7 @@ void main() {
 
         expect(result.overallRiskLevel, RiskLevel.green);
         expect(result.analysisLevel, AnalysisLevel.l1);
-        // processedTextLength unchanged because analysis was skipped
+
         expect(coordinator.getProcessedTextLength(AnalysisMode.normal), 100);
       },
     );
@@ -350,7 +348,6 @@ void main() {
         );
         expect(first.overallRiskLevel, RiskLevel.red);
 
-        // Second call: length hasn't changed, returns lastResult
         final second = await coordinator.analyzeIncremental(
           text,
           AnalysisMode.normal,
@@ -387,14 +384,14 @@ void main() {
         final coordinator = AnalysisCoordinator(l2Analyzer: l2);
 
         coordinator.syncProcessedTextLength(100, AnalysisMode.gDetection);
-        // delta = 120 - 100 = 20 < 40 (green L2 minDelta = 50*0.8 = 40)
+
         final result = await coordinator.analyzeIncremental(
           'x' * 120,
           AnalysisMode.gDetection,
         );
 
         expect(result.analysisLevel, AnalysisLevel.l2);
-        // processedTextLength unchanged
+
         expect(
           coordinator.getProcessedTextLength(AnalysisMode.gDetection),
           100,
@@ -481,8 +478,6 @@ void main() {
       );
       final coordinator = AnalysisCoordinator(l3Analyzer: l3);
 
-      // Text >= 50 chars (L3 green minDelta) AND >= 40 chars (minIncrementalChars)
-      // AND ends with sentence boundary '.'
       const text =
           'Xin chào, tôi là công an đến từ cơ quan điều tra. Anh phải chuyển tiền ngay nhé.';
       expect(
@@ -550,7 +545,6 @@ void main() {
         AnalysisMode.geminiApi,
       );
 
-      // Should fall back to L2 with isFallback = true
       expect(result.isFallback, isTrue);
       expect(result.matches.length, 2);
       expect(

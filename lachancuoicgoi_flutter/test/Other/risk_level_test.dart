@@ -46,12 +46,10 @@ void main() {
     });
 
     test('fromString parses normal and variant strings', () {
-      // Null and empty defaults to green
       expect(RiskLevel.fromString(null), RiskLevel.green);
       expect(RiskLevel.fromString(''), RiskLevel.green);
       expect(RiskLevel.fromString('   '), RiskLevel.green);
 
-      // Standard English names
       expect(RiskLevel.fromString('red'), RiskLevel.red);
       expect(RiskLevel.fromString('RED'), RiskLevel.red);
       expect(RiskLevel.fromString('orange'), RiskLevel.orange);
@@ -61,7 +59,6 @@ void main() {
       expect(RiskLevel.fromString('green'), RiskLevel.green);
       expect(RiskLevel.fromString('GREEN'), RiskLevel.green);
 
-      // Vietnamese names with accents
       expect(RiskLevel.fromString('Nguy hiểm'), RiskLevel.red);
       expect(RiskLevel.fromString('NGUY HIỂM'), RiskLevel.red);
       expect(RiskLevel.fromString('Nguy cơ'), RiskLevel.orange);
@@ -69,7 +66,6 @@ void main() {
       expect(RiskLevel.fromString('Chú ý'), RiskLevel.yellow);
       expect(RiskLevel.fromString('An toàn'), RiskLevel.green);
 
-      // Vietnamese names without accents
       expect(RiskLevel.fromString('NGUY HIEM'), RiskLevel.red);
       expect(RiskLevel.fromString('nguy co'), RiskLevel.orange);
       expect(RiskLevel.fromString('co nguy co'), RiskLevel.orange);

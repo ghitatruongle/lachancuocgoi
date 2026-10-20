@@ -6,8 +6,6 @@ import 'package:lachancuocgoi_flutter/core/risk_level.dart';
 
 void main() {
   group('AnalysisCoordinator._fuseResults — Regression B2', () {
-    // Using a coordinator with default (no-op) analyzers just to access
-    // fuseResultsForTesting. The analyzers themselves are never called.
     late AnalysisCoordinator coordinator;
 
     setUp(() {
@@ -29,7 +27,7 @@ void main() {
         reason: 'L1 orange',
         analysisLevel: AnalysisLevel.l1,
       );
-      // L2 produces the same KeywordMatch (same fields → equal by ==).
+
       const l2 = AnalysisResult(
         overallRiskLevel: RiskLevel.orange,
         matches: [sharedMatch],
@@ -45,8 +43,6 @@ void main() {
 
       final fused = coordinator.fuseResultsForTesting(l1, l2, l3);
 
-      // Before the fix, combinedMatches was a List concat that kept both
-      // copies. Now deduped via LinkedHashSet → only one match.
       expect(fused.matches.length, equals(1));
       expect(fused.matches.single.keyword, equals('chuyển tiền'));
     });
@@ -79,8 +75,6 @@ void main() {
 
       final fused = coordinator.fuseResultsForTesting(l1, l2, l3);
 
-      // Before the fix, alertEnabled defaulted to false — alerting was
-      // silently dropped on fused parallel results.
       expect(fused.alertEnabled, isTrue);
       expect(fused.overallRiskLevel, RiskLevel.orange);
     });

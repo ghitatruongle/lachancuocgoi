@@ -7,7 +7,6 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-
 @Database(entities = [CallHistory::class], version = 5, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
 
@@ -16,11 +15,7 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
-        
-        /**
-         * Migration từ version 4 sang 5: Thêm cột alert_history
-         * Giữ nguyên data cũ, chỉ thêm column mới
-         */
+
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(

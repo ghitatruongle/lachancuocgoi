@@ -26,10 +26,6 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 
-/**
- * Creator Mode service that captures system audio through MediaProjection and
- * forwards transcript/RMS events to Flutter.
- */
 class CreatorMediaProjectionService : Service() {
 
     companion object {
@@ -54,13 +50,6 @@ class CreatorMediaProjectionService : Service() {
 
     private lateinit var voskSttManager: VoskSttManager
 
-    /**
-     * Bug #7 fix: registered against [projection] so we know when the system
-     * revokes it (user disabled it via Settings, OS killed the projection,
-     * etc.). Without this callback the capture loop would keep reading 0
-     * bytes silently and the user would see an empty transcript with no
-     * indication of what went wrong.
-     */
     private val projectionCallback = object : MediaProjection.Callback() {
         override fun onStop() {
             Log.w(TAG, "MediaProjection stopped by system — tearing down capture loop")
@@ -69,10 +58,10 @@ class CreatorMediaProjectionService : Service() {
                 "Quyền MediaProjection đã bị thu hồi. Dừng Creator Mode.",
                 "WARN",
             )
-            // Unregister to avoid re-entry if onStop fires multiple times.
+
             try {
                 projection?.unregisterCallback(this)
-            } catch (_: Exception) { /* ignore */ }
+            } catch (_: Exception) {  }
             stopCapture()
             stopForegroundCompat()
             stopSelf()
@@ -138,11 +127,7 @@ class CreatorMediaProjectionService : Service() {
                 val readyProjection = mediaProjectionManager.getMediaProjection(code, data)
                 if (readyProjection != null) {
                     projection = readyProjection
-                    // Bug #7 fix: register a callback so we are notified when
-                    // the system revokes the projection (user went into
-                    // Settings and turned it off, app killed by OS, etc.).
-                    // Without this, the service would keep running with a
-                    // dead projection — capture loop reads 0 bytes silently.
+
                     readyProjection.registerCallback(
                         projectionCallback,
                         android.os.Handler(android.os.Looper.getMainLooper()),
@@ -283,7 +268,7 @@ class CreatorMediaProjectionService : Service() {
                 while (isActive) {
                     val read = record.read(buffer, 0, buffer.size)
                     if (read > 0) {
-                        // Zero-allocation RMS calculation to avoid GC pressure in high-frequency audio loop
+
                         var sum = 0.0
                         var count = 0
                         var i = 0
@@ -312,12 +297,10 @@ class CreatorMediaProjectionService : Service() {
         captureJob?.cancel()
         transcriptJob?.cancel()
         devModeWatchdogJob?.cancel()
-        // Bug #7 fix: unregister our callback BEFORE stopping the projection
-        // to break the potential re-entry loop if onStop() fires during the
-        // teardown.
+
         try {
             projection?.unregisterCallback(projectionCallback)
-        } catch (_: Exception) { /* ignore */ }
+        } catch (_: Exception) {  }
         projection?.stop()
         projection = null
         CreatorAudioCaptureManager.stopCapture()
@@ -354,3 +337,4 @@ class CreatorMediaProjectionService : Service() {
         manager.createNotificationChannel(channel)
     }
 }
+

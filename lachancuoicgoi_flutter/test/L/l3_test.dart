@@ -76,7 +76,7 @@ void main() {
       expect(red.overallRiskLevel, RiskLevel.red);
       expect(green1.overallRiskLevel, RiskLevel.red);
       expect(green2.overallRiskLevel, RiskLevel.red);
-      // RED should NOT de-escalate (only YELLOW can de-escalate for safety)
+
       expect(green3.overallRiskLevel, RiskLevel.red);
     });
 

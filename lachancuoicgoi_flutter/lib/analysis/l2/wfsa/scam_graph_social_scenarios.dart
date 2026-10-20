@@ -1,8 +1,5 @@
 part of 'scam_graph_builder.dart';
 
-/// Social-impersonation and emotional-manipulation scenarios: kidnap, CEO,
-/// deepfake, romance, sextortion, charity, investment, job, lottery,
-/// gambling, visa (11 scenarios).
 List<ScenarioGraph> _socialScenarios() {
   return <ScenarioGraph>[
     ScamGraphBuilder._linear(

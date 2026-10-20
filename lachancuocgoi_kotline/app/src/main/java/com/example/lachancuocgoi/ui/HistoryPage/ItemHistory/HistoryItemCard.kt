@@ -105,7 +105,7 @@ fun HistoryItemCard(item: CallHistory, onClick: () -> Unit) {
                     val analysisLabel = item.analysisType ?: "Không phân tích"
 
                     SuggestionChip(
-                        onClick = { /* Do nothing for now */ },
+                        onClick = {  },
                         label = { Text(analysisLabel) },
                         colors = if (item.analysisType == null) {
                             SuggestionChipDefaults.suggestionChipColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))

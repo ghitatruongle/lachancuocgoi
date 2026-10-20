@@ -62,8 +62,7 @@ class CreatorMediaProjectionService : Service() {
         }
 
         createNotificationChannel()
-        
-        // Thêm nút Dừng (Stop) vào Notification để người dùng có thể tự tắt khi vuốt thoát app
+
         val stopIntent = Intent(this, CreatorMediaProjectionService::class.java).apply {
             action = ACTION_STOP
         }
@@ -106,8 +105,7 @@ class CreatorMediaProjectionService : Service() {
                     getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
                 val projection = mediaProjectionManager.getMediaProjection(code, data)
                 onMediaProjectionReady?.invoke(projection)
-                
-                // Trực tiếp bắt đầu đọc Audio từ Service
+
                 startAudioLoop(projection)
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -121,7 +119,6 @@ class CreatorMediaProjectionService : Service() {
         val record = CreatorAudioCaptureManager.startCapture(projection) ?: return
         Log.d(TAG, "Started AudioPlaybackCapture from Background Service")
 
-        // Giám sát Dev Mode — tự dừng service khi hết hạn
         devModeWatchdogJob?.cancel()
         devModeWatchdogJob = serviceScope.launch {
             while (isActive) {
@@ -137,7 +134,7 @@ class CreatorMediaProjectionService : Service() {
                     stopSelf()
                     break
                 }
-                delay(5000) // Kiểm tra mỗi 5 giây
+                delay(5000)
             }
         }
 
@@ -167,7 +164,7 @@ class CreatorMediaProjectionService : Service() {
                             }
                             .map { Math.abs(it).toFloat() }
                             .average().toFloat()
-                            
+
                         val normalizedRms = (amplitude / 2184f).coerceIn(0f, 15f)
                         CreatorAudioCaptureManager.emitAmplitude(normalizedRms)
 
@@ -200,7 +197,7 @@ class CreatorMediaProjectionService : Service() {
             val channel = NotificationChannel(
                 "media_projection_channel",
                 "Media Projection Service",
-                NotificationManager.IMPORTANCE_HIGH // Đẩy lên HIGH để popup cảnh báo
+                NotificationManager.IMPORTANCE_HIGH
             )
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)

@@ -56,7 +56,6 @@ void main() {
     });
 
     test('single ORANGE keyword returns YELLOW (score=0.60 < 1.0)', () {
-      // score = maxLevel(2) * weight(0.30 for 1 keyword) = 0.60 < 1.0 => YELLOW
       final matches = <KeywordMatch>{
         const KeywordMatch(
           keyword: 'chuyển tiền gấp',
@@ -71,7 +70,6 @@ void main() {
     });
 
     test('single RED keyword returns YELLOW (score=0.90 < 1.0)', () {
-      // score = maxLevel(3) * weight(0.30 for 1 keyword) = 0.90 < 1.0 => YELLOW
       final matches = <KeywordMatch>{
         const KeywordMatch(
           keyword: 'đe dọa',
@@ -86,7 +84,6 @@ void main() {
     });
 
     test('three RED keywords in same category reach RED (score=2.55)', () {
-      // score = maxLevel(3) * weight(0.85 for 3 keywords) = 2.55 >= 2.50 => RED
       final matches = <KeywordMatch>{
         const KeywordMatch(
           keyword: 'đe dọa',
@@ -110,7 +107,6 @@ void main() {
     });
 
     test('two ORANGE keywords in same category reach ORANGE (score=1.30)', () {
-      // score = maxLevel(2) * weight(0.65 for 2 keywords) = 1.30 >= 1.0 => ORANGE
       final matches = <KeywordMatch>{
         const KeywordMatch(
           keyword: 'chuyển tiền',
@@ -232,7 +228,6 @@ void main() {
     });
 
     test('two RED keywords in same category reach ORANGE (score=1.95)', () {
-      // score = maxLevel(3) * weight(0.65 for 2 keywords) = 1.95 < 2.50 => ORANGE
       final matches = <KeywordMatch>{
         const KeywordMatch(
           keyword: 'đe dọa',
@@ -414,7 +409,6 @@ void main() {
     test(
       'RED level reason uses dangerous warning text (via critical keyword)',
       () {
-        // Critical keyword forces RED regardless of score
         final matches = <KeywordMatch>{
           const KeywordMatch(
             keyword: 'mã otp',
@@ -428,7 +422,6 @@ void main() {
     );
 
     test('ORANGE level reason uses risk warning text', () {
-      // 2 ORANGE keywords: score = 2 * 0.65 = 1.30 => ORANGE
       final matches = <KeywordMatch>{
         const KeywordMatch(
           keyword: 'chuyển tiền',
@@ -460,7 +453,6 @@ void main() {
 
   group('L1ResultParser.parse - edge cases', () {
     test('duplicate keywords from same category are deduplicated via Set', () {
-      // Build from list to avoid equal_elements_in_set lint warning
       final matches = <KeywordMatch>{
         for (final m in [
           const KeywordMatch(

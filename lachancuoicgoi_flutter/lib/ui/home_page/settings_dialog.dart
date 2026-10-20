@@ -35,7 +35,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // --- Header ---
             Row(
               children: [
                 Expanded(
@@ -80,7 +79,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             ),
             const SizedBox(height: AppSpacing.xxs),
 
-            // --- Content ---
             Flexible(
               child: SingleChildScrollView(
                 child: Column(
@@ -117,7 +115,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
   }
 }
 
-/// Developer password dialog (triggered by tapping title 5 times).
 class _DevPasswordDialog extends ConsumerStatefulWidget {
   const _DevPasswordDialog();
 

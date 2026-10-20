@@ -41,9 +41,6 @@ void main() {
         wrap(const InfoLine(icon: Icons.info, text: 'Default color')),
       );
 
-      // When color is null, InfoLine uses cs.onSurfaceVariant.
-      // The icon and text widgets will both have non-null colors resolved
-      // from the theme. Verify the Text widget's style has a color.
       final text = tester.widget<Text>(find.text('Default color'));
       expect(text.style?.color, isNotNull);
     });
@@ -62,12 +59,10 @@ void main() {
         wrap(const InfoLine(icon: Icons.info, text: 'Gap test', gap: 24)),
       );
 
-      // Find the SizedBox between icon and text. The Row children are:
-      // [Icon, SizedBox(width: gap), Expanded(child: Text)].
       final sizedBoxes = tester.widgetList<SizedBox>(
         find.descendant(of: find.byType(Row), matching: find.byType(SizedBox)),
       );
-      // At least one should have width == 24.
+
       expect(sizedBoxes.any((sb) => sb.width == 24), isTrue);
     });
 

@@ -36,24 +36,17 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         private const val DEBUG_LOGS = false
         private const val GOOGLE_RETRY_INTERVAL_MS = 30_000L
         private const val GOOGLE_RETRY_MAX_ATTEMPTS = 10
-        // Max wait for the Google test recognizer to signal readiness/error
-        // during a retry probe. If neither fires (service hung), we abort the
-        // probe and resume Vosk so the call doesn't go silent.
+
         private const val GOOGLE_TEST_TIMEOUT_MS = 5_000L
         private const val VOSK_SAMPLE_RATE = 16000
         private const val VOSK_CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
         private const val VOSK_AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
-        // RMS throttle: the dB reading feeds only the monitoring UI and
-        // tolerates ~1Hz updates. Computing RMS on every ~320ms read iterates
-        // ~5000 byte pairs and competes with the Vosk JNI on weak arm32
-        // devices (e.g. SM-J610F). Skip N-1 of every N reads to cut the loop
-        // cost ~3x without any perceptible UI change.
+
         private const val VOSK_RMS_THROTTLE_READS = 3
     }
 
     override val name = "Google"
 
-    // Vosk Fallback Engine
     private var voskFallback: VoskSttManager? = null
     private var voskMicRecord: AudioRecord? = null
     private var voskMicJob: Job? = null
@@ -71,16 +64,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         }
     }
 
-    /**
-     * Start Vosk as the primary engine — used when Google STT is unavailable
-     * (e.g. on a device without the Google SpeechService or in airplane mode at
-     * start time). Returns true if Vosk is now active and listening.
-     *
-     * The Vosk model must already be loaded — call [preloadVoskFallback] from
-     * onCreate so the model is warm by the time monitoring begins. If the model
-     * is not ready yet (e.g. the user starts monitoring < 1s after service
-     * start) this returns false and the caller can fall through to Google.
-     */
     fun startVoskPrimaryIfReady(): Boolean {
         val vosk = voskFallback
         if (vosk == null) {
@@ -112,7 +95,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
 
     @Volatile
     private var cumulativeTranscript = ""
-    private val transcriptLock = Any()  // Bug fix: synchronize cumulativeTranscript access
+    private val transcriptLock = Any()
     private val _fullTranscriptFlow = MutableStateFlow("")
     override val fullTranscriptFlow = _fullTranscriptFlow.asStateFlow()
 
@@ -127,11 +110,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
 
     private var shouldBeListening = false
 
-    /**
-     * Read-only snapshot of [shouldBeListening] — used by
-     * `BackgroundMonitoringService` from the audio-focus listener to decide
-     * whether to re-start STT after a transient focus loss.
-     */
     val shouldBeListeningSnapshot: Boolean
         get() = shouldBeListening
 
@@ -142,7 +120,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
     private var consecutiveError12Count = 0
     private val MAX_CONSECUTIVE_ERROR12 = 20
 
-    // Google retry: periodically try switching back from Vosk to Google STT
     private var googleRetryCount = 0
     private val googleRetryRunnable = Runnable { attemptGoogleRetry() }
 
@@ -232,12 +209,12 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         }
 
         override fun onResults(results: Bundle?) {
-            // Bug fix: skip if Vosk is active (prevents race with switchToVoskFallback)
+
             if (isVoskFallbackActive) {
                 if (DEBUG_LOGS) Log.d(TAG, "Vosk active — ignoring Google onResults")
                 return
             }
-            
+
             val result = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: ""
             if (result.isNotEmpty()) {
                 synchronized(transcriptLock) {
@@ -257,9 +234,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         override fun onPartialResults(partialResults: Bundle?) {
             val partialResult = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: ""
             if (partialResult.isNotEmpty()) {
-                // Only update textResults (current utterance) for partial results.
-                // Do NOT overwrite _fullTranscriptFlow — partial results are temporary
-                // and would cause Flutter to run analysis on incomplete text.
+
                 _textResults.value = partialResult
             }
         }
@@ -267,20 +242,9 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         override fun onEvent(eventType: Int, params: Bundle?) {}
     }
 
-    /**
-     * Sprint 2 (B3): pause STT without forgetting the user's intent to
-     * monitor. Used by `BackgroundMonitoringService` when audio focus is
-     * lost transiently (e.g. another app starts a call, a navigation
-     * prompt fires, etc.). The [resumeListening] call from the focus
-     * listener will re-start recognition if the user was listening before.
-     *
-     * Implementation: cancel and destroy the current [SpeechRecognizer]
-     * (frees the mic immediately) but keep [shouldBeListening] = true so
-     * [startListening] knows to fire again on resume.
-     */
     fun pauseListening() {
         if (DEBUG_LOGS) Log.d(TAG, "pauseListening() — cancelling recognizer but keeping intent")
-        // Cancel any pending restart timer so it doesn't fire mid-pause.
+
         handler.removeCallbacks(restartRunnable)
         val recognizerToDestroy = speechRecognizer
         speechRecognizer = null
@@ -297,18 +261,12 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             }
             _isListening.value = false
         }
-        // If Vosk is the active engine, stop the mic read loop too but
-        // keep the fallback flag so resumeListening re-starts it.
+
         if (isVoskFallbackActive) {
             stopVoskMicReading()
         }
     }
 
-    /**
-     * Sprint 2 (B3): counterpart to [pauseListening]. Re-starts the
-     * appropriate engine iff [shouldBeListening] is still true. Safe to
-     * call when the engine is already running (no-op).
-     */
     fun resumeListening() {
         if (!shouldBeListening) {
             if (DEBUG_LOGS) Log.d(TAG, "resumeListening() — no intent to listen, skipping")
@@ -320,7 +278,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 if (DEBUG_LOGS) Log.d(TAG, "resumeListening() — Vosk not ready, skipping")
                 return
             }
-            // Vosk is the active engine — re-arm the mic read loop.
+
             startVoskMicReading(vosk)
         } else {
             startListening()
@@ -328,12 +286,12 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
     }
 
     fun startListening() {
-        // Bug fix: skip if Vosk fallback is active (prevents race with switchToVoskFallback)
+
         if (isVoskFallbackActive) {
             if (DEBUG_LOGS) Log.d(TAG, "Vosk fallback active — skipping Google startListening")
             return
         }
-        
+
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Log.e(TAG, "RECORD_AUDIO permission not granted. Cannot start speech recognition.")
             shouldBeListening = false
@@ -355,7 +313,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         }
         shouldBeListening = true
 
-        // Only remove our restart callbacks — not all handler callbacks
         handler.removeCallbacks(restartRunnable)
 
         val enqueuedAtNanos = MonitoringPerfProbe.nowNanos()
@@ -384,11 +341,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 MonitoringPerfProbe.end(cleanupToken)
             }
 
-            // Bug #3 fix: the entire construction block is wrapped in
-            // try/finally so the isRestarting flag is ALWAYS reset, even if
-            // SpeechRecognizer.createSpeechRecognizer() throws (e.g. on a
-            // broken device) or returns null. Without this, a single failure
-            // permanently locks all future startListening() calls.
             try {
                 val createToken = MonitoringPerfProbe.begin("speech_create_recognizer")
                 val recognizer = try {
@@ -410,7 +362,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                     Log.e(TAG, "createSpeechRecognizer returned null — STT permanently unavailable")
                     shouldBeListening = false
                     _sttState.value = SttState.Error("Không thể khởi tạo SpeechRecognizer", false)
-                    return@post // finally still runs
+                    return@post
                 }
                 recognizer.setRecognitionListener(recognitionListener)
                 speechRecognizer = recognizer
@@ -437,12 +389,10 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             } catch (e: Throwable) {
                 mainTaskOutcome = "success=false,error=${e.javaClass.simpleName}"
                 Log.e(TAG, "Unexpected error creating SpeechRecognizer", e)
-                // Don't crash — schedule a retry via the normal restart path.
+
                 handler.postDelayed(restartRunnable, 2000)
             } finally {
-                // Bug #3 fix: unconditional reset. Without this, any throw
-                // from createSpeechRecognizer / setRecognitionListener /
-                // startListening would leave isRestarting=true forever.
+
                 isRestarting = false
                 MonitoringPerfProbe.end(mainTaskToken, mainTaskOutcome)
             }
@@ -460,21 +410,14 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
 
         stopGoogleRetry()
 
-        // Bug fix: Stop Vosk mic if active (previously only Google was cleaned up)
         if (isVoskFallbackActive) {
             if (DEBUG_LOGS) Log.d(TAG, "Stopping Vosk fallback mic...")
             stopVoskMicReading()
             isVoskFallbackActive = false
         }
 
-        // Only remove our restart callbacks — not all handler callbacks
-        // (prevents killing unrelated speakerphone enforcement callbacks).
         handler.removeCallbacks(restartRunnable)
 
-        // Capture the current recognizer reference so we can safely null out
-        // the field immediately. This prevents a race where stopListening()
-        // is called twice and the second call tries to cancel a recognizer
-        // that was already destroyed.
         val recognizerToDestroy = speechRecognizer
         speechRecognizer = null
 
@@ -503,9 +446,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             _isListening.value = false
             _sttState.value = SttState.Error("Google Speech không khả dụng — chuyển sang chế độ dự phòng", false)
 
-            // Sprint 2 (C1): replaced the Toast with a structured event
-            // that the Dart UI renders as an in-page banner. Toasts are
-            // easy to miss and look out of place in this app's design.
             NativeBridgeEventSink.sendMonitoringState(
                 "STT_FALLBACK:VOSK:error12_loop"
             )
@@ -538,17 +478,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         _textResults.value = ""
     }
 
-    /**
-     * Release the heavy Vosk native model early — called from the host
-     * service's onDestroy() before the service scope cancels — so the
-     * acoustic model (potentially 100s of MB) is reclaimed promptly
-     * instead of waiting for the full teardown chain.
-     *
-     * Idempotent: after this runs, [voskFallback] is nulled so the later
-     * [destroy] call is a no-op for the Vosk side. Safe to call from any
-     * thread: VoskSttManager.destroy() routes close() through the main
-     * looper to serialize with in-flight model init.
-     */
     fun releaseVoskModel() {
         if (voskFallback == null) return
         stopVoskMicReading()
@@ -566,12 +495,11 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         voskFallback = null
     }
 
-    // Vosk Fallback: Mic-based offline STT
     private fun switchToVoskFallback() {
         val vosk = voskFallback
         if (vosk == null || !vosk.isModelReady) {
             Log.w(TAG, "Vosk fallback không sẵn sàng — không thể chuyển")
-            // Bug fix: cleanup limbo state (previously left shouldBeListening=true with no engine)
+
             shouldBeListening = false
             _isListening.value = false
             _sttState.value = SttState.Error("STT fallback không khả dụng", false)
@@ -580,15 +508,12 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
 
         Log.i(TAG, "Switching STT engine: Google → Vosk (offline fallback)")
         isVoskFallbackActive = true
-        // Bug #33 fix: reset all error counters when switching engines so a
-        // stale error count from Google STT doesn't immediately trigger
-        // another fallback when we switch back.
+
         consecutiveError12Count = 0
         restartPolicy.reset()
         _sttState.value = SttState.Error("Mất mạng — chuyển sang nhận diện offline", true)
         onEngineSwitched?.invoke(true)
 
-        // Destroy Google SpeechRecognizer before switching to Vosk
         val recognizerToDestroy = speechRecognizer
         speechRecognizer = null
         handler.post {
@@ -603,8 +528,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
     private fun switchToGoogle() {
         Log.i(TAG, "Switching STT engine: Vosk → Google (online restored)")
         isVoskFallbackActive = false
-        // Bug #33 fix: reset all error counters on every engine switch so
-        // counters don't leak across engines.
+
         consecutiveError12Count = 0
         restartPolicy.reset()
         onEngineSwitched?.invoke(false)
@@ -659,11 +583,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             record.release()
             _sttState.value = SttState.Error("Không thể thu âm ngoại tuyến (mic đang bị chiếm dụng)", false)
             _isListening.value = false
-            // Bug #19 fix: schedule a retry. The mic is often briefly held
-            // by telephony at the start of a call; a 2-second retry catches
-            // the case where the call becomes stable and the mic is released.
-            // Without this retry the entire monitoring session would have no
-            // audio for the rest of the call.
+
             scheduleVoskMicRetry()
             return
         }
@@ -684,8 +604,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                         vosk.processAudioBuffer(buffer, read)
                         if (++readsSinceLastRms >= VOSK_RMS_THROTTLE_READS) {
                             readsSinceLastRms = 0
-                            // Zero-allocation RMS: iterate byte pairs directly
-                            // instead of creating List/Chunked/MapNotNull/Map chains.
+
                             var sum = 0.0
                             var count = 0
                             var i = 0
@@ -709,8 +628,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         }
 
         voskMicJob?.invokeOnCompletion {
-            // Bug fix: only stop, don't release (stopVoskMicReading handles release)
-            // Previously both paths called release(), causing double-release on native resource
+
             try {
                 record.stop()
             } catch (_: Exception) {}
@@ -741,11 +659,9 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
     private fun stopVoskMicReading() {
         voskMicJob?.cancel()
         voskMicJob = null
-        
-        // Bug fix: cancel flow collectors to prevent memory leak
-        // (previously only voskMicJob was cancelled, flow collectors accumulated)
+
         voskScope.coroutineContext.cancelChildren()
-        
+
         try {
             voskMicRecord?.let { record ->
                 if (record.state == AudioRecord.STATE_INITIALIZED) {
@@ -762,9 +678,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         _isListening.value = false
     }
 
-    // Bug #19 fix: retry mechanism for the case where telephony briefly
-    // holds the mic lock. Bounded to VOSK_RETRY_MAX_ATTEMPTS to avoid
-    // spinning forever on a device where the mic is genuinely unavailable.
     private var voskRetryCount = 0
     private val VOSK_RETRY_MAX_ATTEMPTS = 3
     private val VOSK_RETRY_DELAY_MS = 2000L
@@ -776,7 +689,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             return
         }
         if (!shouldBeListening || !isVoskFallbackActive) {
-            // User or system already gave up — no point retrying.
+
             voskRetryCount = 0
             return
         }
@@ -785,11 +698,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
             val vosk = voskFallback ?: return@postDelayed
             if (vosk.isModelReady && isVoskFallbackActive && shouldBeListening) {
                 startVoskMicReading(vosk)
-                // Bug fix (review): only reset retry count when
-                // startVoskMicReading actually succeeded. Previously the
-                // count was reset unconditionally, so if startVoskMicReading
-                // failed silently (returned without throwing), the retry
-                // loop would spin forever.
+
                 if (_isListening.value) {
                     voskRetryCount = 0
                 }
@@ -801,8 +710,6 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         isVoskFallbackActive = false
         stopVoskMicReading()
     }
-
-    // ── Google Retry: periodically try switching back from Vosk ─────────
 
     private fun startGoogleRetry() {
         stopGoogleRetry()
@@ -834,10 +741,8 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         googleRetryCount++
         Log.i(TAG, "Google retry #$googleRetryCount: attempting to switch back from Vosk")
 
-        // Stop Vosk mic temporarily to free the microphone
         stopVoskMicReading()
 
-        // Try creating a test SpeechRecognizer to check if the service is responsive
         handler.post {
             if (!isVoskFallbackActive || !shouldBeListening) return@post
             val testRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
@@ -849,10 +754,7 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
                 return@post
             }
             var decided = false
-            // Safety timeout: if the recognizer neither fires onReadyForSpeech
-            // nor onError within GOOGLE_TEST_TIMEOUT_MS (e.g. the Google speech
-            // service is hung), we must NOT leave Vosk mic stopped forever —
-            // resume it and reschedule. Without this, the call goes silent.
+
             val timeoutRunnable = Runnable {
                 if (decided) return@Runnable
                 decided = true
@@ -922,3 +824,4 @@ class SpeechToTextManager(private val context: Context) : SttEngine {
         }
     }
 }
+

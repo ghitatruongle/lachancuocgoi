@@ -9,7 +9,6 @@ import '../../services/permission_controller.dart';
 import '../theme/app_theme.dart';
 import 'permission_rationale_steps.dart';
 
-/// First-run explanation and minimum-permission setup.
 class OnboardingPage extends ConsumerStatefulWidget {
   const OnboardingPage({super.key});
 

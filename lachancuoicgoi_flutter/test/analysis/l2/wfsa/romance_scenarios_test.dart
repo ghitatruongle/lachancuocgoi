@@ -1,8 +1,3 @@
-// Wave 6 tests: Romance scam scenarios.
-//
-// Tests that the 6 romance scenarios are correctly built and have
-// appropriate structure for the WFSA engine.
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/wfsa/scam_graph_builder.dart';
 import 'package:lachancuocgoi_flutter/analysis/l2/wfsa/wfsa_engine.dart';
@@ -97,7 +92,6 @@ void main() {
     });
 
     test('total scenario count is correct with Wave 6', () {
-      // Original 24 + 8 investment + 6 romance = 38
       expect(allScenarios.length, 38);
     });
   });

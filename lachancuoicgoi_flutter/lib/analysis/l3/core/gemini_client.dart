@@ -20,7 +20,6 @@ typedef GeminiRequestExecutor =
 
 enum GeminiErrorType { quota, auth, modelNotFound, timeout, network, unknown }
 
-/// Shared error classifier used by both [GeminiClient] and [GeminiChatSession].
 GeminiErrorType classifyGeminiError(Object? error) {
   final message = error?.toString().toLowerCase() ?? '';
   if (message.contains('429') || message.contains('quota')) {
@@ -47,14 +46,11 @@ GeminiErrorType classifyGeminiError(Object? error) {
   return GeminiErrorType.unknown;
 }
 
-/// Default model priority list for Gemini API, shared across client and session.
-/// The client tries each model in order, falling back to the next on failure.
-/// Priority: newest/most capable first → oldest/lightest last.
 const List<String> geminiFallbackModels = <String>[
-  'gemini-flash-latest', // Alias ổn định, đã kiểm tra trực tiếp với API.
-  'gemini-3-flash', // Thế hệ 3 đầy đủ.
-  'gemini-2.5-flash', // Fallback ổn định thế hệ 2.5.
-  'gemini-2.5-flash-lite', // Fallback nhẹ nhất.
+  'gemini-flash-latest',
+  'gemini-3-flash',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
 ];
 
 class GeminiClient {
@@ -83,12 +79,7 @@ class GeminiClient {
   int _consecutiveFailures = 0;
   DateTime? _circuitOpenedAt;
   bool _hasNotifiedAllExhausted = false;
-  // Rate-limit serialization: a Future chain that every call appends to.
-  // Each call awaits the previous link, then enforces the min spacing
-  // relative to the previous call's completion. This makes _applyRateLimit
-  // atomic under concurrency — two overlapping query() calls can no longer
-  // both read the stale timestamp and fire simultaneously (which previously
-  // defeated the 1s minimum spacing).
+
   Future<void> _rateLimitChain = Future<void>.value();
   DateTime? _lastCallTimestamp;
 
@@ -160,7 +151,6 @@ class GeminiClient {
           final parsed = parser(responseText, modelName);
           keyHealthTracker?.markSuccess(keyIndex);
 
-          // L3 Resilience: Cost tracking
           final estimatedTokens = (prompt.length + responseText.length) ~/ 4;
           keyHealthTracker?.recordTokenUsage(keyIndex, estimatedTokens);
 
@@ -250,9 +240,7 @@ class GeminiClient {
 
   void _recordSuccess() {
     _consecutiveFailures = 0;
-    // Fix: chỉ reset cờ "all keys exhausted" khi có request thành công
-    // trở lại — tránh onAllKeysExhausted bị bắn lặp ở mọi query khi
-    // toàn bộ key vẫn đang down.
+
     _hasNotifiedAllExhausted = false;
     if (_circuitState == _CircuitState.halfOpen) {
       _circuitState = _CircuitState.closed;
@@ -268,9 +256,6 @@ class GeminiClient {
   }
 
   Future<void> _applyRateLimit() async {
-    // Serialize rate-limit checks through a Future chain so concurrent callers
-    // queue up rather than each reading a stale _lastCallTimestamp and firing
-    // together. Each caller appends its own delay link after the previous one.
     final completer = Completer<void>();
     final previous = _rateLimitChain;
     _rateLimitChain = completer.future;

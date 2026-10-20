@@ -108,14 +108,8 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Reading both providers from the same container ensures the
-      // coordinator gets the same singleton analyzer instances.
       final coordinator = container.read(analysisCoordinatorProvider);
       expect(coordinator, isA<AnalysisCoordinator>());
-      // If the coordinator had created its own L1Analyzer (instead of
-      // receiving the singleton), the provider would have failed or
-      // created a second instance. The construction succeeding confirms
-      // the wiring through ref.read is correct.
     });
   });
 
@@ -130,9 +124,6 @@ void main() {
       final l3 = container.read(l3AnalyzerProvider);
       final coordinator = container.read(analysisCoordinatorProvider);
 
-      // All five providers resolved without error — the dependency chain
-      // (coordinator -> l2 -> gDetectionEngine, coordinator -> l1, l3)
-      // is intact.
       expect(l1, isA<L1Analyzer>());
       expect(gEngine, isA<GDetectionEngine>());
       expect(l2, isA<L2Analyzer>());
@@ -149,7 +140,6 @@ void main() {
       final l1FromC1 = container1.read(l1AnalyzerProvider);
       final l1FromC2 = container2.read(l1AnalyzerProvider);
 
-      // Different containers → different singleton instances.
       expect(identical(l1FromC1, l1FromC2), isFalse);
     });
   });

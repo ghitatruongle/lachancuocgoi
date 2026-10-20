@@ -11,7 +11,6 @@ import '../ui/simulation_page/simulation_page.dart';
 import '../ui/tips_lesson_page/tips_lesson_page.dart';
 import 'settings_controller.dart';
 
-/// Safe [GoRouteState.extra] for `/monitoring` (expects string keys).
 Map<String, dynamic>? _monitoringRouteExtra(Object? extra) {
   if (extra == null) return null;
   if (extra is Map<String, dynamic>) return extra;
@@ -48,7 +47,6 @@ List<Map<String, dynamic>>? _scriptLinesFromExtra(Map<String, dynamic>? map) {
   return null;
 }
 
-/// Pure first-run redirect policy, kept separate for deterministic tests.
 String? onboardingRedirect(SettingsState settings, String matchedLocation) {
   return _onboardingRedirectValues(
     isLoaded: settings.isLoaded,
@@ -72,8 +70,6 @@ String? _onboardingRedirectValues({
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  // Theme/audio/privacy changes must not recreate the router and reset the
-  // current navigation stack. Only first-run routing state is relevant here.
   final routingState = ref.watch(
     settingsControllerProvider.select(
       (settings) => (settings.isLoaded, settings.onboardingCompleted),

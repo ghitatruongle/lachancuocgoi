@@ -2,20 +2,16 @@ package com.example.lachancuocgoi.Analysis.L3.core
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * Response model cho analysis request.
- * Khớp với JSON format được định nghĩa trong prompt.
- */
 data class AnalysisResponse(
     @SerializedName("level")
-    val level: String?, // "green", "yellow", "orange", "red"
+    val level: String?,
 
     @SerializedName("label")
-    val label: String?, // Loại lừa đảo
+    val label: String?,
 
     @SerializedName("reason")
-    val reason: String?, // Giải thích ngắn gọn
+    val reason: String?,
 
     @SerializedName("recommendation")
-    val recommendation: String? // Khuyến cáo ngắn gọn
+    val recommendation: String?
 )

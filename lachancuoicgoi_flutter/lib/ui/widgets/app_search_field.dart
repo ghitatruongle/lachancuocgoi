@@ -1,11 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// A search text field with rounded borders and an optional clear button.
-///
-/// Replaces the duplicated search-field scaffolding in history and simulation
-/// pages (Sprint 5.2 — Pattern F): `prefixIcon: Icon(Icons.search)`, a clear
-/// `IconButton` that appears when [value] is non-empty, and three
-/// `circular(24)` outline borders (border / enabled / focused).
 class AppSearchField extends StatelessWidget {
   const AppSearchField({
     super.key,
@@ -22,15 +16,11 @@ class AppSearchField extends StatelessWidget {
   final TextEditingController? controller;
   final FocusNode? focusNode;
 
-  /// Current query value, used to decide whether to show the clear button when
-  /// no [controller] is supplied.
   final String? value;
 
   final String hintText;
   final ValueChanged<String>? onChanged;
 
-  /// Called when the user taps the clear button. Defaults to clearing via the
-  /// controller (if present) or forwarding an empty string to [onChanged].
   final VoidCallback? onClear;
 
   final TextInputAction? textInputAction;
